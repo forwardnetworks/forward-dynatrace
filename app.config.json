@@ -1,0 +1,16 @@
+{
+  "$schema": "./.dt-app/app.config.schema.json",
+  "environmentUrl": "https://tjo85665.apps.dynatrace.com/",
+  "app": {
+    "name": "dynatrace-forward-network-proof",
+    "version": "0.0.0",
+    "description": "Publish Dynatrace dependency evidence into Forward intent checks",
+    "id": "my.dynatrace.forward.network.proof",
+    "scopes": [
+      {
+        "name": "environment-api:entities:read",
+        "comment": "Read Dynatrace service/entity context before querying Forward"
+      }
+    ]
+  }
+}
