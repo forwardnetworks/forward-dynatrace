@@ -40,6 +40,12 @@ The dry run:
 5. Computes canonical SHA-256 fingerprints for the generated check fields.
 6. Reports checks to create, unchanged checks, changed checks, and stale Dynatrace-managed checks.
 
+Validate package shape without Forward credentials:
+
+```bash
+npm run forward:import -- --checks forward-intent-checks.json --validate-only
+```
+
 ## Apply Checks
 
 ```bash

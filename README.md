@@ -16,6 +16,7 @@ It exports a desired-state package; a Forward operator or Forward-owned data con
 - Forward ingest contract: `docs/forward-ingest-contract.md`
 - Forward importer workflow: `docs/forward-importer.md`
 - Forward importer script: `scripts/forward-import-package.mjs`
+- Demo fixture and Dynatrace seeding: `docs/demo-data.md`
 - Production checklist: `docs/production-readiness.md`
 - Validation matrix: `docs/validation-matrix.md`
 - Harness engineering notes: `docs/harness-engineering.md`
@@ -113,6 +114,8 @@ used to read monitored entities needs the `environment-api:entities:read` scope.
 npm install
 npm run repo:validate
 npm run forward:import:test
+npm run workflow:smoke
+npm run dynatrace:seed:demo
 npm run lint
 npm run build
 npm run ci
@@ -121,3 +124,5 @@ npm run deploy
 ```
 
 `npm run ci` is the local equivalent of the GitHub Actions `gitops` workflow.
+`npm run dynatrace:seed:demo -- --apply` optionally posts only synthetic demo Business Events to Dynatrace using a
+local token; it is dry-run by default.

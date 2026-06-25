@@ -1,0 +1,62 @@
+[
+  {
+    "id": "checkout-orders-db",
+    "appName": "Checkout",
+    "environment": "prod",
+    "serviceEntityId": "SERVICE-DEMO-CHECKOUT",
+    "serviceName": "checkout-api",
+    "source": "checkout-vip",
+    "destination": "orders-db",
+    "protocol": "tcp",
+    "port": "443",
+    "owner": "commerce-platform",
+    "criticality": "critical",
+    "confidence": 98,
+    "mappingState": "ready"
+  },
+  {
+    "id": "checkout-payment",
+    "appName": "Checkout",
+    "environment": "prod",
+    "serviceEntityId": "SERVICE-DEMO-CHECKOUT",
+    "serviceName": "checkout-api",
+    "source": "checkout-vip",
+    "destination": "payment-gateway",
+    "protocol": "tcp",
+    "port": "8443",
+    "owner": "payments",
+    "criticality": "critical",
+    "confidence": 94,
+    "mappingState": "ready"
+  },
+  {
+    "id": "inventory-cache",
+    "appName": "Inventory",
+    "environment": "prod",
+    "serviceEntityId": "SERVICE-DEMO-INVENTORY",
+    "serviceName": "inventory-api",
+    "source": "inventory-vip",
+    "destination": "redis-cache",
+    "protocol": "tcp",
+    "port": "6379",
+    "owner": "supply-chain",
+    "criticality": "high",
+    "confidence": 87,
+    "mappingState": "review"
+  },
+  {
+    "id": "mobile-auth",
+    "appName": "Mobile",
+    "environment": "uat",
+    "serviceEntityId": "SERVICE-DEMO-MOBILE",
+    "serviceName": "mobile-bff",
+    "source": "mobile-bff",
+    "destination": "identity-api",
+    "protocol": "tcp",
+    "port": "443",
+    "owner": "digital",
+    "criticality": "medium",
+    "confidence": 73,
+    "mappingState": "needs-map"
+  }
+]

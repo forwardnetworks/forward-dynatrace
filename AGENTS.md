@@ -14,6 +14,7 @@ docs and executable checks.
 - [docs/forward-importer.md](docs/forward-importer.md): manual Forward-side importer behavior.
 - [docs/production-readiness.md](docs/production-readiness.md): production checklist.
 - [docs/validation-matrix.md](docs/validation-matrix.md): tested, automated, and remaining validation.
+- [docs/demo-data.md](docs/demo-data.md): synthetic fixtures and optional Dynatrace seeding.
 - [docs/harness-engineering.md](docs/harness-engineering.md): agent-first operating model for this repo.
 - [docs/agent-guides/dynatrace-app.md](docs/agent-guides/dynatrace-app.md): detailed Dynatrace AppEngine, Strato, and SDK guidance.
 
@@ -38,6 +39,7 @@ For faster iteration:
 ```bash
 npm run repo:validate
 npm run forward:import:test
+npm run workflow:smoke
 npm run lint
 npm run build
 ```

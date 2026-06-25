@@ -31,6 +31,7 @@ Options:
   --fail-on-drift      Exit non-zero when changed or stale Dynatrace-managed checks are found.
   --max-retries 3      Retry count for transient Forward API responses.
   --report path        Write the reconciliation report to a JSON file.
+  --validate-only      Validate package shape without contacting Forward.
 
 The default mode is dry-run. The apply policy is create-missing-only.
 `;
@@ -44,6 +45,7 @@ const SUPPORTED_ARGS = new Set([
   "help",
   "max-retries",
   "report",
+  "validate-only",
 ]);
 
 const parseArgs = (argv) => {
@@ -55,7 +57,12 @@ const parseArgs = (argv) => {
       continue;
     }
     const key = value.slice(2);
-    if (key === "apply" || key === "fail-on-drift" || key === "help") {
+    if (
+      key === "apply" ||
+      key === "fail-on-drift" ||
+      key === "help" ||
+      key === "validate-only"
+    ) {
       args[key] = true;
       continue;
     }
@@ -366,6 +373,22 @@ const main = async () => {
   const checksPath = args.checks || DEFAULT_CHECKS_PATH;
   const plannedChecks = await readJson(checksPath);
   validatePlannedChecks(plannedChecks);
+
+  if (args["validate-only"]) {
+    const report = {
+      mode: "validate-only",
+      checksPath,
+      plannedChecks: plannedChecks.length,
+      status: "valid",
+    };
+
+    if (args.report) {
+      await writeFile(args.report, JSON.stringify(report, null, 2) + "\n");
+    }
+
+    process.stdout.write(JSON.stringify(report, null, 2) + "\n");
+    return;
+  }
 
   const networkId = requiredEnv("FORWARD_NETWORK_ID");
   const api = makeClient({

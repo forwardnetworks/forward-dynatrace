@@ -8,6 +8,7 @@ commands locally that GitHub Actions runs on pull requests.
 ```bash
 npm run repo:validate
 npm run forward:import:test
+npm run workflow:smoke
 npm run lint
 npm run build
 git diff --check

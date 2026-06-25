@@ -18,6 +18,8 @@ repo, and enforce important invariants mechanically.
 | Repo-local knowledge | `README.md`, `docs/workflow.md`, `docs/forward-ingest-contract.md`, `docs/validation-matrix.md` |
 | Agent legibility | Compact root `AGENTS.md` with links to deeper docs |
 | Mechanical invariants | `npm run repo:validate`, importer tests, lint, build, GitHub Actions |
+| Synthetic workflow proof | `npm run workflow:smoke` with a fake Forward API |
+| Demo seed path | `npm run dynatrace:seed:demo` dry-run by default |
 | Workflow evidence | Real browser screenshots under `docs/assets/screenshots/` |
 | Boundary enforcement | Importer validation, create-missing-only policy, no Forward credentials in Dynatrace |
 

@@ -6,6 +6,7 @@
 
 - [ ] `npm run repo:validate`
 - [ ] `npm run forward:import:test`
+- [ ] `npm run workflow:smoke`
 - [ ] `npm run lint`
 - [ ] `npm run build`
 

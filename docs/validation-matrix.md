@@ -9,8 +9,9 @@ This document tracks what is validated today and what still needs a live Forward
 | Dynatrace app build | `npm run build` passes locally and in GitHub Actions. |
 | Forward importer reconciliation | `npm run forward:import:test` covers create, unchanged, changed, stale, fingerprints, keys, and validation failures. |
 | Package validation | Importer rejects malformed packages before Forward environment variables or API calls are required. |
+| Synthetic Forward workflow | `npm run workflow:smoke` exercises validate-only, dry-run, apply, unchanged, changed, and stale flows against a fake Forward API. |
 | UI workflow screenshots | `docs/assets/screenshots/*.jpg` were captured from the running local app. |
-| Dynatrace dev deploy | Version `0.0.4` was deployed to `tjo85665.apps.dynatrace.com`. |
+| Dynatrace dev deploy | Version `0.0.5` was deployed to `tjo85665.apps.dynatrace.com`. |
 | Legacy export path removal | `npm run repo:validate` blocks legacy secondary-artifact terms. |
 | Secret hygiene | `npm run repo:validate` blocks committed Dynatrace token-shaped secrets and non-placeholder Forward passwords. |
 
@@ -20,6 +21,7 @@ This document tracks what is validated today and what still needs a live Forward
 | --- | --- |
 | Repository invariants | `npm run repo:validate` |
 | Importer tests | `npm run forward:import:test` |
+| Synthetic end-to-end workflow | `npm run workflow:smoke` |
 | Static lint | `npm run lint` |
 | Dynatrace app build | `npm run build` |
 | Whitespace sanity | `git diff --check` |
@@ -32,6 +34,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Forward apply against a real test network | Explicit approval to create test intent checks in that network. |
 | Forward-owned connector | Connector implementation or target connector runtime. Current repo defines the contract and manual importer. |
 | Dynatrace Workflow trigger | A real problem or schedule workflow wired to call the export function. |
+| Dynatrace Business Events seed | Dry-run passed. Live seed was attempted on 2026-06-25 and returned `403 Permission denied`; the local token needs `bizevents.ingest`. |
 | End-to-end drift loop | At least two package generations with an intentional dependency change, then dry-run/report/apply review. |
 
 ## Production Gate

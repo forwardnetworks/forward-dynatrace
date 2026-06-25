@@ -23,6 +23,7 @@ import {
 } from "@dynatrace/strato-icons";
 import { useAppFunction } from "@dynatrace-sdk/react-hooks";
 
+import demoDependencies from "../../../shared/demo-dependencies.json";
 import type {
   NetworkProofRequest,
   NetworkProofResponse,
@@ -36,68 +37,7 @@ import type {
 
 import "./Home.css";
 
-const dependencies: DependencyCandidate[] = [
-  {
-    id: "checkout-orders-db",
-    appName: "Checkout",
-    environment: "prod",
-    serviceEntityId: "SERVICE-1234567890",
-    serviceName: "checkout-api",
-    source: "checkout-vip",
-    destination: "orders-db",
-    protocol: "tcp",
-    port: "443",
-    owner: "commerce-platform",
-    criticality: "critical",
-    confidence: 98,
-    mappingState: "ready",
-  },
-  {
-    id: "checkout-payment",
-    appName: "Checkout",
-    environment: "prod",
-    serviceEntityId: "SERVICE-1234567890",
-    serviceName: "checkout-api",
-    source: "checkout-vip",
-    destination: "payment-gateway",
-    protocol: "tcp",
-    port: "8443",
-    owner: "payments",
-    criticality: "critical",
-    confidence: 94,
-    mappingState: "ready",
-  },
-  {
-    id: "inventory-cache",
-    appName: "Inventory",
-    environment: "prod",
-    serviceEntityId: "SERVICE-0987654321",
-    serviceName: "inventory-api",
-    source: "inventory-vip",
-    destination: "redis-cache",
-    protocol: "tcp",
-    port: "6379",
-    owner: "supply-chain",
-    criticality: "high",
-    confidence: 87,
-    mappingState: "review",
-  },
-  {
-    id: "mobile-auth",
-    appName: "Mobile",
-    environment: "uat",
-    serviceEntityId: "SERVICE-1122334455",
-    serviceName: "mobile-bff",
-    source: "mobile-bff",
-    destination: "identity-api",
-    protocol: "tcp",
-    port: "443",
-    owner: "digital",
-    criticality: "medium",
-    confidence: 73,
-    mappingState: "needs-map",
-  },
-];
+const dependencies = demoDependencies as DependencyCandidate[];
 
 const selectedForSync = dependencies.filter(
   (dependency) => dependency.mappingState !== "needs-map",

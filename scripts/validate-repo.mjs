@@ -17,7 +17,11 @@ const requiredFiles = [
   "docs/validation-matrix.md",
   "docs/harness-engineering.md",
   "docs/gitops.md",
+  "docs/demo-data.md",
   "docs/agent-guides/dynatrace-app.md",
+  "shared/demo-dependencies.json",
+  "scripts/workflow-smoke.mjs",
+  "scripts/seed-dynatrace-demo-data.mjs",
   ".github/workflows/ci.yml",
   ".github/pull_request_template.md",
 ];
@@ -149,6 +153,7 @@ if (agentMapLineCount > 140) {
 for (const target of [
   "docs/workflow.md",
   "docs/validation-matrix.md",
+  "docs/demo-data.md",
   "docs/harness-engineering.md",
   "docs/agent-guides/dynatrace-app.md",
 ]) {
