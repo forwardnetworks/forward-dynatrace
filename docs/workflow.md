@@ -1,10 +1,14 @@
 # Forward Dynatrace Workflow
 
-This app should be useful to Dynatrace users first, then publish the same evidence into Forward automatically.
+This app uses Dynatrace application dependency mapping to fill Forward intent checks. Dynatrace is the source of
+application dependency evidence; Forward is the system that stores, evaluates, and reports the network intent.
+
+This repository is an art-of-the-possible demonstration. It builds Forward-ready payloads and a production API plan,
+but it should not mutate a Forward tenant until credentials, egress, dedupe, and ownership are configured.
 
 ## What the Dynatrace App Provides
 
-- A focused operator view for service dependencies, owners, environments, and confidence.
+- A focused view of Dynatrace application dependencies that are candidates for Forward intent.
 - A proof action that turns a Dynatrace service/problem context into a Forward path query.
 - A sync action that stages two Forward-ready artifacts:
   - `dynatrace_service_dependencies.csv` for NQE and inventory-style analysis.
@@ -18,15 +22,15 @@ flowchart LR
     A["Dynatrace problem or schedule"] --> B["Dynatrace Workflow"]
     B --> C["Forward Dynatrace app function"]
     C --> D["Normalize service dependencies"]
-    D --> E["Forward Data File"]
-    D --> F["Forward intent checks"]
+    D --> E["Forward Data File for NQE/evidence"]
+    D --> F["Persistent Forward intent checks"]
     E --> G["Forward snapshot / latest processed snapshot"]
     F --> G
     G --> H["Forward Verify and NQE"]
     H --> I["Dynatrace app result / problem annotation"]
 ```
 
-## Forward API Sequence
+## Standard Forward Ingest Sequence
 
 1. Build dependency rows from Dynatrace services, spans, tags, or ownership metadata.
 2. Create or update the org-level data file:
@@ -53,24 +57,37 @@ flowchart LR
 
    `GET /api/networks/{networkId}/snapshots/latestProcessed`
 
-7. Create persistent intent checks:
+7. Dedupe existing Dynatrace-managed checks:
+
+   `GET /api/snapshots/{snapshotId}/checks?type=Existential`
+
+   Match by deterministic check name or `dynatrace-key:*` tag.
+
+8. Create persistent intent checks:
 
    `POST /api/snapshots/{snapshotId}/checks?persistent=true`
 
-8. Read back status:
+9. Read back status:
 
    `GET /api/snapshots/{snapshotId}/checks?type=Existential`
 
 ## Intent Check Mapping
 
-The first useful mapping is one Forward `Existential` check per high-confidence Dynatrace dependency:
+The first useful mapping is one Forward `Existential` check per eligible Dynatrace dependency:
 
 ```json
 {
   "name": "[Dynatrace] Checkout prod: checkout-vip -> orders-db tcp/443",
   "enabled": true,
   "priority": "HIGH",
-  "tags": ["dynatrace", "app:Checkout", "environment:prod", "owner:commerce-platform"],
+  "tags": [
+    "dynatrace",
+    "app:Checkout",
+    "environment:prod",
+    "owner:commerce-platform",
+    "dynatrace-key:dt:checkout:prod:service-1234567890:checkout-vip:orders-db:tcp:443"
+  ],
+  "note": "Generated from Dynatrace service checkout-api; serviceEntityId=SERVICE-1234567890; integrationKey=dt:checkout:prod:service-1234567890:checkout-vip:orders-db:tcp:443",
   "definition": {
     "checkType": "Existential",
     "filters": {
@@ -97,6 +114,9 @@ Use `Reachability` checks when the dependency must be delivered to the destinati
 when the question is broader than one path, such as dependency coverage, device exposure, segmentation drift, or
 snapshot-wide compliance.
 
+Rows with `needs-map` status should not create Forward checks. Keep them in the Data File for review, or reject them
+from automated sync until source/destination mapping is complete.
+
 ## Dynatrace Workflow Triggers
 
 Problem trigger:
@@ -117,3 +137,4 @@ Schedule trigger:
 - Forward API credentials stored server-side, not in browser state.
 - Forward host allow-listed in Dynatrace External requests, or EdgeConnect for private Forward.
 - Idempotency keys or deterministic check names so reruns update or skip existing checks instead of duplicating them.
+- A policy for check ownership, retirement, and exception handling.

@@ -32,10 +32,15 @@ export interface ForwardSyncResponse {
   status: ForwardSyncStatus;
   summary: string;
   generatedAt: string;
+  disclaimer: string;
   dataFileName: string;
   csvPreview: string;
+  dataFileRequestPreview: string;
   intentChecksPreview: string;
+  intentCheckCount: number;
+  rejectedDependencyCount: number;
   actions: ForwardAction[];
+  readinessChecks: ReadinessCheck[];
   workflowTrigger: string;
   nextSteps: string[];
 }
@@ -44,4 +49,12 @@ export interface ForwardAction {
   method: "GET" | "POST" | "PATCH" | "DELETE";
   path: string;
   purpose: string;
+  bodyPreview?: string;
+  idempotencyKey?: string;
+}
+
+export interface ReadinessCheck {
+  label: string;
+  status: "ready" | "needs-work" | "blocked";
+  detail: string;
 }

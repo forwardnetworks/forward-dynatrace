@@ -1,7 +1,11 @@
 # Forward Dynatrace
 
-Dynatrace AppEngine scaffold for turning Dynatrace service dependency evidence into Forward Data Files, path proof,
-and persistent intent checks.
+Art-of-the-possible Dynatrace AppEngine demo for turning Dynatrace application dependency mapping into Forward
+Data Files and persistent Forward intent checks.
+
+This is a production-oriented scaffold, not a turnkey supported integration. It intentionally keeps Forward mutation
+behind a dry-run plan until server-side credentials, egress allow-listing, idempotent check sync, and operational
+ownership are configured.
 
 ## Shape
 
@@ -10,15 +14,19 @@ and persistent intent checks.
 - Forward sync app function: `api/forward-sync.function.ts`
 - UI request/response types: `ui/app/types/network-proof.ts`
 - Workflow notes: `docs/workflow.md`
+- Forward ingest contract: `docs/forward-ingest-contract.md`
+- Production checklist: `docs/production-readiness.md`
 
 ## Flow
 
-1. Operator enters a Dynatrace service/problem context.
-2. App function builds a Forward path query from source, destination, protocol, and port.
-3. The app stages Dynatrace dependency rows as a Forward Data File payload.
-4. The app stages persistent Forward intent checks for the same rows.
-5. A Dynatrace Workflow can call the same app function on a problem trigger or schedule.
-6. Next implementation step is to add server-side Forward credential lookup and execute the generated API sequence.
+1. Dynatrace application mapping supplies dependency rows: app, environment, source, destination, protocol, port,
+   owner, criticality, and confidence.
+2. The app generates a deterministic `integration_key` for each dependency.
+3. The app stages those rows as a Forward Data File payload for NQE and auditability.
+4. The app stages one persistent Forward `Existential` intent check per eligible dependency.
+5. A Dynatrace Workflow can call the same function on a problem trigger or schedule.
+6. Production execution then performs Data File create/update, network attachment, latest snapshot lookup, check
+   dedupe, persistent check create, and check status readback.
 
 ## Forward automation path
 
@@ -37,7 +45,7 @@ For fully automatic operation, create a Dynatrace Workflow with either:
 - Problem trigger: sync only impacted service dependencies and add network proof back to the problem.
 - Schedule trigger: refresh all critical app dependencies into Forward once per collection window.
 
-See `docs/workflow.md` for the proposed production workflow and payload model.
+See `docs/workflow.md` and `docs/forward-ingest-contract.md` for the proposed production workflow and payload model.
 
 ## Configure
 

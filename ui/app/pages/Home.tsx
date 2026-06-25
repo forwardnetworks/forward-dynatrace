@@ -191,11 +191,11 @@ export const Home = () => {
 
       <section className="hero-band">
         <div className="hero-copy">
-          <p className="eyebrow">Dynatrace service context + Forward intent</p>
-          <Heading level={1}>Network proof at incident speed</Heading>
+          <p className="eyebrow">Dynatrace application mapping to Forward intent</p>
+          <Heading level={1}>Fill Forward intent checks from app dependencies</Heading>
           <Paragraph>
-            Evidence for service dependencies, Forward path checks, and automated
-            exports into NQE-ready data.
+            Art-of-the-possible demo for turning Dynatrace dependency maps into
+            Forward Data Files and persistent Verify checks.
           </Paragraph>
         </div>
         <div className="hero-actions">
@@ -212,6 +212,15 @@ export const Home = () => {
             Sync to Forward
           </Button>
         </div>
+      </section>
+
+      <section className="demo-callout">
+        <Strong>Demo guardrail</Strong>
+        <span>
+          This app builds Forward-ready artifacts and a production API plan. Live
+          Forward mutation stays disabled until server-side credentials,
+          allow-listing, and dedupe execution are wired.
+        </span>
       </section>
 
       <section className="metric-grid" aria-label="Integration status">
@@ -235,9 +244,9 @@ export const Home = () => {
         />
         <MetricCard
           icon={<AutomationEngineIcon />}
-          label="Automation"
-          value={triggerCollection ? "Snapshot" : "Prepared"}
-          detail="Workflow-ready"
+          label="Intent checks"
+          value={`${selectedForSync.length}`}
+          detail="persistent candidates"
         />
       </section>
 
@@ -316,9 +325,9 @@ export const Home = () => {
 
         <section className="panel">
           <PanelHeader
-            icon={<UploadIcon />}
-            title="Forward Automation"
-            detail="Data-file push is the first executable path"
+          icon={<UploadIcon />}
+          title="Forward Automation"
+          detail="Standard Data File + Verify workflow"
           />
           <div className="field-grid">
             <label>
@@ -420,7 +429,7 @@ export const Home = () => {
         <PanelHeader
           icon={<AutomationEngineIcon />}
           title="Automatic Forward Ingest"
-          detail="Same function can run from a Dynatrace Workflow"
+          detail="Use Dynatrace mapping to fill Forward checks"
         />
         {sync.isLoading && <ProgressCircle aria-label="Loading sync plan" />}
         {sync.data ? (
@@ -430,11 +439,24 @@ export const Home = () => {
               summary={sync.data.summary}
               rows={[
                 { label: "Data file", value: sync.data.dataFileName },
+                { label: "Intent checks", value: `${sync.data.intentCheckCount}` },
+                { label: "Rejected rows", value: `${sync.data.rejectedDependencyCount}` },
                 { label: "Generated", value: sync.data.generatedAt },
-                { label: "Workflow", value: sync.data.workflowTrigger },
               ]}
               nextSteps={sync.data.nextSteps}
             />
+            <p className="result-disclaimer">{sync.data.disclaimer}</p>
+            <div className="readiness-grid" aria-label="Production readiness gates">
+              {sync.data.readinessChecks.map((check) => (
+                <div className="readiness-item" key={check.label}>
+                  <span className={`readiness-dot ${check.status}`} />
+                  <div>
+                    <Strong>{check.label}</Strong>
+                    <small>{check.detail}</small>
+                  </div>
+                </div>
+              ))}
+            </div>
             <div className="sync-grid">
               <div>
                 <Heading level={5}>Forward API sequence</Heading>
@@ -443,11 +465,19 @@ export const Home = () => {
                     <li key={`${action.method}-${action.path}`}>
                       <code>{action.method}</code> <span>{action.path}</span>
                       <p>{action.purpose}</p>
+                      {action.bodyPreview && <small>{action.bodyPreview}</small>}
+                      {action.idempotencyKey && (
+                        <small>Idempotency: {action.idempotencyKey}</small>
+                      )}
                     </li>
                   ))}
                 </ol>
               </div>
               <div>
+                <Heading level={5}>Data File request</Heading>
+                <pre className="json-preview compact">
+                  {sync.data.dataFileRequestPreview}
+                </pre>
                 <Heading level={5}>CSV preview</Heading>
                 <pre className="csv-preview">{sync.data.csvPreview}</pre>
               </div>
