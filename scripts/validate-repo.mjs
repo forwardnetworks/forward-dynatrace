@@ -10,6 +10,7 @@ const failures = [];
 const requiredFiles = [
   "AGENTS.md",
   "README.md",
+  "docs/install.md",
   "docs/workflow.md",
   "docs/forward-ingest-contract.md",
   "docs/forward-importer.md",
@@ -79,7 +80,48 @@ const secretPatterns = [
     name: "Concrete Forward password export",
     regex: /FORWARD_PASSWORD=(?!<password-or-token>)[^\s]+/,
   },
+  {
+    name: "Concrete Forward user export",
+    regex: /FORWARD_USER=(?!<user>)[^\s]+/,
+  },
 ];
+
+const expectedPublicEnvironmentUrl =
+  "https://your-environment-id.apps.dynatrace.com/";
+
+const publicHygienePatterns = [
+  {
+    name: "Known local Dynatrace dev environment",
+    regex: /\btjo85665\b/i,
+  },
+  {
+    name: "OAuth callback or login URL",
+    regex: /\b(localhost:5343|auth\/login|oAuth2CtxUuid|oAuth2RedirectUri)\b/i,
+  },
+  {
+    name: "Local private token file path",
+    regex: /\bdynatrace\.token\b/i,
+  },
+  {
+    name: "Personal or customer email reference",
+    regex: /\b[A-Z0-9._%+-]+@forwardnetworks\.com\b/i,
+  },
+  {
+    name: "Named local personal/customer reference",
+    regex: /\b(craigjohnson|sewest|captainpacket)\b/i,
+  },
+  {
+    name: "Concrete Forward SaaS host example",
+    regex: /https:\/\/fwd\.app\b/i,
+  },
+  {
+    name: "Deprecated connector ownership wording",
+    regex: /Forward-owned connector/i,
+  },
+];
+
+const dynatraceEnvironmentUrlRegex =
+  /https:\/\/([a-z0-9-]+)\.apps\.dynatrace\.com\/?/gi;
 
 const fail = (message) => {
   failures.push(message);
@@ -180,6 +222,20 @@ if (uniqueVersions.size !== 1) {
   );
 }
 
+if (appConfig.environmentUrl !== expectedPublicEnvironmentUrl) {
+  fail(
+    `app.config.json environmentUrl must use the public placeholder ${expectedPublicEnvironmentUrl}`,
+  );
+}
+
+if (packageJson.engines?.node !== ">=24.0.0") {
+  fail("package.json engines.node must match the Dynatrace App Toolkit Node 24 baseline.");
+}
+
+if (packageLock.packages?.[""]?.engines?.node !== packageJson.engines.node) {
+  fail("package-lock root engines.node must match package.json.");
+}
+
 const textFiles = await walkTextFiles();
 for (const file of textFiles) {
   const content = await readText(file);
@@ -193,6 +249,19 @@ for (const file of textFiles) {
   for (const pattern of secretPatterns) {
     if (pattern.regex.test(content)) {
       fail(`${pattern.name} found in ${file}.`);
+    }
+  }
+
+  for (const pattern of publicHygienePatterns) {
+    if (pattern.regex.test(content)) {
+      fail(`${pattern.name} found in ${file}.`);
+    }
+  }
+
+  const dynatraceEnvironmentUrls = content.matchAll(dynatraceEnvironmentUrlRegex);
+  for (const match of dynatraceEnvironmentUrls) {
+    if (match[1] !== "your-environment-id") {
+      fail(`Concrete Dynatrace Apps environment URL found in ${file}: ${match[0]}`);
     }
   }
 }

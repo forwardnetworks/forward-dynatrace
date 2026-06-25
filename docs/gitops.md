@@ -30,5 +30,7 @@ Recommended repository settings:
 ## Release Discipline
 
 - App version changes belong in `package.json`, `package-lock.json`, and `app.config.json`.
+- Public releases must keep `app.config.json` on the placeholder environment URL.
+- Release candidates must pass the public hygiene gate in `npm run repo:validate`.
 - Runtime behavior changes should update `docs/validation-matrix.md`.
 - Workflow or screenshot changes should update `docs/workflow.md` and `docs/assets/screenshots/`.

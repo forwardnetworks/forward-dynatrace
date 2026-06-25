@@ -1,17 +1,17 @@
 # Forward Importer
 
-Use `scripts/forward-import-package.mjs` when the package is imported manually from a Forward-controlled environment.
-The script is intentionally dry-run by default.
+Use `scripts/forward-import-package.mjs` when the package is imported manually from a Forward-controlled environment or
+pulled by a Forward-side connector. The script is intentionally dry-run by default.
 
 ## Required Inputs
 
 - `forward-intent-checks.json`: required `NewNetworkCheck[]` payload from the Dynatrace app.
-- `forward-dynatrace-manifest.json`: recommended for review and audit.
+- `forward-dynatrace-manifest.json`: recommended for manual import and required for production automation.
 
 ## Required Environment
 
 ```bash
-export FORWARD_BASE_URL=https://fwd.app
+export FORWARD_BASE_URL=https://forward.example.com
 export FORWARD_USER=<user>
 export FORWARD_PASSWORD=<password-or-token>
 export FORWARD_NETWORK_ID=<network-id>
@@ -43,13 +43,19 @@ The dry run:
 Validate package shape without Forward credentials:
 
 ```bash
-npm run forward:import -- --checks forward-intent-checks.json --validate-only
+npm run forward:import -- \
+  --checks forward-intent-checks.json \
+  --manifest forward-dynatrace-manifest.json \
+  --validate-only
 ```
 
 ## Apply Checks
 
 ```bash
-npm run forward:import -- --checks forward-intent-checks.json --apply
+npm run forward:import -- \
+  --checks forward-intent-checks.json \
+  --manifest forward-dynatrace-manifest.json \
+  --apply
 ```
 
 The apply run posts only missing checks:
@@ -70,7 +76,10 @@ Use `--max-retries 0` to disable retries in test harnesses.
 Write the report to disk with:
 
 ```bash
-npm run forward:import -- --checks forward-intent-checks.json --report forward-import-report.json
+npm run forward:import -- \
+  --checks forward-intent-checks.json \
+  --manifest forward-dynatrace-manifest.json \
+  --report forward-import-report.json
 ```
 
 The report includes:
@@ -83,9 +92,32 @@ The report includes:
 Use `--fail-on-drift` in automation when changed or stale checks should block the run:
 
 ```bash
-npm run forward:import -- --checks forward-intent-checks.json --fail-on-drift
+npm run forward:import -- \
+  --checks forward-intent-checks.json \
+  --manifest forward-dynatrace-manifest.json \
+  --fail-on-drift
 ```
 
 For iterative use, schedule package generation in Dynatrace and run the importer or connector on the same cadence.
 Each run should be treated as desired-state reconciliation: create only missing checks by default, report changed
 checks for review, and report stale checks before any retirement workflow.
+
+## Connector Pull Mode
+
+A Forward-side connector can run the same importer against a read-only package URL:
+
+```bash
+npm run forward:import -- \
+  --package-url https://package.example.com/dynatrace-forward/latest/ \
+  --report forward-import-report.json \
+  --fail-on-drift
+```
+
+`--package-url` pulls:
+
+- `forward-dynatrace-manifest.json`
+- `forward-intent-checks.json`
+
+Non-local package URLs must use HTTPS. The importer validates the manifest schema, package type, generated timestamp,
+intent-check count, credential policy, dedupe requirement, and create-missing-only reconciliation policy before any
+Forward API call.

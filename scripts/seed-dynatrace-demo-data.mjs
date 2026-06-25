@@ -21,11 +21,11 @@ Options:
   --apply                         POST synthetic demo business events to Dynatrace.
   --environment-url URL           Dynatrace app/environment URL. Defaults to app.config.json.
   --api-base-url URL              Override API base URL. Defaults to https://{environment-id}.live.dynatrace.com.
-  --token-file path               Token file. Defaults to ~/dynatrace.token.
+  --token-file path               Optional local token file outside the repo.
   --run-id id                     Demo run ID. Defaults to a timestamp-based ID.
 
 Required for --apply:
-  DYNATRACE_TOKEN or a readable token file.
+  DYNATRACE_TOKEN, DYNATRACE_TOKEN_FILE, or --token-file.
 
 The token needs the bizevents.ingest scope.
 `;
@@ -75,6 +75,10 @@ const extractToken = (rawValue) => {
 const readToken = async (tokenFile) => {
   if (process.env.DYNATRACE_TOKEN) {
     return extractToken(process.env.DYNATRACE_TOKEN);
+  }
+
+  if (!tokenFile) {
+    throw new Error("Missing DYNATRACE_TOKEN, DYNATRACE_TOKEN_FILE, or --token-file.");
   }
 
   const expandedTokenFile = tokenFile.replace(/^~(?=$|\/)/, process.env.HOME || "");
@@ -150,7 +154,7 @@ const main = async () => {
     return;
   }
 
-  const token = await readToken(args["token-file"] || "~/dynatrace.token");
+  const token = await readToken(args["token-file"] || process.env.DYNATRACE_TOKEN_FILE);
   const response = await fetch(`${apiBaseUrl}/api/v2/bizevents/ingest`, {
     method: "POST",
     headers: {

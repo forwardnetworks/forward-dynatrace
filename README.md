@@ -12,6 +12,7 @@ It exports a desired-state package; a Forward operator or Forward-side connector
 - Proof app function: `api/network-proof.function.ts`
 - Forward export app function: `api/forward-sync.function.ts`
 - UI request/response types: `ui/app/types/network-proof.ts`
+- Install and release model: `docs/install.md`
 - Workflow notes: `docs/workflow.md`
 - Forward ingest contract: `docs/forward-ingest-contract.md`
 - Forward importer workflow: `docs/forward-importer.md`
@@ -55,13 +56,15 @@ Persistent intent-check payload:
 The production-grade route is an export package that Forward imports or pulls. The intent-check JSON is the primary
 artifact.
 
-A Forward-side connector means a process outside Dynatrace that pulls the export package, validates and dedupes it, and
-then writes to Forward with Forward-scoped credentials. It is a pull/import path, not a Dynatrace push into Forward.
+A Forward-side connector means a process outside Dynatrace that pulls the export package, validates the manifest and
+checks, dedupes them, and then writes to Forward with Forward-scoped credentials. It is a pull/import path, not a
+Dynatrace push into Forward.
 
 1. Generate `forward-intent-checks.json` as Forward-native `NewNetworkCheck[]`.
 2. Generate `forward-dynatrace-manifest.json` with schema version, counts, dedupe policy, and optional Forward target
    metadata.
-3. Forward operator imports the package manually with the included script, or a Forward-side connector pulls it.
+3. Forward operator imports the package manually with the included script, or a Forward-side connector pulls it from a
+   read-only package URL.
 4. Forward-side ingest validates package shape, unique names, unique `dynatrace-key:*` tags, and allowed check type.
 5. Forward-side ingest resolves the latest processed snapshot with
    `GET /api/networks/{networkId}/snapshots/latestProcessed`.
@@ -83,15 +86,15 @@ Forward-side automation should reconcile each package against existing Forward c
 The included importer runs in dry-run mode unless `--apply` is supplied:
 
 ```bash
-export FORWARD_BASE_URL=https://fwd.app
+export FORWARD_BASE_URL=https://forward.example.com
 export FORWARD_USER=<user>
 export FORWARD_PASSWORD=<password-or-token>
 export FORWARD_NETWORK_ID=<network-id>
 
-npm run forward:import -- --checks forward-intent-checks.json
-npm run forward:import -- --checks forward-intent-checks.json --apply
-npm run forward:import -- --checks forward-intent-checks.json --report forward-import-report.json
-npm run forward:import -- --checks forward-intent-checks.json --fail-on-drift
+npm run forward:import -- --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json
+npm run forward:import -- --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json --apply
+npm run forward:import -- --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json --report forward-import-report.json
+npm run forward:import -- --package-url https://package.example.com/dynatrace-forward/latest/ --fail-on-drift
 ```
 
 The importer is dry-run by default, rejects malformed packages before Forward API calls, retries transient Forward API
@@ -101,15 +104,17 @@ responses, and applies a create-missing-only policy unless a future reviewed upd
 
 The dev environment is configured in `app.config.json`:
 
-```json
-"environmentUrl": "https://tjo85665.apps.dynatrace.com/"
+Keep `app.config.json` on the public placeholder and pass the tenant URL at deploy time:
+
+```bash
+npm run deploy -- --environment-url https://your-environment-id.apps.dynatrace.com/
 ```
 
 The Dynatrace app should not store Forward write credentials. Forward credentials belong in Forward-side manual import
 or the Forward-side connector.
 
-For local Dynatrace API smoke checks, keep any platform token outside the repo, for example `~/dynatrace.token`. A token
-used to read monitored entities needs the `environment-api:entities:read` scope.
+For local Dynatrace API smoke checks, keep any platform token outside the repo and pass it with `DYNATRACE_TOKEN`,
+`DYNATRACE_TOKEN_FILE`, or `--token-file`.
 
 ## Commands
 

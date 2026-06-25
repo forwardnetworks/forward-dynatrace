@@ -45,8 +45,8 @@ Live ingest:
 npm run dynatrace:seed:demo -- --apply
 ```
 
-The script reads `DYNATRACE_TOKEN` or `~/dynatrace.token` locally. The token must have the `bizevents.ingest` scope.
-No token is written to the repo. The script sends synthetic Business Events to:
+The script reads `DYNATRACE_TOKEN`, `DYNATRACE_TOKEN_FILE`, or `--token-file` locally. The token must have the
+`bizevents.ingest` scope. No token is written to the repo. The script sends synthetic Business Events to:
 
 ```text
 https://{environment-id}.live.dynatrace.com/api/v2/bizevents/ingest

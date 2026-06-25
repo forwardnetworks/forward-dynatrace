@@ -103,6 +103,40 @@ const toIntentCheck = (dependency) => ({
   ],
 });
 
+const toManifest = (checks) => ({
+  schemaVersion: "forward-dynatrace/v1",
+  packageType: "forward-intent-import",
+  packageId: `dynatrace-forward-${new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14)}`,
+  generatedAt: new Date().toISOString(),
+  requestedIngestPath: "manual-import",
+  source: {
+    platform: "dynatrace",
+    app: "forward-dynatrace",
+    writePolicy: "dynatrace-never-writes-forward",
+  },
+  artifacts: {
+    manifest: "forward-dynatrace-manifest.json",
+    intentChecks: "forward-intent-checks.json",
+  },
+  intentChecks: {
+    count: checks.length,
+    checkType: "Existential",
+    payloadShape: "NewNetworkCheck[]",
+    bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk",
+    dedupeRequiredBeforePost: true,
+  },
+  validation: {
+    requiredTagPrefix: "dynatrace-key:",
+    requiredTagsPerCheck: 1,
+    credentialPolicy: "no-forward-credentials-in-dynatrace",
+  },
+  reconciliation: {
+    defaultApplyPolicy: "create-missing-only",
+    changedChecks: "report-only",
+    staleChecks: "report-only",
+  },
+});
+
 const withResultFields = (check, index) => ({
   ...structuredClone(check),
   id: `demo-check-${index + 1}`,
@@ -132,6 +166,22 @@ const startFakeForward = async (state) =>
   new Promise((resolve) => {
     const server = createServer(async (request, response) => {
       const url = new URL(request.url || "/", "http://127.0.0.1");
+
+      if (
+        request.method === "GET" &&
+        url.pathname === "/package/forward-dynatrace-manifest.json"
+      ) {
+        jsonResponse(response, 200, state.packageManifest);
+        return;
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname === "/package/forward-intent-checks.json"
+      ) {
+        jsonResponse(response, 200, state.packageChecks);
+        return;
+      }
 
       if (
         request.method === "GET" &&
@@ -212,13 +262,26 @@ const main = async () => {
 
   const workdir = await mkdtemp(path.join(tmpdir(), "forward-dynatrace-smoke-"));
   const checksPath = path.join(workdir, "forward-intent-checks.json");
+  const manifestPath = path.join(workdir, "forward-dynatrace-manifest.json");
+  const manifest = toManifest(checks);
   await writeFile(checksPath, JSON.stringify(checks, null, 2) + "\n");
+  await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
 
-  const validation = await runImporter(["--checks", checksPath, "--validate-only"]);
+  const validation = await runImporter([
+    "--checks",
+    checksPath,
+    "--manifest",
+    manifestPath,
+    "--validate-only",
+  ]);
   assert.equal(validation.status, "valid");
   assert.equal(validation.plannedChecks, 3);
 
-  const state = { existingChecks: [] };
+  const state = {
+    existingChecks: [],
+    packageChecks: checks,
+    packageManifest: manifest,
+  };
   const { server, port } = await startFakeForward(state);
   const env = {
     FORWARD_BASE_URL: `http://127.0.0.1:${port}`,
@@ -228,7 +291,15 @@ const main = async () => {
   };
 
   try {
-    const dryRun = await runImporter(["--checks", checksPath], env);
+    const pulledPackage = await runImporter([
+      "--package-url",
+      `http://127.0.0.1:${port}/package`,
+      "--validate-only",
+    ]);
+    assert.equal(pulledPackage.status, "valid");
+    assert.equal(pulledPackage.plannedChecks, 3);
+
+    const dryRun = await runImporter(["--checks", checksPath, "--manifest", manifestPath], env);
     assert.deepEqual(dryRun.counts, {
       create: 3,
       unchanged: 0,
@@ -236,12 +307,12 @@ const main = async () => {
       stale: 0,
     });
 
-    const apply = await runImporter(["--checks", checksPath, "--apply"], env);
+    const apply = await runImporter(["--checks", checksPath, "--manifest", manifestPath, "--apply"], env);
     assert.equal(apply.mode, "apply");
     assert.equal(apply.counts.create, 3);
     assert.equal(state.existingChecks.length, 3);
 
-    const unchanged = await runImporter(["--checks", checksPath], env);
+    const unchanged = await runImporter(["--checks", checksPath, "--manifest", manifestPath], env);
     assert.deepEqual(unchanged.counts, {
       create: 0,
       unchanged: 3,
@@ -250,7 +321,7 @@ const main = async () => {
     });
 
     state.existingChecks[0].definition.filters.from.headers[1].values.tp_dst = ["9443"];
-    const changed = await runImporter(["--checks", checksPath], env);
+    const changed = await runImporter(["--checks", checksPath, "--manifest", manifestPath], env);
     assert.equal(changed.counts.changed, 1);
     assert.equal(changed.changed[0].fields.includes("definition"), true);
 
@@ -265,7 +336,7 @@ const main = async () => {
         99,
       ),
     );
-    const stale = await runImporter(["--checks", checksPath], env);
+    const stale = await runImporter(["--checks", checksPath, "--manifest", manifestPath], env);
     assert.equal(stale.counts.stale, 1);
   } finally {
     await new Promise((resolve, reject) => {

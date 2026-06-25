@@ -45,6 +45,8 @@ Before any Forward API write, the importer or connector must reject the package 
 - any check is missing a name, definition, or exactly one `dynatrace-key:*` tag
 - any generated name or `dynatrace-key:*` tag is duplicated
 - any check type is not `Existential`
+- the manifest schema version, package type, generated timestamp, check count, credential policy, or reconciliation
+  policy does not match the supported contract
 
 ## Forward Bulk Ingest
 
@@ -96,6 +98,25 @@ Then:
 6. Report stale Dynatrace-managed checks for review before disable/delete.
 
 Do not blindly delete checks. Forward may contain user-owned checks that look similar but are not managed by this app.
+
+## Connector Pull Contract
+
+The Forward-side connector can be implemented as a scheduled job around the included importer:
+
+```bash
+npm run forward:import -- \
+  --package-url https://package.example.com/dynatrace-forward/latest/ \
+  --report forward-import-report.json \
+  --fail-on-drift
+```
+
+`--package-url` resolves the standard artifact names:
+
+- `forward-dynatrace-manifest.json`
+- `forward-intent-checks.json`
+
+Non-local package URLs must use HTTPS. The connector runtime owns package authentication, Forward credentials, retry
+scheduling, alerting, and report retention.
 
 ## Snapshot Handling
 

@@ -70,7 +70,7 @@ Forward-side ingest.
    - `forward-intent-checks.json`
    - `forward-dynatrace-manifest.json`
    - deterministic `integration_key` values in each check tag and note.
-3. Forward operator imports the package, or Forward-side connector pulls it.
+3. Forward operator imports the package, or Forward-side connector pulls it from a read-only package URL.
 4. Forward-side ingest validates package shape, required fields, supported check type, and unique names/tags.
 5. Forward-side ingest resolves the snapshot where checks should be created:
 
@@ -171,14 +171,14 @@ source/destination mapping is complete.
    - `forward-dynatrace-manifest.json`
    - `forward-intent-checks.json`
 2. Forward operator places those artifacts in a Forward-controlled environment.
-3. Forward operator runs a dry-run:
+3. Forward operator validates the package and runs a dry-run:
 
-   `npm run forward:import -- --checks forward-intent-checks.json`
+   `npm run forward:import -- --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json`
 
 4. Forward operator reviews the reconciliation report.
 5. Forward operator applies:
 
-   `npm run forward:import -- --checks forward-intent-checks.json --apply`
+   `npm run forward:import -- --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json --apply`
 
 ## Workflow Option B: Forward-Side Connector Pull
 
@@ -202,6 +202,18 @@ and create checks. The Dynatrace app still never pushes changes into Forward.
 8. Connector posts only missing checks to `/api/snapshots/{snapshotId}/checks?bulk`.
 9. Connector reports changed and stale checks according to policy.
 10. Connector writes import status back to Forward logs, and optionally exposes read-only status in Dynatrace.
+
+The connector command path is the same importer, pointed at a package URL:
+
+```bash
+npm run forward:import -- \
+  --package-url https://package.example.com/dynatrace-forward/latest/ \
+  --report forward-import-report.json \
+  --fail-on-drift
+```
+
+This command pulls `forward-dynatrace-manifest.json` and `forward-intent-checks.json`, validates both, then performs
+the same Forward read-before-write reconciliation as manual import.
 
 ## Dynatrace Workflow Triggers
 

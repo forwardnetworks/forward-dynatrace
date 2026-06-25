@@ -6,34 +6,46 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
 const DEFAULT_CHECKS_PATH = "forward-intent-checks.json";
+const DEFAULT_MANIFEST_FILE_NAME = "forward-dynatrace-manifest.json";
 const DEFAULT_BATCH_SIZE = 500;
 const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_MAX_PACKAGE_AGE_MINUTES = 24 * 60;
+const PACKAGE_SCHEMA_VERSION = "forward-dynatrace/v1";
+const PACKAGE_TYPE = "forward-intent-import";
 const TRANSIENT_STATUS_CODES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
 const ALLOWED_CHECK_TYPES = new Set(["Existential"]);
+const LOCAL_HTTP_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
 
 const usage = `
 Forward Dynatrace package importer
 
 Required environment:
-  FORWARD_BASE_URL       Example: https://fwd.app
+  FORWARD_BASE_URL       Example: https://forward.example.com
   FORWARD_USER           Forward username
   FORWARD_PASSWORD       Forward password or token accepted by the tenant
   FORWARD_NETWORK_ID     Target Forward network ID
 
 Usage:
-  node scripts/forward-import-package.mjs --checks forward-intent-checks.json
-  node scripts/forward-import-package.mjs --checks forward-intent-checks.json --apply
-  node scripts/forward-import-package.mjs --checks forward-intent-checks.json --report forward-import-report.json
+  node scripts/forward-import-package.mjs --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json
+  node scripts/forward-import-package.mjs --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json --apply
+  node scripts/forward-import-package.mjs --package-url https://package.example.com/dynatrace-forward/latest/ --report forward-import-report.json
 
 Options:
   --apply              Create missing checks. Changed and stale checks are still report-only.
   --batch-size 500     Batch size for /checks?bulk.
+  --checks-url url      Pull forward-intent-checks.json from a read-only HTTPS URL.
   --fail-on-drift      Exit non-zero when changed or stale Dynatrace-managed checks are found.
+  --manifest path      Validate the package manifest before importing.
+  --manifest-url url    Pull forward-dynatrace-manifest.json from a read-only HTTPS URL.
+  --max-package-age-minutes 1440
+                       Reject manifests older than this age.
   --max-retries 3      Retry count for transient Forward API responses.
+  --package-url url     Pull manifest and checks from a base URL.
   --report path        Write the reconciliation report to a JSON file.
   --validate-only      Validate package shape without contacting Forward.
 
-The default mode is dry-run. The apply policy is create-missing-only.
+The default mode is dry-run. The apply policy is create-missing-only. Non-local
+package URLs must use HTTPS.
 `;
 
 const SUPPORTED_ARGS = new Set([
@@ -41,9 +53,14 @@ const SUPPORTED_ARGS = new Set([
   "apply",
   "batch-size",
   "checks",
+  "checks-url",
   "fail-on-drift",
   "help",
+  "manifest",
+  "manifest-url",
+  "max-package-age-minutes",
   "max-retries",
+  "package-url",
   "report",
   "validate-only",
 ]);
@@ -83,6 +100,17 @@ const validateArgs = (args) => {
       `Unsupported option(s): ${unsupportedArgs.map((key) => `--${key}`).join(", ")}`,
     );
   }
+  if (args.checks && args["checks-url"]) {
+    throw new Error("Use either --checks or --checks-url, not both.");
+  }
+  if (args.manifest && args["manifest-url"]) {
+    throw new Error("Use either --manifest or --manifest-url, not both.");
+  }
+  if (args["package-url"] && (args.checks || args.manifest)) {
+    throw new Error(
+      "Use --checks-url or --manifest-url to override files when --package-url is set.",
+    );
+  }
 };
 
 const requiredEnv = (name) => {
@@ -94,6 +122,57 @@ const requiredEnv = (name) => {
 };
 
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
+
+const isUrlLocator = (locator) => /^https?:\/\//i.test(locator);
+
+const joinUrl = (baseUrl, fileName) => `${baseUrl.replace(/\/+$/, "")}/${fileName}`;
+
+const validatePackageUrl = (locator) => {
+  const url = new URL(locator);
+  if (url.protocol === "https:") {
+    return;
+  }
+  if (url.protocol === "http:" && LOCAL_HTTP_HOSTS.has(url.hostname)) {
+    return;
+  }
+  throw new Error(`Package URL must use HTTPS unless it is localhost: ${locator}`);
+};
+
+const readJsonFromLocator = async (locator, label) => {
+  if (!isUrlLocator(locator)) {
+    return readJson(locator);
+  }
+
+  validatePackageUrl(locator);
+  const response = await fetch(locator, {
+    headers: { Accept: "application/json" },
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`${label} fetch failed with ${response.status}: ${text.slice(0, 500)}`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new Error(`${label} did not contain valid JSON: ${error.message}`);
+  }
+};
+
+const resolvePackageLocators = (args) => {
+  if (args["package-url"]) {
+    return {
+      checks: args["checks-url"] || joinUrl(args["package-url"], DEFAULT_CHECKS_PATH),
+      manifest:
+        args["manifest-url"] ||
+        joinUrl(args["package-url"], DEFAULT_MANIFEST_FILE_NAME),
+    };
+  }
+
+  return {
+    checks: args["checks-url"] || args.checks || DEFAULT_CHECKS_PATH,
+    manifest: args["manifest-url"] || args.manifest,
+  };
+};
 
 const chunk = (items, size) => {
   const chunks = [];
@@ -307,9 +386,19 @@ const toNonNegativeInteger = (value, label) => {
 
 const requireString = (value) => typeof value === "string" && value.trim().length > 0;
 
+const requireObject = (value, label, errors) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    errors.push(`${label} must be an object.`);
+    return false;
+  }
+  return true;
+};
+
 export const validatePlannedChecks = (checks) => {
   if (!Array.isArray(checks)) {
-    throw new Error("forward-intent-checks.json must contain a NewNetworkCheck[] JSON array.");
+    throw new Error(
+      "forward-intent-checks.json must contain a NewNetworkCheck[] JSON array.",
+    );
   }
 
   const errors = [];
@@ -350,7 +439,118 @@ export const validatePlannedChecks = (checks) => {
   });
 
   if (errors.length > 0) {
-    throw new Error(`Invalid Forward intent package:\n${errors.map((error) => `- ${error}`).join("\n")}`);
+    throw new Error(
+      `Invalid Forward intent package:\n${errors
+        .map((error) => `- ${error}`)
+        .join("\n")}`,
+    );
+  }
+};
+
+const invalidManifestError = (errors) =>
+  new Error(
+    `Invalid Forward intent manifest:\n${errors
+      .map((error) => `- ${error}`)
+      .join("\n")}`,
+  );
+
+export const validateManifest = (
+  manifest,
+  plannedChecks,
+  { maxPackageAgeMinutes = DEFAULT_MAX_PACKAGE_AGE_MINUTES } = {},
+) => {
+  const errors = [];
+  if (!requireObject(manifest, "manifest", errors)) {
+    throw invalidManifestError(errors);
+  }
+
+  if (manifest.schemaVersion !== PACKAGE_SCHEMA_VERSION) {
+    errors.push(`manifest.schemaVersion must be ${PACKAGE_SCHEMA_VERSION}.`);
+  }
+  if (manifest.packageType !== PACKAGE_TYPE) {
+    errors.push(`manifest.packageType must be ${PACKAGE_TYPE}.`);
+  }
+  if (!requireString(manifest.packageId)) {
+    errors.push("manifest.packageId is required.");
+  }
+  if (!requireString(manifest.generatedAt)) {
+    errors.push("manifest.generatedAt is required.");
+  } else {
+    const generatedAtMs = Date.parse(manifest.generatedAt);
+    if (!Number.isFinite(generatedAtMs)) {
+      errors.push("manifest.generatedAt must be an ISO timestamp.");
+    } else {
+      const maxAgeMs = maxPackageAgeMinutes * 60 * 1000;
+      if (Date.now() - generatedAtMs > maxAgeMs) {
+        errors.push(`manifest.generatedAt is older than ${maxPackageAgeMinutes} minutes.`);
+      }
+    }
+  }
+
+  if (requireObject(manifest.source, "manifest.source", errors)) {
+    if (manifest.source.platform !== "dynatrace") {
+      errors.push("manifest.source.platform must be dynatrace.");
+    }
+    if (manifest.source.writePolicy !== "dynatrace-never-writes-forward") {
+      errors.push("manifest.source.writePolicy must be dynatrace-never-writes-forward.");
+    }
+  }
+
+  if (requireObject(manifest.artifacts, "manifest.artifacts", errors)) {
+    if (manifest.artifacts.intentChecks !== DEFAULT_CHECKS_PATH) {
+      errors.push(`manifest.artifacts.intentChecks must be ${DEFAULT_CHECKS_PATH}.`);
+    }
+    if (manifest.artifacts.manifest !== DEFAULT_MANIFEST_FILE_NAME) {
+      errors.push(`manifest.artifacts.manifest must be ${DEFAULT_MANIFEST_FILE_NAME}.`);
+    }
+  }
+
+  if (requireObject(manifest.intentChecks, "manifest.intentChecks", errors)) {
+    if (manifest.intentChecks.count !== plannedChecks.length) {
+      errors.push(
+        `manifest.intentChecks.count ${manifest.intentChecks.count} does not match package count ${plannedChecks.length}.`,
+      );
+    }
+    if (manifest.intentChecks.payloadShape !== "NewNetworkCheck[]") {
+      errors.push("manifest.intentChecks.payloadShape must be NewNetworkCheck[].");
+    }
+    if (manifest.intentChecks.checkType !== "Existential") {
+      errors.push("manifest.intentChecks.checkType must be Existential.");
+    }
+    if (manifest.intentChecks.bulkEndpoint !== "/api/snapshots/{snapshotId}/checks?bulk") {
+      errors.push("manifest.intentChecks.bulkEndpoint must target /checks?bulk.");
+    }
+    if (manifest.intentChecks.dedupeRequiredBeforePost !== true) {
+      errors.push("manifest.intentChecks.dedupeRequiredBeforePost must be true.");
+    }
+  }
+
+  if (requireObject(manifest.validation, "manifest.validation", errors)) {
+    if (manifest.validation.requiredTagPrefix !== "dynatrace-key:") {
+      errors.push("manifest.validation.requiredTagPrefix must be dynatrace-key:.");
+    }
+    if (manifest.validation.requiredTagsPerCheck !== 1) {
+      errors.push("manifest.validation.requiredTagsPerCheck must be 1.");
+    }
+    if (manifest.validation.credentialPolicy !== "no-forward-credentials-in-dynatrace") {
+      errors.push("manifest.validation.credentialPolicy must be no-forward-credentials-in-dynatrace.");
+    }
+  }
+
+  if (requireObject(manifest.reconciliation, "manifest.reconciliation", errors)) {
+    if (manifest.reconciliation.defaultApplyPolicy !== "create-missing-only") {
+      errors.push("manifest.reconciliation.defaultApplyPolicy must be create-missing-only.");
+    }
+    if (manifest.reconciliation.changedChecks !== "report-only") {
+      errors.push("manifest.reconciliation.changedChecks must be report-only.");
+    }
+    if (manifest.reconciliation.staleChecks !== "report-only") {
+      errors.push("manifest.reconciliation.staleChecks must be report-only.");
+    }
+  }
+
+  if (errors.length > 0) {
+    throw invalidManifestError(errors);
   }
 };
 
@@ -369,15 +569,23 @@ const main = async () => {
   const maxRetries = args["max-retries"]
     ? toNonNegativeInteger(args["max-retries"], "--max-retries")
     : DEFAULT_MAX_RETRIES;
+  const maxPackageAgeMinutes = args["max-package-age-minutes"]
+    ? toPositiveInteger(args["max-package-age-minutes"], "--max-package-age-minutes")
+    : DEFAULT_MAX_PACKAGE_AGE_MINUTES;
 
-  const checksPath = args.checks || DEFAULT_CHECKS_PATH;
-  const plannedChecks = await readJson(checksPath);
+  const locators = resolvePackageLocators(args);
+  const plannedChecks = await readJsonFromLocator(locators.checks, "Forward checks package");
   validatePlannedChecks(plannedChecks);
+  if (locators.manifest) {
+    const manifest = await readJsonFromLocator(locators.manifest, "Forward package manifest");
+    validateManifest(manifest, plannedChecks, { maxPackageAgeMinutes });
+  }
 
   if (args["validate-only"]) {
     const report = {
       mode: "validate-only",
-      checksPath,
+      checksSource: locators.checks,
+      manifestSource: locators.manifest || null,
       plannedChecks: plannedChecks.length,
       status: "valid",
     };

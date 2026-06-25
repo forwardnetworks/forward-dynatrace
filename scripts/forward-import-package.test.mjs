@@ -5,6 +5,7 @@ import {
   fingerprintCheck,
   reconcileChecks,
   reconciliationKey,
+  validateManifest,
   validatePlannedChecks,
 } from "./forward-import-package.mjs";
 
@@ -46,6 +47,40 @@ const withResultFields = (check) => ({
   definedAt: "2026-01-01T00:00:00Z",
   executedAt: "2026-01-01T00:01:00Z",
   status: "PASS",
+});
+
+const baseManifest = (checks = [baseCheck]) => ({
+  schemaVersion: "forward-dynatrace/v1",
+  packageType: "forward-intent-import",
+  packageId: "dynatrace-forward-test",
+  generatedAt: new Date().toISOString(),
+  requestedIngestPath: "manual-import",
+  source: {
+    platform: "dynatrace",
+    app: "forward-dynatrace",
+    writePolicy: "dynatrace-never-writes-forward",
+  },
+  artifacts: {
+    manifest: "forward-dynatrace-manifest.json",
+    intentChecks: "forward-intent-checks.json",
+  },
+  intentChecks: {
+    count: checks.length,
+    checkType: "Existential",
+    payloadShape: "NewNetworkCheck[]",
+    bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk",
+    dedupeRequiredBeforePost: true,
+  },
+  validation: {
+    requiredTagPrefix: "dynatrace-key:",
+    requiredTagsPerCheck: 1,
+    credentialPolicy: "no-forward-credentials-in-dynatrace",
+  },
+  reconciliation: {
+    defaultApplyPolicy: "create-missing-only",
+    changedChecks: "report-only",
+    staleChecks: "report-only",
+  },
 });
 
 test("uses the dynatrace-key tag as the reconciliation key", () => {
@@ -98,6 +133,30 @@ test("classifies managed checks missing from the package as stale", () => {
 
 test("accepts a valid generated intent package", () => {
   assert.doesNotThrow(() => validatePlannedChecks([baseCheck]));
+});
+
+test("accepts a valid package manifest for the planned checks", () => {
+  assert.doesNotThrow(() => validateManifest(baseManifest(), [baseCheck]));
+});
+
+test("rejects a manifest count that does not match the planned package", () => {
+  const manifest = baseManifest();
+  manifest.intentChecks.count = 2;
+
+  assert.throws(
+    () => validateManifest(manifest, [baseCheck]),
+    /does not match package count 1/,
+  );
+});
+
+test("rejects stale manifests before contacting Forward", () => {
+  const manifest = baseManifest();
+  manifest.generatedAt = "2026-01-01T00:00:00.000Z";
+
+  assert.throws(
+    () => validateManifest(manifest, [baseCheck], { maxPackageAgeMinutes: 1 }),
+    /older than 1 minutes/,
+  );
 });
 
 test("rejects package entries without exactly one dynatrace reconciliation key", () => {

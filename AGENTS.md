@@ -9,6 +9,7 @@ docs and executable checks.
 ## Start Here
 
 - [README.md](README.md): project shape, commands, deployed app, and Forward ingest summary.
+- [docs/install.md](docs/install.md): install model, release model, and public-release gate.
 - [docs/workflow.md](docs/workflow.md): Forward-centric workflow and screenshots.
 - [docs/forward-ingest-contract.md](docs/forward-ingest-contract.md): package and API contract.
 - [docs/forward-importer.md](docs/forward-importer.md): manual Forward-side importer behavior.
@@ -21,7 +22,7 @@ docs and executable checks.
 ## Non-Negotiables
 
 - The Dynatrace app never writes to Forward and never stores Forward credentials.
-- Forward writes happen only through the manual importer or a Forward-owned connector.
+- Forward writes happen only through the manual importer or a Forward-side connector.
 - Intent packages are `NewNetworkCheck[]` JSON plus a manifest.
 - Forward-side ingest validates packages, reads existing checks, reconciles, then creates missing checks only by default.
 - Changed and stale Dynatrace-managed checks are report-only until an explicit Forward policy exists.

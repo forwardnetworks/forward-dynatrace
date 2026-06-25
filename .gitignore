@@ -1,6 +1,5 @@
 # DT APP files
 .dt-app/*
-!/.dt-app/deployment.json
 
 # Compiled output
 /dist
@@ -34,6 +33,11 @@
 # System Files
 .DS_Store
 Thumbs.db
+
+# Local credentials and environment files
+*.token
+.env
+.env.*
 
 # app-settings plugin local files
 /settings/local-mock-data/secrets.json

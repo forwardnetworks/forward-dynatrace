@@ -6,7 +6,7 @@
       "request": "launch",
       "type": "chrome",
       // Needs to be updated when environmentUrl is changed in app.config.ts
-      "url": "https://example.apps.dynatrace.com/ui/apps/local-dev-server/?locationAppIds=http%3A%2F%2Flocalhost%3A3000%2Fui%2Clocal-dev-server",
+      "url": "https://your-environment-id.apps.dynatrace.com/ui/apps/local-dev-server/?locationAppIds=http%3A%2F%2Flocalhost%3A3000%2Fui%2Clocal-dev-server",
       "pathMapping": {
         "/": "${workspaceFolder}",
         "localhost:3000/": "${workspaceFolder}",

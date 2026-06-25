@@ -7,6 +7,7 @@ This repository is an art-of-the-possible demo. Use this checklist before enabli
 - Do not store Forward credentials in Dynatrace.
 - Never accept Forward credentials from browser state.
 - Store Forward credentials only in the Forward-side connector or manual import environment.
+- Keep tenant URLs, private token filenames, OAuth callback URLs, and customer-specific references out of GitHub.
 - Restrict Forward credential scope to the needed tenant/network/API capabilities.
 - Log correlation IDs, not secrets.
 
@@ -36,7 +37,8 @@ This repository is an art-of-the-possible demo. Use this checklist before enabli
 - Problem workflow: export only impacted app dependencies.
 - Scheduled workflow: refresh critical production mappings.
 - Manual workflow: build package, dry-run the Forward-side importer, review planned creates, then apply.
-- Connector workflow: Forward-side connector pulls the latest package and performs deduped bulk check ingest.
+- Connector workflow: Forward-side connector pulls the latest package URL, validates manifest and checks, then performs
+  deduped bulk check ingest.
 - Treat each export as desired state and reconcile before writing.
 - Keep the default apply policy as create-missing-only until update and stale-check policies are approved.
 
