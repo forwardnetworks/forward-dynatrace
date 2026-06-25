@@ -17,6 +17,9 @@ It exports a desired-state package; a Forward operator or Forward-owned data con
 - Forward importer workflow: `docs/forward-importer.md`
 - Forward importer script: `scripts/forward-import-package.mjs`
 - Production checklist: `docs/production-readiness.md`
+- Validation matrix: `docs/validation-matrix.md`
+- Harness engineering notes: `docs/harness-engineering.md`
+- GitOps checks: `docs/gitops.md`
 
 ## Flow
 
@@ -108,7 +111,13 @@ used to read monitored entities needs the `environment-api:entities:read` scope.
 
 ```bash
 npm install
-npm run start
+npm run repo:validate
+npm run forward:import:test
+npm run lint
 npm run build
+npm run ci
+npm run start
 npm run deploy
 ```
+
+`npm run ci` is the local equivalent of the GitHub Actions `gitops` workflow.
