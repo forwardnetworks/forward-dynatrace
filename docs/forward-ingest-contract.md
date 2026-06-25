@@ -3,8 +3,12 @@
 Goal: use Dynatrace application mapping to create and maintain Forward intent checks without letting the Dynatrace app
 write to Forward.
 
-The Dynatrace app exports artifacts. Forward manual import or a Forward-owned data connector performs all Forward API
+The Dynatrace app exports artifacts. Forward manual import or a Forward-side connector performs all Forward API
 writes.
+
+A Forward-side connector is a pull/import process that runs outside Dynatrace with Forward-scoped credentials. It can
+be implemented as a customer-operated service or a Forward-provided connector, but it must keep writes out of the
+Dynatrace app.
 
 ## Source Data From Dynatrace
 
@@ -44,7 +48,7 @@ Before any Forward API write, the importer or connector must reject the package 
 
 ## Forward Bulk Ingest
 
-Forward receives the package through manual import or connector pull. Forward-side ingest uses:
+Forward receives the package through manual import or Forward-side connector pull. Forward-side ingest uses:
 
 ```text
 GET /api/networks/{networkId}/snapshots/latestProcessed
@@ -102,7 +106,7 @@ GET /api/networks/{networkId}/snapshots/latestProcessed
 ```
 
 Create persistent checks only against a processed snapshot. If a new collection is needed, that should be a separate
-Forward-owned workflow before import.
+Forward-side workflow before import.
 
 ## Status Readback
 

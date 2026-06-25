@@ -11,7 +11,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Package validation | Importer rejects malformed packages before Forward environment variables or API calls are required. |
 | Synthetic Forward workflow | `npm run workflow:smoke` exercises validate-only, dry-run, apply, unchanged, changed, and stale flows against a fake Forward API. |
 | UI workflow screenshots | `docs/assets/screenshots/*.jpg` were captured from the running local app. |
-| Dynatrace dev deploy | Version `0.0.5` was deployed to `tjo85665.apps.dynatrace.com`. |
+| Dynatrace dev build package | Version `0.0.6` builds locally; live deploy is pending fresh Dynatrace SSO authentication. |
 | Legacy export path removal | `npm run repo:validate` blocks legacy secondary-artifact terms. |
 | Secret hygiene | `npm run repo:validate` blocks committed Dynatrace token-shaped secrets and non-placeholder Forward passwords. |
 
@@ -32,8 +32,9 @@ This document tracks what is validated today and what still needs a live Forward
 | --- | --- |
 | Forward dry-run against a real test network | Forward base URL, credentials, and a specific non-production `FORWARD_NETWORK_ID`. |
 | Forward apply against a real test network | Explicit approval to create test intent checks in that network. |
-| Forward-owned connector | Connector implementation or target connector runtime. Current repo defines the contract and manual importer. |
+| Forward-side connector | Connector implementation or target connector runtime. Current repo defines the contract and manual importer. |
 | Dynatrace Workflow trigger | A real problem or schedule workflow wired to call the export function. |
+| Dynatrace dev deploy refresh | Complete Dynatrace SSO in the local `dt-app deploy` browser flow, then deploy version `0.0.6` to `tjo85665.apps.dynatrace.com`. |
 | Dynatrace Business Events seed | Dry-run passed. Live seed was attempted on 2026-06-25 and returned `403 Permission denied`; the local token needs `bizevents.ingest`. |
 | End-to-end drift loop | At least two package generations with an intentional dependency change, then dry-run/report/apply review. |
 

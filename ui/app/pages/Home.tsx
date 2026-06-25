@@ -38,6 +38,8 @@ import type {
 import "./Home.css";
 
 const dependencies = demoDependencies as DependencyCandidate[];
+const dynatraceLogoUrl = "assets/Dynatrace_Logo.svg";
+const forwardLogoUrl = "assets/forward-logo.svg";
 
 const selectedForSync = dependencies.filter(
   (dependency) => dependency.mappingState !== "needs-map",
@@ -127,17 +129,41 @@ export const Home = () => {
   return (
     <Flex className="page" flexDirection="column" gap={24}>
       <TitleBar>
-        <TitleBar.Title>Forward Network Proof</TitleBar.Title>
+        <TitleBar.Title>Forward Intent Check Export</TitleBar.Title>
       </TitleBar>
 
       <section className="hero-band">
         <div className="hero-copy">
+          <div className="brand-lockup" aria-label="Dynatrace to Forward">
+            <span className="brand-node dynatrace-brand">
+              <img src={dynatraceLogoUrl} alt="" aria-hidden="true" />
+              <span>Dynatrace</span>
+            </span>
+            <span className="brand-arrow" aria-hidden="true">→</span>
+            <span className="brand-node forward-brand">
+              <img src={forwardLogoUrl} alt="Forward Networks" />
+            </span>
+          </div>
           <p className="eyebrow">Dynatrace application mapping to Forward intent</p>
           <Heading level={1}>Fill Forward intent checks from app dependencies</Heading>
           <Paragraph>
             Art-of-the-possible demo for turning Dynatrace dependency maps into
             Forward bulk intent-check JSON.
           </Paragraph>
+          <div className="workflow-strip" aria-label="Forward ingestion workflow">
+            <div>
+              <Strong>Dynatrace maps</Strong>
+              <span>Service dependencies</span>
+            </div>
+            <div>
+              <Strong>Export package</Strong>
+              <span>Bulk intent JSON</span>
+            </div>
+            <div>
+              <Strong>Forward imports</Strong>
+              <span>Manual import or connector pull</span>
+            </div>
+          </div>
         </div>
         <div className="hero-actions">
           <Button color="primary" variant="emphasized" onClick={() => runProof()}>
@@ -150,7 +176,7 @@ export const Home = () => {
             <Button.Prefix>
               <SyncIcon />
             </Button.Prefix>
-            Export package
+            Build package
           </Button>
         </div>
       </section>
@@ -159,8 +185,8 @@ export const Home = () => {
         <Strong>Demo guardrail</Strong>
         <span>
           This app builds Forward-ready artifacts. It never writes to Forward.
-          Forward imports the bulk checks JSON manually or pulls the package
-          through a Forward-owned data connector.
+          Forward imports the bulk checks JSON manually, or a Forward-side
+          connector pulls the package.
         </span>
       </section>
 

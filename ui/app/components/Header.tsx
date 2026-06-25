@@ -1,16 +1,19 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { AppHeader } from "@dynatrace/strato-components/layouts";
+
+import "./Header.css";
+
+const forwardLogoUrl = "assets/forward-logo.svg";
 
 export const Header = () => {
   return (
-    <AppHeader>
-      <AppHeader.Navigation>
-        <AppHeader.Logo as={Link} to="/" />
-        <AppHeader.NavigationItem as={Link} to="/">
-          Network Proof
-        </AppHeader.NavigationItem>
-      </AppHeader.Navigation>
-    </AppHeader>
+    <header className="app-shell-header">
+      <Link className="app-shell-brand" to="/">
+        <span className="app-shell-logo">
+          <img src={forwardLogoUrl} alt="Forward Networks" />
+        </span>
+        <span>Intent Export</span>
+      </Link>
+    </header>
   );
 };

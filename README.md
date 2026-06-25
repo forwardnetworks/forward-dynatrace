@@ -4,7 +4,7 @@ Art-of-the-possible Dynatrace AppEngine demo for turning Dynatrace application d
 bulk intent-check import packages.
 
 This is a production-oriented scaffold, not a turnkey supported integration. The Dynatrace app never mutates Forward.
-It exports a desired-state package; a Forward operator or Forward-owned data connector imports or pulls that package.
+It exports a desired-state package; a Forward operator or Forward-side connector imports or pulls that package.
 
 ## Shape
 
@@ -55,10 +55,13 @@ Persistent intent-check payload:
 The production-grade route is an export package that Forward imports or pulls. The intent-check JSON is the primary
 artifact.
 
+A Forward-side connector means a process outside Dynatrace that pulls the export package, validates and dedupes it, and
+then writes to Forward with Forward-scoped credentials. It is a pull/import path, not a Dynatrace push into Forward.
+
 1. Generate `forward-intent-checks.json` as Forward-native `NewNetworkCheck[]`.
 2. Generate `forward-dynatrace-manifest.json` with schema version, counts, dedupe policy, and optional Forward target
    metadata.
-3. Forward operator imports the package manually with the included script, or a Forward-owned connector pulls it.
+3. Forward operator imports the package manually with the included script, or a Forward-side connector pulls it.
 4. Forward-side ingest validates package shape, unique names, unique `dynatrace-key:*` tags, and allowed check type.
 5. Forward-side ingest resolves the latest processed snapshot with
    `GET /api/networks/{networkId}/snapshots/latestProcessed`.
@@ -73,7 +76,7 @@ For fully automatic package generation, create a Dynatrace Workflow with either:
 - Problem trigger: export only impacted service dependencies.
 - Schedule trigger: refresh export package for all critical app dependencies.
 
-Forward-owned automation should reconcile each package against existing Forward checks before writing.
+Forward-side automation should reconcile each package against existing Forward checks before writing.
 
 ## Manual Import Dry Run
 
@@ -103,7 +106,7 @@ The dev environment is configured in `app.config.json`:
 ```
 
 The Dynatrace app should not store Forward write credentials. Forward credentials belong in Forward-side manual import
-or the Forward-owned connector.
+or the Forward-side connector.
 
 For local Dynatrace API smoke checks, keep any platform token outside the repo, for example `~/dynatrace.token`. A token
 used to read monitored entities needs the `environment-api:entities:read` scope.

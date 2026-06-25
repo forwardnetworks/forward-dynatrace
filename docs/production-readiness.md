@@ -1,12 +1,12 @@
 # Production Readiness Checklist
 
-This repository is an art-of-the-possible demo. Use this checklist before enabling Forward-owned ingest.
+This repository is an art-of-the-possible demo. Use this checklist before enabling Forward-side ingest.
 
 ## Security
 
 - Do not store Forward credentials in Dynatrace.
 - Never accept Forward credentials from browser state.
-- Store Forward credentials only in the Forward-owned connector or manual import environment.
+- Store Forward credentials only in the Forward-side connector or manual import environment.
 - Restrict Forward credential scope to the needed tenant/network/API capabilities.
 - Log correlation IDs, not secrets.
 
@@ -20,14 +20,14 @@ This repository is an art-of-the-possible demo. Use this checklist before enabli
 - Prefer minimum confidence threshold for automatic check creation.
 - Report rejected rows in the manifest/import report for review.
 
-## Forward-Owned Write Safety
+## Forward-Side Write Safety
 
 - Read existing checks before writes.
 - Dedupe by exact check name and `dynatrace-key:*` tag.
 - Fingerprint generated fields so result/status/timestamp fields do not cause false drift.
 - Create missing checks only with `POST /api/snapshots/{snapshotId}/checks?bulk`.
 - Chunk large `NewNetworkCheck[]` imports and report per-batch status.
-- Keep Forward writes in the manual importer or Forward-owned connector, never in the Dynatrace app.
+- Keep Forward writes in the manual importer or Forward-side connector, never in the Dynatrace app.
 - Do not delete stale checks automatically in the first production version.
 - Make check retirement a separate reviewed workflow.
 
@@ -36,7 +36,7 @@ This repository is an art-of-the-possible demo. Use this checklist before enabli
 - Problem workflow: export only impacted app dependencies.
 - Scheduled workflow: refresh critical production mappings.
 - Manual workflow: build package, dry-run the Forward-side importer, review planned creates, then apply.
-- Connector workflow: Forward connector pulls the latest package and performs deduped bulk check ingest.
+- Connector workflow: Forward-side connector pulls the latest package and performs deduped bulk check ingest.
 - Treat each export as desired state and reconcile before writing.
 - Keep the default apply policy as create-missing-only until update and stale-check policies are approved.
 

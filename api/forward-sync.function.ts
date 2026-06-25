@@ -137,7 +137,7 @@ interface ForwardExportManifest {
   };
   workflowOptions: Array<{
     id: "manual-import" | "data-connector";
-    owner: "forward-operator" | "forward-owned-connector";
+    owner: "forward-operator" | "forward-side-connector";
     writesForward: true;
     summary: string;
   }>;
@@ -146,7 +146,7 @@ interface ForwardExportManifest {
 const missing = (value: string | undefined): boolean => !value?.trim();
 
 const DEMO_DISCLAIMER =
-  "Art-of-the-possible demonstration: this Dynatrace app only exports Forward-ready artifacts. Forward ingestion is performed manually by a Forward operator or automatically by a Forward-owned data connector.";
+  "Art-of-the-possible demonstration: this Dynatrace app only exports Forward-ready artifacts. Forward ingestion runs in a Forward-controlled environment: either a manual importer or a Forward-side connector that pulls the package.";
 
 const MANIFEST_FILE_NAME = "forward-dynatrace-manifest.json";
 const INTENT_CHECKS_FILE_NAME = "forward-intent-checks.json";
@@ -326,10 +326,10 @@ const toExportManifest = ({
     },
     {
       id: "data-connector",
-      owner: "forward-owned-connector",
+      owner: "forward-side-connector",
       writesForward: true,
       summary:
-        "Forward connector pulls the latest package from Dynatrace with read-only Dynatrace access, validates schema, dedupes checks, then performs Forward writes.",
+        "Forward-side connector pulls the latest package from Dynatrace with read-only Dynatrace access, validates schema, dedupes checks, then performs Forward writes.",
     },
   ],
 });
@@ -353,10 +353,10 @@ const toReadinessChecks = (
       "The Dynatrace app does not collect or store Forward write credentials.",
   },
   {
-    label: "Forward-owned ingest",
+    label: "Forward-side ingest",
     status: "ready",
     detail:
-      "Forward operator import or Forward data connector owns all Forward-side writes.",
+      "A manual importer or Forward-side connector is responsible for all Forward writes.",
   },
   {
     label: "Dependency quality",
@@ -503,7 +503,7 @@ export default function (
   return {
     status: "ready",
     summary: hasForwardTarget
-      ? "Forward bulk intent package is ready. Forward owns manual import or connector-based ingestion."
+      ? "Forward bulk intent package is ready. A Forward-side importer or connector owns ingestion."
       : "Forward import package is ready. Add optional Forward URL and network ID metadata if desired.",
     generatedAt,
     disclaimer: DEMO_DISCLAIMER,
@@ -514,10 +514,10 @@ export default function (
     actions: buildActions(payload, intentChecks),
     readinessChecks: toReadinessChecks(payload, exportableDependencies),
     workflowTrigger:
-      "Dynatrace Workflow on problem trigger or schedule can generate this package. Forward then imports it manually or pulls it with a Forward-owned connector.",
+      "Dynatrace Workflow on problem trigger or schedule can generate this package. Forward then imports it manually, or a Forward-side connector pulls it.",
     nextSteps: [
       "Export the manifest and NewNetworkCheck[] JSON package.",
-      "Import manually with a Forward-side script or let a Forward-owned connector pull the package.",
+      "Import with the Forward-side script, or let a Forward-side connector pull the package.",
       "Forward-side import resolves latest processed snapshot, reads existing checks, dedupes by name/tag, then calls /checks?bulk.",
       "Review changed or stale Dynatrace-managed checks before any update or retirement workflow.",
       "Keep Dynatrace as the mapping source and Forward as the system of record for intent.",

@@ -5,7 +5,7 @@ application dependency evidence; Forward is the system that stores, evaluates, r
 intent.
 
 This repository is an art-of-the-possible demonstration. It builds Forward-ready payloads and a production API plan,
-but the Dynatrace app must not mutate a Forward tenant. Forward-side manual import or a Forward-owned data connector
+but the Dynatrace app must not mutate a Forward tenant. Forward-side manual import or a Forward-side connector
 owns all intent-check writes.
 
 ## What the Dynatrace App Provides
@@ -51,7 +51,7 @@ writes happen inside Dynatrace.
 
 ### 3. Forward-Side Bulk Check Ingest
 
-Eligible rows become Forward-native `NewNetworkCheck[]` JSON. Forward manual import or a Forward-owned connector
+Eligible rows become Forward-native `NewNetworkCheck[]` JSON. Forward manual import or a Forward-side connector
 executes the API calls.
 
 ![Forward-side API sequence](assets/screenshots/03-forward-side-api.jpg)
@@ -70,7 +70,7 @@ Forward-side ingest.
    - `forward-intent-checks.json`
    - `forward-dynatrace-manifest.json`
    - deterministic `integration_key` values in each check tag and note.
-3. Forward operator imports the package, or Forward-owned connector pulls it.
+3. Forward operator imports the package, or Forward-side connector pulls it.
 4. Forward-side ingest validates package shape, required fields, supported check type, and unique names/tags.
 5. Forward-side ingest resolves the snapshot where checks should be created:
 
@@ -180,10 +180,14 @@ source/destination mapping is complete.
 
    `npm run forward:import -- --checks forward-intent-checks.json --apply`
 
-## Workflow Option B: Forward-Owned Data Connector
+## Workflow Option B: Forward-Side Connector Pull
+
+Here, connector means a process outside Dynatrace that runs in a Forward-controlled or customer-controlled
+environment. It has read-only access to the Dynatrace export package and the Forward credentials needed to reconcile
+and create checks. The Dynatrace app still never pushes changes into Forward.
 
 1. Dynatrace app or Dynatrace Workflow writes the latest export package to a connector-readable location.
-2. Forward-owned connector authenticates to Dynatrace with read-only access and pulls the package.
+2. Forward-side connector authenticates to Dynatrace with read-only access and pulls the package.
 3. Connector validates:
    - `schemaVersion`
    - package age
@@ -210,12 +214,12 @@ Problem trigger:
 Schedule trigger:
 - Refresh all critical production dependencies.
 - Refresh the export package.
-- Forward-owned connector decides whether to import the updated package.
+- Forward-side connector decides whether to import the updated package.
 
 ## Runtime Requirements
 
 - Dynatrace app scope for reading entities and related observability context.
 - No Forward write credentials stored in Dynatrace.
-- Forward-owned connector or Forward operator owns Forward credentials.
+- Forward-side connector or Forward operator owns Forward credentials.
 - Idempotency keys or deterministic check names so Forward-side import skips existing checks instead of duplicating them.
 - A policy for check ownership, updates, retirement, and exception handling.

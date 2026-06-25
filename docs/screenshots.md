@@ -1,7 +1,7 @@
 # Workflow Screenshots
 
 These screenshots show the art-of-the-possible workflow: Dynatrace application mapping becomes Forward bulk
-intent-check JSON for Forward-owned reconciliation.
+intent-check JSON for Forward-side reconciliation.
 
 ## Overview
 

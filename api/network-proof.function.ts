@@ -84,7 +84,7 @@ export default function (
       evidence,
       nextSteps: [
         "Keep Forward write credentials out of Dynatrace.",
-        "Export proof context for manual Forward review or Forward-owned connector ingestion.",
+        "Export proof context for manual Forward review or Forward-side connector ingestion.",
         "Replace this mock branch with read-only proof lookup only if needed.",
       ],
     };
@@ -104,7 +104,7 @@ export default function (
     ],
     nextSteps: [
       "Do not write to Forward from this function.",
-      "Use Forward-owned ingest to create or update checks.",
+      "Use Forward-side ingest to reconcile checks.",
       "Optionally map Forward PASS/FAIL into a read-only Dynatrace display.",
     ],
   };
