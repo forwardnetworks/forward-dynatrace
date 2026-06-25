@@ -28,6 +28,24 @@ ownership are configured.
 6. Production execution then performs Data File create/update, network attachment, latest snapshot lookup, check
    dedupe, persistent check create, and check status readback.
 
+## Screenshots
+
+Workflow overview:
+
+![Forward Dynatrace overview](docs/assets/screenshots/01-overview.jpg)
+
+Forward ingest plan, readiness gates, and payloads:
+
+![Forward ingest plan and readiness](docs/assets/screenshots/02-sync-plan-readiness.jpg)
+
+Standard Forward API sequence and Data File payload:
+
+![Forward API sequence and Data File payload](docs/assets/screenshots/03-data-file-api.jpg)
+
+Persistent intent-check payload:
+
+![Forward intent check payload](docs/assets/screenshots/04-intent-check-payload.jpg)
+
 ## Forward automation path
 
 The first production-grade route is a Forward Data File sync:

@@ -30,6 +30,32 @@ flowchart LR
     H --> I["Dynatrace app result / problem annotation"]
 ```
 
+## Screenshots
+
+### 1. Dynatrace Mapping Becomes Forward Intent Candidates
+
+The app starts from Dynatrace application dependencies, not generic infra telemetry.
+
+![Forward Dynatrace overview](assets/screenshots/01-overview.jpg)
+
+### 2. Build A Forward Ingest Plan
+
+The workflow produces a dry-run plan first: row counts, readiness gates, and blockers before live writes.
+
+![Forward ingest plan and readiness gates](assets/screenshots/02-sync-plan-readiness.jpg)
+
+### 3. Send Standard Forward Data File + API Calls
+
+The same rows become a Forward Data File, then get attached to a network and tied to a processed snapshot.
+
+![Forward API sequence and Data File request](assets/screenshots/03-data-file-api.jpg)
+
+### 4. Create Persistent Forward Intent Checks
+
+Eligible dependency rows become persistent `Existential` checks with deterministic tags for dedupe.
+
+![Forward intent check payload](assets/screenshots/04-intent-check-payload.jpg)
+
 ## Standard Forward Ingest Sequence
 
 1. Build dependency rows from Dynatrace services, spans, tags, or ownership metadata.
