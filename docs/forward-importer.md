@@ -32,7 +32,8 @@ The dry run:
 2. Reads existing Forward intent checks:
    `GET /api/snapshots/{snapshotId}/checks?type=Existential`
 3. Matches planned checks by exact `name` or `dynatrace-key:*` tag.
-4. Reports planned checks, existing matches, and checks that would be created.
+4. Computes canonical SHA-256 fingerprints for the generated check fields.
+5. Reports checks to create, unchanged checks, changed checks, and stale Dynatrace-managed checks.
 
 ## Apply Checks
 
@@ -47,3 +48,26 @@ POST /api/snapshots/{snapshotId}/checks?bulk
 ```
 
 Body shape is `NewNetworkCheck[]`. The Forward API defaults `persistent` to `true`.
+
+Changed and stale checks remain report-only. Use the import report to review updates or retirement separately.
+
+## Reconciliation Report
+
+Write the report to disk with:
+
+```bash
+npm run forward:import -- --checks forward-intent-checks.json --report forward-import-report.json
+```
+
+The report includes:
+
+- `create`: package checks not found in Forward.
+- `unchanged`: package checks already present with the same generated fingerprint.
+- `changed`: same key/name exists, but generated fields differ.
+- `stale`: Dynatrace-managed Forward checks no longer present in the package.
+
+Use `--fail-on-drift` in automation when changed or stale checks should block the run:
+
+```bash
+npm run forward:import -- --checks forward-intent-checks.json --fail-on-drift
+```

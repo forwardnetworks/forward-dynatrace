@@ -1,6 +1,6 @@
 {
   "name": "forward-dynatrace",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Dynatrace app for exporting Forward intent-check packages from service dependency evidence",
   "scripts": {
     "build": "dt-app build",
@@ -13,6 +13,7 @@
     "info": "dt-app info",
     "help": "dt-app help",
     "forward:import": "node scripts/forward-import-package.mjs",
+    "forward:import:test": "node --test scripts/forward-import-package.test.mjs",
     "lint": "eslint ."
   },
   "engines": {

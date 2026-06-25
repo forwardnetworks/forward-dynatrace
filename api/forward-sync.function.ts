@@ -114,6 +114,13 @@ interface ForwardExportManifest {
     bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk";
     dedupeRequiredBeforePost: true;
     dedupe: "name-or-dynatrace-key-tag";
+    fingerprintAlgorithm: "canonical-json-sha256";
+  };
+  reconciliation: {
+    strategy: "desired-state";
+    defaultApplyPolicy: "create-missing-only";
+    changedChecks: "report-only";
+    staleChecks: "report-only";
   };
   bulkPolicy: {
     supported: true;
@@ -281,6 +288,13 @@ const toExportManifest = ({
     bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk",
     dedupeRequiredBeforePost: true,
     dedupe: "name-or-dynatrace-key-tag",
+    fingerprintAlgorithm: "canonical-json-sha256",
+  },
+  reconciliation: {
+    strategy: "desired-state",
+    defaultApplyPolicy: "create-missing-only",
+    changedChecks: "report-only",
+    staleChecks: "report-only",
   },
   bulkPolicy: {
     supported: true,
@@ -347,6 +361,12 @@ const toReadinessChecks = (
     detail:
       "Intent checks are exported as NewNetworkCheck[] for Forward's standard /checks?bulk endpoint.",
   },
+  {
+    label: "Reconciliation",
+    status: "ready",
+    detail:
+      "Forward-side import creates missing checks and reports changed or stale Dynatrace-managed checks.",
+  },
 ];
 
 const isExportableDependency = (dependency: DependencyCandidate): boolean =>
@@ -375,7 +395,7 @@ const buildActions = (
     method: "GET",
     path: "/api/snapshots/{latestProcessedSnapshotId}/checks?type=Existential",
     purpose:
-      "Forward-side import reads existing intent checks and dedupes by check name or dynatrace-key tag before posting.",
+      "Forward-side import reads existing intent checks, dedupes by check name or dynatrace-key tag, and detects changed or stale checks.",
   });
   actions.push({
     method: "POST",
@@ -479,6 +499,7 @@ export default function (
       "Export the manifest and NewNetworkCheck[] JSON package.",
       "Import manually with a Forward-side script or let a Forward-owned connector pull the package.",
       "Forward-side import resolves latest processed snapshot, reads existing checks, dedupes by name/tag, then calls /checks?bulk.",
+      "Review changed or stale Dynatrace-managed checks before any update or retirement workflow.",
       "Keep Dynatrace as the mapping source and Forward as the system of record for intent.",
     ],
   };

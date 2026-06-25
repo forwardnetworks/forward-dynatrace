@@ -59,7 +59,7 @@ artifact.
    `GET /api/networks/{networkId}/snapshots/latestProcessed`.
 5. Forward-side ingest reads existing intent checks with
    `GET /api/snapshots/{snapshotId}/checks?type=Existential`.
-6. Forward-side ingest skips checks that match an existing name or `dynatrace-key:*` tag.
+6. Forward-side ingest produces a create/unchanged/changed/stale reconciliation report.
 7. Forward-side ingest creates missing persistent Forward intent checks with
    `POST /api/snapshots/{snapshotId}/checks?bulk`.
 
@@ -82,6 +82,7 @@ export FORWARD_NETWORK_ID=<network-id>
 
 npm run forward:import -- --checks forward-intent-checks.json
 npm run forward:import -- --checks forward-intent-checks.json --apply
+npm run forward:import -- --checks forward-intent-checks.json --report forward-import-report.json
 ```
 
 ## Configure

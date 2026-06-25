@@ -80,13 +80,19 @@ Forward-side ingest.
 
    Match by deterministic check name or `dynatrace-key:*` tag.
 
-6. Forward-side ingest creates missing persistent intent checks in bulk:
+6. Forward-side ingest fingerprints generated fields and produces a reconciliation report:
+   - `create`
+   - `unchanged`
+   - `changed`
+   - `stale`
+
+7. Forward-side ingest creates missing persistent intent checks in bulk:
 
    `POST /api/snapshots/{snapshotId}/checks?bulk`
 
    Body is `NewNetworkCheck[]`. Persistence defaults to true in Forward's API.
 
-7. Forward-side ingest reads back status:
+8. Forward-side ingest reads back status:
 
    `GET /api/snapshots/{snapshotId}/checks?type=Existential`
 
@@ -97,12 +103,15 @@ The automated workflow should treat every export as desired state from Dynatrace
 Each connector or importer run should compute:
 
 - `new`: `dynatrace-key:*` exists in the package but not in Forward. Create it.
-- `unchanged`: key and generated payload match. Skip it.
-- `changed`: same key, different definition/metadata. Update only under the configured policy, or report for review.
+- `unchanged`: key and generated fingerprint match. Skip it.
+- `changed`: same key, different generated fingerprint. Update only under the configured policy, or report for review.
 - `stale`: key exists in Forward but not in the latest package. Mark for review by default.
 
 The first production-safe policy should auto-create only missing checks. Updates and stale removals should be reviewed
 until ownership and retirement rules are explicit.
+
+The importer uses a canonical JSON SHA-256 fingerprint over generated check fields so Forward result fields such as
+status, IDs, creators, and timestamps do not create false drift.
 
 ## Intent Check Mapping
 
@@ -164,7 +173,7 @@ source/destination mapping is complete.
 
    `npm run forward:import -- --checks forward-intent-checks.json`
 
-4. Forward operator reviews planned creates and existing matches.
+4. Forward operator reviews the reconciliation report.
 5. Forward operator applies:
 
    `npm run forward:import -- --checks forward-intent-checks.json --apply`
@@ -182,9 +191,10 @@ source/destination mapping is complete.
 4. Connector resolves the Forward network and latest processed snapshot.
 5. Connector reads existing Forward intent checks.
 6. Connector dedupes by exact check name or `dynatrace-key:*` tag.
-7. Connector posts only missing checks to `/api/snapshots/{snapshotId}/checks?bulk`.
-8. Connector reports changed and stale checks according to policy.
-9. Connector writes import status back to Forward logs, and optionally exposes read-only status in Dynatrace.
+7. Connector fingerprints generated fields and computes create/unchanged/changed/stale.
+8. Connector posts only missing checks to `/api/snapshots/{snapshotId}/checks?bulk`.
+9. Connector reports changed and stale checks according to policy.
+10. Connector writes import status back to Forward logs, and optionally exposes read-only status in Dynatrace.
 
 ## Dynatrace Workflow Triggers
 

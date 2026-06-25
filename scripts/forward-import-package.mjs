@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
-import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 
 const DEFAULT_CHECKS_PATH = "forward-intent-checks.json";
 const DEFAULT_BATCH_SIZE = 500;
@@ -17,9 +19,26 @@ Required environment:
 Usage:
   node scripts/forward-import-package.mjs --checks forward-intent-checks.json
   node scripts/forward-import-package.mjs --checks forward-intent-checks.json --apply
+  node scripts/forward-import-package.mjs --checks forward-intent-checks.json --report forward-import-report.json
 
-The default mode is dry-run. Use --apply to write missing checks.
+Options:
+  --apply              Create missing checks. Changed and stale checks are still report-only.
+  --batch-size 500     Batch size for /checks?bulk.
+  --fail-on-drift      Exit non-zero when changed or stale Dynatrace-managed checks are found.
+  --report path        Write the reconciliation report to a JSON file.
+
+The default mode is dry-run. The apply policy is create-missing-only.
 `;
+
+const SUPPORTED_ARGS = new Set([
+  "_",
+  "apply",
+  "batch-size",
+  "checks",
+  "fail-on-drift",
+  "help",
+  "report",
+]);
 
 const parseArgs = (argv) => {
   const args = { _: [] };
@@ -30,7 +49,7 @@ const parseArgs = (argv) => {
       continue;
     }
     const key = value.slice(2);
-    if (key === "apply" || key === "help") {
+    if (key === "apply" || key === "fail-on-drift" || key === "help") {
       args[key] = true;
       continue;
     }
@@ -42,6 +61,15 @@ const parseArgs = (argv) => {
     index += 1;
   }
   return args;
+};
+
+const validateArgs = (args) => {
+  const unsupportedArgs = Object.keys(args).filter((key) => !SUPPORTED_ARGS.has(key));
+  if (unsupportedArgs.length > 0) {
+    throw new Error(
+      `Unsupported option(s): ${unsupportedArgs.map((key) => `--${key}`).join(", ")}`,
+    );
+  }
 };
 
 const requiredEnv = (name) => {
@@ -62,17 +90,133 @@ const chunk = (items, size) => {
   return chunks;
 };
 
-const dynatraceKeys = (check) =>
+const sortObject = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(sortObject);
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, child]) => [key, sortObject(child)]),
+    );
+  }
+  return value;
+};
+
+const stableJson = (value) => JSON.stringify(sortObject(value));
+
+export const dynatraceKeys = (check) =>
   (check.tags || []).filter((tag) => tag.startsWith("dynatrace-key:"));
 
-const hasMatchingImportedCheck = (planned, existing) => {
-  const plannedKeys = new Set(dynatraceKeys(planned));
-  return existing.some((check) => {
-    if (planned.name && check.name === planned.name) {
-      return true;
-    }
-    return dynatraceKeys(check).some((key) => plannedKeys.has(key));
+export const reconciliationKey = (check) => dynatraceKeys(check)[0] || check.name || "";
+
+const sortedTags = (check) => [...(check.tags || [])].sort();
+
+export const canonicalizeCheck = (check) => ({
+  definition: check.definition,
+  enabled: check.enabled !== false,
+  name: check.name || "",
+  note: check.note || "",
+  priority: check.priority || "NOT_SET",
+  tags: sortedTags(check),
+});
+
+export const fingerprintCheck = (check) =>
+  createHash("sha256").update(stableJson(canonicalizeCheck(check))).digest("hex");
+
+const changedFields = (planned, existing) =>
+  Object.keys(canonicalizeCheck(planned)).filter((field) => {
+    const plannedValue = canonicalizeCheck(planned)[field];
+    const existingValue = canonicalizeCheck(existing)[field];
+    return stableJson(plannedValue) !== stableJson(existingValue);
   });
+
+const indexExistingChecks = (existingChecks) => {
+  const byKey = new Map();
+  const byName = new Map();
+
+  for (const check of existingChecks) {
+    for (const key of dynatraceKeys(check)) {
+      byKey.set(key, check);
+    }
+    if (check.name) {
+      byName.set(check.name, check);
+    }
+  }
+
+  return { byKey, byName };
+};
+
+const summarizeCheck = (check) => ({
+  fingerprint: fingerprintCheck(check),
+  id: check.id,
+  key: reconciliationKey(check),
+  name: check.name || "",
+});
+
+export const reconcileChecks = (plannedChecks, existingChecks) => {
+  const { byKey, byName } = indexExistingChecks(existingChecks);
+  const plannedKeys = new Set();
+  const plannedNames = new Set();
+  const create = [];
+  const unchanged = [];
+  const changed = [];
+
+  for (const planned of plannedChecks) {
+    const key = reconciliationKey(planned);
+    const existing = (key && byKey.get(key)) || (planned.name && byName.get(planned.name));
+
+    if (key) {
+      plannedKeys.add(key);
+    }
+    if (planned.name) {
+      plannedNames.add(planned.name);
+    }
+
+    if (!existing) {
+      create.push({ ...summarizeCheck(planned), check: planned });
+      continue;
+    }
+
+    const plannedFingerprint = fingerprintCheck(planned);
+    const existingFingerprint = fingerprintCheck(existing);
+    if (plannedFingerprint === existingFingerprint) {
+      unchanged.push({
+        existingId: existing.id,
+        ...summarizeCheck(planned),
+      });
+      continue;
+    }
+
+    changed.push({
+      existingId: existing.id,
+      fields: changedFields(planned, existing),
+      key,
+      name: planned.name || existing.name || "",
+      planned: {
+        fingerprint: plannedFingerprint,
+        check: planned,
+      },
+      existing: {
+        fingerprint: existingFingerprint,
+        check: existing,
+      },
+    });
+  }
+
+  const stale = existingChecks
+    .filter((check) => dynatraceKeys(check).length > 0)
+    .filter((check) => {
+      const keys = dynatraceKeys(check);
+      return (
+        keys.every((key) => !plannedKeys.has(key)) &&
+        (!check.name || !plannedNames.has(check.name))
+      );
+    })
+    .map(summarizeCheck);
+
+  return { create, unchanged, changed, stale };
 };
 
 const makeClient = ({ baseUrl, user, password }) => {
@@ -108,20 +252,26 @@ const makeClient = ({ baseUrl, user, password }) => {
   };
 };
 
+const toPositiveInteger = (value, label) => {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${label} must be a positive integer.`);
+  }
+  return parsed;
+};
+
 const main = async () => {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
     process.stdout.write(usage);
     return;
   }
-  const unsupportedArgs = Object.keys(args).filter(
-    (key) => !["_", "apply", "checks", "help"].includes(key),
-  );
-  if (unsupportedArgs.length > 0) {
-    throw new Error(`Unsupported option(s): ${unsupportedArgs.map((key) => `--${key}`).join(", ")}`);
-  }
+  validateArgs(args);
 
   const apply = Boolean(args.apply);
+  const batchSize = args["batch-size"]
+    ? toPositiveInteger(args["batch-size"], "--batch-size")
+    : DEFAULT_BATCH_SIZE;
   const networkId = requiredEnv("FORWARD_NETWORK_ID");
   const api = makeClient({
     baseUrl: requiredEnv("FORWARD_BASE_URL"),
@@ -144,36 +294,54 @@ const main = async () => {
     "GET",
     `/api/snapshots/${snapshotId}/checks?type=Existential`,
   );
-  const missingChecks = plannedChecks.filter(
-    (check) => !hasMatchingImportedCheck(check, existingChecks),
-  );
+  const reconciliation = reconcileChecks(plannedChecks, existingChecks);
 
   if (apply) {
-    for (const batch of chunk(missingChecks, DEFAULT_BATCH_SIZE)) {
+    for (const batch of chunk(reconciliation.create.map((item) => item.check), batchSize)) {
       await api("POST", `/api/snapshots/${snapshotId}/checks?bulk`, {
         body: batch,
       });
     }
   }
 
-  process.stdout.write(
-    JSON.stringify(
-      {
-        mode: apply ? "apply" : "dry-run",
-        networkId,
-        snapshotId,
-        plannedChecks: plannedChecks.length,
-        existingMatches: plannedChecks.length - missingChecks.length,
-        checksToCreate: missingChecks.length,
-      },
-      null,
-      2,
-    ) + "\n",
-  );
+  const report = {
+    mode: apply ? "apply" : "dry-run",
+    applyPolicy: "create-missing-only",
+    networkId,
+    snapshotId,
+    plannedChecks: plannedChecks.length,
+    existingDynatraceManagedChecks: existingChecks.filter((check) => dynatraceKeys(check).length > 0).length,
+    counts: {
+      create: reconciliation.create.length,
+      unchanged: reconciliation.unchanged.length,
+      changed: reconciliation.changed.length,
+      stale: reconciliation.stale.length,
+    },
+    create: reconciliation.create.map(({ check: _check, ...item }) => item),
+    unchanged: reconciliation.unchanged,
+    changed: reconciliation.changed.map(({ planned, existing, ...item }) => ({
+      ...item,
+      plannedFingerprint: planned.fingerprint,
+      existingFingerprint: existing.fingerprint,
+    })),
+    stale: reconciliation.stale,
+  };
+
+  if (args.report) {
+    await writeFile(args.report, JSON.stringify(report, null, 2) + "\n");
+  }
+
+  process.stdout.write(JSON.stringify(report, null, 2) + "\n");
+
+  if (args["fail-on-drift"] && (reconciliation.changed.length > 0 || reconciliation.stale.length > 0)) {
+    process.exitCode = 2;
+  }
 };
 
-main().catch((error) => {
-  process.stderr.write(`${error.message}\n`);
-  process.stderr.write(usage);
-  process.exit(1);
-});
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    process.stderr.write(`${error.message}\n`);
+    process.stderr.write(usage);
+    process.exit(1);
+  });
+}

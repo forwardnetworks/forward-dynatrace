@@ -51,6 +51,9 @@ posting. Do not rely on the endpoint to dedupe Dynatrace-managed intent checks b
 For each eligible dependency, the package includes one persistent `Existential` check request. Forward persistence
 defaults to true for this endpoint. Include `persistent=false` only for single-snapshot test imports.
 
+The default apply policy is `create-missing-only`. Changed and stale Dynatrace-managed checks are reported for review
+instead of being updated, disabled, or deleted automatically.
+
 The app maps:
 
 | Dynatrace field | Forward check field |
@@ -74,10 +77,12 @@ GET /api/snapshots/{snapshotId}/checks?type=Existential
 Then:
 
 1. Match existing checks by exact name or `dynatrace-key:*` tag.
-2. Skip unchanged checks.
-3. Create missing checks with `POST /api/snapshots/{snapshotId}/checks?bulk`.
-4. Report changed checks for review unless an update policy is configured.
-5. Report stale Dynatrace-managed checks for review before disable/delete.
+2. Compute a canonical JSON SHA-256 fingerprint over generated fields: `definition`, `enabled`, `name`, `note`,
+   `priority`, and sorted `tags`.
+3. Skip unchanged checks.
+4. Create missing checks with `POST /api/snapshots/{snapshotId}/checks?bulk`.
+5. Report changed checks for review unless an update policy is configured.
+6. Report stale Dynatrace-managed checks for review before disable/delete.
 
 Do not blindly delete checks. Forward may contain user-owned checks that look similar but are not managed by this app.
 
