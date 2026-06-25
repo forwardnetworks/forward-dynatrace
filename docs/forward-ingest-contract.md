@@ -20,8 +20,10 @@ Each dependency row needs:
 | `environment` | yes | Tag and check name |
 | `service_entity_id` | yes | Integration key and audit note |
 | `service_name` | yes | Audit note |
-| `source` | yes | Forward `from.location` HostFilter |
-| `destination` | yes | Forward `to.location` HostFilter |
+| `source` | yes | Forward `from.location.value` |
+| `sourceFilterType` | optional | Forward `from.location.type`; defaults to `HostFilter` |
+| `destination` | yes | Forward `to.location.value` |
+| `destinationFilterType` | optional | Forward `to.location.type`; defaults to `HostFilter` |
 | `protocol` | yes | PacketFilter `ip_proto` |
 | `port` | yes | PacketFilter `tp_dst` |
 | `owner` | recommended | Tag and priority review |
@@ -47,6 +49,7 @@ Before any Forward API write, the importer or connector must reject the package 
 - any check type is not `Existential`
 - the manifest schema version, package type, generated timestamp, check count, credential policy, or reconciliation
   policy does not match the supported contract
+- source or destination mappings do not resolve to valid Forward locations in the target snapshot
 
 ## Forward Bulk Ingest
 
@@ -67,12 +70,16 @@ defaults to true for this endpoint. Include `persistent=false` only for single-s
 The default apply policy is `create-missing-only`. Changed and stale Dynatrace-managed checks are reported for review
 instead of being updated, disabled, or deleted automatically.
 
+Endpoint mapping must be Forward-resolvable before apply. `HostFilter` works for known hostnames, IP prefixes, or MAC
+addresses. Use `SubnetLocationFilter` for subnet/IP mappings and `DeviceFilter` only when the dependency has been
+intentionally mapped to a Forward device. A live Forward apply rejects unresolved locations before creating checks.
+
 The app maps:
 
 | Dynatrace field | Forward check field |
 | --- | --- |
-| `source` | `definition.filters.from.location.value` |
-| `destination` | `definition.filters.to.location.value` |
+| `sourceFilterType` + `source` | `definition.filters.from.location.type/value` |
+| `destinationFilterType` + `destination` | `definition.filters.to.location.type/value` |
 | `protocol` | `definition.filters.from.headers[].values.ip_proto` (`tcp` -> `6`, `udp` -> `17`) |
 | `port` | `definition.filters.from.headers[].values.tp_dst` |
 | `criticality` | `priority` |

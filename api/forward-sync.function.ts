@@ -1,5 +1,9 @@
 type ForwardSyncMode = "manual-import" | "data-connector" | "intent-package";
 type ForwardSyncStatus = "ready" | "blocked";
+type ForwardLocationFilterType =
+  | "HostFilter"
+  | "DeviceFilter"
+  | "SubnetLocationFilter";
 
 interface DependencyCandidate {
   id: string;
@@ -8,7 +12,9 @@ interface DependencyCandidate {
   serviceEntityId: string;
   serviceName: string;
   source: string;
+  sourceFilterType?: ForwardLocationFilterType;
   destination: string;
+  destinationFilterType?: ForwardLocationFilterType;
   protocol: "tcp" | "udp";
   port: string;
   owner: string;
@@ -74,7 +80,7 @@ interface ForwardIntentCheck {
 
 interface ForwardEndpoint {
   location: {
-    type: "HostFilter";
+    type: ForwardLocationFilterType;
     value: string;
   };
   headers?: Array<{
@@ -191,15 +197,17 @@ const toPriority = (
 const toProtocolValue = (protocol: DependencyCandidate["protocol"]): string =>
   protocol === "tcp" ? "6" : "17";
 
+const toLocation = (
+  value: string,
+  type: ForwardLocationFilterType = "HostFilter",
+): ForwardEndpoint["location"] => ({ type, value });
+
 const toIntentCheck = (dependency: DependencyCandidate): ForwardIntentCheck => ({
   definition: {
     checkType: "Existential",
     filters: {
       from: {
-        location: {
-          type: "HostFilter",
-          value: dependency.source,
-        },
+        location: toLocation(dependency.source, dependency.sourceFilterType),
         headers: [
           {
             type: "PacketFilter",
@@ -216,10 +224,10 @@ const toIntentCheck = (dependency: DependencyCandidate): ForwardIntentCheck => (
         ],
       },
       to: {
-        location: {
-          type: "HostFilter",
-          value: dependency.destination,
-        },
+        location: toLocation(
+          dependency.destination,
+          dependency.destinationFilterType,
+        ),
       },
       flowTypes: ["VALID"],
     },
@@ -368,6 +376,12 @@ const toReadinessChecks = (
     status: "ready",
     detail:
       "Rows include deterministic integration keys and intent-check tags; Forward-side import must dedupe before bulk create.",
+  },
+  {
+    label: "Forward endpoint mapping",
+    status: "ready",
+    detail:
+      "Source and destination values must resolve to valid Forward HostFilter, DeviceFilter, or SubnetLocationFilter locations in the target snapshot.",
   },
   {
     label: "Package validation",

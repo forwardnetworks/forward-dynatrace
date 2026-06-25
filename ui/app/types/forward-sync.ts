@@ -3,6 +3,10 @@ export type ForwardSyncMode =
   | "data-connector"
   | "intent-package";
 export type ForwardSyncStatus = "ready" | "blocked";
+export type ForwardLocationFilterType =
+  | "HostFilter"
+  | "DeviceFilter"
+  | "SubnetLocationFilter";
 
 export interface DependencyCandidate {
   id: string;
@@ -11,7 +15,9 @@ export interface DependencyCandidate {
   serviceEntityId: string;
   serviceName: string;
   source: string;
+  sourceFilterType?: ForwardLocationFilterType;
   destination: string;
+  destinationFilterType?: ForwardLocationFilterType;
   protocol: "tcp" | "udp";
   port: string;
   owner: string;

@@ -3,7 +3,7 @@
   "environmentUrl": "https://your-environment-id.apps.dynatrace.com/",
   "app": {
     "name": "dynatrace-forward-network-proof",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Export Forward intent-check packages from Dynatrace dependency evidence",
     "id": "my.dynatrace.forward.network.proof",
     "scopes": [

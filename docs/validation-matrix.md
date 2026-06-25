@@ -10,9 +10,10 @@ This document tracks what is validated today and what still needs a live Forward
 | Forward importer reconciliation | `npm run forward:import:test` covers create, unchanged, changed, stale, fingerprints, keys, and validation failures. |
 | Package validation | Importer rejects malformed packages before Forward environment variables or API calls are required. |
 | Synthetic Forward workflow | `npm run workflow:smoke` exercises validate-only, dry-run, apply, unchanged, changed, and stale flows against a fake Forward API. |
+| Live Forward workflow | Real non-production Forward test network validated dry-run create=2, apply create=2, rerun unchanged=2, drift changed=1/stale=1, and `--fail-on-drift` exit code 2. Validation checks were deleted after the run. |
 | UI workflow screenshots | `docs/assets/screenshots/*.jpg` were captured from the running local app. |
-| Dynatrace app build package | Version `1.0.0` builds locally. |
-| Dynatrace app deploy | Version `1.0.0` deployed to a non-production Dynatrace Apps environment on 2026-06-25 using a CLI environment override. |
+| Dynatrace app build package | Version `1.0.1` builds locally. |
+| Dynatrace app deploy | Version `1.0.1` deployed to a non-production Dynatrace Apps environment on 2026-06-25 using a CLI environment override. |
 | Legacy export path removal | `npm run repo:validate` blocks legacy secondary-artifact terms. |
 | Secret hygiene | `npm run repo:validate` blocks committed Dynatrace token-shaped secrets, concrete tenant URLs, OAuth callbacks, private token filenames, personal references, and non-placeholder Forward credentials. |
 | Connector pull workflow | Importer supports `--package-url`, validates the manifest, rejects stale packages, and still performs create-missing-only reconciliation. |
@@ -32,8 +33,6 @@ This document tracks what is validated today and what still needs a live Forward
 
 | Gap | What is needed |
 | --- | --- |
-| Forward dry-run against a real test network | Forward base URL, credentials, and a specific non-production `FORWARD_NETWORK_ID`. |
-| Forward apply against a real test network | Explicit approval to create test intent checks in that network. |
 | Forward-side connector runtime | Target scheduler/service runtime and operational ownership. Current repo includes the connector command path and package URL pull behavior. |
 | Dynatrace Workflow trigger | A real problem or schedule workflow wired to call the export function. |
 | Dynatrace Business Events seed | Dry-run passed. Live seed was attempted on 2026-06-25 and returned `403 Permission denied`; the local token needs `bizevents.ingest`. |

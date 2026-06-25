@@ -165,6 +165,10 @@ from this import package.
 Rows with `needs-map` status should not create Forward checks. Reject them from automated import until
 source/destination mapping is complete.
 
+Forward endpoint mappings must resolve in the target snapshot. `HostFilter` is the default for application host/IP
+dependencies, but packages can use `SubnetLocationFilter` or `DeviceFilter` when the mapping process has resolved a
+dependency to those Forward location types.
+
 ## Workflow Option A: Manual Export And Import
 
 1. Dynatrace operator builds the package and downloads:

@@ -40,6 +40,10 @@ The dry run:
 5. Computes canonical SHA-256 fingerprints for the generated check fields.
 6. Reports checks to create, unchanged checks, changed checks, and stale Dynatrace-managed checks.
 
+Dry-run validates package shape and reconciliation only. Live apply also depends on Forward accepting every location
+filter in the target snapshot. Unresolved `HostFilter`, `DeviceFilter`, or `SubnetLocationFilter` values are rejected
+by Forward before any bulk create succeeds.
+
 Validate package shape without Forward credentials:
 
 ```bash
