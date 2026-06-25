@@ -15,7 +15,7 @@ This repository is an art-of-the-possible demo. Use this checklist before enabli
 - Require source, destination, protocol, port, service entity ID, app, and environment.
 - Do not create checks for `needs-map` rows.
 - Prefer minimum confidence threshold for automatic check creation.
-- Keep rejected rows in the Data File for review.
+- Report rejected rows in the manifest/import report for review.
 
 ## Forward-Owned Write Safety
 
@@ -32,7 +32,7 @@ This repository is an art-of-the-possible demo. Use this checklist before enabli
 - Scheduled workflow: refresh critical production mappings.
 - Manual workflow: build package, dry-run the Forward-side importer, review planned creates, then apply.
 - Connector workflow: Forward connector pulls the latest package and performs deduped bulk check ingest.
-- Treat the Data File as optional NQE/audit context; do not depend on it to create intent checks.
+- Treat each export as desired state and reconcile before writing.
 
 ## Reliability
 
@@ -52,7 +52,6 @@ This repository is an art-of-the-possible demo. Use this checklist before enabli
 
 ## Tests Before Live Write
 
-- Unit test CSV escaping.
 - Unit test deterministic integration keys.
 - Unit test `needs-map` rejection.
 - Unit test intent check JSON shape.

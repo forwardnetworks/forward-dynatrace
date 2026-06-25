@@ -23,11 +23,7 @@ export interface DependencyCandidate {
 export interface ForwardSyncRequest {
   forwardBaseUrl?: string;
   forwardNetworkId?: string;
-  dataFileName: string;
   syncMode: ForwardSyncMode;
-  includeInNetwork: boolean;
-  triggerCollection: boolean;
-  createVerifications: boolean;
   dependencies: DependencyCandidate[];
 }
 
@@ -36,10 +32,7 @@ export interface ForwardSyncResponse {
   summary: string;
   generatedAt: string;
   disclaimer: string;
-  dataFileName: string;
   exportManifestPreview: string;
-  csvPreview: string;
-  dataFileRequestPreview: string;
   intentChecksPreview: string;
   intentCheckCount: number;
   rejectedDependencyCount: number;

@@ -1,10 +1,10 @@
 # Forward Dynatrace
 
 Art-of-the-possible Dynatrace AppEngine demo for turning Dynatrace application dependency mapping into Forward
-bulk intent-check import packages, with optional Forward Data File context.
+bulk intent-check import packages.
 
 This is a production-oriented scaffold, not a turnkey supported integration. The Dynatrace app never mutates Forward.
-It exports a Forward ingest package; a Forward operator or Forward-owned data connector imports or pulls that package.
+It exports a desired-state package; a Forward operator or Forward-owned data connector imports or pulls that package.
 
 ## Shape
 
@@ -24,10 +24,9 @@ It exports a Forward ingest package; a Forward operator or Forward-owned data co
    owner, criticality, and confidence.
 2. The app generates a deterministic `integration_key` for each dependency.
 3. The app stages one Forward-native `NewNetworkCheck` JSON object per eligible dependency.
-4. The app can also stage the same rows as an optional Forward Data File payload for NQE and auditability.
-5. A Dynatrace Workflow can call the same function on a problem trigger or schedule.
-6. Forward-side ingest performs latest snapshot lookup, existing-check readback, name/tag dedupe, bulk persistent
-   check creation, and optional Data File create/update.
+4. A Dynatrace Workflow can call the same function on a problem trigger or schedule.
+5. Forward-side ingest performs latest snapshot lookup, existing-check readback, name/tag dedupe, bulk persistent
+   check creation, and status reporting.
 
 ## Screenshots
 
@@ -39,9 +38,9 @@ Forward bulk export package, readiness gates, and payloads:
 
 ![Forward export package and readiness](docs/assets/screenshots/02-export-package-readiness.jpg)
 
-Forward-side API sequence and Data File payload:
+Forward-side bulk check API sequence:
 
-![Forward-side API sequence and Data File payload](docs/assets/screenshots/03-forward-side-api.jpg)
+![Forward-side API sequence](docs/assets/screenshots/03-forward-side-api.jpg)
 
 Persistent intent-check payload:
 
@@ -49,8 +48,8 @@ Persistent intent-check payload:
 
 ## Forward-centric ingest path
 
-The first production-grade route is an export package that Forward imports or pulls. The intent-check JSON is the
-primary artifact; the Data File is optional context for NQE and audit.
+The production-grade route is an export package that Forward imports or pulls. The intent-check JSON is the primary
+artifact.
 
 1. Generate `forward-intent-checks.json` as Forward-native `NewNetworkCheck[]`.
 2. Generate `forward-dynatrace-manifest.json` with schema version, counts, dedupe policy, and optional Forward target
@@ -63,17 +62,13 @@ primary artifact; the Data File is optional context for NQE and audit.
 6. Forward-side ingest skips checks that match an existing name or `dynatrace-key:*` tag.
 7. Forward-side ingest creates missing persistent Forward intent checks with
    `POST /api/snapshots/{snapshotId}/checks?bulk`.
-8. Optional: import `dynatrace_service_dependencies.csv` with `POST /api/data-files`, replace later with
-   `POST /api/data-files/{dataFileName}`, and attach with
-   `POST /api/networks/{networkId}/data-files/{dataFileName}`.
-9. NQE and Verify consume the checks and optional Data File for dependency coverage, path proofs, and intent status.
 
 For fully automatic package generation, create a Dynatrace Workflow with either:
 
 - Problem trigger: export only impacted service dependencies.
 - Schedule trigger: refresh export package for all critical app dependencies.
 
-See `docs/workflow.md` and `docs/forward-ingest-contract.md` for the proposed production workflow and payload model.
+Forward-owned automation should reconcile each package against existing Forward checks before writing.
 
 ## Manual Import Dry Run
 
@@ -87,17 +82,6 @@ export FORWARD_NETWORK_ID=<network-id>
 
 npm run forward:import -- --checks forward-intent-checks.json
 npm run forward:import -- --checks forward-intent-checks.json --apply
-```
-
-Optional Data File import:
-
-```bash
-npm run forward:import -- \
-  --checks forward-intent-checks.json \
-  --data-file dynatrace_service_dependencies.csv \
-  --data-file-request forward-data-file-request.json \
-  --attach-data-file \
-  --apply
 ```
 
 ## Configure

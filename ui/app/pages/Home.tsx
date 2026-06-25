@@ -134,13 +134,7 @@ export const Home = () => {
   const [problemId, setProblemId] = useState("P-000000");
   const [forwardBaseUrl, setForwardBaseUrl] = useState("");
   const [forwardNetworkId, setForwardNetworkId] = useState("");
-  const [dataFileName, setDataFileName] = useState(
-    "dynatrace_service_dependencies.csv",
-  );
   const [syncMode, setSyncMode] = useState<ForwardSyncMode>("manual-import");
-  const [includeInNetwork, setIncludeInNetwork] = useState(true);
-  const [triggerCollection, setTriggerCollection] = useState(false);
-  const [createVerifications, setCreateVerifications] = useState(true);
   const [proofRequest, setProofRequest] = useState<
     NetworkProofRequest | undefined
   >();
@@ -185,11 +179,7 @@ export const Home = () => {
     setSyncRequest({
       forwardBaseUrl,
       forwardNetworkId,
-      dataFileName,
       syncMode,
-      includeInNetwork,
-      triggerCollection,
-      createVerifications,
       dependencies: selectedForSync,
     });
   }
@@ -206,7 +196,7 @@ export const Home = () => {
           <Heading level={1}>Fill Forward intent checks from app dependencies</Heading>
           <Paragraph>
             Art-of-the-possible demo for turning Dynatrace dependency maps into
-            Forward bulk intent-check JSON, with optional Data File context.
+            Forward bulk intent-check JSON.
           </Paragraph>
         </div>
         <div className="hero-actions">
@@ -338,7 +328,7 @@ export const Home = () => {
           <PanelHeader
             icon={<UploadIcon />}
             title="Forward Export Package"
-            detail="Bulk checks JSON plus optional Data File"
+            detail="Bulk checks JSON and manifest"
           />
           <div className="field-grid">
             <label>
@@ -365,10 +355,6 @@ export const Home = () => {
                 placeholder="123"
               />
             </label>
-            <label className="wide-field">
-              <span>Data file</span>
-              <TextInput value={dataFileName} onChange={setDataFileName} />
-            </label>
           </div>
 
           <div className="mode-control">
@@ -387,24 +373,6 @@ export const Home = () => {
                 Bulk checks JSON
               </ToggleButtonGroup.Item>
             </ToggleButtonGroup>
-          </div>
-
-          <div className="switch-stack">
-            <ToggleRow
-              checked={includeInNetwork}
-              label="Include optional Data File step"
-              onChange={setIncludeInNetwork}
-            />
-            <ToggleRow
-              checked={createVerifications}
-              label="Include intent check package"
-              onChange={setCreateVerifications}
-            />
-            <ToggleRow
-              checked={triggerCollection}
-              label="Include snapshot guidance"
-              onChange={setTriggerCollection}
-            />
           </div>
 
           <Button color="primary" variant="accent" onClick={buildExportPackage}>
@@ -451,7 +419,6 @@ export const Home = () => {
                 status={syncData.status}
                 summary={syncData.summary}
                 rows={[
-                  { label: "Optional Data File", value: syncData.dataFileName },
                   { label: "Bulk checks", value: `${syncData.intentCheckCount}` },
                   { label: "Rejected rows", value: `${syncData.rejectedDependencyCount}` },
                   { label: "Generated", value: syncData.generatedAt },
@@ -492,38 +459,6 @@ export const Home = () => {
                   </Button.Prefix>
                   Bulk checks JSON
                 </Button>
-                <Button
-                  color="primary"
-                  size="condensed"
-                  onClick={() =>
-                    downloadTextFile(
-                      syncData.dataFileName,
-                      syncData.csvPreview,
-                      "text/csv",
-                    )
-                  }
-                >
-                  <Button.Prefix>
-                    <DownloadIcon />
-                  </Button.Prefix>
-                  Optional CSV
-                </Button>
-                <Button
-                  color="primary"
-                  size="condensed"
-                  onClick={() =>
-                    downloadTextFile(
-                      "forward-data-file-request.json",
-                      syncData.dataFileRequestPreview,
-                      "application/json",
-                    )
-                  }
-                >
-                  <Button.Prefix>
-                    <DownloadIcon />
-                  </Button.Prefix>
-                  Data File request
-                </Button>
               </div>
               <div className="readiness-grid" aria-label="Production readiness gates">
                 {syncData.readinessChecks.map((check) => (
@@ -557,12 +492,6 @@ export const Home = () => {
                   <pre className="json-preview compact">
                     {syncData.exportManifestPreview}
                   </pre>
-                  <Heading level={5}>Optional Data File request</Heading>
-                  <pre className="json-preview compact">
-                    {syncData.dataFileRequestPreview}
-                  </pre>
-                  <Heading level={5}>Optional CSV preview</Heading>
-                  <pre className="csv-preview">{syncData.csvPreview}</pre>
                 </div>
               </div>
               <div className="intent-preview">
@@ -672,26 +601,4 @@ const FlowStep = ({
     <Strong>{title}</Strong>
     <small>{text}</small>
   </div>
-);
-
-const ToggleRow = ({
-  checked,
-  label,
-  onChange,
-}: {
-  checked: boolean;
-  label: string;
-  onChange: (checked: boolean) => void;
-}) => (
-  <label className="toggle-row">
-    <input
-      checked={checked}
-      onChange={(event) => onChange(event.target.checked)}
-      type="checkbox"
-    />
-    <span className="toggle-track" aria-hidden>
-      <span />
-    </span>
-    <span className="toggle-label">{label}</span>
-  </label>
 );

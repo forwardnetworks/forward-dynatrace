@@ -1,6 +1,6 @@
 {
   "name": "forward-dynatrace",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Dynatrace app for exporting Forward intent-check packages from service dependency evidence",
   "scripts": {
     "build": "dt-app build",

@@ -1,7 +1,7 @@
 # Workflow Screenshots
 
 These screenshots show the art-of-the-possible workflow: Dynatrace application mapping becomes Forward bulk
-intent-check JSON, with optional Data File context.
+intent-check JSON for Forward-owned reconciliation.
 
 ## Overview
 
@@ -13,7 +13,7 @@ intent-check JSON, with optional Data File context.
 
 ## Forward Bulk Check API Sequence
 
-![Forward-side API sequence and Data File payload](assets/screenshots/03-forward-side-api.jpg)
+![Forward-side API sequence](assets/screenshots/03-forward-side-api.jpg)
 
 ## Persistent Intent Check Payload
 

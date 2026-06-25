@@ -7,8 +7,6 @@ The script is intentionally dry-run by default.
 
 - `forward-intent-checks.json`: required `NewNetworkCheck[]` payload from the Dynatrace app.
 - `forward-dynatrace-manifest.json`: recommended for review and audit.
-- `dynatrace_service_dependencies.csv`: optional NQE/audit context.
-- `forward-data-file-request.json`: required only when importing the optional Data File.
 
 ## Required Environment
 
@@ -49,16 +47,3 @@ POST /api/snapshots/{snapshotId}/checks?bulk
 ```
 
 Body shape is `NewNetworkCheck[]`. The Forward API defaults `persistent` to `true`.
-
-## Optional Data File
-
-```bash
-npm run forward:import -- \
-  --checks forward-intent-checks.json \
-  --data-file dynatrace_service_dependencies.csv \
-  --data-file-request forward-data-file-request.json \
-  --attach-data-file \
-  --apply
-```
-
-The Data File path is for NQE/audit context only. It does not create intent checks.

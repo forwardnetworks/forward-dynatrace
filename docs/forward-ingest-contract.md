@@ -25,12 +25,19 @@ Each dependency row needs:
 | `confidence` | recommended | Gating and audit |
 | `mapping_state` | yes | `needs-map` rows do not auto-create checks |
 
-## Primary Artifact: Bulk Intent Checks
+## Export Artifacts
 
-The app generates `forward-intent-checks.json` as a JSON array of Forward `NewNetworkCheck` objects.
+The app exports exactly two artifacts:
 
-Forward receives this through manual import or connector pull, then Forward-side ingest uses the standard bulk checks
-workflow:
+- `forward-intent-checks.json`: JSON array of Forward `NewNetworkCheck` objects.
+- `forward-dynatrace-manifest.json`: schema, package metadata, counts, artifact names, and ingest policy.
+
+There is intentionally no secondary file artifact in this workflow. Intent checks are created from `NewNetworkCheck[]`
+through Forward's checks API.
+
+## Forward Bulk Ingest
+
+Forward receives the package through manual import or connector pull. Forward-side ingest uses:
 
 ```text
 GET /api/networks/{networkId}/snapshots/latestProcessed
@@ -41,37 +48,8 @@ POST /api/snapshots/{snapshotId}/checks?bulk
 Important: the Forward bulk endpoint accepts an array and creates checks, but the import workflow must dedupe before
 posting. Do not rely on the endpoint to dedupe Dynatrace-managed intent checks by name or tag.
 
-## Optional Artifact: Data File
-
-The app generates `dynatrace_service_dependencies.csv` with deterministic `integration_key` values. Forward receives it
-through manual import or connector pull only when NQE or audit context is wanted. Forward-side ingest uses the standard
-Data Files workflow:
-
-```text
-POST /api/data-files
-POST /api/data-files/{dataFileName}
-POST /api/networks/{networkId}/data-files/{dataFileName}
-```
-
-Use the Data File for:
-
-- NQE queries over application dependencies.
-- Audit trail of what Dynatrace supplied.
-- Review of rows that should not yet become checks.
-
-The Data File does not create intent checks. It is supporting context.
-
-## Intent Check Artifact
-
-For each eligible dependency, the package includes one persistent `Existential` check request. Forward-side ingest
-creates missing checks in bulk:
-
-```text
-POST /api/snapshots/{snapshotId}/checks?bulk
-```
-
-Forward persistence defaults to true for this endpoint. Include `persistent=false` only for single-snapshot test
-imports.
+For each eligible dependency, the package includes one persistent `Existential` check request. Forward persistence
+defaults to true for this endpoint. Include `persistent=false` only for single-snapshot test imports.
 
 The app maps:
 
@@ -85,7 +63,7 @@ The app maps:
 | `app`, `environment`, `owner` | `tags` |
 | `integration_key` | `dynatrace-key:*` tag and note |
 
-## Forward-Side Idempotent Ingest
+## Forward-Side Reconciliation
 
 Before creating checks, Forward-side ingest reads existing checks:
 
@@ -98,7 +76,8 @@ Then:
 1. Match existing checks by exact name or `dynatrace-key:*` tag.
 2. Skip unchanged checks.
 3. Create missing checks with `POST /api/snapshots/{snapshotId}/checks?bulk`.
-4. Mark stale Dynatrace-managed checks for review before deletion.
+4. Report changed checks for review unless an update policy is configured.
+5. Report stale Dynatrace-managed checks for review before disable/delete.
 
 Do not blindly delete checks. Forward may contain user-owned checks that look similar but are not managed by this app.
 
@@ -110,13 +89,8 @@ Use:
 GET /api/networks/{networkId}/snapshots/latestProcessed
 ```
 
-Create persistent checks only against a processed snapshot. If a collection is needed first:
-
-```text
-POST /api/networks/{networkId}/snapshots?async=1
-```
-
-Then poll or wait until latest processed changes.
+Create persistent checks only against a processed snapshot. If a new collection is needed, that should be a separate
+Forward-owned workflow before import.
 
 ## Status Readback
 
@@ -148,3 +122,4 @@ Forward-side ingest gates:
 - Forward credential configured outside Dynatrace.
 - Dedupe/read-before-write is enabled before check creation.
 - Bulk post chunking is configured for large packages.
+- Update and stale-check policies are explicit before automated modification/removal.

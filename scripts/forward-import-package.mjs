@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { basename } from "node:path";
 import { readFile } from "node:fs/promises";
 
 const DEFAULT_CHECKS_PATH = "forward-intent-checks.json";
@@ -19,12 +18,7 @@ Usage:
   node scripts/forward-import-package.mjs --checks forward-intent-checks.json
   node scripts/forward-import-package.mjs --checks forward-intent-checks.json --apply
 
-Optional Data File support:
-  --data-file dynatrace_service_dependencies.csv
-  --data-file-request forward-data-file-request.json
-  --attach-data-file
-
-The default mode is dry-run. Use --apply to write missing checks or Data File content.
+The default mode is dry-run. Use --apply to write missing checks.
 `;
 
 const parseArgs = (argv) => {
@@ -36,7 +30,7 @@ const parseArgs = (argv) => {
       continue;
     }
     const key = value.slice(2);
-    if (key === "apply" || key === "attach-data-file" || key === "help") {
+    if (key === "apply" || key === "help") {
       args[key] = true;
       continue;
     }
@@ -91,15 +85,10 @@ const makeClient = ({ baseUrl, user, password }) => {
       headers: {
         Authorization: `Basic ${auth}`,
         Accept: "application/json",
-        ...(options.body && !(options.body instanceof FormData)
-          ? { "Content-Type": "application/json" }
-          : {}),
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
         ...options.headers,
       },
-      body:
-        options.body && !(options.body instanceof FormData)
-          ? JSON.stringify(options.body)
-          : options.body,
+      body: options.body ? JSON.stringify(options.body) : undefined,
     });
 
     const text = await response.text();
@@ -119,89 +108,17 @@ const makeClient = ({ baseUrl, user, password }) => {
   };
 };
 
-const appendJsonPart = (form, name, value, fileName) => {
-  form.append(
-    name,
-    new Blob([JSON.stringify(value)], { type: "application/json" }),
-    fileName,
-  );
-};
-
-const upsertDataFile = async ({
-  api,
-  dataFilePath,
-  dataFileRequestPath,
-  networkId,
-  attach,
-  apply,
-}) => {
-  if (!dataFilePath && !dataFileRequestPath) {
-    return { requested: false };
-  }
-  if (!dataFilePath || !dataFileRequestPath) {
-    throw new Error(
-      "Use --data-file and --data-file-request together for Data File import.",
-    );
-  }
-
-  const request = await readJson(dataFileRequestPath);
-  const content = await readFile(dataFilePath);
-  const existing = await api("GET", "/api/data-files");
-  const alreadyExists = existing.some(
-    (file) => file.name.toLowerCase() === request.name.toLowerCase(),
-  );
-
-  if (!apply) {
-    return {
-      requested: true,
-      mode: alreadyExists ? "replace" : "create",
-      attach,
-      name: request.name,
-    };
-  }
-
-  if (alreadyExists) {
-    const form = new FormData();
-    form.append(
-      "file",
-      new Blob([content], { type: "text/csv" }),
-      basename(dataFilePath),
-    );
-    appendJsonPart(form, "headerRow", request.headers || [], "headers.json");
-    await api("POST", `/api/data-files/${encodeURIComponent(request.name)}`, {
-      body: form,
-    });
-  } else {
-    const form = new FormData();
-    appendJsonPart(form, "request", request, "request.json");
-    form.append(
-      "file",
-      new Blob([content], { type: "text/csv" }),
-      basename(dataFilePath),
-    );
-    await api("POST", "/api/data-files", { body: form });
-  }
-
-  if (attach) {
-    await api(
-      "POST",
-      `/api/networks/${networkId}/data-files/${encodeURIComponent(request.name)}`,
-    );
-  }
-
-  return {
-    requested: true,
-    mode: alreadyExists ? "replace" : "create",
-    attached: attach,
-    name: request.name,
-  };
-};
-
 const main = async () => {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
     process.stdout.write(usage);
     return;
+  }
+  const unsupportedArgs = Object.keys(args).filter(
+    (key) => !["_", "apply", "checks", "help"].includes(key),
+  );
+  if (unsupportedArgs.length > 0) {
+    throw new Error(`Unsupported option(s): ${unsupportedArgs.map((key) => `--${key}`).join(", ")}`);
   }
 
   const apply = Boolean(args.apply);
@@ -231,15 +148,6 @@ const main = async () => {
     (check) => !hasMatchingImportedCheck(check, existingChecks),
   );
 
-  const dataFile = await upsertDataFile({
-    api,
-    dataFilePath: args["data-file"],
-    dataFileRequestPath: args["data-file-request"],
-    networkId,
-    attach: Boolean(args["attach-data-file"]),
-    apply,
-  });
-
   if (apply) {
     for (const batch of chunk(missingChecks, DEFAULT_BATCH_SIZE)) {
       await api("POST", `/api/snapshots/${snapshotId}/checks?bulk`, {
@@ -257,7 +165,6 @@ const main = async () => {
         plannedChecks: plannedChecks.length,
         existingMatches: plannedChecks.length - missingChecks.length,
         checksToCreate: missingChecks.length,
-        dataFile,
       },
       null,
       2,
