@@ -55,12 +55,13 @@ artifact.
 2. Generate `forward-dynatrace-manifest.json` with schema version, counts, dedupe policy, and optional Forward target
    metadata.
 3. Forward operator imports the package manually with the included script, or a Forward-owned connector pulls it.
-4. Forward-side ingest resolves the latest processed snapshot with
+4. Forward-side ingest validates package shape, unique names, unique `dynatrace-key:*` tags, and allowed check type.
+5. Forward-side ingest resolves the latest processed snapshot with
    `GET /api/networks/{networkId}/snapshots/latestProcessed`.
-5. Forward-side ingest reads existing intent checks with
+6. Forward-side ingest reads existing intent checks with
    `GET /api/snapshots/{snapshotId}/checks?type=Existential`.
-6. Forward-side ingest produces a create/unchanged/changed/stale reconciliation report.
-7. Forward-side ingest creates missing persistent Forward intent checks with
+7. Forward-side ingest produces a create/unchanged/changed/stale reconciliation report.
+8. Forward-side ingest creates missing persistent Forward intent checks with
    `POST /api/snapshots/{snapshotId}/checks?bulk`.
 
 For fully automatic package generation, create a Dynatrace Workflow with either:
@@ -83,7 +84,11 @@ export FORWARD_NETWORK_ID=<network-id>
 npm run forward:import -- --checks forward-intent-checks.json
 npm run forward:import -- --checks forward-intent-checks.json --apply
 npm run forward:import -- --checks forward-intent-checks.json --report forward-import-report.json
+npm run forward:import -- --checks forward-intent-checks.json --fail-on-drift
 ```
+
+The importer is dry-run by default, rejects malformed packages before Forward API calls, retries transient Forward API
+responses, and applies a create-missing-only policy unless a future reviewed update/retirement workflow is added.
 
 ## Configure
 

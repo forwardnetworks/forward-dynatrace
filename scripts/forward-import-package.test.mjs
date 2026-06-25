@@ -5,6 +5,7 @@ import {
   fingerprintCheck,
   reconcileChecks,
   reconciliationKey,
+  validatePlannedChecks,
 } from "./forward-import-package.mjs";
 
 const baseCheck = {
@@ -93,4 +94,40 @@ test("classifies managed checks missing from the package as stale", () => {
 
   assert.equal(result.stale.length, 1);
   assert.equal(result.stale[0].id, "check-1");
+});
+
+test("accepts a valid generated intent package", () => {
+  assert.doesNotThrow(() => validatePlannedChecks([baseCheck]));
+});
+
+test("rejects package entries without exactly one dynatrace reconciliation key", () => {
+  const missingKey = { ...baseCheck, tags: ["dynatrace"] };
+  const duplicateKey = {
+    ...baseCheck,
+    tags: [...baseCheck.tags, "dynatrace-key:duplicate"],
+  };
+
+  assert.throws(
+    () => validatePlannedChecks([missingKey, duplicateKey]),
+    /tags must contain exactly one dynatrace-key:\* tag/,
+  );
+});
+
+test("rejects duplicate generated check names and dynatrace keys", () => {
+  const duplicate = structuredClone(baseCheck);
+
+  assert.throws(
+    () => validatePlannedChecks([baseCheck, duplicate]),
+    /duplicates check\[0\]/,
+  );
+});
+
+test("rejects unsupported Forward check types", () => {
+  const unsupported = structuredClone(baseCheck);
+  unsupported.definition.checkType = "Path";
+
+  assert.throws(
+    () => validatePlannedChecks([unsupported]),
+    /definition\.checkType must be one of Existential/,
+  );
 });

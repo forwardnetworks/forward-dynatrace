@@ -116,6 +116,13 @@ interface ForwardExportManifest {
     dedupe: "name-or-dynatrace-key-tag";
     fingerprintAlgorithm: "canonical-json-sha256";
   };
+  validation: {
+    requiredTagPrefix: "dynatrace-key:";
+    requiredTagsPerCheck: 1;
+    duplicatePolicy: "reject-package";
+    allowedCheckTypes: Array<"Existential">;
+    credentialPolicy: "no-forward-credentials-in-dynatrace";
+  };
   reconciliation: {
     strategy: "desired-state";
     defaultApplyPolicy: "create-missing-only";
@@ -290,6 +297,13 @@ const toExportManifest = ({
     dedupe: "name-or-dynatrace-key-tag",
     fingerprintAlgorithm: "canonical-json-sha256",
   },
+  validation: {
+    requiredTagPrefix: "dynatrace-key:",
+    requiredTagsPerCheck: 1,
+    duplicatePolicy: "reject-package",
+    allowedCheckTypes: ["Existential"],
+    credentialPolicy: "no-forward-credentials-in-dynatrace",
+  },
   reconciliation: {
     strategy: "desired-state",
     defaultApplyPolicy: "create-missing-only",
@@ -354,6 +368,12 @@ const toReadinessChecks = (
     status: "ready",
     detail:
       "Rows include deterministic integration keys and intent-check tags; Forward-side import must dedupe before bulk create.",
+  },
+  {
+    label: "Package validation",
+    status: "ready",
+    detail:
+      "Forward-side import rejects malformed packages, missing dynatrace-key tags, duplicate keys, duplicate names, and unsupported check types before writes.",
   },
   {
     label: "Bulk import",

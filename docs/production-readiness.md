@@ -14,6 +14,9 @@ This repository is an art-of-the-possible demo. Use this checklist before enabli
 
 - Require source, destination, protocol, port, service entity ID, app, and environment.
 - Do not create checks for `needs-map` rows.
+- Reject packages with missing or duplicate `dynatrace-key:*` tags.
+- Reject packages with duplicate generated check names.
+- Reject unsupported check types before contacting Forward.
 - Prefer minimum confidence threshold for automatic check creation.
 - Report rejected rows in the manifest/import report for review.
 
@@ -24,6 +27,7 @@ This repository is an art-of-the-possible demo. Use this checklist before enabli
 - Fingerprint generated fields so result/status/timestamp fields do not cause false drift.
 - Create missing checks only with `POST /api/snapshots/{snapshotId}/checks?bulk`.
 - Chunk large `NewNetworkCheck[]` imports and report per-batch status.
+- Keep Forward writes in the manual importer or Forward-owned connector, never in the Dynatrace app.
 - Do not delete stale checks automatically in the first production version.
 - Make check retirement a separate reviewed workflow.
 
@@ -39,6 +43,7 @@ This repository is an art-of-the-possible demo. Use this checklist before enabli
 ## Reliability
 
 - Retry transient 429/5xx responses with bounded exponential backoff.
+- Honor `Retry-After` when Forward returns it.
 - Treat 4xx responses as configuration/data errors.
 - Poll snapshot processing before check creation.
 - Capture per-action result status.
@@ -57,6 +62,7 @@ This repository is an art-of-the-possible demo. Use this checklist before enabli
 - Unit test deterministic integration keys.
 - Unit test `needs-map` rejection.
 - Unit test intent check JSON shape.
+- Unit test package validation failures before Forward API calls.
 - Unit test importer dedupe by name and `dynatrace-key:*` tag.
 - Unit test importer reconciliation for create, unchanged, changed, and stale cases.
 - Integration test against a non-production Forward network.

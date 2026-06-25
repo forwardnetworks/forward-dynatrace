@@ -2,10 +2,14 @@
 
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
+import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
 const DEFAULT_CHECKS_PATH = "forward-intent-checks.json";
 const DEFAULT_BATCH_SIZE = 500;
+const DEFAULT_MAX_RETRIES = 3;
+const TRANSIENT_STATUS_CODES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
+const ALLOWED_CHECK_TYPES = new Set(["Existential"]);
 
 const usage = `
 Forward Dynatrace package importer
@@ -25,6 +29,7 @@ Options:
   --apply              Create missing checks. Changed and stale checks are still report-only.
   --batch-size 500     Batch size for /checks?bulk.
   --fail-on-drift      Exit non-zero when changed or stale Dynatrace-managed checks are found.
+  --max-retries 3      Retry count for transient Forward API responses.
   --report path        Write the reconciliation report to a JSON file.
 
 The default mode is dry-run. The apply policy is create-missing-only.
@@ -37,6 +42,7 @@ const SUPPORTED_ARGS = new Set([
   "checks",
   "fail-on-drift",
   "help",
+  "max-retries",
   "report",
 ]);
 
@@ -105,6 +111,27 @@ const sortObject = (value) => {
 };
 
 const stableJson = (value) => JSON.stringify(sortObject(value));
+
+const parseResponseBody = (text) => {
+  if (text.length === 0) {
+    return null;
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+};
+
+const retryDelayMs = (attempt, retryAfter) => {
+  if (retryAfter) {
+    const parsed = Number.parseFloat(retryAfter);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return parsed * 1000;
+    }
+  }
+  return Math.min(250 * 2 ** attempt, 4000);
+};
 
 export const dynatraceKeys = (check) =>
   (check.tags || []).filter((tag) => tag.startsWith("dynatrace-key:"));
@@ -219,36 +246,39 @@ export const reconcileChecks = (plannedChecks, existingChecks) => {
   return { create, unchanged, changed, stale };
 };
 
-const makeClient = ({ baseUrl, user, password }) => {
+const makeClient = ({ baseUrl, user, password, maxRetries }) => {
   const auth = Buffer.from(`${user}:${password}`).toString("base64");
   const root = baseUrl.replace(/\/+$/, "");
 
   return async (method, path, options = {}) => {
-    const response = await fetch(`${root}${path}`, {
-      method,
-      headers: {
-        Authorization: `Basic ${auth}`,
-        Accept: "application/json",
-        ...(options.body ? { "Content-Type": "application/json" } : {}),
-        ...options.headers,
-      },
-      body: options.body ? JSON.stringify(options.body) : undefined,
-    });
+    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      const response = await fetch(`${root}${path}`, {
+        method,
+        headers: {
+          Authorization: `Basic ${auth}`,
+          Accept: "application/json",
+          ...(options.body ? { "Content-Type": "application/json" } : {}),
+          ...options.headers,
+        },
+        body: options.body ? JSON.stringify(options.body) : undefined,
+      });
 
-    const text = await response.text();
-    if (!response.ok) {
+      const text = await response.text();
+      if (response.ok) {
+        return response.status === 204 ? null : parseResponseBody(text);
+      }
+
+      if (TRANSIENT_STATUS_CODES.has(response.status) && attempt < maxRetries) {
+        await sleep(retryDelayMs(attempt, response.headers.get("retry-after")));
+        continue;
+      }
+
       throw new Error(
         `${method} ${path} failed with ${response.status}: ${text.slice(0, 500)}`,
       );
     }
-    if (response.status === 204 || text.length === 0) {
-      return null;
-    }
-    try {
-      return JSON.parse(text);
-    } catch {
-      return text;
-    }
+
+    throw new Error(`${method} ${path} failed after retry budget was exhausted.`);
   };
 };
 
@@ -258,6 +288,63 @@ const toPositiveInteger = (value, label) => {
     throw new Error(`${label} must be a positive integer.`);
   }
   return parsed;
+};
+
+const toNonNegativeInteger = (value, label) => {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`${label} must be a non-negative integer.`);
+  }
+  return parsed;
+};
+
+const requireString = (value) => typeof value === "string" && value.trim().length > 0;
+
+export const validatePlannedChecks = (checks) => {
+  if (!Array.isArray(checks)) {
+    throw new Error("forward-intent-checks.json must contain a NewNetworkCheck[] JSON array.");
+  }
+
+  const errors = [];
+  const keys = new Map();
+  const names = new Map();
+
+  checks.forEach((check, index) => {
+    const prefix = `check[${index}]`;
+    if (!check || typeof check !== "object" || Array.isArray(check)) {
+      errors.push(`${prefix} must be an object.`);
+      return;
+    }
+
+    if (!requireString(check.name)) {
+      errors.push(`${prefix}.name is required.`);
+    } else if (names.has(check.name)) {
+      errors.push(`${prefix}.name duplicates check[${names.get(check.name)}].name.`);
+    } else {
+      names.set(check.name, index);
+    }
+
+    if (!check.definition || typeof check.definition !== "object") {
+      errors.push(`${prefix}.definition is required.`);
+    } else if (!ALLOWED_CHECK_TYPES.has(check.definition.checkType)) {
+      errors.push(
+        `${prefix}.definition.checkType must be one of ${[...ALLOWED_CHECK_TYPES].join(", ")}.`,
+      );
+    }
+
+    const keyTags = dynatraceKeys(check);
+    if (keyTags.length !== 1) {
+      errors.push(`${prefix}.tags must contain exactly one dynatrace-key:* tag.`);
+    } else if (keys.has(keyTags[0])) {
+      errors.push(`${prefix} dynatrace-key duplicates check[${keys.get(keyTags[0])}].`);
+    } else {
+      keys.set(keyTags[0], index);
+    }
+  });
+
+  if (errors.length > 0) {
+    throw new Error(`Invalid Forward intent package:\n${errors.map((error) => `- ${error}`).join("\n")}`);
+  }
 };
 
 const main = async () => {
@@ -272,18 +359,21 @@ const main = async () => {
   const batchSize = args["batch-size"]
     ? toPositiveInteger(args["batch-size"], "--batch-size")
     : DEFAULT_BATCH_SIZE;
+  const maxRetries = args["max-retries"]
+    ? toNonNegativeInteger(args["max-retries"], "--max-retries")
+    : DEFAULT_MAX_RETRIES;
+
+  const checksPath = args.checks || DEFAULT_CHECKS_PATH;
+  const plannedChecks = await readJson(checksPath);
+  validatePlannedChecks(plannedChecks);
+
   const networkId = requiredEnv("FORWARD_NETWORK_ID");
   const api = makeClient({
     baseUrl: requiredEnv("FORWARD_BASE_URL"),
     user: requiredEnv("FORWARD_USER"),
     password: requiredEnv("FORWARD_PASSWORD"),
+    maxRetries,
   });
-
-  const checksPath = args.checks || DEFAULT_CHECKS_PATH;
-  const plannedChecks = await readJson(checksPath);
-  if (!Array.isArray(plannedChecks)) {
-    throw new Error(`${checksPath} must contain a NewNetworkCheck[] JSON array.`);
-  }
 
   const latestSnapshot = await api(
     "GET",
@@ -307,6 +397,10 @@ const main = async () => {
   const report = {
     mode: apply ? "apply" : "dry-run",
     applyPolicy: "create-missing-only",
+    settings: {
+      batchSize,
+      maxRetries,
+    },
     networkId,
     snapshotId,
     plannedChecks: plannedChecks.length,

@@ -28,9 +28,10 @@ flowchart LR
     D --> F["NewNetworkCheck[] JSON"]
     E --> G["Manual import script or Forward connector"]
     F --> G
-    G --> H["Forward reconcile"]
-    H --> I["Forward /checks?bulk"]
-    I --> J["Forward Verify results"]
+    G --> H["Validate package"]
+    H --> I["Forward reconcile"]
+    I --> J["Forward /checks?bulk"]
+    J --> K["Forward Verify results"]
 ```
 
 ## Screenshots
@@ -70,29 +71,30 @@ Forward-side ingest.
    - `forward-dynatrace-manifest.json`
    - deterministic `integration_key` values in each check tag and note.
 3. Forward operator imports the package, or Forward-owned connector pulls it.
-4. Forward-side ingest resolves the snapshot where checks should be created:
+4. Forward-side ingest validates package shape, required fields, supported check type, and unique names/tags.
+5. Forward-side ingest resolves the snapshot where checks should be created:
 
    `GET /api/networks/{networkId}/snapshots/latestProcessed`
 
-5. Forward-side ingest reads existing Dynatrace-managed checks:
+6. Forward-side ingest reads existing Dynatrace-managed checks:
 
    `GET /api/snapshots/{snapshotId}/checks?type=Existential`
 
    Match by deterministic check name or `dynatrace-key:*` tag.
 
-6. Forward-side ingest fingerprints generated fields and produces a reconciliation report:
+7. Forward-side ingest fingerprints generated fields and produces a reconciliation report:
    - `create`
    - `unchanged`
    - `changed`
    - `stale`
 
-7. Forward-side ingest creates missing persistent intent checks in bulk:
+8. Forward-side ingest creates missing persistent intent checks in bulk:
 
    `POST /api/snapshots/{snapshotId}/checks?bulk`
 
    Body is `NewNetworkCheck[]`. Persistence defaults to true in Forward's API.
 
-8. Forward-side ingest reads back status:
+9. Forward-side ingest reads back status:
 
    `GET /api/snapshots/{snapshotId}/checks?type=Existential`
 
@@ -188,6 +190,7 @@ source/destination mapping is complete.
    - row/check counts
    - required fields
    - allowed check type and tag shape
+   - unique check names and `dynatrace-key:*` tags
 4. Connector resolves the Forward network and latest processed snapshot.
 5. Connector reads existing Forward intent checks.
 6. Connector dedupes by exact check name or `dynatrace-key:*` tag.

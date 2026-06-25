@@ -27,13 +27,18 @@ npm run forward:import -- --checks forward-intent-checks.json
 
 The dry run:
 
-1. Reads the latest processed snapshot:
+1. Validates the package before contacting Forward:
+   - payload must be a JSON array
+   - every check must have exactly one `dynatrace-key:*` tag
+   - names and `dynatrace-key:*` tags must be unique
+   - check type must be `Existential`
+2. Reads the latest processed snapshot:
    `GET /api/networks/{networkId}/snapshots/latestProcessed`
-2. Reads existing Forward intent checks:
+3. Reads existing Forward intent checks:
    `GET /api/snapshots/{snapshotId}/checks?type=Existential`
-3. Matches planned checks by exact `name` or `dynatrace-key:*` tag.
-4. Computes canonical SHA-256 fingerprints for the generated check fields.
-5. Reports checks to create, unchanged checks, changed checks, and stale Dynatrace-managed checks.
+4. Matches planned checks by exact `name` or `dynatrace-key:*` tag.
+5. Computes canonical SHA-256 fingerprints for the generated check fields.
+6. Reports checks to create, unchanged checks, changed checks, and stale Dynatrace-managed checks.
 
 ## Apply Checks
 
@@ -50,6 +55,9 @@ POST /api/snapshots/{snapshotId}/checks?bulk
 Body shape is `NewNetworkCheck[]`. The Forward API defaults `persistent` to `true`.
 
 Changed and stale checks remain report-only. Use the import report to review updates or retirement separately.
+
+The importer retries transient Forward API responses (`408`, `409`, `425`, `429`, and `5xx`) with bounded backoff.
+Use `--max-retries 0` to disable retries in test harnesses.
 
 ## Reconciliation Report
 
@@ -71,3 +79,7 @@ Use `--fail-on-drift` in automation when changed or stale checks should block th
 ```bash
 npm run forward:import -- --checks forward-intent-checks.json --fail-on-drift
 ```
+
+For iterative use, schedule package generation in Dynatrace and run the importer or connector on the same cadence.
+Each run should be treated as desired-state reconciliation: create only missing checks by default, report changed
+checks for review, and report stale checks before any retirement workflow.

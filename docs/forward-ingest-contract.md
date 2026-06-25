@@ -35,6 +35,13 @@ The app exports exactly two artifacts:
 There is intentionally no secondary file artifact in this workflow. Intent checks are created from `NewNetworkCheck[]`
 through Forward's checks API.
 
+Before any Forward API write, the importer or connector must reject the package if:
+
+- the intent-check artifact is not a JSON array
+- any check is missing a name, definition, or exactly one `dynatrace-key:*` tag
+- any generated name or `dynatrace-key:*` tag is duplicated
+- any check type is not `Existential`
+
 ## Forward Bulk Ingest
 
 Forward receives the package through manual import or connector pull. Forward-side ingest uses:
@@ -125,6 +132,7 @@ Forward-side ingest gates:
 - Forward base URL configured in Forward-side import/connector.
 - Forward network ID configured in Forward-side import/connector.
 - Forward credential configured outside Dynatrace.
+- Package validation passes before any Forward API request.
 - Dedupe/read-before-write is enabled before check creation.
 - Bulk post chunking is configured for large packages.
 - Update and stale-check policies are explicit before automated modification/removal.
