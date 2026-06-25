@@ -1,19 +1,19 @@
 # Workflow Screenshots
 
-These screenshots show the art-of-the-possible workflow: Dynatrace application mapping becomes Forward Data Files
-and persistent intent checks.
+These screenshots show the art-of-the-possible workflow: Dynatrace application mapping becomes Forward bulk
+intent-check JSON, with optional Data File context.
 
 ## Overview
 
 ![Forward Dynatrace overview](assets/screenshots/01-overview.jpg)
 
-## Sync Plan And Readiness
+## Export Package And Readiness
 
-![Forward ingest plan and readiness](assets/screenshots/02-sync-plan-readiness.jpg)
+![Forward export package and readiness](assets/screenshots/02-export-package-readiness.jpg)
 
-## Forward Data File And API Sequence
+## Forward Bulk Check API Sequence
 
-![Forward API sequence and Data File payload](assets/screenshots/03-data-file-api.jpg)
+![Forward-side API sequence and Data File payload](assets/screenshots/03-forward-side-api.jpg)
 
 ## Persistent Intent Check Payload
 

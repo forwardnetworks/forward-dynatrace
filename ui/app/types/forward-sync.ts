@@ -1,5 +1,8 @@
-export type ForwardSyncMode = "data-file" | "data-connector" | "intent-checks";
-export type ForwardSyncStatus = "ready" | "dry-run" | "blocked";
+export type ForwardSyncMode =
+  | "manual-import"
+  | "data-connector"
+  | "intent-package";
+export type ForwardSyncStatus = "ready" | "blocked";
 
 export interface DependencyCandidate {
   id: string;
@@ -34,6 +37,7 @@ export interface ForwardSyncResponse {
   generatedAt: string;
   disclaimer: string;
   dataFileName: string;
+  exportManifestPreview: string;
   csvPreview: string;
   dataFileRequestPreview: string;
   intentChecksPreview: string;

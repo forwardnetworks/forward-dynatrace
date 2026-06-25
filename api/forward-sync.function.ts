@@ -1,5 +1,5 @@
-type ForwardSyncMode = "data-file" | "data-connector" | "intent-checks";
-type ForwardSyncStatus = "ready" | "dry-run" | "blocked";
+type ForwardSyncMode = "manual-import" | "data-connector" | "intent-package";
+type ForwardSyncStatus = "ready" | "blocked";
 
 interface DependencyCandidate {
   id: string;
@@ -34,6 +34,7 @@ interface ForwardSyncResponse {
   generatedAt: string;
   disclaimer: string;
   dataFileName: string;
+  exportManifestPreview: string;
   csvPreview: string;
   dataFileRequestPreview: string;
   intentChecksPreview: string;
@@ -89,10 +90,65 @@ interface ForwardEndpoint {
   }>;
 }
 
+interface ForwardExportManifest {
+  schemaVersion: "forward-dynatrace/v1";
+  packageType: "forward-intent-import";
+  packageId: string;
+  generatedAt: string;
+  requestedIngestPath: ForwardSyncMode;
+  source: {
+    platform: "dynatrace";
+    app: "forward-dynatrace";
+    writePolicy: "dynatrace-never-writes-forward";
+  };
+  forwardTargetMetadata: {
+    baseUrl: string | null;
+    networkId: string | null;
+    requiredAtImport: boolean;
+  };
+  artifacts: {
+    manifest: string;
+    dataFile: string;
+    dataFileRequest: string;
+    intentChecks: string;
+  };
+  dataFile: {
+    fileName: string;
+    nqeName: string;
+    headers: string[];
+    rowCount: number;
+  };
+  intentChecks: {
+    count: number;
+    checkType: "Existential";
+    payloadShape: "NewNetworkCheck[]";
+    bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk";
+    dedupeRequiredBeforePost: true;
+    dedupe: "name-or-dynatrace-key-tag";
+  };
+  optionalDataFile: {
+    supported: true;
+    purpose: "nqe-and-audit";
+    createsIntentChecks: false;
+  };
+  bulkPolicy: {
+    supported: true;
+    batchingOwner: "forward-side-ingest";
+    recommendedBatchSize: number;
+    partialFailurePolicy: "report-per-row-and-continue-safe-creates";
+  };
+  workflowOptions: Array<{
+    id: "manual-import" | "data-connector";
+    owner: "forward-operator" | "forward-owned-connector";
+    writesForward: true;
+    summary: string;
+  }>;
+}
+
 const missing = (value: string | undefined): boolean => !value?.trim();
 
 const DEMO_DISCLAIMER =
-  "Art-of-the-possible demonstration: this function produces Forward-ready payloads and a production API plan, but it does not mutate Forward until server-side credentials and execution wiring are added.";
+  "Art-of-the-possible demonstration: this Dynatrace app only exports Forward-ready artifacts. Forward ingestion is performed manually by a Forward operator or automatically by a Forward-owned data connector.";
 
 const DATA_FILE_HEADERS = [
   "integration_key",
@@ -113,6 +169,9 @@ const DATA_FILE_HEADERS = [
 ];
 
 const DATA_FILE_NQE_NAME = "dynatrace_service_dependencies";
+const MANIFEST_FILE_NAME = "forward-dynatrace-manifest.json";
+const DATA_FILE_REQUEST_FILE_NAME = "forward-data-file-request.json";
+const INTENT_CHECKS_FILE_NAME = "forward-intent-checks.json";
 
 const csvCell = (value: string | number): string => {
   const text = String(value);
@@ -182,7 +241,7 @@ const toPriority = (
 };
 
 const toProtocolValue = (protocol: DependencyCandidate["protocol"]): string =>
-  protocol.toUpperCase();
+  protocol === "tcp" ? "6" : "17";
 
 const toIntentCheck = (dependency: DependencyCandidate): ForwardIntentCheck => ({
   definition: {
@@ -198,6 +257,11 @@ const toIntentCheck = (dependency: DependencyCandidate): ForwardIntentCheck => (
             type: "PacketFilter",
             values: {
               ip_proto: [toProtocolValue(dependency.protocol)],
+            },
+          },
+          {
+            type: "PacketFilter",
+            values: {
               tp_dst: [dependency.port],
             },
           },
@@ -245,32 +309,110 @@ const toDataFileRequest = (
   headers: DATA_FILE_HEADERS,
 });
 
+const toPackageId = (generatedAt: string): string =>
+  `dynatrace-forward-${generatedAt.replace(/[^0-9]/g, "").slice(0, 14)}`;
+
+const toExportManifest = ({
+  payload,
+  generatedAt,
+  exportableDependencies,
+  intentChecks,
+}: {
+  payload: ForwardSyncRequest;
+  generatedAt: string;
+  exportableDependencies: DependencyCandidate[];
+  intentChecks: ForwardIntentCheck[];
+}): ForwardExportManifest => ({
+  schemaVersion: "forward-dynatrace/v1",
+  packageType: "forward-intent-import",
+  packageId: toPackageId(generatedAt),
+  generatedAt,
+  requestedIngestPath: payload.syncMode,
+  source: {
+    platform: "dynatrace",
+    app: "forward-dynatrace",
+    writePolicy: "dynatrace-never-writes-forward",
+  },
+  forwardTargetMetadata: {
+    baseUrl: missing(payload.forwardBaseUrl) ? null : payload.forwardBaseUrl.trim(),
+    networkId: missing(payload.forwardNetworkId)
+      ? null
+      : payload.forwardNetworkId.trim(),
+    requiredAtImport:
+      missing(payload.forwardBaseUrl) || missing(payload.forwardNetworkId),
+  },
+  artifacts: {
+    manifest: MANIFEST_FILE_NAME,
+    dataFile: payload.dataFileName,
+    dataFileRequest: DATA_FILE_REQUEST_FILE_NAME,
+    intentChecks: INTENT_CHECKS_FILE_NAME,
+  },
+  dataFile: {
+    fileName: payload.dataFileName,
+    nqeName: DATA_FILE_NQE_NAME,
+    headers: DATA_FILE_HEADERS,
+    rowCount: exportableDependencies.length,
+  },
+  intentChecks: {
+    count: intentChecks.length,
+    checkType: "Existential",
+    payloadShape: "NewNetworkCheck[]",
+    bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk",
+    dedupeRequiredBeforePost: true,
+    dedupe: "name-or-dynatrace-key-tag",
+  },
+  optionalDataFile: {
+    supported: true,
+    purpose: "nqe-and-audit",
+    createsIntentChecks: false,
+  },
+  bulkPolicy: {
+    supported: true,
+    batchingOwner: "forward-side-ingest",
+    recommendedBatchSize: 500,
+    partialFailurePolicy: "report-per-row-and-continue-safe-creates",
+  },
+  workflowOptions: [
+    {
+      id: "manual-import",
+      owner: "forward-operator",
+      writesForward: true,
+      summary:
+        "Download artifacts from Dynatrace, review them, then run Forward-side dry-run/import tooling from a Forward-controlled environment.",
+    },
+    {
+      id: "data-connector",
+      owner: "forward-owned-connector",
+      writesForward: true,
+      summary:
+        "Forward connector pulls the latest package from Dynatrace with read-only Dynatrace access, validates schema, dedupes checks, then performs Forward writes.",
+    },
+  ],
+});
+
 const toReadinessChecks = (
   payload: ForwardSyncRequest,
   exportableDependencies: DependencyCandidate[],
 ): ReadinessCheck[] => [
   {
-    label: "Forward target",
-    status:
-      missing(payload.forwardBaseUrl) || missing(payload.forwardNetworkId)
-        ? "needs-work"
-        : "ready",
+    label: "Forward target metadata",
+    status: "ready",
     detail:
       missing(payload.forwardBaseUrl) || missing(payload.forwardNetworkId)
-        ? "Base URL and network ID are needed before execution."
-        : "Forward base URL and network ID are configured.",
+        ? "Optional. Forward URL and network ID can be added during Forward-side import."
+        : "Forward URL and network ID are included as package metadata.",
   },
   {
-    label: "Credential storage",
-    status: "blocked",
+    label: "No Dynatrace write credential",
+    status: "ready",
     detail:
-      "Production execution needs server-side Forward credentials. No browser-supplied secret is accepted.",
+      "The Dynatrace app does not collect or store Forward write credentials.",
   },
   {
-    label: "External requests",
-    status: "needs-work",
+    label: "Forward-owned ingest",
+    status: "ready",
     detail:
-      "Dynatrace must allow the Forward host, or route to private Forward with EdgeConnect.",
+      "Forward operator import or Forward data connector owns all Forward-side writes.",
   },
   {
     label: "Dependency quality",
@@ -281,7 +423,13 @@ const toReadinessChecks = (
     label: "Idempotency",
     status: "ready",
     detail:
-      "Rows include deterministic integration keys and intent-check tags for dedupe/update logic.",
+      "Rows include deterministic integration keys and intent-check tags; Forward-side import must dedupe before bulk create.",
+  },
+  {
+    label: "Bulk import",
+    status: "ready",
+    detail:
+      "Intent checks are exported as NewNetworkCheck[] for Forward's standard /checks?bulk endpoint.",
   },
 ];
 
@@ -300,27 +448,58 @@ const buildActions = (
   intentChecks: ForwardIntentCheck[],
 ): ForwardAction[] => {
   const encodedFile = encodeURIComponent(payload.dataFileName);
-  const actions: ForwardAction[] = [
-    {
+  const actions: ForwardAction[] = [];
+
+  if (payload.createVerifications) {
+    actions.push({
+      method: "GET",
+      path: `/api/networks/${payload.forwardNetworkId || "{networkId}"}/snapshots/latestProcessed`,
+      purpose:
+        "Forward-side import resolves the latest processed snapshot that can accept persistent checks.",
+    });
+    actions.push({
+      method: "GET",
+      path: "/api/snapshots/{latestProcessedSnapshotId}/checks?type=Existential",
+      purpose:
+        "Forward-side import reads existing intent checks and dedupes by check name or dynatrace-key tag before posting.",
+    });
+    actions.push({
       method: "POST",
-      path: "/api/data-files",
-      purpose: "Create the Dynatrace dependency data file if it does not exist.",
-      bodyPreview:
-        "multipart/form-data: file=<generated CSV>, request=<DataFileCreateRequest JSON>",
-    },
-    {
-      method: "POST",
-      path: `/api/data-files/${encodedFile}`,
-      purpose: "Replace the file contents with current Dynatrace dependencies.",
-      bodyPreview: "multipart/form-data: file=<generated CSV>",
-    },
-  ];
+      path: "/api/snapshots/{latestProcessedSnapshotId}/checks?bulk",
+      purpose:
+        "Forward-side import creates the missing persistent intent checks in bulk with NewNetworkCheck[] JSON.",
+      bodyPreview: `${intentChecks.length} NewNetworkCheck JSON payload(s); persistent defaults to true`,
+      idempotencyKey: "Forward check name plus dynatrace-key tag",
+    });
+    actions.push({
+      method: "GET",
+      path: "/api/snapshots/{latestProcessedSnapshotId}/checks?type=Existential",
+      purpose: "Forward-side import reads back check status for reporting.",
+    });
+  }
+
+  actions.push({
+    method: "POST",
+    path: "/api/data-files",
+    purpose:
+      "Optional: Forward-side import creates the Dynatrace dependency Data File for NQE and audit.",
+    bodyPreview:
+      "multipart/form-data: file=<generated CSV>, request=<DataFileCreateRequest JSON>",
+  });
+  actions.push({
+    method: "POST",
+    path: `/api/data-files/${encodedFile}`,
+    purpose:
+      "Optional: Forward-side import replaces Data File contents on later imports.",
+    bodyPreview: "multipart/form-data: file=<generated CSV>",
+  });
 
   if (payload.includeInNetwork) {
     actions.push({
       method: "POST",
       path: `/api/networks/${payload.forwardNetworkId || "{networkId}"}/data-files/${encodedFile}`,
-      purpose: "Enable the data file for the Forward network.",
+      purpose:
+        "Optional: Forward-side import attaches the Data File to the target network.",
     });
   }
 
@@ -328,33 +507,8 @@ const buildActions = (
     actions.push({
       method: "POST",
       path: `/api/networks/${payload.forwardNetworkId || "{networkId}"}/snapshots?async=1`,
-      purpose: "Start a snapshot so NQE and Verify consume the updated data.",
-    });
-  }
-
-  if (payload.createVerifications) {
-    actions.push({
-      method: "GET",
-      path: `/api/networks/${payload.forwardNetworkId || "{networkId}"}/snapshots/latestProcessed`,
-      purpose: "Resolve the latest processed snapshot that can accept persistent checks.",
-    });
-    actions.push({
-      method: "GET",
-      path: "/api/snapshots/{latestProcessedSnapshotId}/checks?type=Existential",
       purpose:
-        "Find existing Dynatrace-managed checks by deterministic name or dynatrace-key tag before creating new ones.",
-    });
-    actions.push({
-      method: "POST",
-      path: "/api/snapshots/{latestProcessedSnapshotId}/checks?persistent=true",
-      purpose: "Create persistent Forward intent checks from Dynatrace dependencies.",
-      bodyPreview: `${intentChecks.length} NewNetworkCheck JSON payload(s)`,
-      idempotencyKey: "Forward check name plus dynatrace-key tag",
-    });
-    actions.push({
-      method: "GET",
-      path: "/api/snapshots/{latestProcessedSnapshotId}/checks?type=Existential",
-      purpose: "Read back check status so Dynatrace can annotate the problem or app screen.",
+        "Optional: Forward-side workflow may start collection so NQE consumes updated Data File contents.",
     });
   }
 
@@ -369,10 +523,11 @@ export default function (
   if (!payload || payload.dependencies.length === 0) {
     return {
       status: "blocked",
-      summary: "No dependency rows selected for Forward sync.",
+      summary: "No dependency rows selected for Forward export.",
       generatedAt,
       disclaimer: DEMO_DISCLAIMER,
       dataFileName: payload?.dataFileName || "dynatrace_service_dependencies.csv",
+      exportManifestPreview: "",
       csvPreview: "",
       dataFileRequestPreview: "",
       intentChecksPreview: "",
@@ -396,6 +551,16 @@ export default function (
     null,
     2,
   );
+  const exportManifestPreview = JSON.stringify(
+    toExportManifest({
+      payload,
+      generatedAt,
+      exportableDependencies,
+      intentChecks,
+    }),
+    null,
+    2,
+  );
   const hasForwardTarget =
     !missing(payload.forwardBaseUrl) && !missing(payload.forwardNetworkId);
 
@@ -407,6 +572,7 @@ export default function (
       generatedAt,
       disclaimer: DEMO_DISCLAIMER,
       dataFileName: payload.dataFileName,
+      exportManifestPreview,
       csvPreview,
       dataFileRequestPreview,
       intentChecksPreview,
@@ -423,13 +589,14 @@ export default function (
   }
 
   return {
-    status: hasForwardTarget ? "ready" : "dry-run",
+    status: "ready",
     summary: hasForwardTarget
-      ? "Forward payloads are ready. Execution remains disabled until server-side credentials are configured."
-      : "Dry run generated. Add Forward base URL and network ID to complete the execution target.",
+      ? "Forward bulk intent package is ready. Forward owns manual import or connector-based ingestion."
+      : "Forward import package is ready. Add optional Forward URL and network ID metadata if desired.",
     generatedAt,
     disclaimer: DEMO_DISCLAIMER,
     dataFileName: payload.dataFileName,
+    exportManifestPreview,
     csvPreview,
     dataFileRequestPreview,
     intentChecksPreview,
@@ -438,12 +605,12 @@ export default function (
     actions: buildActions(payload, intentChecks),
     readinessChecks: toReadinessChecks(payload, exportableDependencies),
     workflowTrigger:
-      "Dynatrace Workflow on problem trigger or schedule calls this app function, then posts the generated Data File and persistent check payloads to Forward.",
+      "Dynatrace Workflow on problem trigger or schedule can generate this package. Forward then imports it manually or pulls it with a Forward-owned connector.",
     nextSteps: [
-      "Store Forward API credentials in Dynatrace server-side settings or credential vault.",
-      "Allow the Forward host in Dynatrace External requests, or use EdgeConnect for private Forward.",
-      "Implement execution behind the current dry-run plan: create/update Data File, resolve latest processed snapshot, dedupe checks, then POST persistent checks.",
-      "Run this function from a Dynatrace Workflow for automatic problem or scheduled sync.",
+      "Export the manifest and NewNetworkCheck[] JSON package; include the CSV Data File only when NQE/audit context is wanted.",
+      "Import manually with a Forward-side script or let a Forward-owned connector pull the package.",
+      "Forward-side import resolves latest processed snapshot, reads existing checks, dedupes by name/tag, then calls /checks?bulk.",
+      "Keep Dynatrace as the mapping source and Forward as the system of record for intent.",
     ],
   };
 }

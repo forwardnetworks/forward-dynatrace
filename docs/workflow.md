@@ -4,15 +4,17 @@ This app uses Dynatrace application dependency mapping to fill Forward intent ch
 application dependency evidence; Forward is the system that stores, evaluates, and reports the network intent.
 
 This repository is an art-of-the-possible demonstration. It builds Forward-ready payloads and a production API plan,
-but it should not mutate a Forward tenant until credentials, egress, dedupe, and ownership are configured.
+but the Dynatrace app must not mutate a Forward tenant. Forward-side manual import or a Forward-owned data connector
+owns all Data File and intent-check writes.
 
 ## What the Dynatrace App Provides
 
 - A focused view of Dynatrace application dependencies that are candidates for Forward intent.
 - A proof action that turns a Dynatrace service/problem context into a Forward path query.
-- A sync action that stages two Forward-ready artifacts:
-  - `dynatrace_service_dependencies.csv` for NQE and inventory-style analysis.
-  - Persistent Forward intent check JSON for Verify.
+- An export action that stages Forward-ready artifacts:
+  - `forward-intent-checks.json` as Forward-native `NewNetworkCheck[]` for bulk intent import.
+  - `forward-dynatrace-manifest.json` with schema version, counts, dedupe policy, and artifact names.
+  - Optional `dynatrace_service_dependencies.csv` for NQE and inventory-style analysis.
 - A Workflow-compatible app function that can run without a human clicking the UI.
 
 ## Recommended Production Flow
@@ -21,13 +23,13 @@ but it should not mutate a Forward tenant until credentials, egress, dedupe, and
 flowchart LR
     A["Dynatrace problem or schedule"] --> B["Dynatrace Workflow"]
     B --> C["Forward Dynatrace app function"]
-    C --> D["Normalize service dependencies"]
-    D --> E["Forward Data File for NQE/evidence"]
-    D --> F["Persistent Forward intent checks"]
-    E --> G["Forward snapshot / latest processed snapshot"]
+    C --> D["Export ingest package"]
+    D --> E["NewNetworkCheck[] JSON"]
+    D --> F["Optional CSV Data File"]
+    E --> G["Manual import script or Forward connector"]
     F --> G
-    G --> H["Forward Verify and NQE"]
-    H --> I["Dynatrace app result / problem annotation"]
+    G --> H["Forward /checks?bulk + optional Data File"]
+    H --> I["Forward NQE / Verify results"]
 ```
 
 ## Screenshots
@@ -38,28 +40,58 @@ The app starts from Dynatrace application dependencies, not generic infra teleme
 
 ![Forward Dynatrace overview](assets/screenshots/01-overview.jpg)
 
-### 2. Build A Forward Ingest Plan
+### 2. Build A Forward Export Package
 
-The workflow produces a dry-run plan first: row counts, readiness gates, and blockers before live writes.
+The workflow produces an export package first: row counts, readiness gates, bulk-check JSON, manifest, and optional
+Data File artifacts. No Forward writes happen inside Dynatrace.
 
-![Forward ingest plan and readiness gates](assets/screenshots/02-sync-plan-readiness.jpg)
+![Forward export package and readiness gates](assets/screenshots/02-export-package-readiness.jpg)
 
-### 3. Send Standard Forward Data File + API Calls
+### 3. Forward-Side Bulk Check Ingest
 
-The same rows become a Forward Data File, then get attached to a network and tied to a processed snapshot.
+Eligible rows become Forward-native `NewNetworkCheck[]` JSON. Forward manual import or a Forward-owned connector
+executes the API calls.
 
-![Forward API sequence and Data File request](assets/screenshots/03-data-file-api.jpg)
+![Forward-side API sequence and Data File request](assets/screenshots/03-forward-side-api.jpg)
 
-### 4. Create Persistent Forward Intent Checks
+### 4. Forward-Side Persistent Intent Checks
 
-Eligible dependency rows become persistent `Existential` checks with deterministic tags for dedupe.
+Eligible dependency rows become persistent `Existential` checks with deterministic tags for dedupe, created by
+Forward-side ingest.
 
 ![Forward intent check payload](assets/screenshots/04-intent-check-payload.jpg)
 
-## Standard Forward Ingest Sequence
+## Standard Forward-Centric Ingest Sequence
 
-1. Build dependency rows from Dynatrace services, spans, tags, or ownership metadata.
-2. Create or update the org-level data file:
+1. Dynatrace app exports dependency rows from Dynatrace services, spans, tags, or ownership metadata.
+2. Dynatrace app exports:
+   - `NewNetworkCheck` JSON.
+   - Manifest JSON.
+   - Optional CSV Data File content.
+   - Optional DataFileCreateRequest metadata.
+   - deterministic `integration_key` values.
+3. Forward operator imports the package, or Forward-owned connector pulls it.
+4. Forward-side ingest resolves the snapshot where checks should be created:
+
+   `GET /api/networks/{networkId}/snapshots/latestProcessed`
+
+5. Forward-side ingest dedupes existing Dynatrace-managed checks:
+
+   `GET /api/snapshots/{snapshotId}/checks?type=Existential`
+
+   Match by deterministic check name or `dynatrace-key:*` tag.
+
+6. Forward-side ingest creates missing persistent intent checks in bulk:
+
+   `POST /api/snapshots/{snapshotId}/checks?bulk`
+
+   Body is `NewNetworkCheck[]`. Persistence defaults to true in Forward's API.
+
+7. Forward-side ingest reads back status:
+
+   `GET /api/snapshots/{snapshotId}/checks?type=Existential`
+
+8. Optional: Forward-side ingest creates or updates the org-level Data File:
 
    `POST /api/data-files`
 
@@ -67,35 +99,13 @@ Eligible dependency rows become persistent `Existential` checks with determinist
    - `file`: generated CSV.
    - `request`: JSON metadata such as name, NQE name, file type, description, and headers.
 
-3. Replace existing contents when the file already exists:
+9. Optional: Forward-side ingest replaces existing Data File contents:
 
    `POST /api/data-files/{dataFileName}`
 
-4. Attach the data file to the target Forward network:
+10. Optional: Forward-side ingest attaches the data file to the target Forward network:
 
    `POST /api/networks/{networkId}/data-files/{dataFileName}`
-
-5. Optionally trigger a new collection:
-
-   `POST /api/networks/{networkId}/snapshots?async=1`
-
-6. Resolve the snapshot where checks should be created:
-
-   `GET /api/networks/{networkId}/snapshots/latestProcessed`
-
-7. Dedupe existing Dynatrace-managed checks:
-
-   `GET /api/snapshots/{snapshotId}/checks?type=Existential`
-
-   Match by deterministic check name or `dynatrace-key:*` tag.
-
-8. Create persistent intent checks:
-
-   `POST /api/snapshots/{snapshotId}/checks?persistent=true`
-
-9. Read back status:
-
-   `GET /api/snapshots/{snapshotId}/checks?type=Existential`
 
 ## Intent Check Mapping
 
@@ -122,7 +132,11 @@ The first useful mapping is one Forward `Existential` check per eligible Dynatra
         "headers": [
           {
             "type": "PacketFilter",
-            "values": {"ip_proto": ["TCP"], "tp_dst": ["443"]}
+            "values": {"ip_proto": ["6"]}
+          },
+          {
+            "type": "PacketFilter",
+            "values": {"tp_dst": ["443"]}
           }
         ]
       },
@@ -140,27 +154,64 @@ Use `Reachability` checks when the dependency must be delivered to the destinati
 when the question is broader than one path, such as dependency coverage, device exposure, segmentation drift, or
 snapshot-wide compliance.
 
-Rows with `needs-map` status should not create Forward checks. Keep them in the Data File for review, or reject them
-from automated sync until source/destination mapping is complete.
+Rows with `needs-map` status should not create Forward checks. Keep them in the optional Data File for review, or
+reject them from automated import until source/destination mapping is complete.
+
+## Workflow Option A: Manual Export And Import
+
+1. Dynatrace operator builds the package and downloads:
+   - `forward-dynatrace-manifest.json`
+   - `forward-intent-checks.json`
+   - optional `dynatrace_service_dependencies.csv`
+   - optional `forward-data-file-request.json`
+2. Forward operator places those artifacts in a Forward-controlled environment.
+3. Forward operator runs a dry-run:
+
+   `npm run forward:import -- --checks forward-intent-checks.json`
+
+4. Forward operator reviews planned creates and existing matches.
+5. Forward operator applies:
+
+   `npm run forward:import -- --checks forward-intent-checks.json --apply`
+
+6. Optional Data File import:
+
+   `npm run forward:import -- --checks forward-intent-checks.json --data-file dynatrace_service_dependencies.csv --data-file-request forward-data-file-request.json --attach-data-file --apply`
+
+## Workflow Option B: Forward-Owned Data Connector
+
+1. Dynatrace app or Dynatrace Workflow writes the latest export package to a connector-readable location.
+2. Forward-owned connector authenticates to Dynatrace with read-only access and pulls the package.
+3. Connector validates:
+   - `schemaVersion`
+   - package age
+   - row/check counts
+   - required fields
+   - allowed check type and tag shape
+4. Connector resolves the Forward network and latest processed snapshot.
+5. Connector reads existing Forward intent checks.
+6. Connector dedupes by exact check name or `dynatrace-key:*` tag.
+7. Connector posts only missing checks to `/api/snapshots/{snapshotId}/checks?bulk`.
+8. Connector optionally updates the Data File for NQE/audit.
+9. Connector writes import status back to Forward logs, and optionally exposes read-only status in Dynatrace.
 
 ## Dynatrace Workflow Triggers
 
 Problem trigger:
 - Read impacted service/entity context.
 - Query related dependencies for the service and timeframe.
-- Generate Forward checks only for impacted rows.
-- Read Forward check status and annotate the Dynatrace problem or show the result in the app.
+- Export Forward ingest package only for impacted rows.
+- Optionally show package generation status in Dynatrace.
 
 Schedule trigger:
 - Refresh all critical production dependencies.
-- Update the Forward data file.
-- Refresh persistent checks.
-- Alert only when Forward result status changes or dependency coverage drops.
+- Refresh the export package.
+- Forward-owned connector decides whether to import the updated package.
 
 ## Runtime Requirements
 
 - Dynatrace app scope for reading entities and related observability context.
-- Forward API credentials stored server-side, not in browser state.
-- Forward host allow-listed in Dynatrace External requests, or EdgeConnect for private Forward.
-- Idempotency keys or deterministic check names so reruns update or skip existing checks instead of duplicating them.
+- No Forward write credentials stored in Dynatrace.
+- Forward-owned connector or Forward operator owns Forward credentials.
+- Idempotency keys or deterministic check names so Forward-side import skips existing checks instead of duplicating them.
 - A policy for check ownership, retirement, and exception handling.

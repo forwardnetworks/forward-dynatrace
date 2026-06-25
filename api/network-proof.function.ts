@@ -77,15 +77,15 @@ export default function (
     return {
       status: "unknown",
       summary:
-        "Mock proof ready. Add Forward base URL, network ID, and server-side credentials to call the Forward API.",
+        "Mock proof ready. Add Forward URL and network ID as package metadata if useful.",
       serviceEntityId: payload.serviceEntityId,
       checkedAt,
       forwardQuery,
       evidence,
       nextSteps: [
-        "Store Forward credentials server-side, not in browser state.",
-        "Allow the Forward host in Dynatrace External requests or route with EdgeConnect.",
-        "Replace this mock branch with Forward path or verification API calls.",
+        "Keep Forward write credentials out of Dynatrace.",
+        "Export proof context for manual Forward review or Forward-owned connector ingestion.",
+        "Replace this mock branch with read-only proof lookup only if needed.",
       ],
     };
   }
@@ -103,9 +103,9 @@ export default function (
       { label: "Forward network ID", value: payload.forwardNetworkId },
     ],
     nextSteps: [
-      "Load Forward credentials from Credential Vault or app settings.",
-      "Call Forward Checks, Path Search, or NQE endpoint from this function.",
-      "Map Forward PASS/FAIL into a Dynatrace event or problem comment.",
+      "Do not write to Forward from this function.",
+      "Use Forward-owned ingest to create or update checks.",
+      "Optionally map Forward PASS/FAIL into a read-only Dynatrace display.",
     ],
   };
 }

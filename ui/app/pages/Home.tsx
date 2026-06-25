@@ -13,6 +13,7 @@ import {
   AutomationEngineIcon,
   CheckmarkIcon,
   DatabaseIcon,
+  DownloadIcon,
   FlowIcon,
   NetworkIcon,
   PathIcon,
@@ -109,9 +110,19 @@ const statusLabel: Record<DependencyCandidate["mappingState"], string> = {
 };
 
 const modeLabel: Record<ForwardSyncMode, string> = {
-  "data-file": "Data file",
-  "data-connector": "Connector",
-  "intent-checks": "Intent checks",
+  "manual-import": "Manual import",
+  "data-connector": "Connector pull",
+  "intent-package": "Bulk checks JSON",
+};
+
+const downloadTextFile = (fileName: string, text: string, type: string) => {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  URL.revokeObjectURL(url);
 };
 
 export const Home = () => {
@@ -126,7 +137,7 @@ export const Home = () => {
   const [dataFileName, setDataFileName] = useState(
     "dynatrace_service_dependencies.csv",
   );
-  const [syncMode, setSyncMode] = useState<ForwardSyncMode>("data-file");
+  const [syncMode, setSyncMode] = useState<ForwardSyncMode>("manual-import");
   const [includeInNetwork, setIncludeInNetwork] = useState(true);
   const [triggerCollection, setTriggerCollection] = useState(false);
   const [createVerifications, setCreateVerifications] = useState(true);
@@ -170,7 +181,7 @@ export const Home = () => {
     });
   }
 
-  function syncToForward() {
+  function buildExportPackage() {
     setSyncRequest({
       forwardBaseUrl,
       forwardNetworkId,
@@ -195,7 +206,7 @@ export const Home = () => {
           <Heading level={1}>Fill Forward intent checks from app dependencies</Heading>
           <Paragraph>
             Art-of-the-possible demo for turning Dynatrace dependency maps into
-            Forward Data Files and persistent Verify checks.
+            Forward bulk intent-check JSON, with optional Data File context.
           </Paragraph>
         </div>
         <div className="hero-actions">
@@ -205,11 +216,11 @@ export const Home = () => {
             </Button.Prefix>
             Run proof
           </Button>
-          <Button color="primary" variant="emphasized" onClick={syncToForward}>
+          <Button color="primary" variant="emphasized" onClick={buildExportPackage}>
             <Button.Prefix>
               <SyncIcon />
             </Button.Prefix>
-            Sync to Forward
+            Export package
           </Button>
         </div>
       </section>
@@ -217,9 +228,9 @@ export const Home = () => {
       <section className="demo-callout">
         <Strong>Demo guardrail</Strong>
         <span>
-          This app builds Forward-ready artifacts and a production API plan. Live
-          Forward mutation stays disabled until server-side credentials,
-          allow-listing, and dedupe execution are wired.
+          This app builds Forward-ready artifacts. It never writes to Forward.
+          Forward imports the bulk checks JSON manually or pulls the package
+          through a Forward-owned data connector.
         </span>
       </section>
 
@@ -325,9 +336,9 @@ export const Home = () => {
 
         <section className="panel">
           <PanelHeader
-          icon={<UploadIcon />}
-          title="Forward Automation"
-          detail="Standard Data File + Verify workflow"
+            icon={<UploadIcon />}
+            title="Forward Export Package"
+            detail="Bulk checks JSON plus optional Data File"
           />
           <div className="field-grid">
             <label>
@@ -339,7 +350,7 @@ export const Home = () => {
               />
             </label>
             <label>
-              <span>Forward base URL</span>
+              <span>Forward URL metadata</span>
               <TextInput
                 value={forwardBaseUrl}
                 onChange={setForwardBaseUrl}
@@ -347,7 +358,7 @@ export const Home = () => {
               />
             </label>
             <label>
-              <span>Network ID</span>
+              <span>Network ID metadata</span>
               <TextInput
                 value={forwardNetworkId}
                 onChange={setForwardNetworkId}
@@ -361,19 +372,19 @@ export const Home = () => {
           </div>
 
           <div className="mode-control">
-            <span>Sync target</span>
+            <span>Ingest path</span>
             <ToggleButtonGroup
               value={syncMode}
               onChange={(value) => setSyncMode(value as ForwardSyncMode)}
             >
-              <ToggleButtonGroup.Item value="data-file">
-                Data file
+              <ToggleButtonGroup.Item value="manual-import">
+                Manual import
               </ToggleButtonGroup.Item>
               <ToggleButtonGroup.Item value="data-connector">
-                Connector
+                Connector pull
               </ToggleButtonGroup.Item>
-              <ToggleButtonGroup.Item value="intent-checks">
-                Checks
+              <ToggleButtonGroup.Item value="intent-package">
+                Bulk checks JSON
               </ToggleButtonGroup.Item>
             </ToggleButtonGroup>
           </div>
@@ -381,26 +392,26 @@ export const Home = () => {
           <div className="switch-stack">
             <ToggleRow
               checked={includeInNetwork}
-              label="Enable file on network"
+              label="Include optional Data File step"
               onChange={setIncludeInNetwork}
             />
             <ToggleRow
               checked={createVerifications}
-              label="Stage intent checks"
+              label="Include intent check package"
               onChange={setCreateVerifications}
             />
             <ToggleRow
               checked={triggerCollection}
-              label="Trigger snapshot after sync"
+              label="Include snapshot guidance"
               onChange={setTriggerCollection}
             />
           </div>
 
-          <Button color="primary" variant="accent" onClick={syncToForward}>
+          <Button color="primary" variant="accent" onClick={buildExportPackage}>
             <Button.Prefix>
               <SyncIcon />
             </Button.Prefix>
-            Build sync plan
+            Build export package
           </Button>
         </section>
       </main>
@@ -428,71 +439,144 @@ export const Home = () => {
       <section className="panel">
         <PanelHeader
           icon={<AutomationEngineIcon />}
-          title="Automatic Forward Ingest"
-          detail="Use Dynatrace mapping to fill Forward checks"
+          title="Forward-Centric Ingest Package"
+          detail="Forward imports or pulls the package"
         />
-        {sync.isLoading && <ProgressCircle aria-label="Loading sync plan" />}
-        {sync.data ? (
-          <div className="sync-result">
-            <ResultBody
-              status={sync.data.status}
-              summary={sync.data.summary}
-              rows={[
-                { label: "Data file", value: sync.data.dataFileName },
-                { label: "Intent checks", value: `${sync.data.intentCheckCount}` },
-                { label: "Rejected rows", value: `${sync.data.rejectedDependencyCount}` },
-                { label: "Generated", value: sync.data.generatedAt },
-              ]}
-              nextSteps={sync.data.nextSteps}
-            />
-            <p className="result-disclaimer">{sync.data.disclaimer}</p>
-            <div className="readiness-grid" aria-label="Production readiness gates">
-              {sync.data.readinessChecks.map((check) => (
-                <div className="readiness-item" key={check.label}>
-                  <span className={`readiness-dot ${check.status}`} />
-                  <div>
-                    <Strong>{check.label}</Strong>
-                    <small>{check.detail}</small>
+        {sync.isLoading && <ProgressCircle aria-label="Loading export package" />}
+        {sync.data ? (() => {
+          const syncData = sync.data;
+          return (
+            <div className="sync-result">
+              <ResultBody
+                status={syncData.status}
+                summary={syncData.summary}
+                rows={[
+                  { label: "Optional Data File", value: syncData.dataFileName },
+                  { label: "Bulk checks", value: `${syncData.intentCheckCount}` },
+                  { label: "Rejected rows", value: `${syncData.rejectedDependencyCount}` },
+                  { label: "Generated", value: syncData.generatedAt },
+                ]}
+                nextSteps={syncData.nextSteps}
+              />
+              <p className="result-disclaimer">{syncData.disclaimer}</p>
+              <div className="artifact-actions" aria-label="Export artifacts">
+                <Button
+                  color="primary"
+                  size="condensed"
+                  onClick={() =>
+                    downloadTextFile(
+                      "forward-dynatrace-manifest.json",
+                      syncData.exportManifestPreview,
+                      "application/json",
+                    )
+                  }
+                >
+                  <Button.Prefix>
+                    <DownloadIcon />
+                  </Button.Prefix>
+                  Manifest
+                </Button>
+                <Button
+                  color="primary"
+                  size="condensed"
+                  onClick={() =>
+                    downloadTextFile(
+                      "forward-intent-checks.json",
+                      syncData.intentChecksPreview,
+                      "application/json",
+                    )
+                  }
+                >
+                  <Button.Prefix>
+                    <DownloadIcon />
+                  </Button.Prefix>
+                  Bulk checks JSON
+                </Button>
+                <Button
+                  color="primary"
+                  size="condensed"
+                  onClick={() =>
+                    downloadTextFile(
+                      syncData.dataFileName,
+                      syncData.csvPreview,
+                      "text/csv",
+                    )
+                  }
+                >
+                  <Button.Prefix>
+                    <DownloadIcon />
+                  </Button.Prefix>
+                  Optional CSV
+                </Button>
+                <Button
+                  color="primary"
+                  size="condensed"
+                  onClick={() =>
+                    downloadTextFile(
+                      "forward-data-file-request.json",
+                      syncData.dataFileRequestPreview,
+                      "application/json",
+                    )
+                  }
+                >
+                  <Button.Prefix>
+                    <DownloadIcon />
+                  </Button.Prefix>
+                  Data File request
+                </Button>
+              </div>
+              <div className="readiness-grid" aria-label="Production readiness gates">
+                {syncData.readinessChecks.map((check) => (
+                  <div className="readiness-item" key={check.label}>
+                    <span className={`readiness-dot ${check.status}`} />
+                    <div>
+                      <Strong>{check.label}</Strong>
+                      <small>{check.detail}</small>
+                    </div>
                   </div>
+                ))}
+              </div>
+              <div className="sync-grid">
+                <div>
+                  <Heading level={5}>Forward-side ingest sequence</Heading>
+                  <ol className="action-list">
+                    {syncData.actions.map((action) => (
+                      <li key={`${action.method}-${action.path}`}>
+                        <code>{action.method}</code> <span>{action.path}</span>
+                        <p>{action.purpose}</p>
+                        {action.bodyPreview && <small>{action.bodyPreview}</small>}
+                        {action.idempotencyKey && (
+                          <small>Idempotency: {action.idempotencyKey}</small>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
                 </div>
-              ))}
-            </div>
-            <div className="sync-grid">
-              <div>
-                <Heading level={5}>Forward API sequence</Heading>
-                <ol className="action-list">
-                  {sync.data.actions.map((action) => (
-                    <li key={`${action.method}-${action.path}`}>
-                      <code>{action.method}</code> <span>{action.path}</span>
-                      <p>{action.purpose}</p>
-                      {action.bodyPreview && <small>{action.bodyPreview}</small>}
-                      {action.idempotencyKey && (
-                        <small>Idempotency: {action.idempotencyKey}</small>
-                      )}
-                    </li>
-                  ))}
-                </ol>
+                <div>
+                  <Heading level={5}>Manifest</Heading>
+                  <pre className="json-preview compact">
+                    {syncData.exportManifestPreview}
+                  </pre>
+                  <Heading level={5}>Optional Data File request</Heading>
+                  <pre className="json-preview compact">
+                    {syncData.dataFileRequestPreview}
+                  </pre>
+                  <Heading level={5}>Optional CSV preview</Heading>
+                  <pre className="csv-preview">{syncData.csvPreview}</pre>
+                </div>
               </div>
-              <div>
-                <Heading level={5}>Data File request</Heading>
-                <pre className="json-preview compact">
-                  {sync.data.dataFileRequestPreview}
-                </pre>
-                <Heading level={5}>CSV preview</Heading>
-                <pre className="csv-preview">{sync.data.csvPreview}</pre>
+              <div className="intent-preview">
+                <Heading level={5}>Bulk intent check payload preview</Heading>
+                <pre className="json-preview">{syncData.intentChecksPreview}</pre>
               </div>
             </div>
-            <div className="intent-preview">
-              <Heading level={5}>Intent check payload preview</Heading>
-              <pre className="json-preview">{sync.data.intentChecksPreview}</pre>
-            </div>
-          </div>
-        ) : (
+          );
+        })() : (
           <div className="automation-flow">
             <FlowStep icon={<FlowIcon />} title="Discover" text="Services and dependencies" />
             <FlowStep icon={<DatabaseIcon />} title="Normalize" text="App, endpoint, protocol, owner" />
-            <FlowStep icon={<UploadIcon />} title="Publish" text="Forward Data File" />
-            <FlowStep icon={<CheckmarkIcon />} title="Verify" text="NQE and intent checks" />
+            <FlowStep icon={<UploadIcon />} title="Package" text="NewNetworkCheck[] JSON" />
+            <FlowStep icon={<CheckmarkIcon />} title="Import" text="Forward /checks?bulk" />
           </div>
         )}
         {sync.error && <Paragraph>{sync.error.message}</Paragraph>}

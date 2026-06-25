@@ -1,6 +1,10 @@
 # Forward Ingest Contract
 
-Goal: use Dynatrace application mapping to create and maintain Forward intent checks.
+Goal: use Dynatrace application mapping to create and maintain Forward intent checks without letting the Dynatrace app
+write to Forward.
+
+The Dynatrace app exports artifacts. Forward manual import or a Forward-owned data connector performs all Forward API
+writes.
 
 ## Source Data From Dynatrace
 
@@ -21,10 +25,27 @@ Each dependency row needs:
 | `confidence` | recommended | Gating and audit |
 | `mapping_state` | yes | `needs-map` rows do not auto-create checks |
 
-## Data File Artifact
+## Primary Artifact: Bulk Intent Checks
+
+The app generates `forward-intent-checks.json` as a JSON array of Forward `NewNetworkCheck` objects.
+
+Forward receives this through manual import or connector pull, then Forward-side ingest uses the standard bulk checks
+workflow:
+
+```text
+GET /api/networks/{networkId}/snapshots/latestProcessed
+GET /api/snapshots/{snapshotId}/checks?type=Existential
+POST /api/snapshots/{snapshotId}/checks?bulk
+```
+
+Important: the Forward bulk endpoint accepts an array and creates checks, but the import workflow must dedupe before
+posting. Do not rely on the endpoint to dedupe Dynatrace-managed intent checks by name or tag.
+
+## Optional Artifact: Data File
 
 The app generates `dynatrace_service_dependencies.csv` with deterministic `integration_key` values. Forward receives it
-through the standard Data Files workflow:
+through manual import or connector pull only when NQE or audit context is wanted. Forward-side ingest uses the standard
+Data Files workflow:
 
 ```text
 POST /api/data-files
@@ -38,13 +59,19 @@ Use the Data File for:
 - Audit trail of what Dynatrace supplied.
 - Review of rows that should not yet become checks.
 
+The Data File does not create intent checks. It is supporting context.
+
 ## Intent Check Artifact
 
-For each eligible dependency, create one persistent `Existential` check:
+For each eligible dependency, the package includes one persistent `Existential` check request. Forward-side ingest
+creates missing checks in bulk:
 
 ```text
-POST /api/snapshots/{snapshotId}/checks?persistent=true
+POST /api/snapshots/{snapshotId}/checks?bulk
 ```
+
+Forward persistence defaults to true for this endpoint. Include `persistent=false` only for single-snapshot test
+imports.
 
 The app maps:
 
@@ -52,15 +79,15 @@ The app maps:
 | --- | --- |
 | `source` | `definition.filters.from.location.value` |
 | `destination` | `definition.filters.to.location.value` |
-| `protocol` | `definition.filters.from.headers[].values.ip_proto` |
+| `protocol` | `definition.filters.from.headers[].values.ip_proto` (`tcp` -> `6`, `udp` -> `17`) |
 | `port` | `definition.filters.from.headers[].values.tp_dst` |
 | `criticality` | `priority` |
 | `app`, `environment`, `owner` | `tags` |
 | `integration_key` | `dynatrace-key:*` tag and note |
 
-## Idempotent Sync
+## Forward-Side Idempotent Ingest
 
-Before creating checks:
+Before creating checks, Forward-side ingest reads existing checks:
 
 ```text
 GET /api/snapshots/{snapshotId}/checks?type=Existential
@@ -70,7 +97,7 @@ Then:
 
 1. Match existing checks by exact name or `dynatrace-key:*` tag.
 2. Skip unchanged checks.
-3. Create missing checks.
+3. Create missing checks with `POST /api/snapshots/{snapshotId}/checks?bulk`.
 4. Mark stale Dynatrace-managed checks for review before deletion.
 
 Do not blindly delete checks. Forward may contain user-owned checks that look similar but are not managed by this app.
@@ -108,11 +135,16 @@ Return status to Dynatrace as:
 
 ## Hard Gates
 
-No live Forward mutation unless all are true:
+Dynatrace app gates:
 
-- Forward base URL configured.
-- Forward network ID configured.
-- Server-side Forward credential configured.
-- Forward host reachable from Dynatrace runtime.
+- No Forward write credential in Dynatrace.
+- Export package contains deterministic `integration_key`.
 - At least one dependency row has complete mapping.
-- Dedupe/read-before-write is enabled.
+
+Forward-side ingest gates:
+
+- Forward base URL configured in Forward-side import/connector.
+- Forward network ID configured in Forward-side import/connector.
+- Forward credential configured outside Dynatrace.
+- Dedupe/read-before-write is enabled before check creation.
+- Bulk post chunking is configured for large packages.

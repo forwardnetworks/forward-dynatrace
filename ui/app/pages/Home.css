@@ -219,8 +219,7 @@
 }
 
 .chip.review,
-.result-status.unknown,
-.result-status.dry-run {
+.result-status.unknown {
   color: #815500;
   background: #fff1cf;
 }
@@ -387,6 +386,12 @@
   color: #60717d;
 }
 
+.action-list li,
+.action-list span,
+.action-list small {
+  overflow-wrap: anywhere;
+}
+
 .action-list small {
   display: block;
   color: #60717d;
@@ -395,6 +400,8 @@
 
 .csv-preview,
 .json-preview {
+  box-sizing: border-box;
+  max-width: 100%;
   max-height: 260px;
   overflow: auto;
   padding: 14px;
@@ -416,6 +423,10 @@
   margin-bottom: 16px;
 }
 
+.sync-grid > div {
+  min-width: 0;
+}
+
 .result-disclaimer {
   color: #4f3900;
   background: #fff8e6;
@@ -425,9 +436,15 @@
   padding: 12px;
 }
 
+.artifact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .readiness-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
 }
 
