@@ -126,7 +126,7 @@
   padding-top: 6px;
 }
 
-.demo-callout {
+.boundary-callout {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 12px;
@@ -569,7 +569,7 @@
   .automation-flow,
   .evidence-grid,
   .field-grid,
-  .demo-callout,
+  .boundary-callout,
   .readiness-grid {
     grid-template-columns: 1fr;
   }

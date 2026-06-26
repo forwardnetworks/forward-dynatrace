@@ -1,7 +1,7 @@
 # Agent Map
 
-This repository is an art-of-the-possible Dynatrace AppEngine demo for exporting
-Forward intent-check packages from Dynatrace application dependency evidence.
+This repository is a Forward Field Integration reference for exporting Forward
+intent-check packages from Dynatrace application dependency evidence.
 
 Use this file as the table of contents. The source of truth lives in the linked
 docs and executable checks.

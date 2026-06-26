@@ -1,6 +1,7 @@
 # Production Readiness Checklist
 
-This repository is an art-of-the-possible demo. Use this checklist before enabling Forward-side ingest.
+This repository is a Forward Field Integration reference, not an officially supported Forward product integration.
+Use this checklist before enabling Forward-side ingest.
 
 ## Security
 

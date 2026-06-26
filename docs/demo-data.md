@@ -1,4 +1,4 @@
-# Demo Data
+# Synthetic Data
 
 The repo uses synthetic dependency rows only. Do not put customer names, customer topology, real Forward network IDs, or
 real credentials in GitHub.

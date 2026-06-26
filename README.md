@@ -1,15 +1,16 @@
 # Forward Dynatrace
 
-Art-of-the-possible Dynatrace AppEngine demo for turning Dynatrace application dependency mapping into Forward
-bulk intent-check import packages.
+Forward Field Integration reference for turning Dynatrace application dependency mapping into Forward bulk
+intent-check import packages.
 
-This is a production-oriented scaffold, not a turnkey supported integration. The Dynatrace app never mutates Forward.
-It exports a desired-state package; a Forward operator or Forward-side connector imports or pulls that package.
+This is a field-built integration reference and is not an officially supported Forward product integration. The
+Dynatrace app never mutates Forward. It exports a desired-state package; a Forward operator or Forward-side connector
+imports or pulls that package.
 
 ## Shape
 
 - UI: `ui/app/pages/Home.tsx`
-- Proof app function: `api/network-proof.function.ts`
+- Path preview app function: `api/network-proof.function.ts`
 - Forward export app function: `api/forward-sync.function.ts`
 - UI request/response types: `ui/app/types/network-proof.ts`
 - Install and release model: `docs/install.md`
@@ -17,7 +18,7 @@ It exports a desired-state package; a Forward operator or Forward-side connector
 - Forward ingest contract: `docs/forward-ingest-contract.md`
 - Forward importer workflow: `docs/forward-importer.md`
 - Forward importer script: `scripts/forward-import-package.mjs`
-- Demo fixture and Dynatrace seeding: `docs/demo-data.md`
+- Synthetic fixture and Dynatrace seeding: `docs/demo-data.md`
 - Production checklist: `docs/production-readiness.md`
 - Validation matrix: `docs/validation-matrix.md`
 - Harness engineering notes: `docs/harness-engineering.md`
@@ -132,5 +133,5 @@ npm run deploy
 ```
 
 `npm run ci` is the local equivalent of the GitHub Actions `gitops` workflow.
-`npm run dynatrace:seed:demo -- --apply` optionally posts only synthetic demo Business Events to Dynatrace using a
-local token; it is dry-run by default.
+`npm run dynatrace:seed:demo -- --apply` optionally posts only synthetic Business Events to Dynatrace using a local
+token; it is dry-run by default.

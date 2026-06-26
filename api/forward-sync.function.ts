@@ -151,8 +151,8 @@ interface ForwardExportManifest {
 
 const missing = (value: string | undefined): boolean => !value?.trim();
 
-const DEMO_DISCLAIMER =
-  "Art-of-the-possible demonstration: this Dynatrace app only exports Forward-ready artifacts. Forward ingestion runs in a Forward-controlled environment: either a manual importer or a Forward-side connector that pulls the package.";
+const INTEGRATION_BOUNDARY_DISCLAIMER =
+  "Forward Field Integration reference: this Dynatrace app only exports Forward-ready artifacts and is not an officially supported Forward product integration. Forward ingestion runs in a Forward-controlled environment: either a manual importer or a Forward-side connector that pulls the package.";
 
 const MANIFEST_FILE_NAME = "forward-dynatrace-manifest.json";
 const INTENT_CHECKS_FILE_NAME = "forward-intent-checks.json";
@@ -458,7 +458,7 @@ export default function (
       status: "blocked",
       summary: "No dependency rows selected for Forward export.",
       generatedAt,
-      disclaimer: DEMO_DISCLAIMER,
+      disclaimer: INTEGRATION_BOUNDARY_DISCLAIMER,
       exportManifestPreview: "",
       intentChecksPreview: "",
       intentCheckCount: 0,
@@ -499,7 +499,7 @@ export default function (
       summary:
         "No rows are production-ready for Forward. Map each dependency to a source, destination, protocol, port, and Dynatrace service entity.",
       generatedAt,
-      disclaimer: DEMO_DISCLAIMER,
+      disclaimer: INTEGRATION_BOUNDARY_DISCLAIMER,
       exportManifestPreview,
       intentChecksPreview,
       intentCheckCount: 0,
@@ -520,7 +520,7 @@ export default function (
       ? "Forward bulk intent package is ready. A Forward-side importer or connector owns ingestion."
       : "Forward import package is ready. Add optional Forward URL and network ID metadata if desired.",
     generatedAt,
-    disclaimer: DEMO_DISCLAIMER,
+    disclaimer: INTEGRATION_BOUNDARY_DISCLAIMER,
     exportManifestPreview,
     intentChecksPreview,
     intentCheckCount: intentChecks.length,

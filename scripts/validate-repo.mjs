@@ -89,11 +89,10 @@ const secretPatterns = [
 const expectedPublicEnvironmentUrl =
   "https://your-environment-id.apps.dynatrace.com/";
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const localMachineUser = process.env.USER || process.env.LOGNAME || "";
+
 const publicHygienePatterns = [
-  {
-    name: "Known local Dynatrace dev environment",
-    regex: /\btjo85665\b/i,
-  },
   {
     name: "OAuth callback or login URL",
     regex: /\b(localhost:5343|auth\/login|oAuth2CtxUuid|oAuth2RedirectUri)\b/i,
@@ -107,8 +106,8 @@ const publicHygienePatterns = [
     regex: /\b[A-Z0-9._%+-]+@forwardnetworks\.com\b/i,
   },
   {
-    name: "Named local personal/customer reference",
-    regex: /\b(craigjohnson|sewest|captainpacket)\b/i,
+    name: "Local macOS user path",
+    regex: /\/Users\/(?!your-)[A-Za-z0-9._-]+\b/i,
   },
   {
     name: "Concrete Forward SaaS host example",
@@ -117,6 +116,62 @@ const publicHygienePatterns = [
   {
     name: "Deprecated connector ownership wording",
     regex: /Forward-owned connector/i,
+  },
+];
+
+const dynamicLocalHygienePatterns = localMachineUser
+  ? [
+      {
+        name: "Local machine user name",
+        regex: new RegExp(`\\b${escapeRegExp(localMachineUser)}\\b`, "i"),
+      },
+    ]
+  : [];
+
+const publicBrandingFiles = [
+  "AGENTS.md",
+  "README.md",
+  "app.config.json",
+  "package.json",
+  "api/forward-sync.function.ts",
+  "api/network-proof.function.ts",
+  "docs/harness-engineering.md",
+  "docs/install.md",
+  "docs/production-readiness.md",
+  "docs/screenshots.md",
+  "docs/validation-matrix.md",
+  "docs/workflow.md",
+  "ui/app/pages/Home.tsx",
+];
+
+const retiredBrandingPatterns = [
+  {
+    name: "Retired art-of-the-possible wording",
+    regex: /art-of-the-possible/i,
+  },
+  {
+    name: "Incorrect field-supported wording",
+    regex: /field[- ]supported/i,
+  },
+  {
+    name: "Retired scaffold wording",
+    regex: /production-oriented scaffold/i,
+  },
+  {
+    name: "Ambiguous supported-integration wording",
+    regex: /turnkey supported integration/i,
+  },
+  {
+    name: "Retired mock proof wording",
+    regex: /mock proof/i,
+  },
+  {
+    name: "Retired proof action label",
+    regex: /\b(run proof|proof result|no proof result|demo guardrail|prove)\b/i,
+  },
+  {
+    name: "Retired app title",
+    regex: /Forward Network Proof/i,
   },
 ];
 
@@ -204,6 +259,15 @@ for (const target of [
   }
 }
 
+for (const file of publicBrandingFiles) {
+  const content = await readText(file);
+  for (const pattern of retiredBrandingPatterns) {
+    if (pattern.regex.test(content)) {
+      fail(`${pattern.name} found in ${file}.`);
+    }
+  }
+}
+
 const packageJson = await readJson("package.json");
 const packageLock = await readJson("package-lock.json");
 const appConfig = await readJson("app.config.json");
@@ -253,6 +317,12 @@ for (const file of textFiles) {
   }
 
   for (const pattern of publicHygienePatterns) {
+    if (pattern.regex.test(content)) {
+      fail(`${pattern.name} found in ${file}.`);
+    }
+  }
+
+  for (const pattern of dynamicLocalHygienePatterns) {
     if (pattern.regex.test(content)) {
       fail(`${pattern.name} found in ${file}.`);
     }

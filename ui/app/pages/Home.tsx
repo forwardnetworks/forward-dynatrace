@@ -23,7 +23,7 @@ import {
 } from "@dynatrace/strato-icons";
 import { useAppFunction } from "@dynatrace-sdk/react-hooks";
 
-import demoDependencies from "../../../shared/demo-dependencies.json";
+import syntheticDependencies from "../../../shared/demo-dependencies.json";
 import type {
   NetworkProofRequest,
   NetworkProofResponse,
@@ -37,7 +37,7 @@ import type {
 
 import "./Home.css";
 
-const dependencies = demoDependencies as DependencyCandidate[];
+const dependencies = syntheticDependencies as DependencyCandidate[];
 const dynatraceLogoUrl = "assets/Dynatrace_Logo.svg";
 const forwardLogoUrl = "assets/forward-logo.svg";
 
@@ -100,7 +100,7 @@ export const Home = () => {
     return Math.round((readyRows / dependencies.length) * 100);
   }, []);
 
-  function runProof(dependency = activeDependency) {
+  function runPreview(dependency = activeDependency) {
     setProofRequest({
       serviceEntityId: dependency.serviceEntityId,
       problemId,
@@ -147,8 +147,8 @@ export const Home = () => {
           <p className="eyebrow">Dynatrace application mapping to Forward intent</p>
           <Heading level={1}>Fill Forward intent checks from app dependencies</Heading>
           <Paragraph>
-            Art-of-the-possible demo for turning Dynatrace dependency maps into
-            Forward bulk intent-check JSON.
+            Forward Field Integration reference for turning Dynatrace dependency
+            maps into Forward bulk intent-check JSON.
           </Paragraph>
           <div className="workflow-strip" aria-label="Forward ingestion workflow">
             <div>
@@ -166,11 +166,11 @@ export const Home = () => {
           </div>
         </div>
         <div className="hero-actions">
-          <Button color="primary" variant="emphasized" onClick={() => runProof()}>
+          <Button color="primary" variant="emphasized" onClick={() => runPreview()}>
             <Button.Prefix>
               <PlayIcon />
             </Button.Prefix>
-            Run proof
+            Run preview
           </Button>
           <Button color="primary" variant="emphasized" onClick={buildExportPackage}>
             <Button.Prefix>
@@ -181,8 +181,8 @@ export const Home = () => {
         </div>
       </section>
 
-      <section className="demo-callout">
-        <Strong>Demo guardrail</Strong>
+      <section className="boundary-callout">
+        <Strong>Integration boundary</Strong>
         <span>
           This app builds Forward-ready artifacts. It never writes to Forward.
           Forward imports the bulk checks JSON manually, or a Forward-side
@@ -274,13 +274,13 @@ export const Home = () => {
                         size="condensed"
                         onClick={() => {
                           setActiveDependencyId(dependency.id);
-                          runProof(dependency);
+                          runPreview(dependency);
                         }}
                       >
                         <Button.Prefix>
                           <PathIcon />
                         </Button.Prefix>
-                        Prove
+                        Preview
                       </Button>
                     </td>
                   </tr>
@@ -353,10 +353,10 @@ export const Home = () => {
       <section className="panel">
         <PanelHeader
           icon={<NetworkIcon />}
-          title="Proof Result"
+          title="Path Preview"
           detail={activeDependency.serviceName}
         />
-        {proof.isLoading && <ProgressCircle aria-label="Loading proof" />}
+        {proof.isLoading && <ProgressCircle aria-label="Loading preview" />}
         {proof.data ? (
           <ResultBody
             status={proof.data.status}
@@ -365,7 +365,7 @@ export const Home = () => {
             nextSteps={proof.data.nextSteps}
           />
         ) : (
-          <EmptyState text="No proof result yet." />
+          <EmptyState text="No preview result yet." />
         )}
         {proof.error && <Paragraph>{proof.error.message}</Paragraph>}
       </section>

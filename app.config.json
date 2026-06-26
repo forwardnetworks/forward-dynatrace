@@ -2,9 +2,9 @@
   "$schema": "./.dt-app/app.config.schema.json",
   "environmentUrl": "https://your-environment-id.apps.dynatrace.com/",
   "app": {
-    "name": "dynatrace-forward-network-proof",
-    "version": "1.0.1",
-    "description": "Export Forward intent-check packages from Dynatrace dependency evidence",
+    "name": "forward-dynatrace-field-integration",
+    "version": "1.0.2",
+    "description": "Field Integration reference for Forward intent-check package export",
     "id": "my.dynatrace.forward.network.proof",
     "scopes": [
       {

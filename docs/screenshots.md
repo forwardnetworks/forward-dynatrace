@@ -1,6 +1,6 @@
 # Workflow Screenshots
 
-These screenshots show the art-of-the-possible workflow: Dynatrace application mapping becomes Forward bulk
+These screenshots show the Forward Field Integration workflow: Dynatrace application mapping becomes Forward bulk
 intent-check JSON for Forward-side reconciliation.
 
 ## Overview

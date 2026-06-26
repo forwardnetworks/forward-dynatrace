@@ -54,7 +54,7 @@ export default function (
   if (!payload || missing(payload.serviceEntityId)) {
     return {
       status: "unknown",
-      summary: "Enter a Dynatrace service entity ID to stage a Forward proof.",
+      summary: "Enter a Dynatrace service entity ID to stage a Forward path preview.",
       serviceEntityId: "",
       checkedAt,
       evidence: [],
@@ -77,15 +77,15 @@ export default function (
     return {
       status: "unknown",
       summary:
-        "Mock proof ready. Add Forward URL and network ID as package metadata if useful.",
+        "Path preview ready. Add Forward URL and network ID as package metadata if useful.",
       serviceEntityId: payload.serviceEntityId,
       checkedAt,
       forwardQuery,
       evidence,
       nextSteps: [
         "Keep Forward write credentials out of Dynatrace.",
-        "Export proof context for manual Forward review or Forward-side connector ingestion.",
-        "Replace this mock branch with read-only proof lookup only if needed.",
+        "Export preview context for manual Forward review or Forward-side connector ingestion.",
+        "Add read-only Forward lookup only after an approved credential storage pattern exists.",
       ],
     };
   }

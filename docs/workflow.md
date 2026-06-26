@@ -4,14 +4,14 @@ This app uses Dynatrace application dependency mapping to fill Forward intent ch
 application dependency evidence; Forward is the system that stores, evaluates, reconciles, and reports the network
 intent.
 
-This repository is an art-of-the-possible demonstration. It builds Forward-ready payloads and a production API plan,
-but the Dynatrace app must not mutate a Forward tenant. Forward-side manual import or a Forward-side connector
-owns all intent-check writes.
+This repository is a Forward Field Integration reference. It builds Forward-ready payloads and a production API plan,
+but it is not an officially supported Forward product integration. The Dynatrace app must not mutate a Forward tenant.
+Forward-side manual import or a Forward-side connector owns all intent-check writes.
 
 ## What the Dynatrace App Provides
 
 - A focused view of Dynatrace application dependencies that are candidates for Forward intent.
-- A proof action that turns a Dynatrace service/problem context into a Forward path query.
+- A path preview action that turns a Dynatrace service/problem context into a Forward path query.
 - An export action that stages Forward-ready artifacts:
   - `forward-intent-checks.json` as Forward-native `NewNetworkCheck[]` for bulk intent import.
   - `forward-dynatrace-manifest.json` with schema version, counts, dedupe policy, and artifact names.
