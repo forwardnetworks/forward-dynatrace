@@ -117,6 +117,7 @@ const expectedNodeEngineRange = ">=24.0.0 <25.0.0";
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const localMachineUser = process.env.USER || process.env.LOGNAME || "";
+const genericMachineUsers = new Set(["runner", "root", "node"]);
 
 const publicHygienePatterns = [
   {
@@ -145,7 +146,8 @@ const publicHygienePatterns = [
   },
 ];
 
-const dynamicLocalHygienePatterns = localMachineUser
+const dynamicLocalHygienePatterns =
+  localMachineUser && !genericMachineUsers.has(localMachineUser.toLowerCase())
   ? [
       {
         name: "Local machine user name",
