@@ -38,3 +38,6 @@ docker run --rm \
 Do not bake Forward credentials into the image or config file.
 For signed packages, mount the trusted public key and use a config based on
 `config/forward-connector.signed.config.example.json`.
+
+For scheduled operation, use the systemd or Kubernetes templates in
+[connector-runtime.md](connector-runtime.md).

@@ -1,0 +1,37 @@
+{
+  "syncMode": "data-connector",
+  "forwardBaseUrl": "https://forward.example.com",
+  "forwardNetworkId": "<network-id>",
+  "dependencies": [
+    {
+      "id": "checkout-orders-db",
+      "appName": "Checkout",
+      "environment": "prod",
+      "serviceEntityId": "SERVICE-DEMO-CHECKOUT",
+      "serviceName": "checkout-api",
+      "source": "checkout-vip",
+      "destination": "orders-db",
+      "protocol": "tcp",
+      "port": "443",
+      "owner": "commerce-platform",
+      "criticality": "critical",
+      "confidence": 98,
+      "mappingState": "ready"
+    },
+    {
+      "id": "checkout-payment",
+      "appName": "Checkout",
+      "environment": "prod",
+      "serviceEntityId": "SERVICE-DEMO-CHECKOUT",
+      "serviceName": "checkout-api",
+      "source": "checkout-vip",
+      "destination": "payment-gateway",
+      "protocol": "tcp",
+      "port": "8443",
+      "owner": "payments",
+      "criticality": "critical",
+      "confidence": 94,
+      "mappingState": "ready"
+    }
+  ]
+}

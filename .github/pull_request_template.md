@@ -4,11 +4,8 @@
 
 ## Validation
 
-- [ ] `npm run repo:validate`
-- [ ] `npm run forward:import:test`
-- [ ] `npm run workflow:smoke`
-- [ ] `npm run lint`
-- [ ] `npm run build`
+- [ ] `npm run ci`
+- [ ] `git diff --check`
 
 ## Workflow Impact
 

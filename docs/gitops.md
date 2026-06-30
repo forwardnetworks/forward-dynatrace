@@ -9,6 +9,8 @@ commands locally that GitHub Actions runs on pull requests.
 npm run repo:validate
 npm run forward:import:test
 npm run workflow:smoke
+npm run runtime:validate
+npm run dynatrace:workflow:validate
 npm run release:checksums:test
 npm run security:audit
 npm run sbom:check
@@ -37,7 +39,7 @@ Recommended repository settings:
 - Release candidates must pass the public hygiene gate in `npm run repo:validate`.
 - Release artifacts should publish a `SHA256SUMS` file generated with `npm run release:checksums -- --output
   dist/SHA256SUMS artifact...`.
-- Tag releases use `.github/workflows/release.yml`, which reruns `npm run ci`, packages app/importer archives, uploads
+- Tag releases use `.github/workflows/release.yml`, which reruns `npm run ci`, calls `npm run release:package`, uploads
   workflow artifacts, and publishes the GitHub release.
 - Runtime behavior changes should update `docs/validation-matrix.md`.
 - Workflow or screenshot changes should update `docs/workflow.md` and `docs/assets/screenshots/`.

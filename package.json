@@ -1,6 +1,6 @@
 {
   "name": "forward-dynatrace",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Forward Field Integration reference for exporting intent-check packages from Dynatrace service dependency evidence",
   "scripts": {
     "build": "dt-app build",
@@ -14,17 +14,21 @@
     "help": "dt-app help",
     "repo:validate": "node scripts/validate-repo.mjs",
     "workflow:smoke": "node scripts/workflow-smoke.mjs",
+    "runtime:validate": "node scripts/validate-runtime-manifests.mjs",
+    "dynatrace:workflow:validate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/validate-dynatrace-workflow-examples.mjs",
     "dynatrace:seed:demo": "node scripts/seed-dynatrace-demo-data.mjs",
     "forward:import": "node scripts/forward-import-package.mjs",
     "forward:import:test": "node --test scripts/forward-import-package.test.mjs",
     "forward:sign": "node scripts/sign-forward-package.mjs",
+    "release:package": "node scripts/package-release-artifacts.mjs",
+    "release:package:smoke": "node scripts/package-release-artifacts.mjs",
     "release:checksums": "node scripts/write-release-checksums.mjs",
     "release:checksums:test": "node --test scripts/release-checksums.test.mjs",
     "security:audit": "npm audit --omit=dev --audit-level=high",
     "sbom:check": "npm sbom --omit=dev --sbom-format=cyclonedx > /tmp/forward-dynatrace-sbom.cdx.json",
     "test": "npm run forward:import:test && npm run release:checksums:test",
     "lint": "eslint .",
-    "ci": "npm run repo:validate && npm run forward:import:test && npm run release:checksums:test && npm run workflow:smoke && npm run security:audit && npm run sbom:check && npm run lint && npm run build"
+    "ci": "npm run repo:validate && npm run forward:import:test && npm run release:checksums:test && npm run workflow:smoke && npm run runtime:validate && npm run dynatrace:workflow:validate && npm run security:audit && npm run sbom:check && npm run lint && npm run build && npm run release:package:smoke"
   },
   "engines": {
     "node": ">=24.0.0 <25.0.0"

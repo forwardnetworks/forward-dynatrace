@@ -1,0 +1,20 @@
+{
+  "syncMode": "manual-import",
+  "dependencies": [
+    {
+      "id": "problem-impacted-inventory-cache",
+      "appName": "Inventory",
+      "environment": "prod",
+      "serviceEntityId": "SERVICE-DEMO-INVENTORY",
+      "serviceName": "inventory-api",
+      "source": "inventory-vip",
+      "destination": "redis-cache",
+      "protocol": "tcp",
+      "port": "6379",
+      "owner": "supply-chain",
+      "criticality": "high",
+      "confidence": 87,
+      "mappingState": "review"
+    }
+  ]
+}
