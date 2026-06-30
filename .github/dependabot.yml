@@ -6,16 +6,7 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     ignore:
-      - dependency-name: react
-        update-types:
-          - version-update:semver-major
-      - dependency-name: react-dom
-        update-types:
-          - version-update:semver-major
-      - dependency-name: react-intl
-        update-types:
-          - version-update:semver-major
-      - dependency-name: react-router-dom
+      - dependency-name: "*"
         update-types:
           - version-update:semver-major
     groups:
@@ -29,3 +20,7 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
