@@ -14,6 +14,18 @@ docs and executable checks.
 - [docs/forward-ingest-contract.md](docs/forward-ingest-contract.md): package and API contract.
 - [docs/forward-importer.md](docs/forward-importer.md): manual Forward-side importer behavior.
 - [docs/production-readiness.md](docs/production-readiness.md): production checklist.
+- [docs/enterprise-hardening.md](docs/enterprise-hardening.md): enterprise hardening backlog and exit criteria.
+- [docs/operations-runbook.md](docs/operations-runbook.md): operator runbook for manual and connector import.
+- [docs/incident-response.md](docs/incident-response.md): failure triage and recovery runbook.
+- [docs/threat-model.md](docs/threat-model.md): trust boundary, threats, controls, and residual risk.
+- [docs/container-runtime.md](docs/container-runtime.md): Forward importer container build and run workflow.
+- [docs/schema-versioning.md](docs/schema-versioning.md): package schema compatibility and migration rules.
+- [docs/data-handling.md](docs/data-handling.md): publish-safe data, screenshot, and artifact handling rules.
+- [docs/rbac.md](docs/rbac.md): least-privilege roles and separation rules.
+- [docs/package-handoff.md](docs/package-handoff.md): package storage, retention, immutability, and access-log controls.
+- [docs/observability.md](docs/observability.md): reports, metrics, suggested alerts, and evidence retention.
+- [docs/admin-operations.md](docs/admin-operations.md): audit export, config restore, disaster recovery, and access review.
+- [docs/release.md](docs/release.md): release workflow, artifacts, and checksum verification.
 - [docs/validation-matrix.md](docs/validation-matrix.md): tested, automated, and remaining validation.
 - [docs/demo-data.md](docs/demo-data.md): synthetic fixtures and optional Dynatrace seeding.
 - [docs/harness-engineering.md](docs/harness-engineering.md): agent-first operating model for this repo.
@@ -40,6 +52,7 @@ For faster iteration:
 ```bash
 npm run repo:validate
 npm run forward:import:test
+npm run release:checksums:test
 npm run workflow:smoke
 npm run lint
 npm run build

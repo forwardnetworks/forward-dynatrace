@@ -1,0 +1,80 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run release gates
+        run: npm run ci
+
+      - name: Prepare release artifacts
+        run: |
+          rm -rf out/release
+          mkdir -p out/release
+          release_name="${GITHUB_REF_NAME//\//-}"
+          tar -czf "out/release/forward-dynatrace-app-${release_name}.tgz" \
+            app.config.json \
+            package.json \
+            package-lock.json \
+            README.md \
+            dist \
+            docs/install.md \
+            docs/workflow.md \
+            docs/forward-ingest-contract.md
+          tar -czf "out/release/forward-dynatrace-importer-${release_name}.tgz" \
+            Dockerfile.forward-importer \
+            config \
+            scripts/forward-import-package.mjs \
+            scripts/sign-forward-package.mjs \
+            scripts/write-release-checksums.mjs \
+            docs/forward-importer.md \
+            docs/container-runtime.md \
+            docs/operations-runbook.md \
+            docs/incident-response.md \
+            docs/observability.md \
+            docs/rbac.md \
+            docs/package-handoff.md
+          npm run release:checksums -- --output out/release/SHA256SUMS out/release/*.tgz
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: forward-dynatrace-release
+          path: out/release/*
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" out/release/* \
+            --verify-tag \
+            --title "${GITHUB_REF_NAME}" \
+            --notes "Forward Dynatrace field integration release. Verify downloaded artifacts with SHA256SUMS."

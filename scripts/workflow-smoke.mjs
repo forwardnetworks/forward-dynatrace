@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import { createServer } from "node:http";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -103,7 +104,9 @@ const toIntentCheck = (dependency) => ({
   ],
 });
 
-const toManifest = (checks) => ({
+const sha256Hex = (text) => createHash("sha256").update(text, "utf8").digest("hex");
+
+const toManifest = (checks, checksText) => ({
   schemaVersion: "forward-dynatrace/v1",
   packageType: "forward-intent-import",
   packageId: `dynatrace-forward-${new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14)}`,
@@ -117,6 +120,10 @@ const toManifest = (checks) => ({
   artifacts: {
     manifest: "forward-dynatrace-manifest.json",
     intentChecks: "forward-intent-checks.json",
+  },
+  integrity: {
+    algorithm: "sha256",
+    intentChecksSha256: sha256Hex(checksText),
   },
   intentChecks: {
     count: checks.length,
@@ -162,6 +169,11 @@ const jsonResponse = (response, statusCode, payload) => {
   response.end(JSON.stringify(payload));
 };
 
+const textJsonResponse = (response, statusCode, text) => {
+  response.writeHead(statusCode, { "Content-Type": "application/json" });
+  response.end(text);
+};
+
 const startFakeForward = async (state) =>
   new Promise((resolve) => {
     const server = createServer(async (request, response) => {
@@ -171,7 +183,7 @@ const startFakeForward = async (state) =>
         request.method === "GET" &&
         url.pathname === "/package/forward-dynatrace-manifest.json"
       ) {
-        jsonResponse(response, 200, state.packageManifest);
+        textJsonResponse(response, 200, state.packageManifestText);
         return;
       }
 
@@ -179,7 +191,15 @@ const startFakeForward = async (state) =>
         request.method === "GET" &&
         url.pathname === "/package/forward-intent-checks.json"
       ) {
-        jsonResponse(response, 200, state.packageChecks);
+        textJsonResponse(response, 200, state.packageChecksText);
+        return;
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname === "/package/forward-dynatrace-package.sig"
+      ) {
+        textJsonResponse(response, 200, state.packageSignatureText);
         return;
       }
 
@@ -207,7 +227,19 @@ const startFakeForward = async (state) =>
       ) {
         const body = await readRequestBody(request);
         const checks = JSON.parse(body);
+        if (state.transientBulkFailures > 0) {
+          state.transientBulkFailures -= 1;
+          state.bulkFailureResponses += 1;
+          response.writeHead(429, {
+            "Content-Type": "application/json",
+            "Retry-After": "0.01",
+          });
+          response.end(JSON.stringify({ error: "retry this bulk request" }));
+          return;
+        }
         const offset = state.existingChecks.length;
+        state.bulkPostCount += 1;
+        state.bulkSizes.push(checks.length);
         state.existingChecks.push(
           ...checks.map((check, index) => withResultFields(check, offset + index)),
         );
@@ -263,9 +295,27 @@ const main = async () => {
   const workdir = await mkdtemp(path.join(tmpdir(), "forward-dynatrace-smoke-"));
   const checksPath = path.join(workdir, "forward-intent-checks.json");
   const manifestPath = path.join(workdir, "forward-dynatrace-manifest.json");
-  const manifest = toManifest(checks);
-  await writeFile(checksPath, JSON.stringify(checks, null, 2) + "\n");
-  await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  const connectorConfigPath = path.join(workdir, "forward-connector.config.json");
+  const publicKeyPath = path.join(workdir, "forward-dynatrace-public.pem");
+  const checksText = JSON.stringify(checks, null, 2) + "\n";
+  const manifest = toManifest(checks, checksText);
+  const manifestText = JSON.stringify(manifest, null, 2) + "\n";
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const signaturePayload = [
+    "forward-dynatrace-package-signature/v1",
+    `manifest-sha256:${sha256Hex(manifestText)}`,
+    `checks-sha256:${sha256Hex(checksText)}`,
+    "",
+  ].join("\n");
+  const packageSignatureText =
+    sign(null, Buffer.from(signaturePayload, "utf8"), privateKey).toString("base64") +
+    "\n";
+  await writeFile(checksPath, checksText);
+  await writeFile(manifestPath, manifestText);
+  await writeFile(
+    publicKeyPath,
+    publicKey.export({ format: "pem", type: "spki" }),
+  );
 
   const validation = await runImporter([
     "--checks",
@@ -281,6 +331,13 @@ const main = async () => {
     existingChecks: [],
     packageChecks: checks,
     packageManifest: manifest,
+    packageChecksText: checksText,
+    packageManifestText: manifestText,
+    packageSignatureText,
+    bulkFailureResponses: 0,
+    bulkPostCount: 0,
+    bulkSizes: [],
+    transientBulkFailures: 0,
   };
   const { server, port } = await startFakeForward(state);
   const env = {
@@ -298,8 +355,108 @@ const main = async () => {
     ]);
     assert.equal(pulledPackage.status, "valid");
     assert.equal(pulledPackage.plannedChecks, 3);
+    assert.equal(pulledPackage.packageId, manifest.packageId);
+    assert.equal(
+      pulledPackage.packageIntegrity.intentChecksSha256,
+      manifest.integrity.intentChecksSha256,
+    );
+
+    const signedPackage = await runImporter([
+      "--package-url",
+      `http://127.0.0.1:${port}/package`,
+      "--public-key",
+      publicKeyPath,
+      "--require-signature",
+      "--validate-only",
+    ]);
+    assert.equal(signedPackage.packageSignature.status, "verified");
+
+    await writeFile(
+      connectorConfigPath,
+      JSON.stringify(
+        {
+          schemaVersion: "forward-dynatrace-connector/v1",
+          packageUrl: `http://127.0.0.1:${port}/package`,
+          forwardBaseUrl: `http://127.0.0.1:${port}`,
+          forwardNetworkId: "demo-network",
+          validateOnly: true,
+          batchSize: 500,
+          maxRetries: 0,
+          maxPackageAgeMinutes: 1440,
+          failOnDrift: true,
+          reportPath: path.join(workdir, "connector-report.json"),
+          metricsPath: path.join(workdir, "connector-metrics.prom"),
+          statusArtifactPath: path.join(workdir, "forward-ingest-status.json"),
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    const configValidation = await runImporter(["--config", connectorConfigPath]);
+    assert.equal(configValidation.status, "valid");
+    assert.equal(configValidation.plannedChecks, 3);
+    const connectorMetrics = await readFile(
+      path.join(workdir, "connector-metrics.prom"),
+      "utf8",
+    );
+    assert.match(connectorMetrics, /forward_dynatrace_import_planned_checks 3/);
+    const connectorStatus = await readJson(path.join(workdir, "forward-ingest-status.json"));
+    assert.equal(connectorStatus.schemaVersion, "forward-dynatrace-status/v1");
+    assert.equal(connectorStatus.importState, "valid");
+    assert.equal(connectorStatus.plannedChecks, 3);
+    assert.equal(JSON.stringify(connectorStatus).includes("checkout-vip"), false);
+
+    const largeChecks = Array.from({ length: 1001 }, (_, index) => {
+      const check = structuredClone(checks[index % checks.length]);
+      check.name = `${check.name} bulk ${index + 1}`;
+      check.tags = [
+        ...check.tags.filter((tag) => !tag.startsWith("dynatrace-key:")),
+        `dynatrace-key:dt:bulk:${index + 1}`,
+      ];
+      return check;
+    });
+    const largeChecksPath = path.join(workdir, "forward-intent-checks-large.json");
+    const largeManifestPath = path.join(workdir, "forward-dynatrace-manifest-large.json");
+    const largeChecksText = JSON.stringify(largeChecks, null, 2) + "\n";
+    const largeManifestText = JSON.stringify(
+      toManifest(largeChecks, largeChecksText),
+      null,
+      2,
+    ) + "\n";
+    await writeFile(largeChecksPath, largeChecksText);
+    await writeFile(largeManifestPath, largeManifestText);
+
+    state.existingChecks = [];
+    state.bulkPostCount = 0;
+    state.bulkSizes = [];
+    state.transientBulkFailures = 1;
+    state.bulkFailureResponses = 0;
+    const largeApply = await runImporter([
+      "--checks",
+      largeChecksPath,
+      "--manifest",
+      largeManifestPath,
+      "--apply",
+      "--batch-size",
+      "500",
+      "--max-retries",
+      "2",
+    ], env);
+    assert.equal(largeApply.counts.create, 1001);
+    assert.equal(state.bulkFailureResponses, 1);
+    assert.equal(state.bulkPostCount, 3);
+    assert.deepEqual(state.bulkSizes, [500, 500, 1]);
+    assert.equal(state.existingChecks.length, 1001);
+
+    state.existingChecks = [];
+    state.bulkPostCount = 0;
+    state.bulkSizes = [];
+    state.transientBulkFailures = 0;
+    state.bulkFailureResponses = 0;
 
     const dryRun = await runImporter(["--checks", checksPath, "--manifest", manifestPath], env);
+    assert.equal(dryRun.packageId, manifest.packageId);
+    assert.equal(typeof dryRun.runId, "string");
     assert.deepEqual(dryRun.counts, {
       create: 3,
       unchanged: 0,
@@ -307,10 +464,19 @@ const main = async () => {
       stale: 0,
     });
 
-    const apply = await runImporter(["--checks", checksPath, "--manifest", manifestPath, "--apply"], env);
+    const apply = await runImporter([
+      "--checks",
+      checksPath,
+      "--manifest",
+      manifestPath,
+      "--apply",
+      "--batch-size",
+      "2",
+    ], env);
     assert.equal(apply.mode, "apply");
     assert.equal(apply.counts.create, 3);
     assert.equal(state.existingChecks.length, 3);
+    assert.equal(state.bulkPostCount, 2);
 
     const unchanged = await runImporter(["--checks", checksPath, "--manifest", manifestPath], env);
     assert.deepEqual(unchanged.counts, {

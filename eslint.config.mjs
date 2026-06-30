@@ -56,6 +56,12 @@ const noRestrictedImportsDynatraceStratoRule = [
   },
 ];
 
+const reactSettings = {
+  react: {
+    version: "detect",
+  },
+};
+
 export default defineConfig([
   globalIgnores([
     "**/node_modules",
@@ -90,6 +96,7 @@ export default defineConfig([
       nounsanitized,
       "@microsoft/sdl": pluginMicrosoftSdl,
     },
+    settings: reactSettings,
     extends: [
       eslint.configs.recommended,
       tseslint.configs.recommended,
@@ -143,6 +150,7 @@ export default defineConfig([
       nounsanitized,
       "@microsoft/sdl": pluginMicrosoftSdl,
     },
+    settings: reactSettings,
     extends: [
       eslint.configs.recommended,
       tseslint.configs.recommended,

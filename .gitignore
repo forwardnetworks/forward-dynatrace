@@ -36,8 +36,13 @@ Thumbs.db
 
 # Local credentials and environment files
 *.token
+*.pem
+*.sig
 .env
 .env.*
+forward-import-report.json
+forward-import-metrics.prom
+forward-ingest-status.json
 
 # app-settings plugin local files
 /settings/local-mock-data/secrets.json

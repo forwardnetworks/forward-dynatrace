@@ -1,0 +1,91 @@
+# Enterprise Hardening Backlog
+
+This tracks what is implemented now and what remains before positioning this Forward Field Integration reference for
+broader enterprise use.
+It remains a field-built reference, not an officially supported Forward product integration.
+
+## P0 Before Wider Use
+
+- Done in repo: package checksum generation and validation.
+- Done in repo: optional detached Ed25519 package signing and verification.
+- Done in repo: connector config schema for non-secret runtime settings.
+- Done in repo: operations runbook, incident response runbook, and threat model.
+- Done in repo: dependency audit and SBOM generation in `npm run ci`.
+- Done in repo: CODEOWNERS template for app, importer, docs, screenshots, and release workflow.
+- Done in repo: structured importer report metadata with run ID, package ID, checksum, sources, timing, and counts.
+- Done in repo: Prometheus-style metrics file output for connector runs.
+- Done in repo: Forward importer container packaging.
+- Done in repo: schema versioning and migration policy.
+- Done in repo: data handling rules for screenshots, examples, package artifacts, and committed docs.
+- Done in repo: RBAC model for package generation, review, apply, signing keys, and runtime administration.
+- Done in repo: package handoff blueprint for retention, immutability, access logs, and publish order.
+- Done in repo: admin operations guide for audit export, config restore, disaster recovery, and access review.
+- Done in repo: observability guide with report fields, metrics, alert thresholds, and evidence retention.
+- Done in repo: sanitized read-only Forward ingest status artifact for Dynatrace display.
+- Done in repo: release checksum generation for published artifacts.
+- Done in repo: GitHub release workflow that builds app/importer archives, uploads artifacts, and publishes tag releases
+  with `SHA256SUMS`.
+- Done in repo: weekly Dependabot checks for npm and GitHub Actions.
+- Done in repo: synthetic 1001-check bulk import, chunk sizing, and transient retry coverage.
+- External before wider use: assign an owner for the Forward-side runtime: team, on-call path, escalation path, release
+  approver, and customer handoff owner.
+- External before wider use: choose the automated ingest runtime: scheduled job, customer runner, Forward-hosted
+  connector, or CI/CD pipeline step.
+- External before wider use: store Forward credentials only in that Forward-side runtime, backed by a secrets manager
+  with rotation and audit logs.
+- External before wider use: assign actual identities or groups to the RBAC roles in `docs/rbac.md`.
+- External before wider use: provision signing keys if checksum-only integrity is not sufficient for the deployment
+  trust model.
+- Done in repo: pin package schema contract and migration rules for future `schemaVersion` changes.
+- Done in repo: first approved apply policy is `create-missing-only`; changed and stale checks stay report-only until
+  Forward approves update and retirement workflows.
+- Done in repo: customer-safe runbook for install, generate package, validate-only, dry-run, apply, rollback, drift
+  review, and evidence collection.
+- Done in repo: incident runbook for importer failure, partial bulk create, stale package, auth failure, rate limit, bad
+  mapping, and Forward API 4xx/5xx.
+- Done in repo: threat model for Dynatrace export, package storage, connector pull, Forward credentials, Forward write
+  API, logs, and screenshots.
+
+## P1 Enterprise Controls
+
+- External before wider use: provision the durable package handoff location described in `docs/package-handoff.md`.
+- External before release: add cryptographic release signing if GitHub release artifacts plus `SHA256SUMS` are not
+  enough.
+- Done in repo: generate a CycloneDX SBOM and run production dependency audit in CI.
+- External before release: add branch protection requiring the `gitops` workflow.
+- External before release: replace CODEOWNERS placeholder with real owning teams before enforcing review rules.
+- Done in repo: connector configuration example and schema validation for base URL, network ID, package URL, batch
+  size, retry policy, package age, and drift policy.
+- External after runtime selection: extend structured importer output to external log sinks if the runtime needs
+  centralized observability.
+- External after runtime selection: add runtime-specific metrics shipping.
+- External before wider use: choose where the Forward-side runtime publishes the read-only status artifact for Dynatrace
+  display.
+
+## P2 Productization Path
+
+- External product decision: decide whether this remains a field integration kit or graduates into an owned product
+  integration.
+- External product decision: if it graduates, replace the script runner with an owned service/connector package and
+  formal support policy.
+- Future productization: add signed image or binary publication if this graduates beyond source-based delivery.
+- Future schema work: add upgrade tests when a second schema version exists.
+- Future compatibility work: add compatibility tests against Forward API versions and Dynatrace App Toolkit versions.
+- Done in repo: synthetic end-to-end harness publishes a package, pulls it, imports it, verifies fake Forward checks,
+  and reruns the same package to confirm idempotency.
+- External after policy decision: add policy-driven update and stale retirement flows.
+- Future productization: add a UI view for package history, rejected rows, drift state, and last Forward-side ingest
+  result.
+
+## Exit Criteria
+
+Call this enterprise-ready only when:
+
+- Ownership and support boundary are written down.
+- The Forward-side runtime is installed in a controlled environment.
+- Credentials are stored outside Dynatrace and rotated.
+- Package validation, signing/checksum, dry-run, and apply are mandatory.
+- Create/changed/stale policies are explicit.
+- CI includes security, schema, unit, workflow, and build checks.
+- At least one non-production Forward network has validated create, unchanged, changed, stale, and failure paths.
+- Runbooks exist for normal operation and incident response.

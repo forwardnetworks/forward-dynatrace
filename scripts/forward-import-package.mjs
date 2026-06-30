@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
-import { createHash } from "node:crypto";
+import { createHash, verify as verifySignature } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
 const DEFAULT_CHECKS_PATH = "forward-intent-checks.json";
 const DEFAULT_MANIFEST_FILE_NAME = "forward-dynatrace-manifest.json";
+const DEFAULT_SIGNATURE_FILE_NAME = "forward-dynatrace-package.sig";
 const DEFAULT_BATCH_SIZE = 500;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_MAX_PACKAGE_AGE_MINUTES = 24 * 60;
@@ -26,6 +27,7 @@ Required environment:
   FORWARD_NETWORK_ID     Target Forward network ID
 
 Usage:
+  node scripts/forward-import-package.mjs --config config/forward-connector.config.json
   node scripts/forward-import-package.mjs --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json
   node scripts/forward-import-package.mjs --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json --apply
   node scripts/forward-import-package.mjs --package-url https://package.example.com/dynatrace-forward/latest/ --report forward-import-report.json
@@ -34,14 +36,23 @@ Options:
   --apply              Create missing checks. Changed and stale checks are still report-only.
   --batch-size 500     Batch size for /checks?bulk.
   --checks-url url      Pull forward-intent-checks.json from a read-only HTTPS URL.
+  --config path         Load non-secret connector/importer settings from JSON.
   --fail-on-drift      Exit non-zero when changed or stale Dynatrace-managed checks are found.
   --manifest path      Validate the package manifest before importing.
   --manifest-url url    Pull forward-dynatrace-manifest.json from a read-only HTTPS URL.
   --max-package-age-minutes 1440
                        Reject manifests older than this age.
   --max-retries 3      Retry count for transient Forward API responses.
+  --metrics path       Write Prometheus-style import metrics to a text file.
   --package-url url     Pull manifest and checks from a base URL.
+  --public-key path     Verify detached Ed25519 package signature with PEM public key.
+  --public-key-url url   Pull detached-signature public key from HTTPS URL.
+  --require-signature   Reject package unless signature and public key are supplied.
   --report path        Write the reconciliation report to a JSON file.
+  --signature path      Verify detached package signature.
+  --signature-url url    Pull detached package signature from HTTPS URL.
+  --status-artifact path
+                       Write sanitized read-only ingest status JSON for Dynatrace display.
   --validate-only      Validate package shape without contacting Forward.
 
 The default mode is dry-run. The apply policy is create-missing-only. Non-local
@@ -54,14 +65,22 @@ const SUPPORTED_ARGS = new Set([
   "batch-size",
   "checks",
   "checks-url",
+  "config",
   "fail-on-drift",
   "help",
   "manifest",
   "manifest-url",
   "max-package-age-minutes",
   "max-retries",
+  "metrics",
   "package-url",
+  "public-key",
+  "public-key-url",
+  "require-signature",
   "report",
+  "signature",
+  "signature-url",
+  "status-artifact",
   "validate-only",
 ]);
 
@@ -78,6 +97,7 @@ const parseArgs = (argv) => {
       key === "apply" ||
       key === "fail-on-drift" ||
       key === "help" ||
+      key === "require-signature" ||
       key === "validate-only"
     ) {
       args[key] = true;
@@ -111,6 +131,12 @@ const validateArgs = (args) => {
       "Use --checks-url or --manifest-url to override files when --package-url is set.",
     );
   }
+  if (args.signature && args["signature-url"]) {
+    throw new Error("Use either --signature or --signature-url, not both.");
+  }
+  if (args["public-key"] && args["public-key-url"]) {
+    throw new Error("Use either --public-key or --public-key-url, not both.");
+  }
 };
 
 const requiredEnv = (name) => {
@@ -121,7 +147,40 @@ const requiredEnv = (name) => {
   return value;
 };
 
+const requiredRuntimeValue = (envName, configValue) => {
+  const value = process.env[envName] || configValue;
+  if (!value) {
+    throw new Error(
+      `Missing required environment variable or connector config value: ${envName}`,
+    );
+  }
+  return value;
+};
+
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
+
+const readJsonWithText = async (path) => {
+  const text = await readFile(path, "utf8");
+  return { value: JSON.parse(text), text };
+};
+
+const readTextFromLocator = async (locator, label) => {
+  if (!isUrlLocator(locator)) {
+    return readFile(locator, "utf8");
+  }
+
+  validatePackageUrl(locator);
+  const response = await fetch(locator, {
+    headers: { Accept: "text/plain,application/octet-stream" },
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`${label} fetch failed with ${response.status}: ${text.slice(0, 500)}`);
+  }
+  return text;
+};
+
+const sha256Hex = (text) => createHash("sha256").update(text, "utf8").digest("hex");
 
 const isUrlLocator = (locator) => /^https?:\/\//i.test(locator);
 
@@ -140,7 +199,7 @@ const validatePackageUrl = (locator) => {
 
 const readJsonFromLocator = async (locator, label) => {
   if (!isUrlLocator(locator)) {
-    return readJson(locator);
+    return readJsonWithText(locator);
   }
 
   validatePackageUrl(locator);
@@ -152,11 +211,235 @@ const readJsonFromLocator = async (locator, label) => {
     throw new Error(`${label} fetch failed with ${response.status}: ${text.slice(0, 500)}`);
   }
   try {
-    return JSON.parse(text);
+    return { value: JSON.parse(text), text };
   } catch (error) {
     throw new Error(`${label} did not contain valid JSON: ${error.message}`);
   }
 };
+
+const CONNECTOR_CONFIG_SCHEMA_VERSION = "forward-dynatrace-connector/v1";
+const CONNECTOR_CONFIG_KEYS = new Set([
+  "apply",
+  "batchSize",
+  "checks",
+  "checksUrl",
+  "failOnDrift",
+  "forwardBaseUrl",
+  "forwardNetworkId",
+  "manifest",
+  "manifestUrl",
+  "maxPackageAgeMinutes",
+  "maxRetries",
+  "metricsPath",
+  "packageUrl",
+  "publicKey",
+  "publicKeyUrl",
+  "requireSignature",
+  "reportPath",
+  "schemaVersion",
+  "signature",
+  "signatureUrl",
+  "statusArtifactPath",
+  "validateOnly",
+]);
+const FORBIDDEN_CONNECTOR_CONFIG_KEYS = new Set([
+  "forwardPassword",
+  "forwardToken",
+  "forwardUser",
+  "password",
+  "token",
+  "user",
+]);
+
+export const validateConnectorConfig = (config) => {
+  const errors = [];
+  if (!config || typeof config !== "object" || Array.isArray(config)) {
+    throw new Error("Connector config must be a JSON object.");
+  }
+  if (config.schemaVersion !== CONNECTOR_CONFIG_SCHEMA_VERSION) {
+    errors.push(`schemaVersion must be ${CONNECTOR_CONFIG_SCHEMA_VERSION}.`);
+  }
+
+  for (const key of Object.keys(config)) {
+    if (FORBIDDEN_CONNECTOR_CONFIG_KEYS.has(key)) {
+      errors.push(`${key} must not be stored in connector config.`);
+    } else if (!CONNECTOR_CONFIG_KEYS.has(key)) {
+      errors.push(`Unsupported connector config field: ${key}.`);
+    }
+  }
+
+  for (const [key, value] of Object.entries({
+    packageUrl: config.packageUrl,
+    checksUrl: config.checksUrl,
+    manifestUrl: config.manifestUrl,
+    forwardBaseUrl: config.forwardBaseUrl,
+    publicKeyUrl: config.publicKeyUrl,
+    signatureUrl: config.signatureUrl,
+  })) {
+    if (value !== undefined && !requireString(value)) {
+      errors.push(`${key} must be a non-empty string when supplied.`);
+    }
+  }
+
+  for (const [key, value] of Object.entries({
+    checks: config.checks,
+    manifest: config.manifest,
+    metricsPath: config.metricsPath,
+    forwardNetworkId: config.forwardNetworkId,
+    publicKey: config.publicKey,
+    reportPath: config.reportPath,
+    signature: config.signature,
+    statusArtifactPath: config.statusArtifactPath,
+  })) {
+    if (value !== undefined && !requireString(value)) {
+      errors.push(`${key} must be a non-empty string when supplied.`);
+    }
+  }
+
+  for (const [key, value] of Object.entries({
+    apply: config.apply,
+    failOnDrift: config.failOnDrift,
+    requireSignature: config.requireSignature,
+    validateOnly: config.validateOnly,
+  })) {
+    if (value !== undefined && typeof value !== "boolean") {
+      errors.push(`${key} must be a boolean when supplied.`);
+    }
+  }
+
+  for (const [key, value] of Object.entries({
+    batchSize: config.batchSize,
+    maxPackageAgeMinutes: config.maxPackageAgeMinutes,
+    maxRetries: config.maxRetries,
+  })) {
+    if (value !== undefined && (!Number.isInteger(value) || value < 0)) {
+      errors.push(`${key} must be a non-negative integer when supplied.`);
+    }
+  }
+
+  if (config.batchSize === 0 || config.maxPackageAgeMinutes === 0) {
+    errors.push("batchSize and maxPackageAgeMinutes must be greater than zero.");
+  }
+
+  if (errors.length > 0) {
+    throw new Error(
+      `Invalid connector config:\n${errors.map((error) => `- ${error}`).join("\n")}`,
+    );
+  }
+};
+
+const toArgsFromConnectorConfig = (config) => ({
+  ...(config.apply ? { apply: true } : {}),
+  ...(config.batchSize !== undefined ? { "batch-size": String(config.batchSize) } : {}),
+  ...(config.checks ? { checks: config.checks } : {}),
+  ...(config.checksUrl ? { "checks-url": config.checksUrl } : {}),
+  ...(config.failOnDrift ? { "fail-on-drift": true } : {}),
+  ...(config.manifest ? { manifest: config.manifest } : {}),
+  ...(config.manifestUrl ? { "manifest-url": config.manifestUrl } : {}),
+  ...(config.maxPackageAgeMinutes !== undefined
+    ? { "max-package-age-minutes": String(config.maxPackageAgeMinutes) }
+    : {}),
+  ...(config.maxRetries !== undefined ? { "max-retries": String(config.maxRetries) } : {}),
+  ...(config.metricsPath ? { metrics: config.metricsPath } : {}),
+  ...(config.packageUrl ? { "package-url": config.packageUrl } : {}),
+  ...(config.publicKey ? { "public-key": config.publicKey } : {}),
+  ...(config.publicKeyUrl ? { "public-key-url": config.publicKeyUrl } : {}),
+  ...(config.requireSignature ? { "require-signature": true } : {}),
+  ...(config.reportPath ? { report: config.reportPath } : {}),
+  ...(config.signature ? { signature: config.signature } : {}),
+  ...(config.signatureUrl ? { "signature-url": config.signatureUrl } : {}),
+  ...(config.statusArtifactPath ? { "status-artifact": config.statusArtifactPath } : {}),
+  ...(config.validateOnly ? { "validate-only": true } : {}),
+});
+
+export const loadConnectorConfig = async (configPath) => {
+  const config = await readJson(configPath);
+  validateConnectorConfig(config);
+  return config;
+};
+
+const mergeConfigArgs = (args, config) => ({
+  ...toArgsFromConnectorConfig(config),
+  ...args,
+});
+
+const toRunId = (startedAt) =>
+  `forward-dynatrace-${startedAt.replace(/[^0-9]/g, "").slice(0, 14)}`;
+
+const toMetricLine = (name, value, labels = {}) => {
+  const labelText = Object.entries(labels)
+    .map(([key, labelValue]) => `${key}="${String(labelValue).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`)
+    .join(",");
+  return `${name}${labelText ? `{${labelText}}` : ""} ${value}`;
+};
+
+const toMetricsText = (report) => {
+  const lines = [
+    "# HELP forward_dynatrace_import_planned_checks Planned Forward checks in package.",
+    "# TYPE forward_dynatrace_import_planned_checks gauge",
+    toMetricLine("forward_dynatrace_import_planned_checks", report.plannedChecks),
+    "# HELP forward_dynatrace_import_result_count Reconciliation result counts.",
+    "# TYPE forward_dynatrace_import_result_count gauge",
+  ];
+
+  for (const [result, value] of Object.entries(report.counts || {})) {
+    lines.push(toMetricLine("forward_dynatrace_import_result_count", value, { result }));
+  }
+
+  lines.push(
+    "# HELP forward_dynatrace_import_duration_ms Import runtime duration in milliseconds.",
+    "# TYPE forward_dynatrace_import_duration_ms gauge",
+    toMetricLine("forward_dynatrace_import_duration_ms", report.durationMs),
+    "# HELP forward_dynatrace_import_signature_verified Package signature verification state.",
+    "# TYPE forward_dynatrace_import_signature_verified gauge",
+    toMetricLine(
+      "forward_dynatrace_import_signature_verified",
+      report.packageSignature?.status === "verified" ? 1 : 0,
+      { status: report.packageSignature?.status || "not-provided" },
+    ),
+  );
+
+  return `${lines.join("\n")}\n`;
+};
+
+const toImportState = (report) => {
+  if (report.status === "valid") {
+    return "valid";
+  }
+  if (report.counts?.changed > 0 || report.counts?.stale > 0) {
+    return "needs-review";
+  }
+  if (report.mode === "apply" && report.counts?.create > 0) {
+    return "applied";
+  }
+  return "reconciled";
+};
+
+export const toStatusArtifact = (report) => ({
+  schemaVersion: "forward-dynatrace-status/v1",
+  generatedAt: report.finishedAt,
+  runId: report.runId,
+  packageId: report.packageId || null,
+  mode: report.mode,
+  importState: toImportState(report),
+  applyPolicy: report.applyPolicy || "validate-only",
+  packageIntegrity: report.packageIntegrity || null,
+  packageSignature: {
+    status: report.packageSignature?.status || "not-provided",
+  },
+  target: {
+    networkId: report.networkId || null,
+    snapshotId: report.snapshotId || null,
+  },
+  counts: report.counts || {
+    create: 0,
+    unchanged: 0,
+    changed: 0,
+    stale: 0,
+  },
+  plannedChecks: report.plannedChecks,
+  durationMs: report.durationMs,
+});
 
 const resolvePackageLocators = (args) => {
   if (args["package-url"]) {
@@ -172,6 +455,49 @@ const resolvePackageLocators = (args) => {
     checks: args["checks-url"] || args.checks || DEFAULT_CHECKS_PATH,
     manifest: args["manifest-url"] || args.manifest,
   };
+};
+
+const resolveSignatureLocators = (args) => {
+  const signature =
+    args["signature-url"] ||
+    args.signature ||
+    (args["package-url"] && args["require-signature"]
+      ? joinUrl(args["package-url"], DEFAULT_SIGNATURE_FILE_NAME)
+      : undefined);
+
+  return {
+    publicKey: args["public-key-url"] || args["public-key"],
+    signature,
+  };
+};
+
+export const packageSigningPayload = ({ checksText, manifestText }) =>
+  [
+    "forward-dynatrace-package-signature/v1",
+    `manifest-sha256:${sha256Hex(manifestText)}`,
+    `checks-sha256:${sha256Hex(checksText)}`,
+    "",
+  ].join("\n");
+
+export const verifyPackageSignature = ({
+  checksText,
+  manifestText,
+  publicKeyText,
+  signatureText,
+}) => {
+  const signatureBytes = Buffer.from(signatureText.trim(), "base64");
+  if (signatureBytes.length === 0) {
+    throw new Error("Package signature must be base64-encoded Ed25519 signature bytes.");
+  }
+  const ok = verifySignature(
+    null,
+    Buffer.from(packageSigningPayload({ checksText, manifestText }), "utf8"),
+    publicKeyText,
+    signatureBytes,
+  );
+  if (!ok) {
+    throw new Error("Package signature verification failed.");
+  }
 };
 
 const chunk = (items, size) => {
@@ -457,7 +783,10 @@ const invalidManifestError = (errors) =>
 export const validateManifest = (
   manifest,
   plannedChecks,
-  { maxPackageAgeMinutes = DEFAULT_MAX_PACKAGE_AGE_MINUTES } = {},
+  {
+    checksText,
+    maxPackageAgeMinutes = DEFAULT_MAX_PACKAGE_AGE_MINUTES,
+  } = {},
 ) => {
   const errors = [];
   if (!requireObject(manifest, "manifest", errors)) {
@@ -502,6 +831,20 @@ export const validateManifest = (
     }
     if (manifest.artifacts.manifest !== DEFAULT_MANIFEST_FILE_NAME) {
       errors.push(`manifest.artifacts.manifest must be ${DEFAULT_MANIFEST_FILE_NAME}.`);
+    }
+  }
+
+  if (requireObject(manifest.integrity, "manifest.integrity", errors)) {
+    if (manifest.integrity.algorithm !== "sha256") {
+      errors.push("manifest.integrity.algorithm must be sha256.");
+    }
+    if (!/^[a-f0-9]{64}$/.test(manifest.integrity.intentChecksSha256 || "")) {
+      errors.push("manifest.integrity.intentChecksSha256 must be a SHA-256 hex digest.");
+    } else if (
+      checksText !== undefined &&
+      manifest.integrity.intentChecksSha256 !== sha256Hex(checksText)
+    ) {
+      errors.push("manifest.integrity.intentChecksSha256 does not match forward-intent-checks.json.");
     }
   }
 
@@ -555,11 +898,18 @@ export const validateManifest = (
 };
 
 const main = async () => {
-  const args = parseArgs(process.argv.slice(2));
-  if (args.help) {
+  const startedAt = new Date().toISOString();
+  const runId = toRunId(startedAt);
+  const rawArgs = parseArgs(process.argv.slice(2));
+  if (rawArgs.help) {
     process.stdout.write(usage);
     return;
   }
+  validateArgs(rawArgs);
+  const connectorConfig = rawArgs.config
+    ? await loadConnectorConfig(rawArgs.config)
+    : {};
+  const args = mergeConfigArgs(rawArgs, connectorConfig);
   validateArgs(args);
 
   const apply = Boolean(args.apply);
@@ -574,16 +924,75 @@ const main = async () => {
     : DEFAULT_MAX_PACKAGE_AGE_MINUTES;
 
   const locators = resolvePackageLocators(args);
-  const plannedChecks = await readJsonFromLocator(locators.checks, "Forward checks package");
+  const plannedPackage = await readJsonFromLocator(locators.checks, "Forward checks package");
+  const plannedChecks = plannedPackage.value;
   validatePlannedChecks(plannedChecks);
+  let manifest = null;
+  let manifestText = "";
   if (locators.manifest) {
-    const manifest = await readJsonFromLocator(locators.manifest, "Forward package manifest");
-    validateManifest(manifest, plannedChecks, { maxPackageAgeMinutes });
+    const manifestPackage = await readJsonFromLocator(
+      locators.manifest,
+      "Forward package manifest",
+    );
+    manifest = manifestPackage.value;
+    manifestText = manifestPackage.text;
+    validateManifest(manifest, plannedChecks, {
+      checksText: plannedPackage.text,
+      maxPackageAgeMinutes,
+    });
   }
+  const signatureLocators = resolveSignatureLocators(args);
+  const signatureRequired = Boolean(args["require-signature"]);
+  if (
+    signatureRequired &&
+    (!signatureLocators.signature || !signatureLocators.publicKey)
+  ) {
+    throw new Error(
+      "Package signature is required; supply --signature/--signature-url and --public-key/--public-key-url.",
+    );
+  }
+  if (signatureLocators.signature || signatureLocators.publicKey) {
+    if (!locators.manifest || !manifestText) {
+      throw new Error("Package signature verification requires a manifest.");
+    }
+    if (!signatureLocators.signature || !signatureLocators.publicKey) {
+      throw new Error(
+        "Package signature verification requires both signature and public key.",
+      );
+    }
+    const signatureText = await readTextFromLocator(
+      signatureLocators.signature,
+      "Forward package signature",
+    );
+    const publicKeyText = await readTextFromLocator(
+      signatureLocators.publicKey,
+      "Forward package signature public key",
+    );
+    verifyPackageSignature({
+      checksText: plannedPackage.text,
+      manifestText,
+      publicKeyText,
+      signatureText,
+    });
+  }
+  const signatureStatus =
+    signatureLocators.signature && signatureLocators.publicKey ? "verified" : "not-provided";
 
   if (args["validate-only"]) {
+    const finishedAt = new Date().toISOString();
     const report = {
       mode: "validate-only",
+      runId,
+      startedAt,
+      finishedAt,
+      durationMs: Date.parse(finishedAt) - Date.parse(startedAt),
+      packageId: manifest?.packageId || null,
+      packageIntegrity: manifest?.integrity || null,
+      packageSignature: {
+        status: signatureStatus,
+        publicKeySource: signatureLocators.publicKey || null,
+        signatureSource: signatureLocators.signature || null,
+      },
       checksSource: locators.checks,
       manifestSource: locators.manifest || null,
       plannedChecks: plannedChecks.length,
@@ -593,14 +1002,23 @@ const main = async () => {
     if (args.report) {
       await writeFile(args.report, JSON.stringify(report, null, 2) + "\n");
     }
+    if (args.metrics) {
+      await writeFile(args.metrics, toMetricsText(report));
+    }
+    if (args["status-artifact"]) {
+      await writeFile(args["status-artifact"], JSON.stringify(toStatusArtifact(report), null, 2) + "\n");
+    }
 
     process.stdout.write(JSON.stringify(report, null, 2) + "\n");
     return;
   }
 
-  const networkId = requiredEnv("FORWARD_NETWORK_ID");
+  const networkId = requiredRuntimeValue(
+    "FORWARD_NETWORK_ID",
+    connectorConfig.forwardNetworkId,
+  );
   const api = makeClient({
-    baseUrl: requiredEnv("FORWARD_BASE_URL"),
+    baseUrl: requiredRuntimeValue("FORWARD_BASE_URL", connectorConfig.forwardBaseUrl),
     user: requiredEnv("FORWARD_USER"),
     password: requiredEnv("FORWARD_PASSWORD"),
     maxRetries,
@@ -625,8 +1043,24 @@ const main = async () => {
     }
   }
 
+  const finishedAt = new Date().toISOString();
   const report = {
     mode: apply ? "apply" : "dry-run",
+    runId,
+    startedAt,
+    finishedAt,
+    durationMs: Date.parse(finishedAt) - Date.parse(startedAt),
+    packageId: manifest?.packageId || null,
+    packageIntegrity: manifest?.integrity || null,
+    packageSignature: {
+      status: signatureStatus,
+      publicKeySource: signatureLocators.publicKey || null,
+      signatureSource: signatureLocators.signature || null,
+    },
+    sources: {
+      checks: locators.checks,
+      manifest: locators.manifest || null,
+    },
     applyPolicy: "create-missing-only",
     settings: {
       batchSize,
@@ -654,6 +1088,12 @@ const main = async () => {
 
   if (args.report) {
     await writeFile(args.report, JSON.stringify(report, null, 2) + "\n");
+  }
+  if (args.metrics) {
+    await writeFile(args.metrics, toMetricsText(report));
+  }
+  if (args["status-artifact"]) {
+    await writeFile(args["status-artifact"], JSON.stringify(toStatusArtifact(report), null, 2) + "\n");
   }
 
   process.stdout.write(JSON.stringify(report, null, 2) + "\n");

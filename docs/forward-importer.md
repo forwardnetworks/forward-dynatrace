@@ -29,6 +29,7 @@ The dry run:
 
 1. Validates the package before contacting Forward:
    - payload must be a JSON array
+   - manifest checksum must match the exact `forward-intent-checks.json` bytes when a manifest is supplied
    - every check must have exactly one `dynatrace-key:*` tag
    - names and `dynatrace-key:*` tags must be unique
    - check type must be `Existential`
@@ -83,15 +84,26 @@ Write the report to disk with:
 npm run forward:import -- \
   --checks forward-intent-checks.json \
   --manifest forward-dynatrace-manifest.json \
-  --report forward-import-report.json
+  --report forward-import-report.json \
+  --metrics forward-import-metrics.prom \
+  --status-artifact forward-ingest-status.json
 ```
 
 The report includes:
 
+- `runId`, timestamps, duration, package ID, package integrity, and source locations.
 - `create`: package checks not found in Forward.
 - `unchanged`: package checks already present with the same generated fingerprint.
 - `changed`: same key/name exists, but generated fields differ.
 - `stale`: Dynatrace-managed Forward checks no longer present in the package.
+
+The metrics file includes planned-check count, reconciliation counts, duration, and signature verification state in
+Prometheus text format.
+
+The status artifact is a sanitized `forward-dynatrace-status/v1` JSON summary intended for read-only display in
+Dynatrace after Forward-side ingest. It includes run ID, package ID, mode, import state, signature status, target IDs,
+counts, planned-check count, and duration. It does not include check names, hostnames, dependency rows, credentials, or
+Forward API response bodies.
 
 Use `--fail-on-drift` in automation when changed or stale checks should block the run:
 
@@ -123,5 +135,44 @@ npm run forward:import -- \
 - `forward-intent-checks.json`
 
 Non-local package URLs must use HTTPS. The importer validates the manifest schema, package type, generated timestamp,
-intent-check count, credential policy, dedupe requirement, and create-missing-only reconciliation policy before any
-Forward API call.
+intent-check count, package checksum, credential policy, dedupe requirement, and create-missing-only reconciliation
+policy before any Forward API call.
+
+For scheduled automation, put non-secret runtime settings in a connector config:
+
+```bash
+cp config/forward-connector.config.example.json /secure/path/forward-connector.config.json
+npm run forward:import -- --config /secure/path/forward-connector.config.json
+```
+
+The config may contain package URL, Forward base URL, network ID, batch size, retry count, package age, drift policy,
+report path, metrics path, and status artifact path. It must not contain Forward user, password, token, or other
+secrets; the importer rejects those fields.
+
+## Detached Signature Mode
+
+Checksum validation detects accidental or unauthorized package-byte changes after manifest generation. For provenance,
+add an Ed25519 detached signature:
+
+```bash
+npm run forward:sign -- \
+  --checks forward-intent-checks.json \
+  --manifest forward-dynatrace-manifest.json \
+  --private-key /secure/path/forward-dynatrace-private.pem \
+  --signature forward-dynatrace-package.sig
+```
+
+Verify during import:
+
+```bash
+npm run forward:import -- \
+  --checks forward-intent-checks.json \
+  --manifest forward-dynatrace-manifest.json \
+  --signature forward-dynatrace-package.sig \
+  --public-key /secure/path/forward-dynatrace-public.pem \
+  --require-signature \
+  --validate-only
+```
+
+For connector pull mode, use `config/forward-connector.signed.config.example.json`. Keep the private key outside the
+runtime that imports packages.

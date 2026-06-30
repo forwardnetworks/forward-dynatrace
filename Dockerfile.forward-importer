@@ -1,0 +1,13 @@
+FROM node:24-alpine
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY scripts/forward-import-package.mjs ./scripts/forward-import-package.mjs
+COPY config ./config
+
+RUN addgroup -S forward && adduser -S forward -G forward
+USER forward
+
+ENTRYPOINT ["node", "scripts/forward-import-package.mjs"]
+CMD ["--help"]

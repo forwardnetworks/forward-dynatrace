@@ -13,7 +13,7 @@ environment.
 
 Prerequisites:
 
-- Node.js 24 or newer
+- Node.js 24.x. The Dynatrace App Toolkit currently warns outside the Node 24 line.
 - access to a Dynatrace environment that supports AppEngine apps
 - Dynatrace SSO permission to deploy apps into that environment
 
@@ -81,6 +81,7 @@ until a Forward-approved update or retirement policy is explicitly adopted.
 For automation, run the same importer from a scheduled Forward-side job or connector. The connector should have:
 
 - read-only access to a package URL published by Dynatrace or by an approved package handoff workflow
+  (`docs/package-handoff.md`)
 - Forward credentials stored only in the Forward-side runtime
 - a configured Forward network ID
 - alerting on validation failure, drift, stale checks, and import failure
@@ -100,7 +101,19 @@ npm run forward:import -- \
 - `forward-intent-checks.json`
 
 Non-local package URLs must use HTTPS. The importer validates schema version, package type, package age, count matching,
-credential policy, dedupe policy, allowed check type, and reconciliation policy before contacting Forward.
+checksum matching, credential policy, dedupe policy, allowed check type, and reconciliation policy before contacting
+Forward.
+
+Connector config mode:
+
+```bash
+cp config/forward-connector.config.example.json /secure/path/forward-connector.config.json
+npm run forward:import -- --config /secure/path/forward-connector.config.json
+```
+
+Do not store Forward user, password, or token values in the config file.
+Use `config/forward-connector.signed.config.example.json` when the package handoff requires detached signature
+verification.
 
 ## Release Gate
 
@@ -110,6 +123,15 @@ Run this before any release tag:
 npm run ci
 git diff --check
 ```
+
+For source, app bundle, container metadata, or other release artifacts, publish checksums with the release:
+
+```bash
+npm run release:checksums -- --output dist/SHA256SUMS artifact...
+```
+
+Tag pushes use `.github/workflows/release.yml` to run CI, package app/importer archives, generate `SHA256SUMS`, upload
+workflow artifacts, and publish the GitHub release.
 
 The repository validation blocks:
 

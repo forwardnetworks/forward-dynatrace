@@ -17,7 +17,7 @@ repo, and enforce important invariants mechanically.
 | --- | --- |
 | Repo-local knowledge | `README.md`, `docs/workflow.md`, `docs/forward-ingest-contract.md`, `docs/validation-matrix.md` |
 | Agent legibility | Compact root `AGENTS.md` with links to deeper docs |
-| Mechanical invariants | `npm run repo:validate`, importer tests, lint, build, GitHub Actions |
+| Mechanical invariants | `npm run repo:validate`, importer tests, security audit, SBOM generation, lint, build, GitHub Actions |
 | Synthetic workflow validation | `npm run workflow:smoke` with a fake Forward API |
 | Synthetic seed path | `npm run dynatrace:seed:demo` dry-run by default |
 | Workflow evidence | Real browser screenshots under `docs/assets/screenshots/` |

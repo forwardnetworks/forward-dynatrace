@@ -18,8 +18,23 @@ imports or pulls that package.
 - Forward ingest contract: `docs/forward-ingest-contract.md`
 - Forward importer workflow: `docs/forward-importer.md`
 - Forward importer script: `scripts/forward-import-package.mjs`
+- Forward package signer: `scripts/sign-forward-package.mjs`
+- Forward connector config examples: `config/forward-connector.config.example.json`,
+  `config/forward-connector.signed.config.example.json`
+- Forward importer container: `Dockerfile.forward-importer`, `docs/container-runtime.md`
 - Synthetic fixture and Dynatrace seeding: `docs/demo-data.md`
 - Production checklist: `docs/production-readiness.md`
+- Enterprise hardening backlog: `docs/enterprise-hardening.md`
+- Operations runbook: `docs/operations-runbook.md`
+- Incident response runbook: `docs/incident-response.md`
+- Threat model: `docs/threat-model.md`
+- Schema versioning: `docs/schema-versioning.md`
+- Data handling: `docs/data-handling.md`
+- RBAC model: `docs/rbac.md`
+- Package handoff: `docs/package-handoff.md`
+- Observability: `docs/observability.md`
+- Admin operations: `docs/admin-operations.md`
+- Release workflow: `docs/release.md`
 - Validation matrix: `docs/validation-matrix.md`
 - Harness engineering notes: `docs/harness-engineering.md`
 - GitOps checks: `docs/gitops.md`
@@ -63,7 +78,7 @@ Dynatrace push into Forward.
 
 1. Generate `forward-intent-checks.json` as Forward-native `NewNetworkCheck[]`.
 2. Generate `forward-dynatrace-manifest.json` with schema version, counts, dedupe policy, and optional Forward target
-   metadata.
+   metadata. The manifest includes a SHA-256 checksum for `forward-intent-checks.json`.
 3. Forward operator imports the package manually with the included script, or a Forward-side connector pulls it from a
    read-only package URL.
 4. Forward-side ingest validates package shape, unique names, unique `dynatrace-key:*` tags, and allowed check type.
@@ -99,7 +114,10 @@ npm run forward:import -- --package-url https://package.example.com/dynatrace-fo
 ```
 
 The importer is dry-run by default, rejects malformed packages before Forward API calls, retries transient Forward API
-responses, and applies a create-missing-only policy unless a future reviewed update/retirement workflow is added.
+responses, verifies package checksums, and applies a create-missing-only policy unless a future reviewed
+update/retirement workflow is added.
+For package provenance, sign the exact manifest/check package with `npm run forward:sign` and run the importer with
+`--require-signature`.
 
 ## Configure
 
@@ -123,7 +141,10 @@ For local Dynatrace API smoke checks, keep any platform token outside the repo a
 npm install
 npm run repo:validate
 npm run forward:import:test
+npm run forward:sign -- --help
 npm run workflow:smoke
+npm run security:audit
+npm run sbom:check
 npm run dynatrace:seed:demo
 npm run lint
 npm run build

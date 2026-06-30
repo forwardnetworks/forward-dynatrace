@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 type ForwardSyncMode = "manual-import" | "data-connector" | "intent-package";
 type ForwardSyncStatus = "ready" | "blocked";
 type ForwardLocationFilterType =
@@ -108,6 +110,10 @@ interface ForwardExportManifest {
   artifacts: {
     manifest: string;
     intentChecks: string;
+  };
+  integrity: {
+    algorithm: "sha256";
+    intentChecksSha256: string;
   };
   dependencyRows: {
     rowCount: number;
@@ -257,18 +263,23 @@ const toIntentCheck = (dependency: DependencyCandidate): ForwardIntentCheck => (
 const toPackageId = (generatedAt: string): string =>
   `dynatrace-forward-${generatedAt.replace(/[^0-9]/g, "").slice(0, 14)}`;
 
+const sha256Hex = (text: string): string =>
+  createHash("sha256").update(text, "utf8").digest("hex");
+
 const toExportManifest = ({
   payload,
   generatedAt,
   exportableDependencies,
   rejectedDependencyCount,
   intentChecks,
+  intentChecksSha256,
 }: {
   payload: ForwardSyncRequest;
   generatedAt: string;
   exportableDependencies: DependencyCandidate[];
   rejectedDependencyCount: number;
   intentChecks: ForwardIntentCheck[];
+  intentChecksSha256: string;
 }): ForwardExportManifest => ({
   schemaVersion: "forward-dynatrace/v1",
   packageType: "forward-intent-import",
@@ -291,6 +302,10 @@ const toExportManifest = ({
   artifacts: {
     manifest: MANIFEST_FILE_NAME,
     intentChecks: INTENT_CHECKS_FILE_NAME,
+  },
+  integrity: {
+    algorithm: "sha256",
+    intentChecksSha256,
   },
   dependencyRows: {
     rowCount: exportableDependencies.length,
@@ -478,7 +493,7 @@ export default function (
     intentChecks,
     null,
     2,
-  );
+  ) + "\n";
   const exportManifestPreview = JSON.stringify(
     toExportManifest({
       payload,
@@ -486,10 +501,11 @@ export default function (
       exportableDependencies,
       rejectedDependencyCount,
       intentChecks,
+      intentChecksSha256: sha256Hex(intentChecksPreview),
     }),
     null,
     2,
-  );
+  ) + "\n";
   const hasForwardTarget =
     !missing(payload.forwardBaseUrl) && !missing(payload.forwardNetworkId);
 

@@ -14,7 +14,7 @@ Forward-side manual import or a Forward-side connector owns all intent-check wri
 - A path preview action that turns a Dynatrace service/problem context into a Forward path query.
 - An export action that stages Forward-ready artifacts:
   - `forward-intent-checks.json` as Forward-native `NewNetworkCheck[]` for bulk intent import.
-  - `forward-dynatrace-manifest.json` with schema version, counts, dedupe policy, and artifact names.
+  - `forward-dynatrace-manifest.json` with schema version, counts, dedupe policy, artifact names, and checksum.
 - A Workflow-compatible app function that can run without a human clicking the UI.
 
 ## Recommended Production Flow
@@ -72,6 +72,7 @@ Forward-side ingest.
    - deterministic `integration_key` values in each check tag and note.
 3. Forward operator imports the package, or Forward-side connector pulls it from a read-only package URL.
 4. Forward-side ingest validates package shape, required fields, supported check type, and unique names/tags.
+   It also verifies the manifest checksum against the exact intent-check package bytes.
 5. Forward-side ingest resolves the snapshot where checks should be created:
 
    `GET /api/networks/{networkId}/snapshots/latestProcessed`

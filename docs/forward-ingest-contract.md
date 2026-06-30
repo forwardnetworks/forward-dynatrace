@@ -36,7 +36,8 @@ Each dependency row needs:
 The app exports exactly two artifacts:
 
 - `forward-intent-checks.json`: JSON array of Forward `NewNetworkCheck` objects.
-- `forward-dynatrace-manifest.json`: schema, package metadata, counts, artifact names, and ingest policy.
+- `forward-dynatrace-manifest.json`: schema, package metadata, counts, artifact names, integrity checksum, and ingest
+  policy.
 
 There is intentionally no secondary file artifact in this workflow. Intent checks are created from `NewNetworkCheck[]`
 through Forward's checks API.
@@ -47,8 +48,8 @@ Before any Forward API write, the importer or connector must reject the package 
 - any check is missing a name, definition, or exactly one `dynatrace-key:*` tag
 - any generated name or `dynatrace-key:*` tag is duplicated
 - any check type is not `Existential`
-- the manifest schema version, package type, generated timestamp, check count, credential policy, or reconciliation
-  policy does not match the supported contract
+- the manifest schema version, package type, generated timestamp, check count, checksum, credential policy, or
+  reconciliation policy does not match the supported contract
 - source or destination mappings do not resolve to valid Forward locations in the target snapshot
 
 ## Forward Bulk Ingest
@@ -125,6 +126,11 @@ npm run forward:import -- \
 Non-local package URLs must use HTTPS. The connector runtime owns package authentication, Forward credentials, retry
 scheduling, alerting, and report retention.
 
+Connector settings can be loaded from `config/forward-connector.config.example.json`. The config file is intentionally
+non-secret: Forward user/password/token values must be injected by the runtime secret store.
+When provenance is required, publish `forward-dynatrace-package.sig` beside the package and use
+`config/forward-connector.signed.config.example.json` with a trusted Ed25519 public key.
+
 ## Snapshot Handling
 
 Use:
@@ -165,6 +171,8 @@ Forward-side ingest gates:
 - Forward network ID configured in Forward-side import/connector.
 - Forward credential configured outside Dynatrace.
 - Package validation passes before any Forward API request.
+- Manifest checksum matches the exact intent-check package bytes.
+- Detached signature verifies when the runtime policy requires package provenance.
 - Dedupe/read-before-write is enabled before check creation.
 - Bulk post chunking is configured for large packages.
 - Update and stale-check policies are explicit before automated modification/removal.

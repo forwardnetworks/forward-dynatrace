@@ -8,6 +8,7 @@ Use this checklist before enabling Forward-side ingest.
 - Do not store Forward credentials in Dynatrace.
 - Never accept Forward credentials from browser state.
 - Store Forward credentials only in the Forward-side connector or manual import environment.
+- Keep Forward credentials in a runtime secret store, not in connector config.
 - Keep tenant URLs, private token filenames, OAuth callback URLs, and customer-specific references out of GitHub.
 - Restrict Forward credential scope to the needed tenant/network/API capabilities.
 - Log correlation IDs, not secrets.
@@ -18,6 +19,7 @@ Use this checklist before enabling Forward-side ingest.
 - Do not create checks for `needs-map` rows.
 - Reject packages with missing or duplicate `dynatrace-key:*` tags.
 - Reject packages with duplicate generated check names.
+- Reject packages when manifest checksum does not match the intent-check payload.
 - Reject unsupported check types before contacting Forward.
 - Prefer minimum confidence threshold for automatic check creation.
 - Report rejected rows in the manifest/import report for review.

@@ -10,20 +10,44 @@ const failures = [];
 const requiredFiles = [
   "AGENTS.md",
   "README.md",
+  ".node-version",
+  ".nvmrc",
+  ".dockerignore",
+  "Dockerfile.forward-importer",
   "docs/install.md",
   "docs/workflow.md",
   "docs/forward-ingest-contract.md",
   "docs/forward-importer.md",
   "docs/production-readiness.md",
+  "docs/enterprise-hardening.md",
+  "docs/operations-runbook.md",
+  "docs/incident-response.md",
+  "docs/threat-model.md",
+  "docs/container-runtime.md",
+  "docs/schema-versioning.md",
+  "docs/data-handling.md",
+  "docs/rbac.md",
+  "docs/package-handoff.md",
+  "docs/observability.md",
+  "docs/admin-operations.md",
+  "docs/release.md",
   "docs/validation-matrix.md",
   "docs/harness-engineering.md",
   "docs/gitops.md",
   "docs/demo-data.md",
   "docs/agent-guides/dynatrace-app.md",
   "shared/demo-dependencies.json",
+  "config/forward-connector.config.example.json",
+  "config/forward-connector.signed.config.example.json",
+  "scripts/sign-forward-package.mjs",
+  "scripts/write-release-checksums.mjs",
+  "scripts/release-checksums.test.mjs",
   "scripts/workflow-smoke.mjs",
   "scripts/seed-dynatrace-demo-data.mjs",
   ".github/workflows/ci.yml",
+  ".github/workflows/release.yml",
+  ".github/CODEOWNERS",
+  ".github/dependabot.yml",
   ".github/pull_request_template.md",
 ];
 
@@ -88,6 +112,8 @@ const secretPatterns = [
 
 const expectedPublicEnvironmentUrl =
   "https://your-environment-id.apps.dynatrace.com/";
+const expectedNodeVersionFile = "24";
+const expectedNodeEngineRange = ">=24.0.0 <25.0.0";
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const localMachineUser = process.env.USER || process.env.LOGNAME || "";
@@ -138,6 +164,18 @@ const publicBrandingFiles = [
   "docs/harness-engineering.md",
   "docs/install.md",
   "docs/production-readiness.md",
+  "docs/enterprise-hardening.md",
+  "docs/operations-runbook.md",
+  "docs/incident-response.md",
+  "docs/threat-model.md",
+  "docs/container-runtime.md",
+  "docs/schema-versioning.md",
+  "docs/data-handling.md",
+  "docs/rbac.md",
+  "docs/package-handoff.md",
+  "docs/observability.md",
+  "docs/admin-operations.md",
+  "docs/release.md",
   "docs/screenshots.md",
   "docs/validation-matrix.md",
   "docs/workflow.md",
@@ -213,7 +251,9 @@ const walkTextFiles = async (directory = root) => {
 
     if (
       entry.isFile() &&
-      textExtensions.has(path.extname(entry.name)) &&
+      (textExtensions.has(path.extname(entry.name)) ||
+        entry.name === "CODEOWNERS" ||
+        entry.name.startsWith("Dockerfile")) &&
       relativePath !== "scripts/validate-repo.mjs"
     ) {
       files.push(relativePath);
@@ -250,6 +290,18 @@ if (agentMapLineCount > 140) {
 for (const target of [
   "docs/workflow.md",
   "docs/validation-matrix.md",
+  "docs/enterprise-hardening.md",
+  "docs/operations-runbook.md",
+  "docs/incident-response.md",
+  "docs/threat-model.md",
+  "docs/container-runtime.md",
+  "docs/schema-versioning.md",
+  "docs/data-handling.md",
+  "docs/rbac.md",
+  "docs/package-handoff.md",
+  "docs/observability.md",
+  "docs/admin-operations.md",
+  "docs/release.md",
   "docs/demo-data.md",
   "docs/harness-engineering.md",
   "docs/agent-guides/dynatrace-app.md",
@@ -292,12 +344,72 @@ if (appConfig.environmentUrl !== expectedPublicEnvironmentUrl) {
   );
 }
 
-if (packageJson.engines?.node !== ">=24.0.0") {
+if (packageJson.engines?.node !== expectedNodeEngineRange) {
   fail("package.json engines.node must match the Dynatrace App Toolkit Node 24 baseline.");
 }
 
 if (packageLock.packages?.[""]?.engines?.node !== packageJson.engines.node) {
   fail("package-lock root engines.node must match package.json.");
+}
+
+for (const nodeVersionFile of [".nvmrc", ".node-version"]) {
+  const nodeVersion = (await readText(nodeVersionFile)).trim();
+  if (nodeVersion !== expectedNodeVersionFile) {
+    fail(`${nodeVersionFile} must pin Node ${expectedNodeVersionFile}.`);
+  }
+}
+
+for (const scriptName of ["release:checksums:test", "security:audit", "sbom:check"]) {
+  if (!packageJson.scripts?.[scriptName]) {
+    fail(`package.json must define npm script ${scriptName}.`);
+  } else if (!packageJson.scripts.ci?.includes(`npm run ${scriptName}`)) {
+    fail(`package.json ci script must run ${scriptName}.`);
+  }
+}
+if (!packageJson.scripts?.["forward:sign"]) {
+  fail("package.json must define npm script forward:sign.");
+}
+if (!packageJson.scripts?.["release:checksums"]) {
+  fail("package.json must define npm script release:checksums.");
+}
+
+const releaseWorkflow = await readText(".github/workflows/release.yml");
+for (const requiredReleaseWorkflowText of [
+  "npm run ci",
+  "forward-dynatrace-app-",
+  "forward-dynatrace-importer-",
+  "SHA256SUMS",
+  "actions/upload-artifact",
+  "gh release create",
+]) {
+  if (!releaseWorkflow.includes(requiredReleaseWorkflowText)) {
+    fail(`release workflow must contain ${requiredReleaseWorkflowText}.`);
+  }
+}
+
+for (const connectorConfigPath of [
+  "config/forward-connector.config.example.json",
+  "config/forward-connector.signed.config.example.json",
+]) {
+  const connectorConfig = await readJson(connectorConfigPath);
+  if (connectorConfig.schemaVersion !== "forward-dynatrace-connector/v1") {
+    fail(`${connectorConfigPath} must use schemaVersion forward-dynatrace-connector/v1.`);
+  }
+  if (connectorConfig.statusArtifactPath !== "forward-ingest-status.json") {
+    fail(`${connectorConfigPath} must define statusArtifactPath forward-ingest-status.json.`);
+  }
+  for (const forbiddenKey of [
+    "forwardPassword",
+    "forwardToken",
+    "forwardUser",
+    "password",
+    "token",
+    "user",
+  ]) {
+    if (Object.hasOwn(connectorConfig, forbiddenKey)) {
+      fail(`${connectorConfigPath} must not contain ${forbiddenKey}.`);
+    }
+  }
 }
 
 const textFiles = await walkTextFiles();
