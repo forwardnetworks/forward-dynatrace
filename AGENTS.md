@@ -11,6 +11,7 @@ docs and executable checks.
 - [README.md](README.md): project shape, commands, deployed app, and Forward ingest summary.
 - [docs/install.md](docs/install.md): install model, release model, and public-release gate.
 - [docs/workflow.md](docs/workflow.md): Forward-centric workflow and screenshots.
+- [docs/dynatrace-workflow-trigger.md](docs/dynatrace-workflow-trigger.md): schedule/problem trigger payload contract.
 - [docs/forward-ingest-contract.md](docs/forward-ingest-contract.md): package and API contract.
 - [docs/forward-importer.md](docs/forward-importer.md): manual Forward-side importer behavior.
 - [docs/production-readiness.md](docs/production-readiness.md): production checklist.
@@ -19,6 +20,7 @@ docs and executable checks.
 - [docs/incident-response.md](docs/incident-response.md): failure triage and recovery runbook.
 - [docs/threat-model.md](docs/threat-model.md): trust boundary, threats, controls, and residual risk.
 - [docs/container-runtime.md](docs/container-runtime.md): Forward importer container build and run workflow.
+- [docs/connector-runtime.md](docs/connector-runtime.md): systemd and Kubernetes scheduler runtime templates.
 - [docs/schema-versioning.md](docs/schema-versioning.md): package schema compatibility and migration rules.
 - [docs/data-handling.md](docs/data-handling.md): publish-safe data, screenshot, and artifact handling rules.
 - [docs/rbac.md](docs/rbac.md): least-privilege roles and separation rules.

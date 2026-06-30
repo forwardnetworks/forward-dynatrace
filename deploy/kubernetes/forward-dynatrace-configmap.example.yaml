@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: forward-dynatrace-config
+  labels:
+    app.kubernetes.io/name: forward-dynatrace-connector
+    app.kubernetes.io/part-of: forward-dynatrace
+data:
+  forward-connector.config.json: |
+    {
+      "schemaVersion": "forward-dynatrace-connector/v1",
+      "packageUrl": "https://package.example.com/dynatrace-forward/latest/",
+      "forwardBaseUrl": "https://forward.example.com",
+      "forwardNetworkId": "<network-id>",
+      "batchSize": 500,
+      "maxRetries": 3,
+      "maxPackageAgeMinutes": 1440,
+      "requireSignature": false,
+      "failOnDrift": true,
+      "apply": false,
+      "reportPath": "/var/lib/forward-dynatrace/forward-import-report.json",
+      "metricsPath": "/var/lib/forward-dynatrace/forward-import-metrics.prom",
+      "statusArtifactPath": "/var/lib/forward-dynatrace/forward-ingest-status.json"
+    }

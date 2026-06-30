@@ -16,6 +16,7 @@ const requiredFiles = [
   "Dockerfile.forward-importer",
   "docs/install.md",
   "docs/workflow.md",
+  "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
   "docs/forward-importer.md",
   "docs/production-readiness.md",
@@ -24,6 +25,7 @@ const requiredFiles = [
   "docs/incident-response.md",
   "docs/threat-model.md",
   "docs/container-runtime.md",
+  "docs/connector-runtime.md",
   "docs/schema-versioning.md",
   "docs/data-handling.md",
   "docs/rbac.md",
@@ -40,10 +42,22 @@ const requiredFiles = [
   "config/forward-connector.config.example.json",
   "config/forward-connector.signed.config.example.json",
   "scripts/sign-forward-package.mjs",
+  "scripts/package-release-artifacts.mjs",
   "scripts/write-release-checksums.mjs",
   "scripts/release-checksums.test.mjs",
   "scripts/workflow-smoke.mjs",
+  "scripts/validate-runtime-manifests.mjs",
+  "scripts/validate-dynatrace-workflow-examples.mjs",
   "scripts/seed-dynatrace-demo-data.mjs",
+  "deploy/dynatrace-workflows/forward-sync-schedule.payload.example.json",
+  "deploy/dynatrace-workflows/forward-sync-problem.payload.example.json",
+  "deploy/systemd/forward-dynatrace-connector.service",
+  "deploy/systemd/forward-dynatrace-connector.timer",
+  "deploy/systemd/forward-dynatrace.env.example",
+  "deploy/systemd/forward-connector.config.example.json",
+  "deploy/kubernetes/forward-dynatrace-connector-cronjob.yaml",
+  "deploy/kubernetes/forward-dynatrace-configmap.example.yaml",
+  "deploy/kubernetes/forward-dynatrace-secret.example.yaml",
   ".github/workflows/ci.yml",
   ".github/workflows/release.yml",
   ".github/CODEOWNERS",
@@ -171,6 +185,7 @@ const publicBrandingFiles = [
   "docs/incident-response.md",
   "docs/threat-model.md",
   "docs/container-runtime.md",
+  "docs/connector-runtime.md",
   "docs/schema-versioning.md",
   "docs/data-handling.md",
   "docs/rbac.md",
@@ -181,6 +196,7 @@ const publicBrandingFiles = [
   "docs/screenshots.md",
   "docs/validation-matrix.md",
   "docs/workflow.md",
+  "docs/dynatrace-workflow-trigger.md",
   "ui/app/pages/Home.tsx",
 ];
 
@@ -256,7 +272,8 @@ const walkTextFiles = async (directory = root) => {
       (textExtensions.has(path.extname(entry.name)) ||
         entry.name === "CODEOWNERS" ||
         entry.name.startsWith("Dockerfile")) &&
-      relativePath !== "scripts/validate-repo.mjs"
+      relativePath !== "scripts/validate-repo.mjs" &&
+      relativePath !== "scripts/validate-runtime-manifests.mjs"
     ) {
       files.push(relativePath);
     }
@@ -297,6 +314,7 @@ for (const target of [
   "docs/incident-response.md",
   "docs/threat-model.md",
   "docs/container-runtime.md",
+  "docs/connector-runtime.md",
   "docs/schema-versioning.md",
   "docs/data-handling.md",
   "docs/rbac.md",
@@ -361,7 +379,14 @@ for (const nodeVersionFile of [".nvmrc", ".node-version"]) {
   }
 }
 
-for (const scriptName of ["release:checksums:test", "security:audit", "sbom:check"]) {
+for (const scriptName of [
+  "release:checksums:test",
+  "runtime:validate",
+  "dynatrace:workflow:validate",
+  "release:package:smoke",
+  "security:audit",
+  "sbom:check",
+]) {
   if (!packageJson.scripts?.[scriptName]) {
     fail(`package.json must define npm script ${scriptName}.`);
   } else if (!packageJson.scripts.ci?.includes(`npm run ${scriptName}`)) {
@@ -374,18 +399,49 @@ if (!packageJson.scripts?.["forward:sign"]) {
 if (!packageJson.scripts?.["release:checksums"]) {
   fail("package.json must define npm script release:checksums.");
 }
+if (!packageJson.scripts?.["release:package"]) {
+  fail("package.json must define npm script release:package.");
+}
 
 const releaseWorkflow = await readText(".github/workflows/release.yml");
 for (const requiredReleaseWorkflowText of [
   "npm run ci",
-  "forward-dynatrace-app-",
-  "forward-dynatrace-importer-",
+  "npm run release:package",
   "SHA256SUMS",
   "actions/upload-artifact",
   "gh release create",
 ]) {
   if (!releaseWorkflow.includes(requiredReleaseWorkflowText)) {
     fail(`release workflow must contain ${requiredReleaseWorkflowText}.`);
+  }
+}
+
+const releasePackager = await readText("scripts/package-release-artifacts.mjs");
+for (const requiredPackagerText of [
+  "forward-dynatrace-app-",
+  "forward-dynatrace-importer-",
+  "deploy/dynatrace-workflows",
+  "docs/dynatrace-workflow-trigger.md",
+  "docs/forward-ingest-contract.md",
+  "docs/connector-runtime.md",
+  "deploy/systemd/forward-dynatrace-connector.service",
+  "deploy/kubernetes/forward-dynatrace-connector-cronjob.yaml",
+  "scripts/write-release-checksums.mjs",
+  "SHA256SUMS",
+]) {
+  if (!releasePackager.includes(requiredPackagerText)) {
+    fail(`release packager must contain ${requiredPackagerText}.`);
+  }
+}
+
+const pullRequestTemplate = await readText(".github/pull_request_template.md");
+for (const requiredPullRequestTemplateText of [
+  "npm run ci",
+  "git diff --check",
+  "Forward write boundary unchanged",
+]) {
+  if (!pullRequestTemplate.includes(requiredPullRequestTemplateText)) {
+    fail(`pull request template must contain ${requiredPullRequestTemplateText}.`);
   }
 }
 

@@ -42,6 +42,8 @@ Use this checklist before enabling Forward-side ingest.
 - Manual workflow: build package, dry-run the Forward-side importer, review planned creates, then apply.
 - Connector workflow: Forward-side connector pulls the latest package URL, validates manifest and checks, then performs
   deduped bulk check ingest.
+- Runtime workflow: deploy the connector with the systemd or Kubernetes scheduler templates and keep credentials in the
+  runtime secret store.
 - Treat each export as desired state and reconcile before writing.
 - Keep the default apply policy as create-missing-only until update and stale-check policies are approved.
 

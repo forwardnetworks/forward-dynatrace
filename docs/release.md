@@ -10,25 +10,31 @@ Actions. It is not published to PyPI.
 
    ```bash
    npm run ci
-   npm audit --audit-level=low
    git diff --check
    ```
 
 3. Tag the release:
 
    ```bash
-   git tag v1.0.3
-   git push origin v1.0.3
+   git tag v1.0.4
+   git push origin v1.0.4
    ```
 
-4. The `release` workflow builds with Node 24, runs `npm run ci`, creates app/importer archives, writes
-   `SHA256SUMS`, uploads workflow artifacts, and publishes a GitHub release for tag pushes.
+4. The `release` workflow builds with Node 24, runs `npm run ci`, runs `npm run release:package`, uploads workflow
+   artifacts, and publishes a GitHub release for tag pushes.
+
+For a local archive smoke test after `npm run build`:
+
+```bash
+npm run release:package:smoke
+```
 
 ## Artifacts
 
-- `forward-dynatrace-app-<tag>.tgz`: built Dynatrace app assets plus install/workflow/contract docs.
+- `forward-dynatrace-app-<tag>.tgz`: built Dynatrace app assets plus install, workflow trigger, workflow, and
+  contract docs.
 - `forward-dynatrace-importer-<tag>.tgz`: Forward-side importer, signer, container file, config examples, and
-  operations docs.
+  runtime templates and operations docs.
 - `SHA256SUMS`: SHA-256 digests for release archives.
 
 ## Verification
