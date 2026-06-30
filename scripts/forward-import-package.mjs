@@ -546,7 +546,9 @@ const retryDelayMs = (attempt, retryAfter) => {
 };
 
 export const dynatraceKeys = (check) =>
-  (check.tags || []).filter((tag) => tag.startsWith("dynatrace-key:"));
+  (Array.isArray(check.tags) ? check.tags : []).filter((tag) =>
+    tag.startsWith("dynatrace-key:"),
+  );
 
 export const reconciliationKey = (check) => dynatraceKeys(check)[0] || check.name || "";
 
@@ -712,6 +714,8 @@ const toNonNegativeInteger = (value, label) => {
 
 const requireString = (value) => typeof value === "string" && value.trim().length > 0;
 
+const hasWhitespace = (value) => /\s/.test(value);
+
 const requireObject = (value, label, errors) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     errors.push(`${label} must be an object.`);
@@ -755,6 +759,18 @@ export const validatePlannedChecks = (checks) => {
     }
 
     const keyTags = dynatraceKeys(check);
+    if (!Array.isArray(check.tags)) {
+      errors.push(`${prefix}.tags must be an array.`);
+    } else {
+      check.tags.forEach((tag, tagIndex) => {
+        if (!requireString(tag)) {
+          errors.push(`${prefix}.tags[${tagIndex}] must be a non-empty string.`);
+        } else if (hasWhitespace(tag)) {
+          errors.push(`${prefix}.tags[${tagIndex}] must not contain whitespace.`);
+        }
+      });
+    }
+
     if (keyTags.length !== 1) {
       errors.push(`${prefix}.tags must contain exactly one dynatrace-key:* tag.`);
     } else if (keys.has(keyTags[0])) {

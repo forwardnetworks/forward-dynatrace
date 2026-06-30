@@ -174,6 +174,8 @@ const toSlug = (value: string): string =>
     .replace(/^-|-$/g, "")
     .slice(0, 80);
 
+const toTagValue = (value: string): string => toSlug(value) || "unknown";
+
 const toIntegrationKey = (dependency: DependencyCandidate): string =>
   [
     "dt",
@@ -253,9 +255,9 @@ const toIntentCheck = (dependency: DependencyCandidate): ForwardIntentCheck => (
   priority: toPriority(dependency.criticality),
   tags: [
     "dynatrace",
-    `app:${dependency.appName}`,
-    `environment:${dependency.environment}`,
-    `owner:${dependency.owner}`,
+    `app:${toTagValue(dependency.appName)}`,
+    `environment:${toTagValue(dependency.environment)}`,
+    `owner:${toTagValue(dependency.owner)}`,
     `dynatrace-key:${toIntegrationKey(dependency)}`,
   ],
 });

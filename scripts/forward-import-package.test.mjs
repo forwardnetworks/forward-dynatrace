@@ -302,6 +302,26 @@ test("rejects package entries without exactly one dynatrace reconciliation key",
   );
 });
 
+test("rejects malformed or whitespace-containing tags before Forward apply", () => {
+  const whitespaceTag = structuredClone(baseCheck);
+  whitespaceTag.tags = [
+    "dynatrace",
+    "app:Forward Dynatrace Acceptance",
+    "dynatrace-key:dt:acceptance",
+  ];
+  const nonArrayTags = structuredClone(baseCheck);
+  nonArrayTags.tags = "dynatrace";
+
+  assert.throws(
+    () => validatePlannedChecks([whitespaceTag]),
+    /tags\[1\] must not contain whitespace/,
+  );
+  assert.throws(
+    () => validatePlannedChecks([nonArrayTags]),
+    /tags must be an array/,
+  );
+});
+
 test("rejects duplicate generated check names and dynatrace keys", () => {
   const duplicate = structuredClone(baseCheck);
 

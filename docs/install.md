@@ -22,7 +22,7 @@ Steps:
 ```bash
 git clone https://github.com/forwardnetworks/forward-dynatrace.git
 cd forward-dynatrace
-git checkout v1.0.2
+git checkout v1.0.3
 npm ci
 npm run ci
 npm run deploy -- --environment-url https://your-environment-id.apps.dynatrace.com/

@@ -15,10 +15,10 @@ This document tracks what is validated today and what still needs a live Forward
 | Connector metrics | `npm run workflow:smoke` verifies Prometheus-style metrics output from config import. |
 | Read-only status artifact | `npm run workflow:smoke` verifies `forward-dynatrace-status/v1` output and confirms it omits check-level topology strings. |
 | Synthetic Forward workflow | `npm run workflow:smoke` exercises validate-only, signed package validation, config import, metrics output, dry-run, 1001-check chunked apply, transient retry, unchanged, changed, and stale flows against a fake Forward API. |
-| Live Forward workflow | Real non-production Forward test network validated dry-run create=2, apply create=2, rerun unchanged=2, drift changed=1/stale=1, and `--fail-on-drift` exit code 2. Validation checks were deleted after the run. |
+| Live Forward workflow | Real non-production Forward test network validated on 2026-06-30: dry-run create=3, apply create=3, rerun unchanged=3, changed drift=1, stale drift=1, and `--fail-on-drift` exit code 2. Validation checks were deleted after the run and confirmed remaining=0. |
 | UI workflow screenshots | `docs/assets/screenshots/*.jpg` were captured from the running local app. |
-| Dynatrace app build package | Version `1.0.2` builds locally. |
-| Dynatrace app deploy | Version `1.0.2` deployed to a non-production Dynatrace Apps environment on 2026-06-26 using a CLI environment override. |
+| Dynatrace app build package | Version `1.0.3` builds locally. |
+| Dynatrace app deploy | Version `1.0.3` deployed to a non-production Dynatrace Apps environment on 2026-06-30 using a CLI environment override. |
 | Legacy export path removal | `npm run repo:validate` blocks legacy secondary-artifact terms. |
 | Secret hygiene | `npm run repo:validate` blocks committed Dynatrace token-shaped secrets, concrete tenant URLs, OAuth callbacks, private token filenames, personal references, and non-placeholder Forward credentials. |
 | Connector pull workflow | Importer supports `--package-url`, validates the manifest, rejects stale packages, and still performs create-missing-only reconciliation. |
@@ -32,7 +32,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Package handoff controls | `docs/package-handoff.md` defines retention, immutability, access logging, publish order, and storage requirements. |
 | Observability plan | `docs/observability.md` defines report fields, metrics, suggested alerts, and evidence retention. |
 | Admin operations | `docs/admin-operations.md` defines audit export, config restore, disaster recovery, and access review. |
-| Dependency update workflow | `.github/dependabot.yml` opens weekly npm and GitHub Actions update PRs. |
+| Dependency update workflow | `.github/dependabot.yml` opens weekly npm and GitHub Actions update PRs and suppresses semver-major updates for deliberate compatibility review. |
 
 ## Automated In GitOps
 
@@ -54,7 +54,7 @@ This document tracks what is validated today and what still needs a live Forward
 | --- | --- |
 | Forward-side connector runtime | Target scheduler/service runtime and operational ownership. Current repo includes the connector command path and package URL pull behavior. |
 | Dynatrace Workflow trigger | A real problem or schedule workflow wired to call the export function. |
-| Dynatrace Business Events seed | Dry-run passed. Live seed was attempted on 2026-06-25 and returned `403 Permission denied`; the local token needs `bizevents.ingest`. |
+| Dynatrace Business Events seed | Dry-run passed on 2026-06-30 with 4 synthetic events. Live seed returned `403 Permission denied`; the local token still needs `bizevents.ingest`. |
 | End-to-end drift loop | At least two package generations with an intentional dependency change, then dry-run/report/apply review. |
 
 ## Production Gate
