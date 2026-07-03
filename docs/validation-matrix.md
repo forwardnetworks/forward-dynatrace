@@ -29,8 +29,9 @@ This document tracks what is validated today and what still needs a live Forward
 | Live Forward workflow | Real non-production Forward test network validated on 2026-06-30: dry-run create=3, apply create=3, rerun unchanged=3, changed drift=1, stale drift=1, and `--fail-on-drift` exit code 2. Validation checks were deleted after the run and confirmed remaining=0. |
 | UI workflow screenshots | `docs/assets/screenshots/*.jpg` were captured from the running local app. |
 | Dynatrace app build package | Version `1.0.6` builds locally. |
-| Dynatrace live query path | Live read-only DQL query against a non-production Dynatrace Apps environment succeeded on 2026-07-03 with records=0 and normalizedDependencies=0. This validates auth/query plumbing but not useful topology. |
+| Dynatrace live query path | Live read-only DQL queries against a non-production Dynatrace Apps environment succeeded on 2026-07-03. The first tenant query validated auth/query plumbing with no useful topology; a later synthetic OpenPipeline seed produced 4 demo dependency records and 4 normalized dependency candidates. |
 | Dynatrace app deploy | Version `1.0.6` deployed successfully to a non-production Dynatrace Apps environment on 2026-07-03. The previous `1.0.5` deploy attempt was correctly rejected because that version was already installed with a different checksum. |
+| Dynatrace synthetic OpenPipeline seed | Live synthetic sidecar seed succeeded on 2026-07-03 in a non-production Dynatrace environment with 4 demo events. The seeded rows were queried back, normalized, packaged into 4 Forward intent checks, and validated with `npm run forward:import -- --validate-only`. |
 | Legacy export path removal | `npm run repo:validate` blocks legacy secondary-artifact terms. |
 | Secret hygiene | `npm run repo:validate` blocks committed Dynatrace token-shaped secrets, concrete tenant URLs, OAuth callbacks, private token filenames, personal references, and non-placeholder Forward credentials. |
 | Connector pull workflow | Importer supports `--package-url`, validates the manifest, rejects stale packages, and still performs create-missing-only reconciliation. |
@@ -91,10 +92,9 @@ This document tracks what is validated today and what still needs a live Forward
 | --- | --- |
 | Forward-side connector runtime installation | Target runtime selection and operational ownership. Current repo includes systemd and Kubernetes templates plus the connector command path and package URL pull behavior. |
 | Dynatrace Workflow installation | A real problem or schedule workflow installed in the target tenant. Current repo includes checked schedule/problem payload examples for the export function. |
-| Live Dynatrace demo dependency data | Trial tenant query execution succeeded but returned zero records. Use customer-owned topology first; use demo-copy or synthetic seed only as an optional demo sidecar. |
+| Live Dynatrace demo dependency data | Customer-owned topology remains the production source of intent. The demo sidecar path has been live-validated with synthetic OpenPipeline dependency events; use demo-copy or synthetic seed only in isolated trial/demo sandboxes. |
 | Read-only dynamic NQE credential model | Needs customer approval and a live run of `npm run forward:nqe-live-smoke -- --execute --approval-file <approval.json>` for the exact Forward read-only credential model before enabling execute mode in Dynatrace. Base package export/import does not depend on this optional path. |
 | Demo tenant copy sidecar | `npm run dynatrace:copy-demo -- --help` documents a demo-only copy workflow for trial sandboxes; not for production source-of-intent. |
-| Dynatrace synthetic OpenPipeline seed | Dry-run passes with 4 synthetic dependency events. Live seed requires a Platform Token with `openpipeline:events:ingest`; use only for isolated test tenants without suitable live demo topology. |
 
 ## Production Gate
 
