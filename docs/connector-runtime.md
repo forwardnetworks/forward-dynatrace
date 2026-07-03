@@ -65,6 +65,14 @@ journalctl -u forward-dynatrace-connector.service
 The service is oneshot, uses `NoNewPrivileges`, writes only to `/var/lib/forward-dynatrace` and
 `/var/log/forward-dynatrace`, and relies on `UMask=0077` for generated artifacts.
 
+After a successful run, publish sanitized status to the approved handoff location:
+
+```bash
+node scripts/publish-forward-status.mjs \
+  --status /var/lib/forward-dynatrace/forward-ingest-status.json \
+  --output-dir /handoff/dynatrace-forward/latest
+```
+
 ## Kubernetes Runtime
 
 Build the importer image from `Dockerfile.forward-importer` and publish it to an internal registry. Update

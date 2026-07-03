@@ -5,6 +5,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY scripts/forward-import-package.mjs ./scripts/forward-import-package.mjs
 COPY scripts/forward-nqe-artifacts.mjs ./scripts/forward-nqe-artifacts.mjs
+COPY scripts/publish-forward-status.mjs ./scripts/publish-forward-status.mjs
 COPY config ./config
 
 RUN addgroup -S forward && adduser -S forward -G forward

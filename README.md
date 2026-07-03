@@ -30,6 +30,7 @@ imports or pulls that package.
 - Optional NQE artifacts: `docs/forward-nqe-artifacts.md`
 - Forward importer workflow: `docs/forward-importer.md`
 - Forward importer script: `scripts/forward-import-package.mjs`
+- Forward status publisher: `scripts/publish-forward-status.mjs`
 - Forward package signer: `scripts/sign-forward-package.mjs`
 - Forward connector config examples: `config/forward-connector.config.example.json`,
   `config/forward-connector.signed.config.example.json`
@@ -171,6 +172,8 @@ npm run dynatrace:workflow:validate
 npm run dynatrace:query -- --help
 npm run dynatrace:normalize:test
 npm run forward:package -- --help
+npm run forward:status:test
+npm run forward:status:publish:test
 npm run demo:rehearsal
 npm run security:audit
 npm run sbom:check

@@ -28,6 +28,17 @@ planned-check count, optional NQE check/diff counts, and duration.
 The status artifact intentionally excludes check names, hostnames, dependency rows, credentials, and Forward API
 response bodies. Publish it only after the Forward-side run finishes.
 
+Publish a sanitized copy into the package handoff location:
+
+```bash
+node scripts/publish-forward-status.mjs \
+  --status forward-ingest-status.json \
+  --output-dir /handoff/dynatrace-forward/latest
+```
+
+This writes `forward-ingest-status.json` and `forward-ingest-status.sha256`. Dynatrace can display that aggregate
+status by supplying the artifact or a read-only HTTPS artifact URL to the `forward-status` app function.
+
 ## Metrics
 
 The metrics file currently includes:

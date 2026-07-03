@@ -27,6 +27,7 @@ dynatrace-forward/
       forward-nqe-diff-requests.json
       forward-dynatrace-package.sig
       forward-ingest-status.json
+      forward-ingest-status.sha256
   latest/
     forward-dynatrace-manifest.json
     forward-intent-checks.json
@@ -46,7 +47,14 @@ Use immutable package ID paths for audit. Use `latest/` only for scheduled conne
 5. Verify checksum and signature from the handoff location.
 6. Update `latest/` atomically or by pointer after verification.
 7. Let the Forward-side importer pull from the immutable package URL or from `latest/`.
-8. Publish sanitized `forward-ingest-status.json` only after Forward-side ingest finishes.
+8. Publish sanitized `forward-ingest-status.json` and `forward-ingest-status.sha256` only after Forward-side ingest
+   finishes:
+
+   ```bash
+   node scripts/publish-forward-status.mjs \
+     --status forward-ingest-status.json \
+     --output-dir /handoff/dynatrace-forward/latest
+   ```
 
 ## Storage Options
 

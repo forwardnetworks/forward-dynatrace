@@ -3,6 +3,7 @@ type ForwardImportState = "valid" | "dry-run" | "applied" | "needs-review" | "fa
 interface ForwardIngestStatusArtifact {
   schemaVersion: "forward-dynatrace-status/v1";
   runId?: string;
+  generatedAt?: string;
   finishedAt?: string;
   durationMs?: number;
   packageId?: string;
@@ -15,7 +16,14 @@ interface ForwardIngestStatusArtifact {
     networkId?: string;
     snapshotId?: string;
   };
+  mutationCounts?: {
+    created?: number;
+    updated?: number;
+    deactivated?: number;
+  };
   plannedChecks?: number;
+  plannedNqeChecks?: number;
+  plannedNqeDiffRequests?: number;
   counts?: {
     create?: number;
     unchanged?: number;
@@ -26,6 +34,7 @@ interface ForwardIngestStatusArtifact {
 
 interface ForwardStatusRequest {
   statusArtifact?: ForwardIngestStatusArtifact;
+  statusArtifactUrl?: string;
 }
 
 interface ForwardStatusResponse {
@@ -45,13 +54,49 @@ const invalid = (summary: string): ForwardStatusResponse => ({
   ],
 });
 
+const LOCAL_HTTP_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
+
+const validateStatusArtifactUrl = (value: string): string => {
+  const url = new URL(value);
+  if (url.protocol === "https:") {
+    return url.toString();
+  }
+  if (url.protocol === "http:" && LOCAL_HTTP_HOSTS.has(url.hostname)) {
+    return url.toString();
+  }
+  throw new Error("Forward status artifact URL must use HTTPS unless it is localhost.");
+};
+
+const fetchStatusArtifact = async (statusArtifactUrl: string): Promise<ForwardIngestStatusArtifact> => {
+  const url = validateStatusArtifactUrl(statusArtifactUrl);
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`Forward status artifact fetch failed with HTTP ${response.status}.`);
+  }
+  try {
+    return JSON.parse(text) as ForwardIngestStatusArtifact;
+  } catch {
+    throw new Error("Forward status artifact URL did not return valid JSON.");
+  }
+};
+
 const countValue = (
   artifact: ForwardIngestStatusArtifact,
   key: keyof NonNullable<ForwardIngestStatusArtifact["counts"]>,
 ) => String(artifact.counts?.[key] ?? 0);
 
-export default function (payload?: ForwardStatusRequest): ForwardStatusResponse {
-  const artifact = payload?.statusArtifact;
+export default async function (payload?: ForwardStatusRequest): Promise<ForwardStatusResponse> {
+  let artifact = payload?.statusArtifact;
+  if (!artifact && payload?.statusArtifactUrl) {
+    try {
+      artifact = await fetchStatusArtifact(payload.statusArtifactUrl);
+    } catch (error) {
+      return invalid(error instanceof Error ? error.message : "Forward status artifact fetch failed.");
+    }
+  }
   if (!artifact) {
     return invalid("No Forward ingest status artifact supplied.");
   }
@@ -74,12 +119,16 @@ export default function (payload?: ForwardStatusRequest): ForwardStatusResponse 
       { label: "Mode", value: artifact.mode || "unknown" },
       { label: "Package", value: artifact.packageId || "unknown" },
       { label: "Run", value: artifact.runId || "unknown" },
-      { label: "Finished", value: artifact.finishedAt || "unknown" },
+      { label: "Finished", value: artifact.finishedAt || artifact.generatedAt || "unknown" },
       { label: "Planned checks", value: String(artifact.plannedChecks ?? 0) },
+      { label: "NQE checks", value: String(artifact.plannedNqeChecks ?? 0) },
+      { label: "NQE diffs", value: String(artifact.plannedNqeDiffRequests ?? 0) },
       { label: "Create", value: countValue(artifact, "create") },
       { label: "Unchanged", value: countValue(artifact, "unchanged") },
       { label: "Changed", value: countValue(artifact, "changed") },
       { label: "Stale", value: countValue(artifact, "stale") },
+      { label: "Updated", value: String(artifact.mutationCounts?.updated ?? 0) },
+      { label: "Deactivated", value: String(artifact.mutationCounts?.deactivated ?? 0) },
       { label: "Signature", value: artifact.packageSignature?.status || "not-provided" },
       { label: "Network", value: artifact.target?.networkId || "unknown" },
     ],

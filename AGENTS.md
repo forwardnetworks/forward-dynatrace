@@ -66,6 +66,8 @@ npm run dynatrace:query -- --help
 npm run dynatrace:copy-demo -- --help
 npm run dynatrace:normalize:test
 npm run forward:package -- --help
+npm run forward:status:test
+npm run forward:status:publish:test
 npm run release:checksums:test
 npm run demo:rehearsal
 npm run workflow:smoke

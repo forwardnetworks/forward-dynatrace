@@ -18,6 +18,8 @@ This document tracks what is validated today and what still needs a live Forward
 | Connector config validation | Importer supports `--config`, rejects secrets in config files, and accepts non-secret runtime settings. |
 | Connector metrics | `npm run workflow:smoke` verifies Prometheus-style metrics output from config import. |
 | Read-only status artifact | `npm run workflow:smoke` verifies `forward-dynatrace-status/v1` output and confirms it omits check-level topology strings. |
+| Forward status display and URL fetch | `npm run forward:status:test` verifies supplied artifact display, read-only localhost URL fetch, and non-local HTTP rejection. |
+| Forward status publication | `npm run forward:status:publish:test` verifies sanitized status publication, checksum output, unknown-field rejection, and credential-like content rejection. |
 | Synthetic Forward workflow | `npm run workflow:smoke` exercises validate-only, signed package validation, config import, metrics output, dry-run, 1001-check chunked apply, transient retry, unchanged, changed, stale, approved changed replacement, and approved stale deactivation flows against a fake Forward API. |
 | Live Forward workflow | Real non-production Forward test network validated on 2026-06-30: dry-run create=3, apply create=3, rerun unchanged=3, changed drift=1, stale drift=1, and `--fail-on-drift` exit code 2. Validation checks were deleted after the run and confirmed remaining=0. |
 | UI workflow screenshots | `docs/assets/screenshots/*.jpg` were captured from the running local app. |
@@ -55,6 +57,8 @@ This document tracks what is validated today and what still needs a live Forward
 | Optional NQE artifact tests | `npm run forward:nqe-artifacts:test` |
 | Read-only NQE preview tests | `npm run forward:nqe-preview:test` |
 | Optional NQE package workflow | `npm run forward:package:test` |
+| Forward status display | `npm run forward:status:test` |
+| Forward status publisher | `npm run forward:status:publish:test` |
 | Dynatrace live query help/shape | `npm run dynatrace:query -- --help` |
 | Dynatrace dependency normalization | `npm run dynatrace:normalize:test` |
 | Forward package builder help/shape | `npm run forward:package -- --help` |

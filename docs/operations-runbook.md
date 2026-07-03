@@ -83,6 +83,16 @@ Before enabling scheduled import, fill in these local values outside the repo:
    The approval file must name exact `dynatrace-key:*` values from the current dry-run report. Keep the approval file
    with the import report for audit.
 
+8. Publish sanitized status for Dynatrace display:
+
+   ```bash
+   node scripts/publish-forward-status.mjs \
+     --status forward-ingest-status.json \
+     --output-dir /handoff/dynatrace-forward/latest
+   ```
+
+   Publish only the sanitized status artifact and checksum. Do not publish the full import report back to Dynatrace.
+
 ## Connector Import
 
 1. Copy `config/forward-connector.config.example.json` to a local config path outside Git.
