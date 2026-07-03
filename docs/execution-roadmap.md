@@ -228,6 +228,10 @@ Exit criteria:
 
 ## Phase 4: Optional Persistent NQE Checks And Diffs
 
+Status: implemented for optional package generation, manifest/checksum metadata, importer validation, query-ID
+allowlisting, and read-only diff request packaging. Live customer use still requires Forward-owned query IDs and an
+approved decision to enable this optional path.
+
 Goal: support Forward-owned NQE checks as an optional package path, without letting Dynatrace own Forward NQE Library
 content.
 
@@ -389,9 +393,7 @@ Exit criteria:
 ## Near-Term Execution Backlog
 
 1. Validate read-only dynamic NQE preview against a customer-approved Forward credential model.
-2. Add optional persistent NQE check package schema using Forward-owned query IDs.
-3. Add optional NQE diff workflow for Forward-owned query IDs.
-4. Add connector status publication workflow back to Dynatrace.
-5. Add live demo runbook that uses customer-owned data first and demo-copy only as a sidecar.
-6. Add screenshots for the NQE preview and iterative Forward reconciliation workflow.
-7. Add compatibility notes from Forward checks and NQE API contracts.
+2. Add connector status publication workflow back to Dynatrace.
+3. Add live demo runbook that uses customer-owned data first and demo-copy only as a sidecar.
+4. Add screenshots for the NQE preview and iterative Forward reconciliation workflow.
+5. Add compatibility notes from Forward checks and NQE API contracts.

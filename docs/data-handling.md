@@ -9,6 +9,7 @@ artifacts.
 - Placeholder Forward URLs such as `https://forward.example.com`.
 - Placeholder Dynatrace Apps URLs such as `https://your-environment-id.apps.dynatrace.com/`.
 - Generated `dynatrace-key:*` values derived from synthetic rows.
+- Forward query ID placeholders such as `FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`.
 - Import reports from synthetic or sanitized non-production runs.
 
 ## Not Allowed
@@ -24,6 +25,9 @@ artifacts.
 The Dynatrace package contains desired Forward intent checks only. It must not contain Forward credentials, Forward
 session data, personal identifiers, or private tenant details beyond the metadata explicitly approved for the target
 deployment.
+
+Optional NQE artifacts may contain Forward query IDs and parameter values. Treat those as customer-approved operational
+metadata. Do not publish real query IDs or parameter values unless the customer has approved them for that audience.
 
 The Forward-side importer report can contain reconciliation evidence. Store reports in the Forward-side runtime log or
 artifact store, apply retention, and sanitize before sharing externally.

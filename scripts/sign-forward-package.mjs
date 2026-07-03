@@ -13,9 +13,12 @@ Usage:
   node scripts/sign-forward-package.mjs \\
     --checks forward-intent-checks.json \\
     --manifest forward-dynatrace-manifest.json \\
+    --nqe-checks forward-nqe-checks.json \\
+    --nqe-diff-requests forward-nqe-diff-requests.json \\
     --private-key /secure/path/ed25519-private.pem \\
     --signature forward-dynatrace-package.sig
 
+The NQE artifact flags are optional. Include them when the manifest lists those artifacts.
 The private key must stay outside the repo.
 `;
 
@@ -57,10 +60,20 @@ const main = async () => {
 
   const checksText = await readFile(required(args, "checks"), "utf8");
   const manifestText = await readFile(required(args, "manifest"), "utf8");
+  const extraArtifacts = {};
+  if (args["nqe-checks"]) {
+    extraArtifacts["nqe-checks"] = await readFile(args["nqe-checks"], "utf8");
+  }
+  if (args["nqe-diff-requests"]) {
+    extraArtifacts["nqe-diff-requests"] = await readFile(
+      args["nqe-diff-requests"],
+      "utf8",
+    );
+  }
   const privateKeyText = await readFile(required(args, "private-key"), "utf8");
   const signature = sign(
     null,
-    Buffer.from(packageSigningPayload({ checksText, manifestText }), "utf8"),
+    Buffer.from(packageSigningPayload({ checksText, manifestText, extraArtifacts }), "utf8"),
     privateKeyText,
   ).toString("base64");
 

@@ -32,6 +32,7 @@ This model covers the Forward Field Integration reference trust boundary.
 | Credential leak through config | Connector config validator rejects user/password/token fields. |
 | Customer data leak through repo | Repo validation blocks tokens, tenant URLs, local paths, emails, and legacy unsafe paths. |
 | Duplicate or conflicting checks | Importer rejects duplicate names and duplicate `dynatrace-key:*` tags. |
+| Unapproved NQE query execution | Optional NQE artifacts require committed Forward query IDs in the runtime allowlist. |
 | Wrong check update | Default policy creates missing checks only; optional update/stale automation requires signed package verification, exact approval, and mutation budgets. |
 | Bulk API partial failure | Import report keeps counts and planned creates; rerun dry-run before retrying apply. |
 | Excessive API retry pressure | Bounded retry budget and configurable batch size. |

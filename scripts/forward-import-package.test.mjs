@@ -96,6 +96,95 @@ const baseManifest = (checks = [baseCheck]) => ({
   },
 });
 
+const baseNqeCheck = {
+  definition: {
+    checkType: "NQE",
+    queryId: "FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    params: {
+      application: "Checkout",
+      environment: "prod",
+    },
+  },
+  enabled: true,
+  name: "[Dynatrace] Checkout prod: NQE policy",
+  note: "Generated from Dynatrace app metadata",
+  priority: "MEDIUM",
+  tags: [
+    "dynatrace",
+    "nqe",
+    "app:checkout",
+    "environment:prod",
+    "dynatrace-key:dt:nqe:checkout:prod:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  ],
+};
+
+const baseNqeDiffRequest = {
+  name: "[Dynatrace] Checkout prod: NQE diff",
+  queryId: "FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  beforeSnapshotId: "snapshot-before",
+  afterSnapshotId: "snapshot-after",
+  parameters: {
+    application: "Checkout",
+    environment: "prod",
+  },
+  options: {
+    itemFormat: "JSON",
+    limit: 1000,
+  },
+  templateId: "app-environment-policy",
+  dynatraceKey: "dynatrace-key:dt:nqe:checkout:prod:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:diff",
+  tags: [
+    "dynatrace",
+    "nqe-diff",
+    "app:checkout",
+    "environment:prod",
+    "dynatrace-key:dt:nqe:checkout:prod:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:diff",
+  ],
+};
+
+const manifestWithNqeArtifacts = ({
+  checks = [baseCheck],
+  nqeChecks = [baseNqeCheck],
+  nqeDiffRequests = [baseNqeDiffRequest],
+  checksText = JSON.stringify([baseCheck], null, 2) + "\n",
+  nqeChecksText = JSON.stringify([baseNqeCheck], null, 2) + "\n",
+  nqeDiffRequestsText = JSON.stringify([baseNqeDiffRequest], null, 2) + "\n",
+} = {}) => ({
+  ...baseManifest(checks),
+  artifacts: {
+    manifest: "forward-dynatrace-manifest.json",
+    intentChecks: "forward-intent-checks.json",
+    nqeChecks: "forward-nqe-checks.json",
+    nqeDiffRequests: "forward-nqe-diff-requests.json",
+  },
+  integrity: {
+    algorithm: "sha256",
+    intentChecksSha256: createHash("sha256").update(checksText, "utf8").digest("hex"),
+    nqeChecksSha256: createHash("sha256").update(nqeChecksText, "utf8").digest("hex"),
+    nqeDiffRequestsSha256: createHash("sha256")
+      .update(nqeDiffRequestsText, "utf8")
+      .digest("hex"),
+  },
+  nqeChecks: {
+    count: nqeChecks.length,
+    checkType: "NQE",
+    payloadShape: "NewNetworkCheck[]",
+    bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk",
+    dedupeRequiredBeforePost: true,
+    dedupe: "name-or-dynatrace-key-tag",
+    queryIdPolicy: "forward-owned-allowlist",
+    parameterSource: "dynatrace-app-environment",
+  },
+  nqeDiffRequests: {
+    count: nqeDiffRequests.length,
+    payloadShape: "ForwardDynatraceNqeDiffRequest[]",
+    endpoint: "/api/nqe-diffs/{before}/{after}",
+    queryIdPolicy: "forward-owned-allowlist",
+    executionPolicy: "read-only-forward-side-optional",
+    parameterSource: "dynatrace-app-environment",
+  },
+});
+
 test("uses the dynatrace-key tag as the reconciliation key", () => {
   assert.equal(
     reconciliationKey(baseCheck),
@@ -311,6 +400,42 @@ test("rejects a manifest checksum that does not match the planned package", () =
   );
 });
 
+test("accepts optional NQE check and diff artifacts in manifest validation", () => {
+  const checksText = JSON.stringify([baseCheck], null, 2) + "\n";
+  const nqeChecksText = JSON.stringify([baseNqeCheck], null, 2) + "\n";
+  const nqeDiffRequestsText = JSON.stringify([baseNqeDiffRequest], null, 2) + "\n";
+
+  assert.doesNotThrow(() =>
+    validateManifest(manifestWithNqeArtifacts(), [baseCheck], {
+      checksText,
+      nqeChecks: [baseNqeCheck],
+      nqeChecksText,
+      nqeDiffRequests: [baseNqeDiffRequest],
+      nqeDiffRequestsText,
+    }),
+  );
+});
+
+test("rejects optional NQE artifact checksum drift", () => {
+  const checksText = JSON.stringify([baseCheck], null, 2) + "\n";
+  const nqeChecksText = JSON.stringify([baseNqeCheck], null, 2) + "\n";
+  const nqeDiffRequestsText = JSON.stringify([baseNqeDiffRequest], null, 2) + "\n";
+  const manifest = manifestWithNqeArtifacts();
+  manifest.integrity.nqeChecksSha256 = "0".repeat(64);
+
+  assert.throws(
+    () =>
+      validateManifest(manifest, [baseCheck], {
+        checksText,
+        nqeChecks: [baseNqeCheck],
+        nqeChecksText,
+        nqeDiffRequests: [baseNqeDiffRequest],
+        nqeDiffRequestsText,
+      }),
+    /nqeChecksSha256 does not match/,
+  );
+});
+
 test("rejects connector config secrets", () => {
   assert.throws(
     () =>
@@ -408,6 +533,48 @@ test("rejects a detached package signature for changed package bytes", () => {
         manifestText,
         publicKeyText: publicKey.export({ format: "pem", type: "spki" }),
         signatureText,
+      }),
+    /signature verification failed/,
+  );
+});
+
+test("verifies detached signatures over optional NQE artifacts", () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const checksText = JSON.stringify([baseCheck], null, 2) + "\n";
+  const manifestText = JSON.stringify(manifestWithNqeArtifacts(), null, 2) + "\n";
+  const extraArtifacts = {
+    "nqe-checks": JSON.stringify([baseNqeCheck], null, 2) + "\n",
+    "nqe-diff-requests": JSON.stringify([baseNqeDiffRequest], null, 2) + "\n",
+  };
+  const signatureText = sign(
+    null,
+    Buffer.from(
+      packageSigningPayload({ checksText, manifestText, extraArtifacts }),
+      "utf8",
+    ),
+    privateKey,
+  ).toString("base64");
+
+  assert.doesNotThrow(() =>
+    verifyPackageSignature({
+      checksText,
+      manifestText,
+      publicKeyText: publicKey.export({ format: "pem", type: "spki" }),
+      signatureText,
+      extraArtifacts,
+    }),
+  );
+  assert.throws(
+    () =>
+      verifyPackageSignature({
+        checksText,
+        manifestText,
+        publicKeyText: publicKey.export({ format: "pem", type: "spki" }),
+        signatureText,
+        extraArtifacts: {
+          ...extraArtifacts,
+          "nqe-checks": extraArtifacts["nqe-checks"].replace("Checkout", "Tampered"),
+        },
       }),
     /signature verification failed/,
   );

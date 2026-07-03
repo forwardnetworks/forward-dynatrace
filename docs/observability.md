@@ -16,14 +16,14 @@ npm run forward:import -- \
 ```
 
 The report includes run ID, timestamps, duration, package ID, package checksum, signature status, source locators,
-planned-check count, reconciliation counts, changed fields, and stale check summaries.
+planned-check count, optional NQE artifact counts, reconciliation counts, changed fields, and stale check summaries.
 
 ## Status Artifact
 
 Write `forward-ingest-status.json` when the Forward-side result needs to be shown back in Dynatrace. The artifact is
 read-only status, not an instruction channel. It uses `schemaVersion: forward-dynatrace-status/v1` and includes
 aggregate state only: run ID, package ID, mode, import state, package integrity, signature status, target IDs, counts,
-planned-check count, and duration.
+planned-check count, optional NQE check/diff counts, and duration.
 
 The status artifact intentionally excludes check names, hostnames, dependency rows, credentials, and Forward API
 response bodies. Publish it only after the Forward-side run finishes.
@@ -57,6 +57,6 @@ Start with these thresholds, then tune per deployment:
 
 ## Evidence Retention
 
-Retain the package manifest, intent-check JSON, signature if used, import report, metrics, and status artifact for the
-same period as other Forward-side change evidence. These artifacts are enough to explain what was planned, what was
-imported, what was unchanged, and what was held for review.
+Retain the package manifest, intent-check JSON, optional NQE artifacts, signature if used, import report, metrics, and
+status artifact for the same period as other Forward-side change evidence. These artifacts are enough to explain what
+was planned, what was imported, what was unchanged, and what was held for review.

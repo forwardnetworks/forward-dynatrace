@@ -32,6 +32,7 @@ Use this checklist before enabling Forward-side ingest.
 - Create missing checks only with `POST /api/snapshots/{snapshotId}/checks?bulk`.
 - Chunk large `NewNetworkCheck[]` imports and report per-batch status.
 - Keep Forward writes in the manual importer or Forward-side connector, never in the Dynatrace app.
+- Enable optional NQE artifacts only with Forward-owned query IDs and a Forward-side allowlist.
 - Keep update/stale automation disabled by default.
 - Require a verified signed package, exact approval file, change window when used, and mutation budgets before
   replacing changed generated checks or deactivating stale generated checks.

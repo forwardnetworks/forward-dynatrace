@@ -175,9 +175,9 @@ The first useful mapping is one Forward `Existential` check per eligible Dynatra
 }
 ```
 
-Use `Reachability` checks when the dependency must be delivered to the destination host or prefix. Use `NQE` checks
-when the question is broader than one path, such as snapshot-wide compliance or segmentation drift. That is separate
-from this import package.
+Use `Reachability` checks when the dependency must be delivered to the destination host or prefix. Use optional `NQE`
+checks when the question is broader than one path, such as snapshot-wide compliance or segmentation drift. NQE checks
+must reference Forward-owned query IDs and are packaged separately in `forward-nqe-checks.json`.
 
 Rows with `needs-map` status should not create Forward checks. Reject them from automated import until
 source/destination mapping is complete.
@@ -191,6 +191,8 @@ dependency to those Forward location types.
 1. Dynatrace operator builds the package and downloads:
    - `forward-dynatrace-manifest.json`
    - `forward-intent-checks.json`
+   - optional `forward-nqe-checks.json`
+   - optional `forward-nqe-diff-requests.json`
 2. Forward operator places those artifacts in a Forward-controlled environment.
 3. Forward operator validates the package and runs a dry-run:
 
@@ -234,7 +236,9 @@ npm run forward:import -- \
 ```
 
 This command pulls `forward-dynatrace-manifest.json` and `forward-intent-checks.json`, validates both, then performs
-the same Forward read-before-write reconciliation as manual import.
+the same Forward read-before-write reconciliation as manual import. When the manifest lists optional NQE artifacts, the
+connector also pulls and validates them; persistent NQE checks require `nqeQueryIdAllowlist` or
+`--nqe-query-id-allowlist`.
 
 ## Dynatrace Workflow Triggers
 

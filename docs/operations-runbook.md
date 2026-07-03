@@ -15,8 +15,10 @@ Before enabling scheduled import, fill in these local values outside the repo:
 
 ## Manual Import
 
-1. Download `forward-dynatrace-manifest.json` and `forward-intent-checks.json`.
-2. Put both files in the Forward-controlled runtime.
+1. Download required `forward-dynatrace-manifest.json` and `forward-intent-checks.json`.
+   If the customer enabled optional NQE workflows, also download `forward-nqe-checks.json` and
+   `forward-nqe-diff-requests.json`.
+2. Put those files in the Forward-controlled runtime.
 3. Validate package integrity:
 
    ```bash
@@ -25,6 +27,8 @@ Before enabling scheduled import, fill in these local values outside the repo:
      --manifest forward-dynatrace-manifest.json \
      --validate-only
    ```
+
+   Add `--nqe-checks`, `--nqe-diff-requests`, and `--nqe-query-id-allowlist` when validating optional NQE artifacts.
 
 4. Dry-run reconciliation:
 

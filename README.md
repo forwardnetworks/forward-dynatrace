@@ -18,6 +18,7 @@ imports or pulls that package.
 - Dynatrace live DQL exporter: `scripts/query-dynatrace-dependencies.mjs`
 - Dynatrace dependency normalizer: `scripts/normalize-dynatrace-dependencies.mjs`
 - Forward package builder: `scripts/build-forward-package.mjs`
+- Optional NQE artifact helper: `scripts/forward-nqe-artifacts.mjs`
 - Client trial plan: `docs/client-trial-plan.md`
 - Execution roadmap: `docs/execution-roadmap.md`
 - Install and release model: `docs/install.md`
@@ -26,6 +27,7 @@ imports or pulls that package.
   `deploy/dynatrace-workflows/`
 - Forward ingest contract: `docs/forward-ingest-contract.md`
 - Read-only NQE preview: `docs/forward-nqe-preview.md`
+- Optional NQE artifacts: `docs/forward-nqe-artifacts.md`
 - Forward importer workflow: `docs/forward-importer.md`
 - Forward importer script: `scripts/forward-import-package.mjs`
 - Forward package signer: `scripts/sign-forward-package.mjs`
@@ -105,6 +107,8 @@ Dynatrace push into Forward.
    `POST /api/snapshots/{snapshotId}/checks?bulk`.
 9. Optional approved update/stale automation can replace or deactivate generated checks only from the Forward-side
    runtime with a verified signed package, exact approval file, and explicit mutation budgets.
+10. Optional NQE check and diff artifacts can be included only with Forward-owned query IDs and a Forward-side
+    allowlist; the intent-check workflow remains the default path.
 
 For fully automatic package generation, create a Dynatrace Workflow with either:
 
@@ -157,7 +161,9 @@ For local Dynatrace API smoke checks, keep any platform token outside the repo a
 npm install
 npm run repo:validate
 npm run forward:import:test
+npm run forward:nqe-artifacts:test
 npm run forward:nqe-preview:test
+npm run forward:package:test
 npm run forward:sign -- --help
 npm run workflow:smoke
 npm run runtime:validate

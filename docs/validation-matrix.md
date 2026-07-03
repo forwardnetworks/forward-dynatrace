@@ -9,7 +9,9 @@ This document tracks what is validated today and what still needs a live Forward
 | Dynatrace app build | `npm run build` passes locally and in GitHub Actions. |
 | Forward importer reconciliation | `npm run forward:import:test` covers create, unchanged, changed, stale, fingerprints, keys, and validation failures. |
 | Approved update/stale gates | `npm run forward:import:test` covers approval schema, package/window/expiry rejection, exact-key selection, and mutation budget enforcement. |
+| Optional NQE artifacts | `npm run forward:nqe-artifacts:test` covers NQE check and diff artifact generation, query-ID validation, and allowlist rejection. |
 | Read-only NQE preview | `npm run forward:nqe-preview:test` covers plan mode, missing runtime authorization blocking, query-ID allowlisting, and the read-only `POST /api/nqe` execution path. |
+| Optional NQE package workflow | `npm run forward:package:test` builds optional `forward-nqe-checks.json` and `forward-nqe-diff-requests.json`, validates manifest metadata, and runs importer validate-only with a query-ID allowlist. |
 | Package validation | Importer rejects malformed packages and checksum mismatches before Forward environment variables or API calls are required. |
 | Package signature validation | Importer verifies valid detached Ed25519 signatures and rejects signatures for changed package bytes. |
 | Schema versioning policy | `docs/schema-versioning.md` defines the current `forward-dynatrace/v1` contract and migration checklist. |
@@ -50,7 +52,9 @@ This document tracks what is validated today and what still needs a live Forward
 | --- | --- |
 | Repository invariants | `npm run repo:validate` |
 | Importer tests | `npm run forward:import:test` |
+| Optional NQE artifact tests | `npm run forward:nqe-artifacts:test` |
 | Read-only NQE preview tests | `npm run forward:nqe-preview:test` |
+| Optional NQE package workflow | `npm run forward:package:test` |
 | Dynatrace live query help/shape | `npm run dynatrace:query -- --help` |
 | Dynatrace dependency normalization | `npm run dynatrace:normalize:test` |
 | Forward package builder help/shape | `npm run forward:package -- --help` |

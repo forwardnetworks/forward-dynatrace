@@ -33,21 +33,26 @@ Each dependency row needs:
 
 ## Export Artifacts
 
-The app exports exactly two artifacts:
+The base workflow exports two required artifacts:
 
 - `forward-intent-checks.json`: JSON array of Forward `NewNetworkCheck` objects.
 - `forward-dynatrace-manifest.json`: schema, package metadata, counts, artifact names, integrity checksum, and ingest
   policy.
 
-There is intentionally no secondary file artifact in this workflow. Intent checks are created from `NewNetworkCheck[]`
-through Forward's checks API.
+Optional NQE artifacts can be added only when the customer has approved Forward-owned query IDs:
+
+- `forward-nqe-checks.json`: JSON array of Forward `NewNetworkCheck` objects whose `definition.checkType` is `NQE`.
+- `forward-nqe-diff-requests.json`: read-only diff request metadata for `POST /api/nqe-diffs/{before}/{after}`.
+
+The base integration must work without the optional NQE artifacts.
 
 Before any Forward API write, the importer or connector must reject the package if:
 
 - the intent-check artifact is not a JSON array
 - any check is missing a name, definition, or exactly one `dynatrace-key:*` tag
 - any generated name or `dynatrace-key:*` tag is duplicated
-- any check type is not `Existential`
+- any base intent-check artifact entry uses a check type other than `Existential`
+- optional NQE checks use a query ID that is missing from the Forward-side allowlist
 - the manifest schema version, package type, generated timestamp, check count, checksum, credential policy, or
   reconciliation policy does not match the supported contract
 - source or destination mappings do not resolve to valid Forward locations in the target snapshot
@@ -73,6 +78,23 @@ posting. Do not rely on the endpoint to dedupe Dynatrace-managed intent checks b
 
 For each eligible dependency, the package includes one persistent `Existential` check request. Forward persistence
 defaults to true for this endpoint. Include `persistent=false` only for single-snapshot test imports.
+
+If `forward-nqe-checks.json` is present, Forward-side ingest validates it separately, reads existing NQE checks with:
+
+```text
+GET /api/snapshots/{snapshotId}/checks?type=NQE
+```
+
+and creates only missing approved NQE checks through the same `/checks?bulk` endpoint. Persistent NQE checks must
+reference existing committed Forward NQE Library query IDs from the runtime allowlist. Dynatrace supplies parameters
+and context; Forward owns the query library content.
+
+If `forward-nqe-diff-requests.json` is present, the importer validates and reports it only. Executing the diff is a
+separate read-only Forward-side workflow using:
+
+```text
+POST /api/nqe-diffs/{before}/{after}
+```
 
 The default apply policy is `create-missing-only`. Changed and stale Dynatrace-managed checks are reported for review
 unless the Forward-side runtime enables the optional approval-gated update/stale path with a verified signed package,
@@ -129,6 +151,8 @@ npm run forward:import -- \
 
 - `forward-dynatrace-manifest.json`
 - `forward-intent-checks.json`
+- `forward-nqe-checks.json` when listed by the manifest
+- `forward-nqe-diff-requests.json` when listed by the manifest
 
 Non-local package URLs must use HTTPS. The connector runtime owns package authentication, Forward credentials, retry
 scheduling, alerting, and report retention.

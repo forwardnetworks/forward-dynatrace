@@ -36,9 +36,11 @@ customer-specific reference. `npm run repo:validate` fails if those values are a
 Manual import is the first production-safe workflow because Forward writes happen only after a Forward operator reviews
 the package.
 
-1. Generate or download these two artifacts from the Dynatrace app:
+1. Generate or download the required artifacts from the Dynatrace app:
    - `forward-dynatrace-manifest.json`
    - `forward-intent-checks.json`
+   - optional `forward-nqe-checks.json`
+   - optional `forward-nqe-diff-requests.json`
 2. Move those artifacts into a Forward-controlled environment.
 3. Validate the package without Forward credentials:
 
@@ -100,10 +102,12 @@ npm run forward:import -- \
 
 - `forward-dynatrace-manifest.json`
 - `forward-intent-checks.json`
+- optional `forward-nqe-checks.json` when listed by the manifest
+- optional `forward-nqe-diff-requests.json` when listed by the manifest
 
 Non-local package URLs must use HTTPS. The importer validates schema version, package type, package age, count matching,
-checksum matching, credential policy, dedupe policy, allowed check type, and reconciliation policy before contacting
-Forward.
+checksum matching, credential policy, dedupe policy, allowed check type, NQE query ID allowlists when NQE artifacts are
+present, and reconciliation policy before contacting Forward.
 
 Connector config mode:
 

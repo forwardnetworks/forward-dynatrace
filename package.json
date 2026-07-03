@@ -23,8 +23,10 @@
     "dynatrace:bundle": "dt-app deploy --dry-run --no-open --non-interactive",
     "dynatrace:seed:demo": "node scripts/seed-dynatrace-demo-data.mjs",
     "demo:rehearsal": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/demo-rehearsal.mjs",
+    "forward:nqe-artifacts:test": "node --test scripts/forward-nqe-artifacts.test.mjs",
     "forward:nqe-preview:test": "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/forward-nqe-preview.test.mjs",
     "forward:package": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/build-forward-package.mjs",
+    "forward:package:test": "node --test scripts/forward-package.test.mjs",
     "forward:import": "node scripts/forward-import-package.mjs",
     "forward:import:test": "node --test scripts/forward-import-package.test.mjs",
     "forward:sign": "node scripts/sign-forward-package.mjs",
@@ -37,7 +39,7 @@
     "whitespace:check": "git diff --check",
     "test": "npm run forward:import:test && npm run release:checksums:test",
     "lint": "eslint .",
-    "ci": "npm run repo:validate && npm run whitespace:check && npm run forward:import:test && npm run forward:nqe-preview:test && npm run dynatrace:normalize:test && npm run release:checksums:test && npm run workflow:smoke && npm run runtime:validate && npm run dynatrace:workflow:validate && npm run demo:rehearsal && npm run security:audit && npm run sbom:check && npm run lint && npm run build && npm run release:package:smoke"
+    "ci": "npm run repo:validate && npm run whitespace:check && npm run forward:import:test && npm run forward:nqe-artifacts:test && npm run forward:nqe-preview:test && npm run forward:package:test && npm run dynatrace:normalize:test && npm run release:checksums:test && npm run workflow:smoke && npm run runtime:validate && npm run dynatrace:workflow:validate && npm run demo:rehearsal && npm run security:audit && npm run sbom:check && npm run lint && npm run build && npm run release:package:smoke"
   },
   "engines": {
     "node": ">=24.0.0 <25.0.0"
