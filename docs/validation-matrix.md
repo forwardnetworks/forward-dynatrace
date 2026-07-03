@@ -8,6 +8,7 @@ This document tracks what is validated today and what still needs a live Forward
 | --- | --- |
 | Dynatrace app build | `npm run build` passes locally and in GitHub Actions. |
 | Forward importer reconciliation | `npm run forward:import:test` covers create, unchanged, changed, stale, fingerprints, keys, and validation failures. |
+| Read-only NQE preview | `npm run forward:nqe-preview:test` covers plan mode, missing runtime authorization blocking, query-ID allowlisting, and the read-only `POST /api/nqe` execution path. |
 | Package validation | Importer rejects malformed packages and checksum mismatches before Forward environment variables or API calls are required. |
 | Package signature validation | Importer verifies valid detached Ed25519 signatures and rejects signatures for changed package bytes. |
 | Schema versioning policy | `docs/schema-versioning.md` defines the current `forward-dynatrace/v1` contract and migration checklist. |
@@ -48,6 +49,7 @@ This document tracks what is validated today and what still needs a live Forward
 | --- | --- |
 | Repository invariants | `npm run repo:validate` |
 | Importer tests | `npm run forward:import:test` |
+| Read-only NQE preview tests | `npm run forward:nqe-preview:test` |
 | Dynatrace live query help/shape | `npm run dynatrace:query -- --help` |
 | Dynatrace dependency normalization | `npm run dynatrace:normalize:test` |
 | Forward package builder help/shape | `npm run forward:package -- --help` |
@@ -61,7 +63,7 @@ This document tracks what is validated today and what still needs a live Forward
 | SBOM generation | `npm run sbom:check` |
 | Static lint | `npm run lint` |
 | Dynatrace app build | `npm run build` |
-| Whitespace sanity | `git diff --check` |
+| Whitespace sanity | `npm run whitespace:check` |
 
 ## Not Yet Fully Live-Validated
 

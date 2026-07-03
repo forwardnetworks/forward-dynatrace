@@ -7,11 +7,11 @@ intent-check JSON for Forward-side reconciliation.
 
 ![Forward Dynatrace overview](assets/screenshots/01-overview.jpg)
 
-## Export Package And Readiness
+## Read-Only NQE Preview
 
-![Forward export package and readiness](assets/screenshots/02-export-package-readiness.jpg)
+![Forward read-only NQE preview](assets/screenshots/02-export-package-readiness.jpg)
 
-## Forward Bulk Check API Sequence
+## Forward Package And Bulk Check API Sequence
 
 ![Forward-side API sequence](assets/screenshots/03-forward-side-api.jpg)
 

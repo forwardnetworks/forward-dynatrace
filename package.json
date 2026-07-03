@@ -23,6 +23,7 @@
     "dynatrace:bundle": "dt-app deploy --dry-run --no-open --non-interactive",
     "dynatrace:seed:demo": "node scripts/seed-dynatrace-demo-data.mjs",
     "demo:rehearsal": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/demo-rehearsal.mjs",
+    "forward:nqe-preview:test": "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/forward-nqe-preview.test.mjs",
     "forward:package": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/build-forward-package.mjs",
     "forward:import": "node scripts/forward-import-package.mjs",
     "forward:import:test": "node --test scripts/forward-import-package.test.mjs",
@@ -33,9 +34,10 @@
     "release:checksums:test": "node --test scripts/release-checksums.test.mjs",
     "security:audit": "npm audit --omit=dev --audit-level=high",
     "sbom:check": "npm sbom --omit=dev --sbom-format=cyclonedx > /tmp/forward-dynatrace-sbom.cdx.json",
+    "whitespace:check": "git diff --check",
     "test": "npm run forward:import:test && npm run release:checksums:test",
     "lint": "eslint .",
-    "ci": "npm run repo:validate && npm run forward:import:test && npm run dynatrace:normalize:test && npm run release:checksums:test && npm run workflow:smoke && npm run runtime:validate && npm run dynatrace:workflow:validate && npm run demo:rehearsal && npm run security:audit && npm run sbom:check && npm run lint && npm run build && npm run release:package:smoke"
+    "ci": "npm run repo:validate && npm run whitespace:check && npm run forward:import:test && npm run forward:nqe-preview:test && npm run dynatrace:normalize:test && npm run release:checksums:test && npm run workflow:smoke && npm run runtime:validate && npm run dynatrace:workflow:validate && npm run demo:rehearsal && npm run security:audit && npm run sbom:check && npm run lint && npm run build && npm run release:package:smoke"
   },
   "engines": {
     "node": ">=24.0.0 <25.0.0"

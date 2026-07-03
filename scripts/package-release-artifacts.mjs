@@ -31,6 +31,7 @@ const appArchiveEntries = [
   "docs/workflow.md",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
+  "docs/forward-nqe-preview.md",
   "docs/client-trial-plan.md",
   "docs/execution-roadmap.md",
 ];
@@ -52,6 +53,7 @@ const importerArchiveEntries = [
   "scripts/sign-forward-package.mjs",
   "scripts/write-release-checksums.mjs",
   "docs/forward-importer.md",
+  "docs/forward-nqe-preview.md",
   "docs/container-runtime.md",
   "docs/connector-runtime.md",
   "docs/operations-runbook.md",
@@ -78,6 +80,7 @@ const requiredAppMembers = [
   "docs/workflow.md",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
+  "docs/forward-nqe-preview.md",
   "docs/execution-roadmap.md",
 ];
 
@@ -98,6 +101,7 @@ const requiredImporterMembers = [
   "scripts/sign-forward-package.mjs",
   "scripts/write-release-checksums.mjs",
   "docs/forward-importer.md",
+  "docs/forward-nqe-preview.md",
   "docs/container-runtime.md",
   "docs/connector-runtime.md",
   "docs/operations-runbook.md",

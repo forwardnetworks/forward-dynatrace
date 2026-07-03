@@ -297,14 +297,16 @@
 }
 
 .chip.review,
-.result-status.unknown {
+.result-status.unknown,
+.result-status.planned {
   color: #815500;
   background: #fff1cf;
 }
 
 .chip.needs-map,
 .result-status.fail,
-.result-status.blocked {
+.result-status.blocked,
+.result-status.failed {
   color: #8a1f11;
   background: #ffe1dc;
 }

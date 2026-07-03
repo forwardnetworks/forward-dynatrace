@@ -11,6 +11,7 @@ imports or pulls that package.
 
 - UI: `ui/app/pages/Home.tsx`
 - Path preview app function: `api/network-proof.function.ts`
+- Read-only NQE preview app function: `api/forward-nqe-preview.function.ts`
 - Forward export app function: `api/forward-sync.function.ts`
 - Forward ingest status app function: `api/forward-status.function.ts`
 - UI request/response types: `ui/app/types/network-proof.ts`
@@ -24,6 +25,7 @@ imports or pulls that package.
 - Dynatrace workflow trigger examples: `docs/dynatrace-workflow-trigger.md`,
   `deploy/dynatrace-workflows/`
 - Forward ingest contract: `docs/forward-ingest-contract.md`
+- Read-only NQE preview: `docs/forward-nqe-preview.md`
 - Forward importer workflow: `docs/forward-importer.md`
 - Forward importer script: `scripts/forward-import-package.mjs`
 - Forward package signer: `scripts/sign-forward-package.mjs`
@@ -67,11 +69,11 @@ Workflow overview:
 
 ![Forward Dynatrace overview](docs/assets/screenshots/01-overview.jpg)
 
-Forward bulk export package, readiness gates, and payloads:
+Read-only NQE preview and request plan:
 
-![Forward export package and readiness](docs/assets/screenshots/02-export-package-readiness.jpg)
+![Forward read-only NQE preview](docs/assets/screenshots/02-export-package-readiness.jpg)
 
-Forward-side bulk check API sequence:
+Forward-side package and bulk check API sequence:
 
 ![Forward-side API sequence](docs/assets/screenshots/03-forward-side-api.jpg)
 
@@ -153,6 +155,7 @@ For local Dynatrace API smoke checks, keep any platform token outside the repo a
 npm install
 npm run repo:validate
 npm run forward:import:test
+npm run forward:nqe-preview:test
 npm run forward:sign -- --help
 npm run workflow:smoke
 npm run runtime:validate

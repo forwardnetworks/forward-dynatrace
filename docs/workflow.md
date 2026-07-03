@@ -12,6 +12,8 @@ Forward-side manual import or a Forward-side connector owns all intent-check wri
 
 - A focused view of Dynatrace application dependencies that are candidates for Forward intent.
 - A path preview action that turns a Dynatrace service/problem context into a Forward path query.
+- An optional read-only NQE preview action that plans or executes approved `POST /api/nqe` requests without Forward
+  writes.
 - An export action that stages Forward-ready artifacts:
   - `forward-intent-checks.json` as Forward-native `NewNetworkCheck[]` for bulk intent import.
   - `forward-dynatrace-manifest.json` with schema version, counts, dedupe policy, artifact names, and checksum.
@@ -42,14 +44,14 @@ The app starts from Dynatrace application dependencies, not generic infra teleme
 
 ![Forward Dynatrace overview](assets/screenshots/01-overview.jpg)
 
-### 2. Build A Forward Export Package
+### 2. Plan Read-Only NQE Evidence
 
-The workflow produces an export package first: row counts, readiness gates, bulk-check JSON, and manifest. No Forward
-writes happen inside Dynatrace.
+The preview can plan an approved read-only `POST /api/nqe` request before export. No Forward writes happen inside
+Dynatrace.
 
-![Forward export package and readiness gates](assets/screenshots/02-export-package-readiness.jpg)
+![Forward read-only NQE preview](assets/screenshots/02-export-package-readiness.jpg)
 
-### 3. Forward-Side Bulk Check Ingest
+### 3. Build A Forward Export Package
 
 Eligible rows become Forward-native `NewNetworkCheck[]` JSON. Forward manual import or a Forward-side connector
 executes the API calls.
@@ -98,6 +100,19 @@ Forward-side ingest.
 9. Forward-side ingest reads back status:
 
    `GET /api/snapshots/{snapshotId}/checks?type=Existential`
+
+## Optional Read-Only NQE Preview
+
+Before export, the app can plan a read-only Forward NQE request for the selected dependency. The preview path is for
+mapping confidence only:
+
+- plan mode builds the request and performs no network call
+- execute mode calls only `POST /api/nqe`
+- query-ID templates require a Forward-owned query ID in the runtime allowlist
+- runtime authorization must come from a secret store, not from a UI field or package artifact
+- preview failures should lower confidence or mark the row for review, not block package export
+
+See `docs/forward-nqe-preview.md` for the execution contract.
 
 ## Iterative Reconciliation
 

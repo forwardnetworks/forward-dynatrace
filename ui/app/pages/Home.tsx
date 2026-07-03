@@ -30,6 +30,10 @@ import type {
   NetworkProofResponse,
 } from "../types/network-proof";
 import type {
+  ForwardNqePreviewRequest,
+  ForwardNqePreviewResponse,
+} from "../types/forward-nqe-preview";
+import type {
   DependencyCandidate,
   ForwardSyncMode,
   ForwardSyncRequest,
@@ -88,6 +92,9 @@ export const Home = () => {
   const [proofRequest, setProofRequest] = useState<
     NetworkProofRequest | undefined
   >();
+  const [nqePreviewRequest, setNqePreviewRequest] = useState<
+    ForwardNqePreviewRequest | undefined
+  >();
   const [syncRequest, setSyncRequest] = useState<
     ForwardSyncRequest | undefined
   >();
@@ -98,6 +105,10 @@ export const Home = () => {
   const proof = useAppFunction<NetworkProofResponse>({
     name: "network-proof",
     data: proofRequest,
+  }, { autoFetch: false, autoFetchOnUpdate: true });
+  const nqePreview = useAppFunction<ForwardNqePreviewResponse>({
+    name: "forward-nqe-preview",
+    data: nqePreviewRequest,
   }, { autoFetch: false, autoFetchOnUpdate: true });
   const sync = useAppFunction<ForwardSyncResponse>({
     name: "forward-sync",
@@ -129,6 +140,24 @@ export const Home = () => {
       environment: dependency.environment,
       owner: dependency.owner,
       criticality: dependency.criticality,
+    });
+    setNqePreviewRequest({
+      forwardBaseUrl,
+      forwardNetworkId,
+      templateId: "endpoint-inventory-smoke",
+      maxRows: 25,
+      execute: false,
+      dependency: {
+        appName: dependency.appName,
+        environment: dependency.environment,
+        serviceEntityId: dependency.serviceEntityId,
+        serviceName: dependency.serviceName,
+        source: dependency.source,
+        destination: dependency.destination,
+        protocol: dependency.protocol,
+        port: dependency.port,
+        owner: dependency.owner,
+      },
     });
   }
 
@@ -380,7 +409,7 @@ export const Home = () => {
       <section className="panel">
         <PanelHeader
           icon={<NetworkIcon />}
-          title="Path Preview"
+          title="Path Context"
           detail={activeDependency.serviceName}
         />
         {proof.isLoading && <ProgressCircle aria-label="Loading preview" />}
@@ -395,6 +424,65 @@ export const Home = () => {
           <EmptyState text="No preview result yet." />
         )}
         {proof.error && <Paragraph>{proof.error.message}</Paragraph>}
+      </section>
+
+      <section className="panel">
+        <PanelHeader
+          icon={<PathIcon />}
+          title="Read-Only NQE Preview"
+          detail="Plan approved Forward evidence queries"
+        />
+        {nqePreview.isLoading && <ProgressCircle aria-label="Loading NQE preview" />}
+        {nqePreview.data ? (
+          <div className="nqe-preview-result">
+            <ResultBody
+              status={nqePreview.data.status}
+              summary={nqePreview.data.summary}
+              rows={nqePreview.data.evidence}
+              nextSteps={nqePreview.data.nextSteps}
+            />
+            <div className="sync-grid">
+              <div>
+                <Heading level={5}>Forward NQE request</Heading>
+                <ol className="action-list">
+                  <li>
+                    <code>{nqePreview.data.requestPreview.method}</code>{" "}
+                    <span>{nqePreview.data.requestPreview.path}</span>
+                    <p>
+                      Read-only NQE execution. This app does not create, update,
+                      or delete Forward checks.
+                    </p>
+                  </li>
+                </ol>
+              </div>
+              <div>
+                <Heading level={5}>Request body</Heading>
+                <pre className="json-preview compact">
+                  {JSON.stringify(nqePreview.data.requestPreview.body, null, 2)}
+                </pre>
+              </div>
+            </div>
+            {nqePreview.data.result && (
+              <div className="evidence-grid">
+                <div>
+                  <span>Rows</span>
+                  <Strong>{String(nqePreview.data.result.totalRows)}</Strong>
+                </div>
+                <div>
+                  <span>Returned</span>
+                  <Strong>{String(nqePreview.data.result.returnedRows)}</Strong>
+                </div>
+                <div>
+                  <span>Columns</span>
+                  <Strong>{nqePreview.data.result.columns.join(", ") || "none"}</Strong>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <EmptyState text="No NQE preview planned yet." />
+        )}
+        {nqePreview.error && <Paragraph>{nqePreview.error.message}</Paragraph>}
       </section>
 
       <section className="panel">

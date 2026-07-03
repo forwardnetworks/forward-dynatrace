@@ -18,6 +18,7 @@ const requiredFiles = [
   "docs/workflow.md",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
+  "docs/forward-nqe-preview.md",
   "docs/forward-importer.md",
   "docs/production-readiness.md",
   "docs/enterprise-hardening.md",
@@ -46,13 +47,16 @@ const requiredFiles = [
   "config/forward-connector.config.example.json",
   "config/forward-connector.signed.config.example.json",
   "api/forward-status.function.ts",
+  "api/forward-nqe-preview.function.ts",
   "ui/app/types/forward-status.ts",
+  "ui/app/types/forward-nqe-preview.ts",
   "scripts/sign-forward-package.mjs",
   "scripts/package-release-artifacts.mjs",
   "scripts/write-release-checksums.mjs",
   "scripts/release-checksums.test.mjs",
   "scripts/query-dynatrace-dependencies.mjs",
   "scripts/copy-dynatrace-demo-data.mjs",
+  "scripts/forward-nqe-preview.test.mjs",
   "scripts/build-forward-package.mjs",
   "scripts/normalize-dynatrace-dependencies.mjs",
   "scripts/normalize-dynatrace-dependencies.test.mjs",
@@ -194,8 +198,10 @@ const publicBrandingFiles = [
   "api/forward-sync.function.ts",
   "api/network-proof.function.ts",
   "api/forward-status.function.ts",
+  "api/forward-nqe-preview.function.ts",
   "docs/harness-engineering.md",
   "docs/execution-roadmap.md",
+  "docs/forward-nqe-preview.md",
   "docs/install.md",
   "docs/production-readiness.md",
   "docs/enterprise-hardening.md",
@@ -343,6 +349,7 @@ for (const target of [
   "docs/demo-data.md",
   "docs/client-trial-plan.md",
   "docs/execution-roadmap.md",
+  "docs/forward-nqe-preview.md",
   "docs/harness-engineering.md",
   "docs/agent-guides/dynatrace-app.md",
 ]) {
@@ -401,6 +408,7 @@ for (const nodeVersionFile of [".nvmrc", ".node-version"]) {
 
 for (const scriptName of [
   "release:checksums:test",
+  "forward:nqe-preview:test",
   "dynatrace:normalize:test",
   "runtime:validate",
   "dynatrace:workflow:validate",
@@ -408,6 +416,7 @@ for (const scriptName of [
   "release:package:smoke",
   "security:audit",
   "sbom:check",
+  "whitespace:check",
 ]) {
   if (!packageJson.scripts?.[scriptName]) {
     fail(`package.json must define npm script ${scriptName}.`);
@@ -464,6 +473,7 @@ for (const requiredPackagerText of [
   "forward-sync-on-demand.payload.example.json",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
+  "docs/forward-nqe-preview.md",
   "docs/execution-roadmap.md",
   "docs/connector-runtime.md",
   "deploy/systemd/forward-dynatrace-connector.service",

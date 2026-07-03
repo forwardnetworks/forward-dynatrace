@@ -180,6 +180,9 @@ Exit criteria:
 
 ## Phase 3: Read-Only Dynamic NQE Preview
 
+Status: implemented for plan mode and optional server-side execution. Live customer execution still requires the
+customer-approved read-only Forward credential model.
+
 Goal: let Dynatrace ask Forward for read-only network evidence before creating persistent package artifacts.
 
 Allowed Dynatrace behavior:
@@ -380,7 +383,7 @@ Exit criteria:
 
 ## Near-Term Execution Backlog
 
-1. Add read-only dynamic NQE preview app function and UI panel.
+1. Validate read-only dynamic NQE preview against a customer-approved Forward credential model.
 2. Add Forward-side import flags for approved changed-check replacement and stale deactivation.
 3. Add approval-file schema and tests for update/stale automation.
 4. Add optional persistent NQE check package schema using Forward-owned query IDs.

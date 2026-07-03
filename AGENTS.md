@@ -13,6 +13,7 @@ docs and executable checks.
 - [docs/workflow.md](docs/workflow.md): Forward-centric workflow and screenshots.
 - [docs/dynatrace-workflow-trigger.md](docs/dynatrace-workflow-trigger.md): schedule/problem trigger payload contract.
 - [docs/forward-ingest-contract.md](docs/forward-ingest-contract.md): package and API contract.
+- [docs/forward-nqe-preview.md](docs/forward-nqe-preview.md): optional read-only Forward NQE preview workflow.
 - [docs/forward-importer.md](docs/forward-importer.md): manual Forward-side importer behavior.
 - [docs/production-readiness.md](docs/production-readiness.md): production checklist.
 - [docs/enterprise-hardening.md](docs/enterprise-hardening.md): enterprise hardening backlog and exit criteria.
@@ -56,6 +57,7 @@ For faster iteration:
 ```bash
 npm run repo:validate
 npm run forward:import:test
+npm run forward:nqe-preview:test
 npm run dynatrace:query -- --help
 npm run dynatrace:copy-demo -- --help
 npm run dynatrace:normalize:test
