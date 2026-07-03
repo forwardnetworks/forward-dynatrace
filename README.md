@@ -15,6 +15,8 @@ imports or pulls that package.
 - UI request/response types: `ui/app/types/network-proof.ts`
 - Install and release model: `docs/install.md`
 - Workflow notes: `docs/workflow.md`
+- Dynatrace workflow trigger examples: `docs/dynatrace-workflow-trigger.md`,
+  `deploy/dynatrace-workflows/`
 - Forward ingest contract: `docs/forward-ingest-contract.md`
 - Forward importer workflow: `docs/forward-importer.md`
 - Forward importer script: `scripts/forward-import-package.mjs`
@@ -22,6 +24,7 @@ imports or pulls that package.
 - Forward connector config examples: `config/forward-connector.config.example.json`,
   `config/forward-connector.signed.config.example.json`
 - Forward importer container: `Dockerfile.forward-importer`, `docs/container-runtime.md`
+- Forward connector runtime templates: `deploy/systemd/`, `deploy/kubernetes/`, `docs/connector-runtime.md`
 - Synthetic fixture and Dynatrace seeding: `docs/demo-data.md`
 - Production checklist: `docs/production-readiness.md`
 - Enterprise hardening backlog: `docs/enterprise-hardening.md`
@@ -143,6 +146,8 @@ npm run repo:validate
 npm run forward:import:test
 npm run forward:sign -- --help
 npm run workflow:smoke
+npm run runtime:validate
+npm run dynatrace:workflow:validate
 npm run security:audit
 npm run sbom:check
 npm run dynatrace:seed:demo

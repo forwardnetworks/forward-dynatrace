@@ -15,6 +15,8 @@ It remains a field-built reference, not an officially supported Forward product 
 - Done in repo: structured importer report metadata with run ID, package ID, checksum, sources, timing, and counts.
 - Done in repo: Prometheus-style metrics file output for connector runs.
 - Done in repo: Forward importer container packaging.
+- Done in repo: systemd and Kubernetes scheduler templates for the Forward-side connector runtime.
+- Done in repo: checked Dynatrace Workflow schedule and problem-trigger payload examples for the export function.
 - Done in repo: schema versioning and migration policy.
 - Done in repo: data handling rules for screenshots, examples, package artifacts, and committed docs.
 - Done in repo: RBAC model for package generation, review, apply, signing keys, and runtime administration.
@@ -23,14 +25,15 @@ It remains a field-built reference, not an officially supported Forward product 
 - Done in repo: observability guide with report fields, metrics, alert thresholds, and evidence retention.
 - Done in repo: sanitized read-only Forward ingest status artifact for Dynatrace display.
 - Done in repo: release checksum generation for published artifacts.
+- Done in repo: release archive packager smoke-tested in CI.
 - Done in repo: GitHub release workflow that builds app/importer archives, uploads artifacts, and publishes tag releases
   with `SHA256SUMS`.
 - Done in repo: weekly Dependabot checks for npm and GitHub Actions.
 - Done in repo: synthetic 1001-check bulk import, chunk sizing, and transient retry coverage.
 - External before wider use: assign an owner for the Forward-side runtime: team, on-call path, escalation path, release
   approver, and customer handoff owner.
-- External before wider use: choose the automated ingest runtime: scheduled job, customer runner, Forward-hosted
-  connector, or CI/CD pipeline step.
+- Done in repo: provide scheduled-job runtime templates for systemd and Kubernetes; external before wider use: choose
+  which runtime the deployment will actually operate.
 - External before wider use: store Forward credentials only in that Forward-side runtime, backed by a secrets manager
   with rotation and audit logs.
 - External before wider use: assign actual identities or groups to the RBAC roles in `docs/rbac.md`.
@@ -52,7 +55,8 @@ It remains a field-built reference, not an officially supported Forward product 
 - External before release: add cryptographic release signing if GitHub release artifacts plus `SHA256SUMS` are not
   enough.
 - Done in repo: generate a CycloneDX SBOM and run production dependency audit in CI.
-- External before release: add branch protection requiring the `gitops` workflow.
+- Done in repo: branch protection requiring the `gitops` workflow, one approving review, linear history, conversation
+  resolution, and no force-push/delete.
 - External before release: replace CODEOWNERS placeholder with real owning teams before enforcing review rules.
 - Done in repo: connector configuration example and schema validation for base URL, network ID, package URL, batch
   size, retry policy, package age, and drift policy.

@@ -33,6 +33,9 @@ repo, and enforce important invariants mechanically.
 ## GitOps Expectations
 
 - Pull requests and pushes to `main` run GitHub Actions.
-- CI must run repository validation, importer tests, lint, and app build.
+- CI must run `npm run ci`: repository validation, importer tests, release checksum tests, workflow smoke, runtime
+  manifest validation, Dynatrace workflow payload validation, dependency audit, SBOM generation, lint, app build, and
+  release archive smoke packaging.
+- CI must also run `git diff --check`.
 - Branch protection should require the `gitops` workflow before merge.
 - Production deploys should remain explicit; CI builds the app but does not deploy it.

@@ -1,9 +1,10 @@
-# Replace these teams with the owning Forward groups before enforcing branch protection.
+# Template only: replace this placeholder with owning Forward groups before enforcing code-owner review.
 * @forwardnetworks/codeowners-placeholder
 
 /api/ @forwardnetworks/codeowners-placeholder
 /ui/ @forwardnetworks/codeowners-placeholder
 /scripts/forward-import-package.mjs @forwardnetworks/codeowners-placeholder
 /scripts/forward-import-package.test.mjs @forwardnetworks/codeowners-placeholder
+/deploy/ @forwardnetworks/codeowners-placeholder
 /docs/ @forwardnetworks/codeowners-placeholder
 /.github/ @forwardnetworks/codeowners-placeholder

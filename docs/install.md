@@ -22,7 +22,7 @@ Steps:
 ```bash
 git clone https://github.com/forwardnetworks/forward-dynatrace.git
 cd forward-dynatrace
-git checkout v1.0.3
+git checkout v1.0.4
 npm ci
 npm run ci
 npm run deploy -- --environment-url https://your-environment-id.apps.dynatrace.com/
@@ -114,6 +114,20 @@ npm run forward:import -- --config /secure/path/forward-connector.config.json
 Do not store Forward user, password, or token values in the config file.
 Use `config/forward-connector.signed.config.example.json` when the package handoff requires detached signature
 verification.
+
+For scheduled operation, use the systemd or Kubernetes templates in `deploy/` and follow
+`docs/connector-runtime.md`.
+
+## Dynatrace Workflow Trigger
+
+Use the checked payload examples in `deploy/dynatrace-workflows/` when wiring a schedule or problem workflow to the
+export function. Validate local edits with:
+
+```bash
+npm run dynatrace:workflow:validate
+```
+
+The workflow must publish package artifacts only. Forward writes stay in the Forward-side importer or connector.
 
 ## Release Gate
 
