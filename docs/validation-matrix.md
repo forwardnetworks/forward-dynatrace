@@ -35,6 +35,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Dynatrace app deploy | Version `1.0.6` deployed successfully to a non-production Dynatrace Apps environment on 2026-07-03. The previous `1.0.5` deploy attempt was correctly rejected because that version was already installed with a different checksum. |
 | Dynatrace saved demo replay | `npm run dynatrace:replay-demo` dry-runs a checked 100-row standard demo fixture. With `--apply`, it replays those rows into a trial tenant through OpenPipeline using a local Platform Token. Live replay/query on 2026-07-03 returned 100 records, 100 ready rows, and 0 review/needs-map rows. |
 | Standard demo Forward reconciliation | The standard demo replay was queried from Dynatrace, packaged without `--include-review`, and dry-run reconciled against a non-production Forward demo network on 2026-07-03: planned=100, create=0, unchanged=100, changed=0, stale=0. |
+| Live deployment readiness gate | `npm run forward:readiness -- --dry-run` passed against the non-production Forward standard demo network on 2026-07-03: 100 eligible dependencies, 100 planned checks, 100 existing Dynatrace-managed checks, create=0, unchanged=100, changed=0, stale=0. |
 | Legacy export path removal | `npm run repo:validate` blocks legacy secondary-artifact terms. |
 | Secret hygiene | `npm run repo:validate` blocks committed Dynatrace token-shaped secrets, concrete tenant URLs, OAuth callbacks, private token filenames, personal references, and non-placeholder Forward credentials. |
 | Connector pull workflow | Importer supports `--package-url`, validates the manifest, rejects stale packages, and still performs create-missing-only reconciliation. |
@@ -51,6 +52,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Release checksums | `npm run release:checksums:test` verifies SHA-256 checksum file generation for release artifacts. |
 | Release checksum signing | `npm run release:sign:test` verifies detached Ed25519 signing and tamper-detection for `SHA256SUMS`. |
 | Release archive packaging | `npm run release:package:smoke` builds the app/importer archives in a temporary directory and verifies required archive members plus `SHA256SUMS`. |
+| Release archive download verification | The `v1.0.9` GitHub release archives were downloaded, `SHA256SUMS` verified locally, and the importer archive was checked for the readiness CLI, deployment-readiness doc, Docker Compose template, and status publisher. |
 | GitHub release workflow | `.github/workflows/release.yml` runs CI, calls `npm run release:package`, uploads artifacts, and publishes tag releases with `SHA256SUMS`. |
 | Data handling rules | `docs/data-handling.md` defines publish-safe artifact rules and `npm run repo:validate` blocks known tenant, token, local path, and personal-reference patterns. |
 | RBAC model | `docs/rbac.md` defines least-privilege roles and separation rules for package publishing, review, apply, signing, and runtime administration. |
