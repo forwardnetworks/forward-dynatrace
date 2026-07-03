@@ -63,7 +63,6 @@ const requiredFiles = [
   "scripts/write-release-checksums.mjs",
   "scripts/release-checksums.test.mjs",
   "scripts/query-dynatrace-dependencies.mjs",
-  "scripts/copy-dynatrace-demo-data.mjs",
   "scripts/forward-nqe-live-smoke.mjs",
   "scripts/forward-nqe-live-smoke.test.mjs",
   "scripts/forward-nqe-artifacts.mjs",
@@ -81,7 +80,8 @@ const requiredFiles = [
   "scripts/workflow-smoke.mjs",
   "scripts/validate-runtime-manifests.mjs",
   "scripts/validate-dynatrace-workflow-examples.mjs",
-  "scripts/seed-dynatrace-demo-data.mjs",
+  "scripts/replay-dynatrace-demo-data.mjs",
+  "scripts/replay-dynatrace-demo-data.test.mjs",
   "deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql",
   "deploy/dynatrace-dql/service-dependencies-smartscape.dql",
   "deploy/dynatrace-workflows/forward-sync-schedule.payload.example.json",
@@ -469,8 +469,8 @@ if (!packageJson.scripts?.["dynatrace:normalize"]) {
 if (!packageJson.scripts?.["dynatrace:query"]) {
   fail("package.json must define npm script dynatrace:query.");
 }
-if (!packageJson.scripts?.["dynatrace:copy-demo"]) {
-  fail("package.json must define npm script dynatrace:copy-demo.");
+if (!packageJson.scripts?.["dynatrace:replay-demo"]) {
+  fail("package.json must define npm script dynatrace:replay-demo.");
 }
 if (!packageJson.scripts?.["dynatrace:bundle"]) {
   fail("package.json must define npm script dynatrace:bundle.");
@@ -520,7 +520,7 @@ for (const requiredPackagerText of [
   "scripts/write-release-checksums.mjs",
   "scripts/sign-release-checksums.mjs",
   "scripts/query-dynatrace-dependencies.mjs",
-  "scripts/copy-dynatrace-demo-data.mjs",
+  "scripts/replay-dynatrace-demo-data.mjs",
   "scripts/build-forward-package.mjs",
   "scripts/normalize-dynatrace-dependencies.mjs",
   "scripts/demo-rehearsal.mjs",

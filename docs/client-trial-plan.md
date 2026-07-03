@@ -29,8 +29,8 @@ validate-only import without Forward credentials.
 ## Dynatrace Trial
 
 Production path: query the customer's own Dynatrace topology, normalize it, build a Forward package, and let Forward
-import it. Demo-copy and synthetic-seed workflows are sidecars for trial sandboxes only; do not use copied demo data as
-the production source of intent.
+import it. Saved fixture replay is a sidecar for isolated trial sandboxes only; do not use replayed demo data as the
+production source of intent.
 
 1. Deploy the app to the trial tenant:
 
@@ -131,18 +131,15 @@ Use only a non-production Forward network.
 
 6. Delete demo checks after the trial if they were created in a shared test network.
 
-## Demo Sidecar
+## Demo Replay Sidecar
 
-If the live demo tenant has useful topology but your trial sandbox has the permissions needed for app install and
-query validation, copy demo dependency evidence into the sandbox as a demo-only sidecar:
+If the trial sandbox does not yet have useful topology, replay the checked Dynatrace Playground fixture into the
+sandbox as a demo-only sidecar:
 
 ```bash
-npm run dynatrace:copy-demo -- \
-  --source-environment-url https://<demo-source-id>.apps.dynatrace.com/ \
-  --destination-environment-url https://<trial-sandbox-id>.apps.dynatrace.com/ \
-  --source-token-file /secure/path/source-token.txt \
-  --destination-token-file /secure/path/destination-token.txt \
-  --output-dir /tmp/forward-dynatrace-demo-copy \
+npm run dynatrace:replay-demo -- \
+  --environment-url https://<trial-sandbox-id>.apps.dynatrace.com/ \
+  --token-file /secure/path/platform-token \
   --apply
 ```
 
@@ -150,11 +147,13 @@ Then query the sandbox with:
 
 ```text
 fetch events
-| filter event.provider == "forward-dynatrace-demo-copy"
+| filter event.provider == "forward-dynatrace-demo"
 | filter event.type == "com.forward.demo.dependency"
+| filter demo.replay == true
 ```
 
-This is for demos and trial sandboxes only. Production integrations must use the customer's own Dynatrace data.
+This is for demos and trial sandboxes only. Production integrations must use the customer's own Dynatrace data, not the
+checked replay fixture.
 
 ## Dynatrace-Side Value
 

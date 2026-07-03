@@ -11,13 +11,22 @@ const demoRows = JSON.parse(
 test("normalizes DQL-shaped rows into dependency candidates", () => {
   const dependencies = normalizeDynatraceRows(demoRows);
 
-  assert.equal(dependencies.length, 4);
-  assert.equal(dependencies[0].appName, "Checkout");
-  assert.equal(dependencies[0].serviceEntityId, "SERVICE-DEMO-CHECKOUT");
+  assert.equal(dependencies.length, 100);
+  assert.equal(dependencies[0].appName, "Dynatrace Demo");
+  assert.equal(dependencies[0].serviceEntityId, "SERVICE-00677FCCD8F24235");
   assert.equal(dependencies[0].protocol, "tcp");
-  assert.equal(dependencies[0].mappingState, "ready");
-  assert.equal(dependencies[2].mappingState, "review");
-  assert.equal(dependencies[3].mappingState, "needs-map");
+  assert.equal(dependencies[0].mappingState, "review");
+  assert.equal(
+    dependencies.filter((dependency) => dependency.mappingState === "review").length,
+    100,
+  );
+  assert.ok(
+    dependencies.some((dependency) =>
+      dependency.source === "frontend-web" &&
+      dependency.destination === "frontend-proxy" &&
+      dependency.serviceEntityId === "SERVICE-95D96EDE93AA13DB",
+    ),
+  );
 });
 
 test("rejects non-array input", () => {

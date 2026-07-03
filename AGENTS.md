@@ -67,7 +67,7 @@ npm run forward:nqe-live-smoke:test
 npm run forward:nqe-preview:test
 npm run forward:package:test
 npm run dynatrace:query -- --help
-npm run dynatrace:copy-demo -- --help
+npm run dynatrace:replay-demo -- --help
 npm run dynatrace:normalize:test
 npm run forward:package -- --help
 npm run forward:status:test

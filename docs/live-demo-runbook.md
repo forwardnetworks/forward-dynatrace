@@ -1,7 +1,7 @@
 # Live Demo Runbook
 
 Use this runbook for a customer meeting, trial sandbox, or internal rehearsal. The production story is customer-owned
-Dynatrace topology into a Forward-side import workflow. Demo-copy and synthetic seed data are optional sidecars only
+Dynatrace topology into a Forward-side import workflow. Saved fixture replay is an optional sidecar only
 when the trial tenant does not yet have useful dependency evidence.
 
 ## Production Demo Path
@@ -118,28 +118,16 @@ customer trial unless rollback and audit expectations are already agreed.
 
 Use sidecars only when the customer-owned Dynatrace tenant cannot yet produce a useful dependency export.
 
-Synthetic seed:
+Saved fixture replay:
 
 ```bash
-npm run dynatrace:seed:demo -- \
+npm run dynatrace:replay-demo -- \
   --environment-url https://<trial-sandbox-id>.apps.dynatrace.com/ \
   --token-file /secure/path/platform-token \
   --apply
 ```
 
-Demo-copy:
-
-```bash
-npm run dynatrace:copy-demo -- \
-  --source-environment-url https://<demo-source-id>.apps.dynatrace.com/ \
-  --destination-environment-url https://<trial-sandbox-id>.apps.dynatrace.com/ \
-  --source-token-file /secure/path/source-token.txt \
-  --destination-token-file /secure/path/destination-token.txt \
-  --output-dir /tmp/forward-dynatrace-demo-copy \
-  --apply
-```
-
-Sidecar evidence must be labeled as demo-only. Do not use copied demo topology as the production source for Forward
+Sidecar evidence must be labeled as demo-only. Do not use the saved replay fixture as the production source for Forward
 intent.
 
 ## Evidence To Keep
