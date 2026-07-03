@@ -4,6 +4,16 @@ These screenshots show the Forward Field Integration workflow: Dynatrace applica
 package JSON for Forward-side reconciliation. Optional read-only NQE preview and optional query-ID artifacts are shown
 as optional paths; the base workflow remains intent-check package export plus Forward-side import.
 
+Regenerate them with:
+
+```bash
+npm run demo:capture
+```
+
+The capture harness builds the Dynatrace app, serves the built UI locally, answers app-function calls through the built
+function modules, and drives Chromium with placeholder Forward/Dynatrace metadata. It does not contact a live Dynatrace
+or Forward tenant.
+
 ## Overview
 
 ![Forward Dynatrace overview](assets/screenshots/01-overview.jpg)

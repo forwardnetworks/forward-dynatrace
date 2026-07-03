@@ -24,6 +24,7 @@
     "dynatrace:normalize": "node scripts/normalize-dynatrace-dependencies.mjs",
     "dynatrace:normalize:test": "node --test scripts/normalize-dynatrace-dependencies.test.mjs",
     "dynatrace:bundle": "dt-app deploy --dry-run --no-open --non-interactive",
+    "demo:capture": "npm run build && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/capture-demo-screenshots.mjs",
     "demo:rehearsal": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/demo-rehearsal.mjs",
     "forward:nqe-artifacts:test": "node --test scripts/forward-nqe-artifacts.test.mjs",
     "forward:nqe-preview:test": "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/forward-nqe-preview.test.mjs",
@@ -88,6 +89,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^6.1.1",
     "eslint-plugin-security": "^3.0.1",
+    "playwright": "^1.61.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.62.1"
   }

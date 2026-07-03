@@ -20,7 +20,7 @@ repo, and enforce important invariants mechanically.
 | Mechanical invariants | `npm run repo:validate`, importer tests, security audit, SBOM generation, lint, build, GitHub Actions |
 | Synthetic workflow validation | `npm run workflow:smoke` with a fake Forward API |
 | Saved demo replay path | `npm run dynatrace:replay-demo` dry-run by default |
-| Workflow evidence | Real browser screenshots under `docs/assets/screenshots/` |
+| Workflow evidence | `npm run demo:capture` writes real browser screenshots under `docs/assets/screenshots/` |
 | Boundary enforcement | Importer validation, create-missing-only policy, no Forward credentials in Dynatrace |
 
 ## Feedback Loop
