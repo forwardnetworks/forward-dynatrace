@@ -22,16 +22,17 @@ This document tracks what is validated today and what still needs a live Forward
 | Read-only status artifact | `npm run workflow:smoke` verifies `forward-dynatrace-status/v1` output and confirms it omits check-level topology strings. |
 | Forward status display and URL fetch | `npm run forward:status:test` verifies supplied artifact display, read-only localhost URL fetch, and non-local HTTP rejection. |
 | Forward status publication | `npm run forward:status:publish:test` verifies sanitized status publication, checksum output, unknown-field rejection, and credential-like content rejection. |
-| Live demo runbook | `docs/live-demo-runbook.md` keeps customer-owned Dynatrace data as the primary path and marks saved fixture replay as a demo/trial sidecar only. `npm run repo:validate` requires the doc and release packaging includes it. |
+| Live demo runbook | `docs/live-demo-runbook.md` keeps customer-owned Dynatrace data as the production path and documents standard demo replay for trial sandboxes. `npm run repo:validate` requires the doc and release packaging includes it. |
 | Forward API compatibility notes | `docs/forward-api-compatibility.md` documents required Forward endpoints, the no-fallback bulk create gate, and optional NQE/query-ID paths. `npm run repo:validate` requires the doc and release packaging includes it. |
 | Synthetic Forward workflow | `npm run workflow:smoke` exercises validate-only, signed package validation, config import, metrics output, dry-run, 1001-check chunked apply, transient retry, unchanged, changed, stale, approved changed replacement, and approved stale deactivation flows against a fake Forward API. |
 | Load and scale smoke | `npm run load:scale` generates 2500 synthetic Dynatrace dependency rows, normalizes them, builds a `data-connector` package, validates it, applies exportable checks to a fake Forward API in 400-check batches, and reruns the same package to confirm unchanged reconciliation. |
 | Live Forward workflow | Real non-production Forward test network validated on 2026-06-30: dry-run create=3, apply create=3, rerun unchanged=3, changed drift=1, stale drift=1, and `--fail-on-drift` exit code 2. Validation checks were deleted after the run and confirmed remaining=0. |
 | UI workflow screenshots | `npm run demo:capture` captures `docs/assets/screenshots/*.jpg` from the built app with local app-function shims and placeholder data. |
-| Dynatrace app build package | Version `1.0.7` builds locally. |
-| Dynatrace live query path | Live read-only DQL queries against a non-production Dynatrace Apps environment succeeded on 2026-07-03. The first tenant query validated auth/query plumbing with no useful topology; the saved demo fixture now provides 100 replayable dependency records for trial tenants. |
+| Dynatrace app build package | Version `1.0.8` builds locally. |
+| Dynatrace live query path | Live read-only DQL queries against a non-production Dynatrace Apps environment succeeded on 2026-07-03. The saved demo fixture provides 100 replayable dependency records for trial tenants. |
 | Dynatrace app deploy | Version `1.0.6` deployed successfully to a non-production Dynatrace Apps environment on 2026-07-03. The previous `1.0.5` deploy attempt was correctly rejected because that version was already installed with a different checksum. |
-| Dynatrace saved demo replay | `npm run dynatrace:replay-demo` dry-runs a checked 100-row Dynatrace Playground fixture. With `--apply`, it replays those rows into a trial tenant through OpenPipeline using a local Platform Token. |
+| Dynatrace saved demo replay | `npm run dynatrace:replay-demo` dry-runs a checked 100-row standard demo fixture. With `--apply`, it replays those rows into a trial tenant through OpenPipeline using a local Platform Token. Live replay/query on 2026-07-03 returned 100 records, 100 ready rows, and 0 review/needs-map rows. |
+| Standard demo Forward reconciliation | The standard demo replay was queried from Dynatrace, packaged without `--include-review`, and dry-run reconciled against a non-production Forward demo network on 2026-07-03: planned=100, create=0, unchanged=100, changed=0, stale=0. |
 | Legacy export path removal | `npm run repo:validate` blocks legacy secondary-artifact terms. |
 | Secret hygiene | `npm run repo:validate` blocks committed Dynatrace token-shaped secrets, concrete tenant URLs, OAuth callbacks, private token filenames, personal references, and non-placeholder Forward credentials. |
 | Connector pull workflow | Importer supports `--package-url`, validates the manifest, rejects stale packages, and still performs create-missing-only reconciliation. |
@@ -92,9 +93,9 @@ This document tracks what is validated today and what still needs a live Forward
 | --- | --- |
 | Forward-side connector runtime installation | Target runtime selection and operational ownership. Current repo includes systemd and Kubernetes templates plus the connector command path and package URL pull behavior. |
 | Dynatrace Workflow installation | A real problem or schedule workflow installed in the target tenant. Current repo includes checked schedule/problem payload examples for the export function. |
-| Live Dynatrace demo dependency data | Customer-owned topology remains the production source of intent. The repo now includes a saved 100-row Dynatrace Playground fixture for replay into isolated trial/demo sandboxes when live demo-tenant source tokens are unavailable. |
+| Live Dynatrace demo dependency data | Customer-owned topology remains the production source of intent. The repo includes a saved 100-row standard demo fixture for replay into trial/demo sandboxes when live demo-tenant source tokens are unavailable. |
 | Read-only dynamic NQE credential model | Needs customer approval and a live run of `npm run forward:nqe-live-smoke -- --execute --approval-file <approval.json>` for the exact Forward read-only credential model before enabling execute mode in Dynatrace. Base package export/import does not depend on this optional path. |
-| Saved demo replay sidecar | `npm run dynatrace:replay-demo -- --help` documents replaying the checked demo fixture into a trial sandbox; not for production source-of-intent. |
+| Standard demo replay | `npm run dynatrace:replay-demo -- --help` documents replaying the checked demo fixture into a trial sandbox; not for production source-of-intent. |
 
 ## Production Gate
 

@@ -1,8 +1,8 @@
 # Live Demo Runbook
 
 Use this runbook for a customer meeting, trial sandbox, or internal rehearsal. The production story is customer-owned
-Dynatrace topology into a Forward-side import workflow. Saved fixture replay is an optional sidecar only
-when the trial tenant does not yet have useful dependency evidence.
+Dynatrace topology into a Forward-side import workflow. The standard demo replay path is available when the trial
+tenant needs demo dependency evidence aligned to the standard Forward demo snapshot.
 
 ## Production Demo Path
 
@@ -117,9 +117,9 @@ Changed replacement and stale deactivation are optional Forward-side paths. They
 approval artifact, explicit mutation budgets, and an operator-owned change window. Do not enable them for a first
 customer trial unless rollback and audit expectations are already agreed.
 
-## Optional Demo Sidecars
+## Standard Demo Replay
 
-Use sidecars only when the customer-owned Dynatrace tenant cannot yet produce a useful dependency export.
+Use the standard demo replay when the customer-owned Dynatrace tenant cannot yet produce a useful dependency export.
 
 Saved fixture replay:
 
@@ -130,7 +130,7 @@ npm run dynatrace:replay-demo -- \
   --apply
 ```
 
-Sidecar evidence must be labeled as demo-only. Do not use the saved replay fixture as the production source for Forward
+Replay evidence must be labeled as demo-only. Do not use the saved replay fixture as the production source for Forward
 intent.
 
 ## Evidence To Keep

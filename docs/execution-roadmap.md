@@ -15,7 +15,7 @@ NQE behavior, and product constraints only. All implementation belongs in this r
 | Dynamic NQE preview | Dynatrace app/workflow with read-only Forward credentials | Dynatrace asks Forward | No | Enrich mapping confidence and validate dependency candidates without changing Forward. |
 | Forward package ingest | Forward operator or Forward-side connector | Package to Forward | Yes | Validate, reconcile, and apply persistent Forward checks under Forward policy. |
 | Forward status artifact | Forward-side connector | Forward to Dynatrace | No | Publish aggregate ingest status and drift summary for Dynatrace display. |
-| Saved demo replay sidecar | Demo operator | Checked fixture to trial sandbox | No Forward writes | Replay saved demo dependency evidence into a trial sandbox only. Not production. |
+| Standard demo replay | Demo operator | Checked fixture to trial sandbox | No Forward writes | Replay standard demo dependency evidence into a trial sandbox only. Not production. |
 
 ## Data Each Side Supplies
 
@@ -53,7 +53,7 @@ Deliverables:
 
 - Dynatrace app exports Forward-ready artifacts and never stores Forward write credentials.
 - Manual Forward-side importer validates packages before API calls.
-- Demo-only sidecars are documented as non-production.
+- Standard demo replay is documented as non-production.
 - OpenPipeline/DQL query path can pull live Dynatrace data into local package artifacts.
 - Forward ingest status artifact is sanitized and displayable in Dynatrace.
 
@@ -67,7 +67,7 @@ Validation:
 Exit criteria:
 
 - Client demo can show app topology becoming Forward intent-check candidates.
-- Saved demo replay paths are clearly marked sidecar-only.
+- Saved demo replay paths are clearly marked demo-only.
 - No tenant IDs, credentials, customer data, or private token filenames are committed.
 
 ## Phase 1: Production-Safe Manual Import
@@ -409,6 +409,6 @@ Exit criteria:
 
 Completed near-term execution docs:
 
-- Live demo runbook uses customer-owned data first and keeps saved fixture replay as a sidecar: `docs/live-demo-runbook.md`.
+- Live demo runbook uses customer-owned data for production and standard demo replay for trial sandboxes: `docs/live-demo-runbook.md`.
 - Workflow screenshots cover optional NQE preview and iterative Forward reconciliation: `docs/screenshots.md`.
 - Forward checks, NQE, and NQE diff compatibility notes: `docs/forward-api-compatibility.md`.

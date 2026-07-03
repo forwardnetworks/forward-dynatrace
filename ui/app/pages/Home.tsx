@@ -69,6 +69,17 @@ const modeLabel: Record<ForwardSyncMode, string> = {
   "intent-package": "Bulk checks JSON",
 };
 
+type WorkflowStageTone = "ready" | "needs-work" | "controlled";
+
+interface WorkflowStageDefinition {
+  icon: React.ReactNode;
+  label: string;
+  title: string;
+  value: string;
+  detail: string;
+  tone: WorkflowStageTone;
+}
+
 const downloadTextFile = (fileName: string, text: string, type: string) => {
   const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
@@ -148,6 +159,64 @@ export const Home = () => {
     ).length;
     return Math.round((readyRows / effectiveDependencies.length) * 100);
   }, [effectiveDependencies]);
+  const mappingCounts = useMemo(
+    () =>
+      effectiveDependencies.reduce<Record<DependencyCandidate["mappingState"], number>>(
+        (counts, dependency) => ({
+          ...counts,
+          [dependency.mappingState]: counts[dependency.mappingState] + 1,
+        }),
+        { ready: 0, review: 0, "needs-map": 0 },
+      ),
+    [effectiveDependencies],
+  );
+  const forwardDriftCount =
+    (sampleForwardStatusCounts.changed ?? 0) + (sampleForwardStatusCounts.stale ?? 0);
+  const workflowStages: WorkflowStageDefinition[] = [
+    {
+      icon: <FlowIcon />,
+      label: "Observe",
+      title: "Dynatrace app map",
+      value: `${effectiveDependencies.length}`,
+      detail: "service dependency rows",
+      tone: "ready",
+    },
+    {
+      icon: <NetworkIcon />,
+      label: "Resolve",
+      title: "Forward endpoint match",
+      value: `${mappingCounts.ready}`,
+      detail: `${mappingCounts.review} review / ${mappingCounts["needs-map"]} unmapped`,
+      tone:
+        mappingCounts.ready === effectiveDependencies.length
+          ? "ready"
+          : "needs-work",
+    },
+    {
+      icon: <UploadIcon />,
+      label: "Export",
+      title: "Intent package",
+      value: `${selectedForSync.length}`,
+      detail: "bulk NewNetworkCheck JSON",
+      tone: selectedForSync.length > 0 ? "ready" : "needs-work",
+    },
+    {
+      icon: <AutomationEngineIcon />,
+      label: "Import",
+      title: "Forward-side workflow",
+      value: modeLabel[syncMode],
+      detail: "validate, dry-run, apply outside Dynatrace",
+      tone: "controlled",
+    },
+    {
+      icon: <CheckmarkIcon />,
+      label: "Reconcile",
+      title: "Forward status artifact",
+      value: sampleForwardStatus.importState ?? "pending",
+      detail: `${sampleForwardStatusCounts.unchanged ?? 0} unchanged / ${forwardDriftCount} drift`,
+      tone: forwardDriftCount > 0 ? "needs-work" : "ready",
+    },
+  ];
 
   useEffect(() => {
     const endpointResolution = nqePreview.data?.endpointResolution;
@@ -303,6 +372,42 @@ export const Home = () => {
           Forward imports the bulk checks JSON manually, or a Forward-side
           connector pulls the package.
         </span>
+      </section>
+
+      <section className="workflow-board" aria-label="Forward intent ingestion workflow">
+        <div className="workflow-board-header">
+          <div>
+            <p className="eyebrow">Exposure-style workflow</p>
+            <Heading level={2}>Dependency evidence to Forward intent checks</Heading>
+          </div>
+          <span>
+            Dynatrace supplies dependency evidence and package status. Forward owns
+            validation, dry-run, apply, and reconciliation.
+          </span>
+        </div>
+        <div className="workflow-stage-grid">
+          {workflowStages.map((stage) => (
+            <WorkflowStage
+              key={stage.label}
+              icon={stage.icon}
+              label={stage.label}
+              title={stage.title}
+              value={stage.value}
+              detail={stage.detail}
+              tone={stage.tone}
+            />
+          ))}
+        </div>
+        <div className="workflow-rule">
+          <div>
+            <Strong>Dynatrace side</Strong>
+            <span>Discover, normalize, resolve endpoint fit, and export signed artifacts.</span>
+          </div>
+          <div>
+            <Strong>Forward side</Strong>
+            <span>Run API validation and dry-run first; apply only under Forward operator policy.</span>
+          </div>
+        </div>
       </section>
 
       <section className="metric-grid" aria-label="Integration status">
@@ -820,6 +925,32 @@ const ResultBody = ({
 const EmptyState = ({ text }: { text: string }) => (
   <div className="empty-state">
     <Paragraph>{text}</Paragraph>
+  </div>
+);
+
+const WorkflowStage = ({
+  icon,
+  label,
+  title,
+  value,
+  detail,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  title: string;
+  value: string;
+  detail: string;
+  tone: WorkflowStageTone;
+}) => (
+  <div className={`workflow-stage ${tone}`}>
+    <div className="workflow-stage-top">
+      <span className="workflow-stage-icon">{icon}</span>
+      <span className="workflow-stage-label">{label}</span>
+    </div>
+    <Strong>{title}</Strong>
+    <span className="workflow-stage-value">{value}</span>
+    <small>{detail}</small>
   </div>
 );
 

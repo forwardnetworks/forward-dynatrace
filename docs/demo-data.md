@@ -2,20 +2,21 @@
 
 The repo keeps committed fixtures demo-only and customer-safe. Production integrations must use customer-owned
 Dynatrace topology through `npm run dynatrace:query` or the Dynatrace app workflow and keep exported rows outside
-GitHub. Saved demo replay is a sidecar for trial sandboxes only. Do not put customer names, customer topology, real
+GitHub. The saved replay fixture is the standard demo-data path for trial sandboxes and is aligned to the standard
+Forward demo snapshot using resolvable host-filter IP values. Do not put customer names, customer topology, real
 Forward network IDs, or real credentials in GitHub.
 
 ## Fixtures
 
 The app fixture is [shared/demo-dependencies.json](../shared/demo-dependencies.json). It contains:
 
-- 100 review rows from a Dynatrace Playground Smartscape service-call export
-- deterministic service IDs, service names, source names, destination names, protocol, and port fields
+- 100 ready rows derived from a Dynatrace Playground Smartscape service-call export
+- deterministic service IDs, service names, Forward-resolvable source/destination host filters, protocol, and port fields
 - no tenant ID, user identity, credential, customer name, Forward network ID, or customer topology
 
-The local app imports this fixture so screenshots and browser tests tell the same story. These rows are demo evidence,
-not production-ready Forward write candidates until endpoint-resolution marks both endpoints `ready`. The explicit
-`--include-review` override exists for isolated demo replay only.
+The local app imports this fixture so screenshots and browser tests tell the same story. These rows are demo evidence
+for the standard Forward demo network. Production packages still require customer-owned Dynatrace topology and
+customer-approved endpoint mapping.
 
 The DQL-shaped fixture is
 [shared/demo-dynatrace-query-rows.json](../shared/demo-dynatrace-query-rows.json). Normalize it with:
@@ -39,7 +40,7 @@ npm run demo:rehearsal
 ```
 
 This normalizes DQL-shaped rows, builds the Forward package shape, and validates it without Forward credentials. The
-saved demo fixture remains review-only unless a Forward endpoint-resolution preflight promotes rows to `ready`.
+saved demo fixture normalizes to 100 ready rows.
 
 ## Local Workflow Smoke
 
@@ -81,10 +82,9 @@ npm run forward:package -- \
 
 ## Saved Demo Replay
 
-Use this only for isolated trial tenants that do not already have useful demo topology. This is not a production
-workflow.
+Use this for trial tenants that need the standard demo topology. This is not a production workflow.
 
-The repo includes a saved Dynatrace Playground service-dependency fixture:
+The repo includes a saved standard demo service-dependency fixture with Forward-resolvable demo endpoints:
 
 - `shared/demo-dynatrace-query-rows.json`
 - `shared/demo-dependencies.json`
@@ -118,8 +118,9 @@ All events include:
 
 - `event.provider = forward-dynatrace-demo`
 - `event.type = com.forward.demo.dependency`
-- `demo.fixture = dynatrace-playground-smartscape`
+- `demo.fixture = standard-forward-demo`
 - `demo.replay = true`
+- `demo.synthetic = true`
 - `demo.run_id = <timestamped run id>`
 
 Example DQL for verification in Dynatrace:
@@ -128,6 +129,7 @@ Example DQL for verification in Dynatrace:
 fetch events
 | filter event.provider == "forward-dynatrace-demo"
 | filter event.type == "com.forward.demo.dependency"
+| filter `demo.fixture` == "standard-forward-demo"
 | sort timestamp desc
 | limit 20
 ```

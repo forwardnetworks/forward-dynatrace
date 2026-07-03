@@ -61,6 +61,27 @@ test("renders supplied status artifact with aggregate NQE and mutation counts", 
   assert.equal(result.rows.find((row) => row.label === "Updated")?.value, "1");
 });
 
+test("treats reconciled Forward status as a ready import state", async () => {
+  const forwardStatus = await loadForwardStatus();
+  const result = await forwardStatus({
+    statusArtifact: {
+      ...statusArtifact,
+      mode: "dry-run",
+      importState: "reconciled",
+      counts: {
+        create: 0,
+        unchanged: 100,
+        changed: 0,
+        stale: 0,
+      },
+    },
+  });
+
+  assert.equal(result.status, "ready");
+  assert.equal(result.rows.find((row) => row.label === "Import state")?.value, "reconciled");
+  assert.equal(result.summary, "Forward-side ingest status is ready for Dynatrace display.");
+});
+
 test("fetches a read-only status artifact URL", async () => {
   const forwardStatus = await loadForwardStatus();
   const { server, url } = await startStatusServer(statusArtifact);

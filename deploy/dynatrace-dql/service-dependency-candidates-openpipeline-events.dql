@@ -5,6 +5,7 @@
 fetch events
 | filter event.provider == "forward-dynatrace-demo"
 | filter event.type == "com.forward.demo.dependency"
+| filter `demo.fixture` == "standard-forward-demo"
 | fields
     app.name,
     app.environment,
@@ -16,5 +17,6 @@ fetch events
     network.port,
     owner.team,
     criticality,
-    dependency.confidence
+    dependency.confidence,
+    dependency.mapping_state
 | sort app.name asc, service.name asc

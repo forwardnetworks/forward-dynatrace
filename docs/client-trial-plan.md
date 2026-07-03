@@ -29,8 +29,8 @@ validate-only import without Forward credentials.
 ## Dynatrace Trial
 
 Production path: query the customer's own Dynatrace topology, normalize it, build a Forward package, and let Forward
-import it. Saved fixture replay is a sidecar for isolated trial sandboxes only; do not use replayed demo data as the
-production source of intent.
+import it. The saved fixture replay is the standard demo-data path for trial sandboxes; do not use replayed demo data
+as the production source of intent.
 
 1. Deploy the app to the trial tenant:
 
@@ -87,7 +87,7 @@ production source of intent.
    | filter <tenant-specific dependency source>
    | fields app.name, app.environment, dt.entity.service, service.name,
        network.source, network.destination, network.protocol, network.port,
-       owner.team, criticality, dependency.confidence
+       owner.team, criticality, dependency.confidence, dependency.mapping_state
    | sort timestamp desc
    ```
 
@@ -132,10 +132,9 @@ Use only a non-production Forward network.
 
 6. Delete demo checks after the trial if they were created in a shared test network.
 
-## Demo Replay Sidecar
+## Standard Demo Replay
 
-If the trial sandbox does not yet have useful topology, replay the checked Dynatrace Playground fixture into the
-sandbox as a demo-only sidecar:
+If the trial sandbox does not yet have useful topology, replay the checked standard demo fixture into the sandbox:
 
 ```bash
 npm run dynatrace:replay-demo -- \

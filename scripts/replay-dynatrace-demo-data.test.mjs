@@ -22,6 +22,9 @@ test("dry-run replay maps Apps URL to live OpenPipeline ingest origin", () => {
   assert.equal(summary.endpoint, "/platform/ingest/v1/events");
   assert.equal(summary.requiredScope, "openpipeline:events:ingest");
   assert.equal(summary.replayEvents, 100);
+  assert.equal(summary.readyRows, 100);
+  assert.equal(summary.reviewRows, 0);
+  assert.equal(summary.needsMapRows, 0);
 });
 
 test("dry-run replay honors explicit API base override", () => {

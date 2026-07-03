@@ -1,23 +1,23 @@
 {
   "schemaVersion": "forward-dynatrace-status/v1",
   "runId": "forward-dynatrace-demo-status",
-  "finishedAt": "2026-01-01T00:00:00.000Z",
+  "finishedAt": "2026-07-03T12:49:00.000Z",
   "durationMs": 2400,
   "packageId": "dynatrace-forward-demo",
   "mode": "dry-run",
-  "importState": "needs-review",
+  "importState": "reconciled",
   "packageSignature": {
     "status": "not-provided"
   },
   "target": {
-    "networkId": "demo-network",
-    "snapshotId": "demo-snapshot"
+    "networkId": "standard-demo",
+    "snapshotId": "standard-demo-snapshot"
   },
-  "plannedChecks": 3,
+  "plannedChecks": 100,
   "counts": {
-    "create": 1,
-    "unchanged": 1,
-    "changed": 1,
+    "create": 0,
+    "unchanged": 100,
+    "changed": 0,
     "stale": 0
   }
 }

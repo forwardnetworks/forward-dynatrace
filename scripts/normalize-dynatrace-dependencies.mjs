@@ -54,6 +54,17 @@ const normalizeProtocol = (value) => {
   return normalized === "udp" ? "udp" : "tcp";
 };
 
+const normalizeMappingState = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "ready" || normalized === "review" || normalized === "needs-map") {
+    return normalized;
+  }
+  if (normalized === "needs_map" || normalized === "needs map") {
+    return "needs-map";
+  }
+  return "";
+};
+
 const mappingStateFor = ({ source, destination, protocol, port, serviceEntityId, confidence }) => {
   if (!source || !destination || !protocol || !port || !serviceEntityId) {
     return "needs-map";
@@ -83,6 +94,9 @@ export const normalizeDynatraceRows = (rows) => {
     ]);
     const protocol = normalizeProtocol(field(row, ["network.protocol", "protocol"], "tcp"));
     const port = field(row, ["network.port", "port", "destination.port"]);
+    const explicitMappingState = normalizeMappingState(
+      field(row, ["dependency.mapping_state", "mappingState", "mapping.state"]),
+    );
     const owner = field(row, ["owner.team", "owner", "team"], "unknown-owner");
     const criticality = normalizeCriticality(field(row, ["criticality", "business.criticality"], "medium"));
     const confidence = numberField(row, ["dependency.confidence", "confidence", "mapping.confidence"], 0);
@@ -115,14 +129,16 @@ export const normalizeDynatraceRows = (rows) => {
       owner,
       criticality,
       confidence,
-      mappingState: mappingStateFor({
-        source,
-        destination,
-        protocol,
-        port,
-        serviceEntityId,
-        confidence,
-      }),
+      mappingState:
+        explicitMappingState ||
+        mappingStateFor({
+          source,
+          destination,
+          protocol,
+          port,
+          serviceEntityId,
+          confidence,
+        }),
     };
   });
 };

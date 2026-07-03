@@ -37,7 +37,7 @@ imports or pulls that package.
   `config/forward-connector.signed.config.example.json`
 - Forward importer container: `Dockerfile.forward-importer`, `docs/container-runtime.md`
 - Forward connector runtime templates: `deploy/systemd/`, `deploy/kubernetes/`, `docs/connector-runtime.md`
-- Demo/test data sidecars: `docs/demo-data.md`
+- Demo/test data: `docs/demo-data.md`
 - Live demo runbook: `docs/live-demo-runbook.md`
 - Dynatrace DQL starter query: `deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql`
 - Production checklist: `docs/production-readiness.md`
@@ -193,6 +193,6 @@ npm run deploy
 ```
 
 `npm run ci` is the local equivalent of the GitHub Actions `gitops` workflow.
-`npm run dynatrace:replay-demo -- --apply` posts the checked Dynatrace Playground fixture to a trial sandbox using a
+`npm run dynatrace:replay-demo -- --apply` posts the checked standard demo fixture to a trial sandbox using a
 local Platform Token; it is dry-run by default. Production integrations should query the customer's own Dynatrace
 topology.

@@ -27,10 +27,10 @@ Options:
 Required for --apply:
   DYNATRACE_TOKEN, DYNATRACE_TOKEN_FILE, or --token-file.
 
-Uses the checked shared/demo-dependencies.json fixture and OpenPipeline events
-with Bearer auth. The Platform Token needs openpipeline:events:ingest. This is
-for demos and trial sandboxes only; production deployments should query the
-customer's own Dynatrace topology.
+Uses the checked shared/demo-dependencies.json standard demo fixture and
+OpenPipeline events with Bearer auth. The Platform Token needs
+openpipeline:events:ingest. This is for demos and trial sandboxes only;
+production deployments should query the customer's own Dynatrace topology.
 `;
 
 const parseArgs = (argv) => {
@@ -102,9 +102,9 @@ const OPENPIPELINE_EVENTS_SCOPE = "openpipeline:events:ingest";
 const toDependencyEvent = (dependency, runId, timestamp) => ({
   "event.provider": "forward-dynatrace-demo",
   "event.type": "com.forward.demo.dependency",
-  "demo.fixture": "dynatrace-playground-smartscape",
+  "demo.fixture": "standard-forward-demo",
   "demo.replay": true,
-  "demo.synthetic": false,
+  "demo.synthetic": true,
   "demo.run_id": runId,
   "dependency.id": dependency.id,
   "dependency.mapping_state": dependency.mappingState,

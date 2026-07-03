@@ -222,6 +222,20 @@ const scrollToPanel = async (page, text) => {
   await page.waitForTimeout(250);
 };
 
+const scrollToText = async (page, text, offset = 20) => {
+  await page.getByText(text, { exact: true }).first().evaluate((node, scrollOffset) => {
+    const root = document.querySelector("[data-capture-scroll-root=true]");
+    if (!root) {
+      node.scrollIntoView();
+      return;
+    }
+    const rootRect = root.getBoundingClientRect();
+    const nodeRect = node.getBoundingClientRect();
+    root.scrollTop += nodeRect.top - rootRect.top - Number(scrollOffset);
+  }, offset);
+  await page.waitForTimeout(250);
+};
+
 const capture = async (page, fileName) => {
   await page.screenshot({
     animations: "disabled",
@@ -260,7 +274,7 @@ const main = async () => {
     await scrollToPanel(page, "Forward-Centric Ingest Package");
     await capture(page, "03-forward-side-api.jpg");
 
-    await scrollToPanel(page, "Bulk intent check payload preview");
+    await scrollToText(page, "Bulk intent check payload preview", 80);
     await capture(page, "04-intent-check-payload.jpg");
 
     process.stdout.write(

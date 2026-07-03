@@ -599,6 +599,11 @@ export default function (
     };
   }
 
+  const hasHeldReviewRows = payload.dependencies.some(
+    (dependency) => dependency.mappingState === "review" &&
+      !isExportableDependency(dependency, payload.includeReviewRows),
+  );
+
   return {
     status: "ready",
     summary: hasForwardTarget
@@ -616,7 +621,13 @@ export default function (
       "Dynatrace Workflow on problem trigger or schedule can generate this package. Forward then imports it manually, or a Forward-side connector pulls it.",
     nextSteps: [
       "Export the manifest and NewNetworkCheck[] JSON package.",
-      "Run endpoint-resolution preflight for review rows before apply, or enable the review-row override deliberately.",
+      ...(hasHeldReviewRows
+        ? [
+            "Run endpoint-resolution preflight for review rows before apply, or enable the review-row override deliberately.",
+          ]
+        : [
+            "Run Forward-side validate-only and dry-run import before apply.",
+          ]),
       "Import with the Forward-side script, or let a Forward-side connector pull the package.",
       "Forward-side import resolves latest processed snapshot, reads existing checks, dedupes by name/tag, then calls /checks?bulk.",
       "Review changed or stale Dynatrace-managed checks before any update or retirement workflow.",

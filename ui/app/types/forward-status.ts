@@ -1,4 +1,10 @@
-export type ForwardImportState = "valid" | "dry-run" | "applied" | "needs-review" | "failed";
+export type ForwardImportState =
+  | "valid"
+  | "dry-run"
+  | "applied"
+  | "reconciled"
+  | "needs-review"
+  | "failed";
 
 export interface ForwardIngestStatusArtifact {
   schemaVersion: "forward-dynatrace-status/v1";
