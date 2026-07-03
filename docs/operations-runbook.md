@@ -15,8 +15,10 @@ Before enabling scheduled import, fill in these local values outside the repo:
 
 ## Manual Import
 
-1. Download `forward-dynatrace-manifest.json` and `forward-intent-checks.json`.
-2. Put both files in the Forward-controlled runtime.
+1. Download required `forward-dynatrace-manifest.json` and `forward-intent-checks.json`.
+   If the customer enabled optional NQE workflows, also download `forward-nqe-checks.json` and
+   `forward-nqe-diff-requests.json`.
+2. Put those files in the Forward-controlled runtime.
 3. Validate package integrity:
 
    ```bash
@@ -25,6 +27,8 @@ Before enabling scheduled import, fill in these local values outside the repo:
      --manifest forward-dynatrace-manifest.json \
      --validate-only
    ```
+
+   Add `--nqe-checks`, `--nqe-diff-requests`, and `--nqe-query-id-allowlist` when validating optional NQE artifacts.
 
 4. Dry-run reconciliation:
 
@@ -42,7 +46,7 @@ Before enabling scheduled import, fill in these local values outside the repo:
    ```
 
 5. Review `create`, `unchanged`, `changed`, `stale`, and rejected package rows.
-6. Apply only when `changed` and `stale` are understood:
+6. Apply missing checks only when `changed` and `stale` are understood:
 
    ```bash
    npm run forward:import -- \
@@ -53,6 +57,41 @@ Before enabling scheduled import, fill in these local values outside the repo:
      --metrics forward-import-metrics.prom \
      --status-artifact forward-ingest-status.json
    ```
+
+7. To replace changed generated checks or deactivate stale generated checks, use the optional approval-gated workflow
+   after reviewing the dry-run report:
+
+   ```bash
+   npm run forward:import -- \
+     --checks forward-intent-checks.json \
+     --manifest forward-dynatrace-manifest.json \
+     --signature forward-dynatrace-package.sig \
+     --public-key /secure/path/forward-dynatrace-public.pem \
+     --require-signature \
+     --require-approval-file approval.json \
+     --change-window-id CHG-12345 \
+     --apply \
+     --apply-updates \
+     --deactivate-stale \
+     --max-updates 10 \
+     --max-deactivations 10 \
+     --report forward-import-report.json \
+     --metrics forward-import-metrics.prom \
+     --status-artifact forward-ingest-status.json
+   ```
+
+   The approval file must name exact `dynatrace-key:*` values from the current dry-run report. Keep the approval file
+   with the import report for audit.
+
+8. Publish sanitized status for Dynatrace display:
+
+   ```bash
+   node scripts/publish-forward-status.mjs \
+     --status forward-ingest-status.json \
+     --output-dir /handoff/dynatrace-forward/latest
+   ```
+
+   Publish only the sanitized status artifact and checksum. Do not publish the full import report back to Dynatrace.
 
 ## Connector Import
 
@@ -88,12 +127,15 @@ When the deployment requires provenance:
 
 ## Rollback
 
-This importer does not delete or update checks. Rollback means:
+Default apply mode does not delete or update checks. The optional approval-gated mode can deactivate stale generated
+checks and replace changed generated checks by deleting the old generated check and creating the replacement. Rollback
+means:
 
 - stop the scheduled connector job
 - keep the package and report artifacts
 - review created checks in Forward
-- retire checks through an explicit Forward-approved workflow
+- retire or recreate checks through an explicit Forward-approved workflow
+- use the package ID, approval file, and report `mutations` section to identify affected generated checks
 
 ## Evidence To Keep
 
@@ -106,3 +148,5 @@ This importer does not delete or update checks. Rollback means:
 - sanitized status artifact
 - operator or scheduler run ID
 - created/unchanged/changed/stale counts
+- updated/deactivated mutation counts
+- approval file and change window ID when update/stale automation is used

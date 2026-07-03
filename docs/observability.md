@@ -16,17 +16,28 @@ npm run forward:import -- \
 ```
 
 The report includes run ID, timestamps, duration, package ID, package checksum, signature status, source locators,
-planned-check count, reconciliation counts, changed fields, and stale check summaries.
+planned-check count, optional NQE artifact counts, reconciliation counts, changed fields, and stale check summaries.
 
 ## Status Artifact
 
 Write `forward-ingest-status.json` when the Forward-side result needs to be shown back in Dynatrace. The artifact is
 read-only status, not an instruction channel. It uses `schemaVersion: forward-dynatrace-status/v1` and includes
 aggregate state only: run ID, package ID, mode, import state, package integrity, signature status, target IDs, counts,
-planned-check count, and duration.
+planned-check count, optional NQE check/diff counts, and duration.
 
 The status artifact intentionally excludes check names, hostnames, dependency rows, credentials, and Forward API
 response bodies. Publish it only after the Forward-side run finishes.
+
+Publish a sanitized copy into the package handoff location:
+
+```bash
+node scripts/publish-forward-status.mjs \
+  --status forward-ingest-status.json \
+  --output-dir /handoff/dynatrace-forward/latest
+```
+
+This writes `forward-ingest-status.json` and `forward-ingest-status.sha256`. Dynatrace can display that aggregate
+status by supplying the artifact or a read-only HTTPS artifact URL to the `forward-status` app function.
 
 ## Metrics
 
@@ -55,8 +66,23 @@ Start with these thresholds, then tune per deployment:
 | Repeated transient errors | Three consecutive runs with `429` or `5xx` retries. |
 | Missing signature | Any production run where `packageSignature.status` is not `verified`. |
 
+## Runtime SLO Gate
+
+Use the report and metrics output as a deployment gate:
+
+```bash
+node scripts/runtime-slo-check.mjs \
+  --report forward-import-report.json \
+  --metrics forward-import-metrics.prom \
+  --max-duration-ms 300000 \
+  --require-signature
+```
+
+The gate fails on excessive runtime duration, unresolved changed/stale drift unless `--allow-drift` is supplied,
+missing verified signature when required, or metrics that do not match the JSON report.
+
 ## Evidence Retention
 
-Retain the package manifest, intent-check JSON, signature if used, import report, metrics, and status artifact for the
-same period as other Forward-side change evidence. These artifacts are enough to explain what was planned, what was
-imported, what was unchanged, and what was held for review.
+Retain the package manifest, intent-check JSON, optional NQE artifacts, signature if used, import report, metrics, and
+status artifact for the same period as other Forward-side change evidence. These artifacts are enough to explain what
+was planned, what was imported, what was unchanged, and what was held for review.

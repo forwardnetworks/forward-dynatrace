@@ -8,6 +8,7 @@ import forwardSync from "../api/forward-sync.function.ts";
 const examples = [
   "deploy/dynatrace-workflows/forward-sync-schedule.payload.example.json",
   "deploy/dynatrace-workflows/forward-sync-problem.payload.example.json",
+  "deploy/dynatrace-workflows/forward-sync-on-demand.payload.example.json",
 ];
 
 for (const example of examples) {

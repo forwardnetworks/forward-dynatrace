@@ -13,6 +13,9 @@ docs and executable checks.
 - [docs/workflow.md](docs/workflow.md): Forward-centric workflow and screenshots.
 - [docs/dynatrace-workflow-trigger.md](docs/dynatrace-workflow-trigger.md): schedule/problem trigger payload contract.
 - [docs/forward-ingest-contract.md](docs/forward-ingest-contract.md): package and API contract.
+- [docs/forward-nqe-preview.md](docs/forward-nqe-preview.md): optional read-only Forward NQE preview workflow.
+- [docs/forward-nqe-artifacts.md](docs/forward-nqe-artifacts.md): optional NQE check and diff artifact workflow.
+- [docs/forward-api-compatibility.md](docs/forward-api-compatibility.md): Forward API version and optional NQE gates.
 - [docs/forward-importer.md](docs/forward-importer.md): manual Forward-side importer behavior.
 - [docs/production-readiness.md](docs/production-readiness.md): production checklist.
 - [docs/enterprise-hardening.md](docs/enterprise-hardening.md): enterprise hardening backlog and exit criteria.
@@ -29,7 +32,10 @@ docs and executable checks.
 - [docs/admin-operations.md](docs/admin-operations.md): audit export, config restore, disaster recovery, and access review.
 - [docs/release.md](docs/release.md): release workflow, artifacts, and checksum verification.
 - [docs/validation-matrix.md](docs/validation-matrix.md): tested, automated, and remaining validation.
-- [docs/demo-data.md](docs/demo-data.md): synthetic fixtures and optional Dynatrace seeding.
+- [docs/demo-data.md](docs/demo-data.md): synthetic fixtures and demo-only Dynatrace sidecars.
+- [docs/client-trial-plan.md](docs/client-trial-plan.md): meeting/demo rehearsal, trial tenant, and live Forward workflow.
+- [docs/live-demo-runbook.md](docs/live-demo-runbook.md): customer-owned demo path and optional sidecar execution.
+- [docs/execution-roadmap.md](docs/execution-roadmap.md): phased plan, optional NQE path, and ownership boundaries.
 - [docs/harness-engineering.md](docs/harness-engineering.md): agent-first operating model for this repo.
 - [docs/agent-guides/dynatrace-app.md](docs/agent-guides/dynatrace-app.md): detailed Dynatrace AppEngine, Strato, and SDK guidance.
 
@@ -38,8 +44,9 @@ docs and executable checks.
 - The Dynatrace app never writes to Forward and never stores Forward credentials.
 - Forward writes happen only through the manual importer or a Forward-side connector.
 - Intent packages are `NewNetworkCheck[]` JSON plus a manifest.
+- Optional NQE artifacts require Forward-owned query IDs and Forward-side allowlists.
 - Forward-side ingest validates packages, reads existing checks, reconciles, then creates missing checks only by default.
-- Changed and stale Dynatrace-managed checks are report-only until an explicit Forward policy exists.
+- Changed and stale Dynatrace-managed checks are report-only unless approval-gated mutation is enabled.
 
 ## Local Verification
 
@@ -54,7 +61,20 @@ For faster iteration:
 ```bash
 npm run repo:validate
 npm run forward:import:test
+npm run forward:nqe-artifacts:test
+npm run forward:nqe-live-smoke -- --help
+npm run forward:nqe-live-smoke:test
+npm run forward:nqe-preview:test
+npm run forward:package:test
+npm run dynatrace:query -- --help
+npm run dynatrace:copy-demo -- --help
+npm run dynatrace:normalize:test
+npm run forward:package -- --help
+npm run forward:status:test
+npm run forward:status:publish -- --help
+npm run forward:status:publish:test
 npm run release:checksums:test
+npm run demo:rehearsal
 npm run workflow:smoke
 npm run lint
 npm run build

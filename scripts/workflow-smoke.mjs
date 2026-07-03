@@ -9,6 +9,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  buildNqeChecksFromDependencies,
+  buildNqeDiffRequestsFromDependencies,
+} from "./forward-nqe-artifacts.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const demoDependenciesPath = path.join(root, "shared/demo-dependencies.json");
 const importerPath = path.join(root, "scripts/forward-import-package.mjs");
@@ -199,6 +204,24 @@ const startFakeForward = async (state) =>
 
       if (
         request.method === "GET" &&
+        url.pathname === "/package/forward-nqe-checks.json" &&
+        state.packageNqeChecksText
+      ) {
+        textJsonResponse(response, 200, state.packageNqeChecksText);
+        return;
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname === "/package/forward-nqe-diff-requests.json" &&
+        state.packageNqeDiffRequestsText
+      ) {
+        textJsonResponse(response, 200, state.packageNqeDiffRequestsText);
+        return;
+      }
+
+      if (
+        request.method === "GET" &&
         url.pathname === "/package/forward-dynatrace-package.sig"
       ) {
         textJsonResponse(response, 200, state.packageSignatureText);
@@ -249,6 +272,23 @@ const startFakeForward = async (state) =>
         return;
       }
 
+      if (
+        request.method === "DELETE" &&
+        url.pathname.startsWith("/api/snapshots/snapshot-demo/checks/")
+      ) {
+        const checkId = decodeURIComponent(url.pathname.split("/").pop() || "");
+        const before = state.existingChecks.length;
+        state.existingChecks = state.existingChecks.filter((check) => check.id !== checkId);
+        if (state.existingChecks.length === before) {
+          jsonResponse(response, 404, { error: `check not found: ${checkId}` });
+          return;
+        }
+        state.deleteCount += 1;
+        state.deletedIds.push(checkId);
+        jsonResponse(response, 200, { deleted: checkId });
+        return;
+      }
+
       jsonResponse(response, 404, { error: `${request.method} ${url.pathname}` });
     });
 
@@ -289,9 +329,10 @@ const runImporter = async (args, env = {}) =>
 
 const main = async () => {
   const dependencies = await readJson(demoDependenciesPath);
-  const checks = dependencies
-    .filter((dependency) => dependency.mappingState !== "needs-map")
-    .map(toIntentCheck);
+  const exportableDependencies = dependencies.filter(
+    (dependency) => dependency.mappingState !== "needs-map",
+  );
+  const checks = exportableDependencies.map(toIntentCheck);
   assert.equal(checks.length, 3);
 
   const workdir = await mkdtemp(path.join(tmpdir(), "forward-dynatrace-smoke-"));
@@ -299,6 +340,7 @@ const main = async () => {
   const manifestPath = path.join(workdir, "forward-dynatrace-manifest.json");
   const connectorConfigPath = path.join(workdir, "forward-connector.config.json");
   const publicKeyPath = path.join(workdir, "forward-dynatrace-public.pem");
+  const signaturePath = path.join(workdir, "forward-dynatrace-package.sig");
   const checksText = JSON.stringify(checks, null, 2) + "\n";
   const manifest = toManifest(checks, checksText);
   const manifestText = JSON.stringify(manifest, null, 2) + "\n";
@@ -312,12 +354,48 @@ const main = async () => {
   const packageSignatureText =
     sign(null, Buffer.from(signaturePayload, "utf8"), privateKey).toString("base64") +
     "\n";
+  const nqeQueryId = "FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const nqeChecks = buildNqeChecksFromDependencies(exportableDependencies, {
+    queryId: nqeQueryId,
+  });
+  const nqeDiffRequests = buildNqeDiffRequestsFromDependencies(exportableDependencies, {
+    queryId: nqeQueryId,
+    beforeSnapshotId: "snapshot-before",
+    afterSnapshotId: "snapshot-after",
+  });
+  const nqeChecksText = JSON.stringify(nqeChecks, null, 2) + "\n";
+  const nqeDiffRequestsText = JSON.stringify(nqeDiffRequests, null, 2) + "\n";
+  const manifestWithNqe = structuredClone(manifest);
+  manifestWithNqe.artifacts.nqeChecks = "forward-nqe-checks.json";
+  manifestWithNqe.artifacts.nqeDiffRequests = "forward-nqe-diff-requests.json";
+  manifestWithNqe.integrity.nqeChecksSha256 = sha256Hex(nqeChecksText);
+  manifestWithNqe.integrity.nqeDiffRequestsSha256 = sha256Hex(nqeDiffRequestsText);
+  manifestWithNqe.nqeChecks = {
+    count: nqeChecks.length,
+    checkType: "NQE",
+    payloadShape: "NewNetworkCheck[]",
+    bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk",
+    dedupeRequiredBeforePost: true,
+    dedupe: "name-or-dynatrace-key-tag",
+    queryIdPolicy: "forward-owned-allowlist",
+    parameterSource: "dynatrace-app-environment",
+  };
+  manifestWithNqe.nqeDiffRequests = {
+    count: nqeDiffRequests.length,
+    payloadShape: "ForwardDynatraceNqeDiffRequest[]",
+    endpoint: "/api/nqe-diffs/{before}/{after}",
+    queryIdPolicy: "forward-owned-allowlist",
+    executionPolicy: "read-only-forward-side-optional",
+    parameterSource: "dynatrace-app-environment",
+  };
+  const manifestWithNqeText = JSON.stringify(manifestWithNqe, null, 2) + "\n";
   await writeFile(checksPath, checksText);
   await writeFile(manifestPath, manifestText);
   await writeFile(
     publicKeyPath,
     publicKey.export({ format: "pem", type: "spki" }),
   );
+  await writeFile(signaturePath, packageSignatureText);
 
   const validation = await runImporter([
     "--checks",
@@ -335,10 +413,14 @@ const main = async () => {
     packageManifest: manifest,
     packageChecksText: checksText,
     packageManifestText: manifestText,
+    packageNqeChecksText: "",
+    packageNqeDiffRequestsText: "",
     packageSignatureText,
     bulkFailureResponses: 0,
     bulkPostCount: 0,
     bulkSizes: [],
+    deleteCount: 0,
+    deletedIds: [],
     transientBulkFailures: 0,
   };
   const { server, port } = await startFakeForward(state);
@@ -372,6 +454,23 @@ const main = async () => {
       "--validate-only",
     ]);
     assert.equal(signedPackage.packageSignature.status, "verified");
+
+    state.packageManifestText = manifestWithNqeText;
+    state.packageNqeChecksText = nqeChecksText;
+    state.packageNqeDiffRequestsText = nqeDiffRequestsText;
+    const pulledPackageWithNqe = await runImporter([
+      "--package-url",
+      `http://127.0.0.1:${port}/package`,
+      "--nqe-query-id-allowlist",
+      nqeQueryId,
+      "--validate-only",
+    ]);
+    assert.equal(pulledPackageWithNqe.status, "valid");
+    assert.equal(pulledPackageWithNqe.plannedNqeChecks, nqeChecks.length);
+    assert.equal(pulledPackageWithNqe.plannedNqeDiffRequests, nqeDiffRequests.length);
+    state.packageManifestText = manifestText;
+    state.packageNqeChecksText = "";
+    state.packageNqeDiffRequestsText = "";
 
     await writeFile(
       connectorConfigPath,
@@ -455,6 +554,8 @@ const main = async () => {
     state.bulkSizes = [];
     state.transientBulkFailures = 0;
     state.bulkFailureResponses = 0;
+    state.deleteCount = 0;
+    state.deletedIds = [];
 
     const dryRun = await runImporter(["--checks", checksPath, "--manifest", manifestPath], env);
     assert.equal(dryRun.packageId, manifest.packageId);
@@ -506,6 +607,61 @@ const main = async () => {
     );
     const stale = await runImporter(["--checks", checksPath, "--manifest", manifestPath], env);
     assert.equal(stale.counts.stale, 1);
+
+    state.existingChecks[0].definition.filters.from.headers[1].values.tp_dst = ["9443"];
+    const approvalPath = path.join(workdir, "forward-approval.json");
+    await writeFile(
+      approvalPath,
+      JSON.stringify(
+        {
+          schemaVersion: "forward-dynatrace-approval/v1",
+          packageId: manifest.packageId,
+          changeWindowId: "CHG-demo",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          approvedBy: "workflow-smoke",
+          reason: "exercise approved update and retirement workflow",
+          approvedChangedKeys: [checks[0].tags.find((tag) => tag.startsWith("dynatrace-key:"))],
+          approvedStaleKeys: ["dynatrace-key:dt:stale:demo"],
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+
+    const approvedApply = await runImporter([
+      "--checks",
+      checksPath,
+      "--manifest",
+      manifestPath,
+      "--apply",
+      "--apply-updates",
+      "--deactivate-stale",
+      "--require-signature",
+      "--signature",
+      signaturePath,
+      "--public-key",
+      publicKeyPath,
+      "--require-approval-file",
+      approvalPath,
+      "--change-window-id",
+      "CHG-demo",
+      "--max-updates",
+      "1",
+      "--max-deactivations",
+      "1",
+      "--fail-on-drift",
+    ], env);
+    assert.equal(approvedApply.counts.changed, 1);
+    assert.equal(approvedApply.counts.stale, 1);
+    assert.equal(approvedApply.unresolvedCounts.changed, 0);
+    assert.equal(approvedApply.unresolvedCounts.stale, 0);
+    assert.deepEqual(approvedApply.mutationCounts, {
+      created: 0,
+      updated: 1,
+      deactivated: 1,
+    });
+    assert.equal(state.deleteCount, 2);
+    assert.equal(state.existingChecks.length, 3);
   } finally {
     await new Promise((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()));

@@ -32,7 +32,8 @@ This model covers the Forward Field Integration reference trust boundary.
 | Credential leak through config | Connector config validator rejects user/password/token fields. |
 | Customer data leak through repo | Repo validation blocks tokens, tenant URLs, local paths, emails, and legacy unsafe paths. |
 | Duplicate or conflicting checks | Importer rejects duplicate names and duplicate `dynatrace-key:*` tags. |
-| Wrong check update | Default policy creates missing checks only; changed and stale checks are report-only. |
+| Unapproved NQE query execution | Optional NQE artifacts require committed Forward query IDs in the runtime allowlist. |
+| Wrong check update | Default policy creates missing checks only; optional update/stale automation requires signed package verification, exact approval, and mutation budgets. |
 | Bulk API partial failure | Import report keeps counts and planned creates; rerun dry-run before retrying apply. |
 | Excessive API retry pressure | Bounded retry budget and configurable batch size. |
 
@@ -40,5 +41,5 @@ This model covers the Forward Field Integration reference trust boundary.
 
 - Package handoff storage is not implemented in this repo; operators must choose an access-logged, restricted location.
 - The Forward-side runtime is not packaged as a managed service; scheduler ownership must be assigned per deployment.
-- Update and stale-check retirement workflows need explicit Forward approval before automation.
+- Update and stale-check automation needs customer-owned approval and runtime ownership before production use.
 - Branch protection and release signing must be configured in GitHub org settings outside this repository.

@@ -139,7 +139,7 @@
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
 }
 
@@ -297,14 +297,16 @@
 }
 
 .chip.review,
-.result-status.unknown {
+.result-status.unknown,
+.result-status.planned {
   color: #815500;
   background: #fff1cf;
 }
 
 .chip.needs-map,
 .result-status.fail,
-.result-status.blocked {
+.result-status.blocked,
+.result-status.failed {
   color: #8a1f11;
   background: #ffe1dc;
 }
@@ -455,6 +457,19 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.status-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.status-actions span {
+  color: #60717d;
+  font-size: 13px;
 }
 
 .readiness-grid {

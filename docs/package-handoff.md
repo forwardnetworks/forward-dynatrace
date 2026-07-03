@@ -8,6 +8,7 @@ read-only from the importer perspective and must keep enough evidence to replay 
 - HTTPS-only retrieval outside local tests.
 - Immutable package path per package ID.
 - Stable `latest/` pointer only after manifest, intent checks, and optional signature are fully written.
+- Optional NQE artifacts are written before the manifest points to them.
 - Object retention aligned with Forward change evidence retention.
 - Access logs for reads and writes.
 - Write access limited to the Dynatrace package publisher or approved CI job.
@@ -22,11 +23,16 @@ dynatrace-forward/
     <package-id>/
       forward-dynatrace-manifest.json
       forward-intent-checks.json
+      forward-nqe-checks.json
+      forward-nqe-diff-requests.json
       forward-dynatrace-package.sig
       forward-ingest-status.json
+      forward-ingest-status.sha256
   latest/
     forward-dynatrace-manifest.json
     forward-intent-checks.json
+    forward-nqe-checks.json
+    forward-nqe-diff-requests.json
     forward-dynatrace-package.sig
 ```
 
@@ -35,12 +41,20 @@ Use immutable package ID paths for audit. Use `latest/` only for scheduled conne
 ## Publish Order
 
 1. Write intent checks to the immutable package ID path.
-2. Write manifest to the immutable package ID path.
-3. Write detached signature when signing is enabled.
-4. Verify checksum and signature from the handoff location.
-5. Update `latest/` atomically or by pointer after verification.
-6. Let the Forward-side importer pull from the immutable package URL or from `latest/`.
-7. Publish sanitized `forward-ingest-status.json` only after Forward-side ingest finishes.
+2. Write optional NQE checks and NQE diff requests to the immutable package ID path.
+3. Write manifest to the immutable package ID path after all referenced artifacts exist.
+4. Write detached signature when signing is enabled.
+5. Verify checksum and signature from the handoff location.
+6. Update `latest/` atomically or by pointer after verification.
+7. Let the Forward-side importer pull from the immutable package URL or from `latest/`.
+8. Publish sanitized `forward-ingest-status.json` and `forward-ingest-status.sha256` only after Forward-side ingest
+   finishes:
+
+   ```bash
+   node scripts/publish-forward-status.mjs \
+     --status forward-ingest-status.json \
+     --output-dir /handoff/dynatrace-forward/latest
+   ```
 
 ## Storage Options
 

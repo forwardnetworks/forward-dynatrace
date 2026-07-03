@@ -5,6 +5,14 @@ import { readFile, writeFile } from "node:fs/promises";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
+import {
+  DEFAULT_NQE_CHECKS_PATH,
+  DEFAULT_NQE_DIFF_REQUESTS_PATH,
+  parseQueryIdAllowlist,
+  validateNqeChecks,
+  validateNqeDiffRequests,
+} from "./forward-nqe-artifacts.mjs";
+
 const DEFAULT_CHECKS_PATH = "forward-intent-checks.json";
 const DEFAULT_MANIFEST_FILE_NAME = "forward-dynatrace-manifest.json";
 const DEFAULT_SIGNATURE_FILE_NAME = "forward-dynatrace-package.sig";
@@ -13,6 +21,7 @@ const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_MAX_PACKAGE_AGE_MINUTES = 24 * 60;
 const PACKAGE_SCHEMA_VERSION = "forward-dynatrace/v1";
 const PACKAGE_TYPE = "forward-intent-import";
+const APPROVAL_SCHEMA_VERSION = "forward-dynatrace-approval/v1";
 const TRANSIENT_STATUS_CODES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
 const ALLOWED_CHECK_TYPES = new Set(["Existential"]);
 const LOCAL_HTTP_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
@@ -33,20 +42,39 @@ Usage:
   node scripts/forward-import-package.mjs --package-url https://package.example.com/dynatrace-forward/latest/ --report forward-import-report.json
 
 Options:
-  --apply              Create missing checks. Changed and stale checks are still report-only.
+  --apply              Create missing checks.
+  --apply-updates      Replace approved changed generated checks. Requires --apply,
+                       --require-signature, and --require-approval-file.
   --batch-size 500     Batch size for /checks?bulk.
+  --change-window-id id
+                       Require approval file to match this change window ID.
   --checks-url url      Pull forward-intent-checks.json from a read-only HTTPS URL.
   --config path         Load non-secret connector/importer settings from JSON.
+  --deactivate-stale   Deactivate approved stale generated checks. Requires --apply,
+                       --require-signature, and --require-approval-file.
   --fail-on-drift      Exit non-zero when changed or stale Dynatrace-managed checks are found.
   --manifest path      Validate the package manifest before importing.
   --manifest-url url    Pull forward-dynatrace-manifest.json from a read-only HTTPS URL.
+  --max-deactivations 0
+                       Maximum approved stale checks to deactivate.
   --max-package-age-minutes 1440
                        Reject manifests older than this age.
   --max-retries 3      Retry count for transient Forward API responses.
+  --max-updates 0      Maximum approved changed checks to replace.
   --metrics path       Write Prometheus-style import metrics to a text file.
+  --nqe-checks path     Optional forward-nqe-checks.json artifact.
+  --nqe-checks-url url  Pull optional forward-nqe-checks.json from HTTPS URL.
+  --nqe-diff-requests path
+                       Optional forward-nqe-diff-requests.json artifact to validate/report.
+  --nqe-diff-requests-url url
+                       Pull optional NQE diff requests artifact from HTTPS URL.
+  --nqe-query-id-allowlist FQ_...,FQ_...
+                       Approved Forward-owned query IDs for optional NQE artifacts.
   --package-url url     Pull manifest and checks from a base URL.
   --public-key path     Verify detached Ed25519 package signature with PEM public key.
   --public-key-url url   Pull detached-signature public key from HTTPS URL.
+  --require-approval-file path
+                       Approval artifact for exact changed/stale dynatrace keys.
   --require-signature   Reject package unless signature and public key are supplied.
   --report path        Write the reconciliation report to a JSON file.
   --signature path      Verify detached package signature.
@@ -55,27 +83,39 @@ Options:
                        Write sanitized read-only ingest status JSON for Dynatrace display.
   --validate-only      Validate package shape without contacting Forward.
 
-The default mode is dry-run. The apply policy is create-missing-only. Non-local
+The default mode is dry-run. The default apply policy is create-missing-only.
+Approved update/stale actions are an optional Forward-side path. Non-local
 package URLs must use HTTPS.
 `;
 
 const SUPPORTED_ARGS = new Set([
   "_",
   "apply",
+  "apply-updates",
   "batch-size",
+  "change-window-id",
   "checks",
   "checks-url",
   "config",
+  "deactivate-stale",
   "fail-on-drift",
   "help",
   "manifest",
   "manifest-url",
+  "max-deactivations",
   "max-package-age-minutes",
   "max-retries",
+  "max-updates",
   "metrics",
+  "nqe-checks",
+  "nqe-checks-url",
+  "nqe-diff-requests",
+  "nqe-diff-requests-url",
+  "nqe-query-id-allowlist",
   "package-url",
   "public-key",
   "public-key-url",
+  "require-approval-file",
   "require-signature",
   "report",
   "signature",
@@ -95,6 +135,8 @@ const parseArgs = (argv) => {
     const key = value.slice(2);
     if (
       key === "apply" ||
+      key === "apply-updates" ||
+      key === "deactivate-stale" ||
       key === "fail-on-drift" ||
       key === "help" ||
       key === "require-signature" ||
@@ -136,6 +178,29 @@ const validateArgs = (args) => {
   }
   if (args["public-key"] && args["public-key-url"]) {
     throw new Error("Use either --public-key or --public-key-url, not both.");
+  }
+  if (args["nqe-checks"] && args["nqe-checks-url"]) {
+    throw new Error("Use either --nqe-checks or --nqe-checks-url, not both.");
+  }
+  if (args["nqe-diff-requests"] && args["nqe-diff-requests-url"]) {
+    throw new Error(
+      "Use either --nqe-diff-requests or --nqe-diff-requests-url, not both.",
+    );
+  }
+};
+
+const validatePolicyArgs = (args) => {
+  const hasMutationFlag = Boolean(args["apply-updates"] || args["deactivate-stale"]);
+  if (hasMutationFlag && !args.apply) {
+    throw new Error("--apply-updates and --deactivate-stale require --apply.");
+  }
+  if (hasMutationFlag && !args["require-signature"]) {
+    throw new Error("--apply-updates and --deactivate-stale require --require-signature.");
+  }
+  if (hasMutationFlag && !args["require-approval-file"]) {
+    throw new Error(
+      "--apply-updates and --deactivate-stale require --require-approval-file.",
+    );
   }
 };
 
@@ -220,17 +285,28 @@ const readJsonFromLocator = async (locator, label) => {
 const CONNECTOR_CONFIG_SCHEMA_VERSION = "forward-dynatrace-connector/v1";
 const CONNECTOR_CONFIG_KEYS = new Set([
   "apply",
+  "applyUpdates",
+  "approvalFile",
   "batchSize",
+  "changeWindowId",
   "checks",
   "checksUrl",
+  "deactivateStale",
   "failOnDrift",
   "forwardBaseUrl",
   "forwardNetworkId",
   "manifest",
   "manifestUrl",
+  "maxDeactivations",
   "maxPackageAgeMinutes",
   "maxRetries",
+  "maxUpdates",
   "metricsPath",
+  "nqeChecks",
+  "nqeChecksUrl",
+  "nqeDiffRequests",
+  "nqeDiffRequestsUrl",
+  "nqeQueryIdAllowlist",
   "packageUrl",
   "publicKey",
   "publicKeyUrl",
@@ -283,8 +359,15 @@ export const validateConnectorConfig = (config) => {
 
   for (const [key, value] of Object.entries({
     checks: config.checks,
+    approvalFile: config.approvalFile,
+    changeWindowId: config.changeWindowId,
     manifest: config.manifest,
     metricsPath: config.metricsPath,
+    nqeChecks: config.nqeChecks,
+    nqeChecksUrl: config.nqeChecksUrl,
+    nqeDiffRequests: config.nqeDiffRequests,
+    nqeDiffRequestsUrl: config.nqeDiffRequestsUrl,
+    nqeQueryIdAllowlist: config.nqeQueryIdAllowlist,
     forwardNetworkId: config.forwardNetworkId,
     publicKey: config.publicKey,
     reportPath: config.reportPath,
@@ -298,6 +381,8 @@ export const validateConnectorConfig = (config) => {
 
   for (const [key, value] of Object.entries({
     apply: config.apply,
+    applyUpdates: config.applyUpdates,
+    deactivateStale: config.deactivateStale,
     failOnDrift: config.failOnDrift,
     requireSignature: config.requireSignature,
     validateOnly: config.validateOnly,
@@ -309,8 +394,10 @@ export const validateConnectorConfig = (config) => {
 
   for (const [key, value] of Object.entries({
     batchSize: config.batchSize,
+    maxDeactivations: config.maxDeactivations,
     maxPackageAgeMinutes: config.maxPackageAgeMinutes,
     maxRetries: config.maxRetries,
+    maxUpdates: config.maxUpdates,
   })) {
     if (value !== undefined && (!Number.isInteger(value) || value < 0)) {
       errors.push(`${key} must be a non-negative integer when supplied.`);
@@ -330,17 +417,34 @@ export const validateConnectorConfig = (config) => {
 
 const toArgsFromConnectorConfig = (config) => ({
   ...(config.apply ? { apply: true } : {}),
+  ...(config.applyUpdates ? { "apply-updates": true } : {}),
+  ...(config.approvalFile ? { "require-approval-file": config.approvalFile } : {}),
   ...(config.batchSize !== undefined ? { "batch-size": String(config.batchSize) } : {}),
+  ...(config.changeWindowId ? { "change-window-id": config.changeWindowId } : {}),
   ...(config.checks ? { checks: config.checks } : {}),
   ...(config.checksUrl ? { "checks-url": config.checksUrl } : {}),
+  ...(config.deactivateStale ? { "deactivate-stale": true } : {}),
   ...(config.failOnDrift ? { "fail-on-drift": true } : {}),
   ...(config.manifest ? { manifest: config.manifest } : {}),
   ...(config.manifestUrl ? { "manifest-url": config.manifestUrl } : {}),
+  ...(config.maxDeactivations !== undefined
+    ? { "max-deactivations": String(config.maxDeactivations) }
+    : {}),
   ...(config.maxPackageAgeMinutes !== undefined
     ? { "max-package-age-minutes": String(config.maxPackageAgeMinutes) }
     : {}),
   ...(config.maxRetries !== undefined ? { "max-retries": String(config.maxRetries) } : {}),
+  ...(config.maxUpdates !== undefined ? { "max-updates": String(config.maxUpdates) } : {}),
   ...(config.metricsPath ? { metrics: config.metricsPath } : {}),
+  ...(config.nqeChecks ? { "nqe-checks": config.nqeChecks } : {}),
+  ...(config.nqeChecksUrl ? { "nqe-checks-url": config.nqeChecksUrl } : {}),
+  ...(config.nqeDiffRequests ? { "nqe-diff-requests": config.nqeDiffRequests } : {}),
+  ...(config.nqeDiffRequestsUrl
+    ? { "nqe-diff-requests-url": config.nqeDiffRequestsUrl }
+    : {}),
+  ...(config.nqeQueryIdAllowlist
+    ? { "nqe-query-id-allowlist": config.nqeQueryIdAllowlist }
+    : {}),
   ...(config.packageUrl ? { "package-url": config.packageUrl } : {}),
   ...(config.publicKey ? { "public-key": config.publicKey } : {}),
   ...(config.publicKeyUrl ? { "public-key-url": config.publicKeyUrl } : {}),
@@ -385,6 +489,13 @@ const toMetricsText = (report) => {
   for (const [result, value] of Object.entries(report.counts || {})) {
     lines.push(toMetricLine("forward_dynatrace_import_result_count", value, { result }));
   }
+  lines.push(
+    "# HELP forward_dynatrace_import_mutation_count Forward mutation counts performed by the importer.",
+    "# TYPE forward_dynatrace_import_mutation_count gauge",
+  );
+  for (const [mutation, value] of Object.entries(report.mutationCounts || {})) {
+    lines.push(toMetricLine("forward_dynatrace_import_mutation_count", value, { mutation }));
+  }
 
   lines.push(
     "# HELP forward_dynatrace_import_duration_ms Import runtime duration in milliseconds.",
@@ -406,14 +517,35 @@ const toImportState = (report) => {
   if (report.status === "valid") {
     return "valid";
   }
-  if (report.counts?.changed > 0 || report.counts?.stale > 0) {
+  const unresolvedChanged = report.unresolvedCounts?.changed ?? report.counts?.changed ?? 0;
+  const unresolvedStale = report.unresolvedCounts?.stale ?? report.counts?.stale ?? 0;
+  if (unresolvedChanged > 0 || unresolvedStale > 0) {
     return "needs-review";
   }
-  if (report.mode === "apply" && report.counts?.create > 0) {
+  if (
+    report.mode === "apply" &&
+    ((report.counts?.create || 0) > 0 ||
+      (report.mutationCounts?.updated || 0) > 0 ||
+      (report.mutationCounts?.deactivated || 0) > 0)
+  ) {
     return "applied";
   }
   return "reconciled";
 };
+
+const toApprovalSummary = (approval) =>
+  approval
+    ? {
+        schemaVersion: approval.schemaVersion,
+        packageId: approval.packageId,
+        changeWindowId: approval.changeWindowId,
+        expiresAt: approval.expiresAt,
+        approvedBy: approval.approvedBy,
+        reason: approval.reason,
+        approvedChangedCount: approval.approvedChangedKeys.length,
+        approvedStaleCount: approval.approvedStaleKeys.length,
+      }
+    : null;
 
 export const toStatusArtifact = (report) => ({
   schemaVersion: "forward-dynatrace-status/v1",
@@ -437,7 +569,28 @@ export const toStatusArtifact = (report) => ({
     changed: 0,
     stale: 0,
   },
+  unresolvedCounts: report.unresolvedCounts || {
+    changed: report.counts?.changed || 0,
+    stale: report.counts?.stale || 0,
+  },
+  mutationCounts: report.mutationCounts || {
+    created: 0,
+    updated: 0,
+    deactivated: 0,
+  },
+  approval: report.approval
+    ? {
+        schemaVersion: report.approval.schemaVersion,
+        packageId: report.approval.packageId,
+        changeWindowId: report.approval.changeWindowId,
+        expiresAt: report.approval.expiresAt,
+        approvedChangedCount: report.approval.approvedChangedCount,
+        approvedStaleCount: report.approval.approvedStaleCount,
+      }
+    : null,
   plannedChecks: report.plannedChecks,
+  plannedNqeChecks: report.plannedNqeChecks || 0,
+  plannedNqeDiffRequests: report.plannedNqeDiffRequests || 0,
   durationMs: report.durationMs,
 });
 
@@ -457,6 +610,21 @@ const resolvePackageLocators = (args) => {
   };
 };
 
+const resolveOptionalPackageLocators = (args, manifest) => ({
+  nqeChecks:
+    args["nqe-checks-url"] ||
+    args["nqe-checks"] ||
+    (args["package-url"] && manifest?.artifacts?.nqeChecks
+      ? joinUrl(args["package-url"], manifest.artifacts.nqeChecks)
+      : undefined),
+  nqeDiffRequests:
+    args["nqe-diff-requests-url"] ||
+    args["nqe-diff-requests"] ||
+    (args["package-url"] && manifest?.artifacts?.nqeDiffRequests
+      ? joinUrl(args["package-url"], manifest.artifacts.nqeDiffRequests)
+      : undefined),
+});
+
 const resolveSignatureLocators = (args) => {
   const signature =
     args["signature-url"] ||
@@ -471,11 +639,19 @@ const resolveSignatureLocators = (args) => {
   };
 };
 
-export const packageSigningPayload = ({ checksText, manifestText }) =>
+export const packageSigningPayload = ({
+  checksText,
+  manifestText,
+  extraArtifacts = {},
+}) =>
   [
     "forward-dynatrace-package-signature/v1",
     `manifest-sha256:${sha256Hex(manifestText)}`,
     `checks-sha256:${sha256Hex(checksText)}`,
+    ...Object.entries(extraArtifacts)
+      .filter(([, text]) => text !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([label, text]) => `${label}-sha256:${sha256Hex(text)}`),
     "",
   ].join("\n");
 
@@ -484,6 +660,7 @@ export const verifyPackageSignature = ({
   manifestText,
   publicKeyText,
   signatureText,
+  extraArtifacts,
 }) => {
   const signatureBytes = Buffer.from(signatureText.trim(), "base64");
   if (signatureBytes.length === 0) {
@@ -491,7 +668,10 @@ export const verifyPackageSignature = ({
   }
   const ok = verifySignature(
     null,
-    Buffer.from(packageSigningPayload({ checksText, manifestText }), "utf8"),
+    Buffer.from(
+      packageSigningPayload({ checksText, manifestText, extraArtifacts }),
+      "utf8",
+    ),
     publicKeyText,
     signatureBytes,
   );
@@ -660,6 +840,43 @@ export const reconcileChecks = (plannedChecks, existingChecks) => {
   return { create, unchanged, changed, stale };
 };
 
+const annotateReconciliation = (reconciliation, artifactType) => ({
+  create: reconciliation.create.map((item) => ({ ...item, artifactType })),
+  unchanged: reconciliation.unchanged.map((item) => ({ ...item, artifactType })),
+  changed: reconciliation.changed.map((item) => ({ ...item, artifactType })),
+  stale: reconciliation.stale.map((item) => ({ ...item, artifactType })),
+});
+
+const mergeReconciliations = (...reconciliations) => ({
+  create: reconciliations.flatMap((reconciliation) => reconciliation.create),
+  unchanged: reconciliations.flatMap((reconciliation) => reconciliation.unchanged),
+  changed: reconciliations.flatMap((reconciliation) => reconciliation.changed),
+  stale: reconciliations.flatMap((reconciliation) => reconciliation.stale),
+});
+
+const validateNoCrossArtifactDuplicates = (intentChecks, nqeChecks) => {
+  const intentNames = new Set(intentChecks.map((check) => check.name).filter(Boolean));
+  const intentKeys = new Set(intentChecks.map(reconciliationKey).filter(Boolean));
+  const duplicateNames = nqeChecks
+    .map((check) => check.name)
+    .filter((name) => name && intentNames.has(name));
+  const duplicateKeys = nqeChecks
+    .map(reconciliationKey)
+    .filter((key) => key && intentKeys.has(key));
+
+  if (duplicateNames.length > 0 || duplicateKeys.length > 0) {
+    throw new Error(
+      [
+        "Optional NQE checks must not duplicate intent-check names or dynatrace keys.",
+        duplicateNames.length > 0 ? `Duplicate names: ${duplicateNames.join(", ")}` : "",
+        duplicateKeys.length > 0 ? `Duplicate keys: ${duplicateKeys.join(", ")}` : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
+  }
+};
+
 const makeClient = ({ baseUrl, user, password, maxRetries }) => {
   const auth = Buffer.from(`${user}:${password}`).toString("base64");
   const root = baseUrl.replace(/\/+$/, "");
@@ -722,6 +939,184 @@ const requireObject = (value, label, errors) => {
     return false;
   }
   return true;
+};
+
+const exactDynatraceKeyArray = (approval, key, errors) => {
+  const value = approval[key] === undefined ? [] : approval[key];
+  if (!Array.isArray(value)) {
+    errors.push(`${key} must be an array when supplied.`);
+    return [];
+  }
+
+  const seen = new Set();
+  value.forEach((item, index) => {
+    if (!requireString(item)) {
+      errors.push(`${key}[${index}] must be a non-empty string.`);
+    } else if (!item.startsWith("dynatrace-key:")) {
+      errors.push(`${key}[${index}] must start with dynatrace-key:.`);
+    } else if (hasWhitespace(item)) {
+      errors.push(`${key}[${index}] must not contain whitespace.`);
+    } else if (seen.has(item)) {
+      errors.push(`${key}[${index}] duplicates an earlier key.`);
+    } else {
+      seen.add(item);
+    }
+  });
+  return [...seen];
+};
+
+export const validateApprovalFile = (
+  approval,
+  {
+    packageId,
+    changeWindowId,
+    now = new Date(),
+  } = {},
+) => {
+  const errors = [];
+  if (!requireObject(approval, "approval", errors)) {
+    throw new Error(
+      `Invalid Forward approval file:\n${errors.map((error) => `- ${error}`).join("\n")}`,
+    );
+  }
+
+  const allowedKeys = new Set([
+    "approvedBy",
+    "approvedChangedKeys",
+    "approvedStaleKeys",
+    "changeWindowId",
+    "expiresAt",
+    "packageId",
+    "reason",
+    "schemaVersion",
+  ]);
+  for (const key of Object.keys(approval)) {
+    if (!allowedKeys.has(key)) {
+      errors.push(`Unsupported approval field: ${key}.`);
+    }
+  }
+
+  if (approval.schemaVersion !== APPROVAL_SCHEMA_VERSION) {
+    errors.push(`schemaVersion must be ${APPROVAL_SCHEMA_VERSION}.`);
+  }
+  if (!requireString(approval.packageId)) {
+    errors.push("packageId is required.");
+  } else if (packageId && approval.packageId !== packageId) {
+    errors.push(`packageId must match manifest packageId ${packageId}.`);
+  }
+  if (changeWindowId && approval.changeWindowId !== changeWindowId) {
+    errors.push(`changeWindowId must match ${changeWindowId}.`);
+  }
+  if (approval.changeWindowId !== undefined && !requireString(approval.changeWindowId)) {
+    errors.push("changeWindowId must be a non-empty string when supplied.");
+  }
+  if (approval.approvedBy !== undefined && !requireString(approval.approvedBy)) {
+    errors.push("approvedBy must be a non-empty string when supplied.");
+  }
+  if (approval.reason !== undefined && !requireString(approval.reason)) {
+    errors.push("reason must be a non-empty string when supplied.");
+  }
+
+  if (!requireString(approval.expiresAt)) {
+    errors.push("expiresAt is required.");
+  } else {
+    const expiresAtMs = Date.parse(approval.expiresAt);
+    if (!Number.isFinite(expiresAtMs)) {
+      errors.push("expiresAt must be an ISO timestamp.");
+    } else if (expiresAtMs <= now.getTime()) {
+      errors.push("expiresAt must be in the future.");
+    }
+  }
+
+  const approvedChangedKeys = exactDynatraceKeyArray(
+    approval,
+    "approvedChangedKeys",
+    errors,
+  );
+  const approvedStaleKeys = exactDynatraceKeyArray(
+    approval,
+    "approvedStaleKeys",
+    errors,
+  );
+
+  if (errors.length > 0) {
+    throw new Error(
+      `Invalid Forward approval file:\n${errors
+        .map((error) => `- ${error}`)
+        .join("\n")}`,
+    );
+  }
+
+  return {
+    schemaVersion: APPROVAL_SCHEMA_VERSION,
+    packageId: approval.packageId,
+    changeWindowId: approval.changeWindowId || null,
+    expiresAt: approval.expiresAt,
+    approvedBy: approval.approvedBy || null,
+    reason: approval.reason || null,
+    approvedChangedKeys,
+    approvedStaleKeys,
+  };
+};
+
+const assertApprovalKeysMatchCurrentDrift = (approvedKeys, currentKeys, label) => {
+  const unknownKeys = approvedKeys.filter((key) => !currentKeys.has(key));
+  if (unknownKeys.length > 0) {
+    throw new Error(
+      `${label} approval references key(s) not present in current reconciliation: ${unknownKeys.join(", ")}`,
+    );
+  }
+};
+
+export const planApprovedMutations = (
+  reconciliation,
+  approval,
+  {
+    applyUpdates = false,
+    deactivateStale = false,
+    maxUpdates = 0,
+    maxDeactivations = 0,
+  } = {},
+) => {
+  const approvedChangedKeys = new Set(approval?.approvedChangedKeys || []);
+  const approvedStaleKeys = new Set(approval?.approvedStaleKeys || []);
+  const currentChangedKeys = new Set(reconciliation.changed.map((item) => item.key));
+  const currentStaleKeys = new Set(reconciliation.stale.map((item) => item.key));
+
+  if (applyUpdates) {
+    assertApprovalKeysMatchCurrentDrift(
+      [...approvedChangedKeys],
+      currentChangedKeys,
+      "Changed-check",
+    );
+  }
+  if (deactivateStale) {
+    assertApprovalKeysMatchCurrentDrift(
+      [...approvedStaleKeys],
+      currentStaleKeys,
+      "Stale-check",
+    );
+  }
+
+  const update = applyUpdates
+    ? reconciliation.changed.filter((item) => approvedChangedKeys.has(item.key))
+    : [];
+  const deactivate = deactivateStale
+    ? reconciliation.stale.filter((item) => approvedStaleKeys.has(item.key))
+    : [];
+
+  if (update.length > maxUpdates) {
+    throw new Error(
+      `Approved update count ${update.length} exceeds --max-updates ${maxUpdates}.`,
+    );
+  }
+  if (deactivate.length > maxDeactivations) {
+    throw new Error(
+      `Approved deactivation count ${deactivate.length} exceeds --max-deactivations ${maxDeactivations}.`,
+    );
+  }
+
+  return { update, deactivate };
 };
 
 export const validatePlannedChecks = (checks) => {
@@ -801,6 +1196,10 @@ export const validateManifest = (
   plannedChecks,
   {
     checksText,
+    nqeChecks = [],
+    nqeChecksText,
+    nqeDiffRequests = [],
+    nqeDiffRequestsText,
     maxPackageAgeMinutes = DEFAULT_MAX_PACKAGE_AGE_MINUTES,
   } = {},
 ) => {
@@ -848,6 +1247,20 @@ export const validateManifest = (
     if (manifest.artifacts.manifest !== DEFAULT_MANIFEST_FILE_NAME) {
       errors.push(`manifest.artifacts.manifest must be ${DEFAULT_MANIFEST_FILE_NAME}.`);
     }
+    if (
+      nqeChecks.length > 0 &&
+      manifest.artifacts.nqeChecks !== DEFAULT_NQE_CHECKS_PATH
+    ) {
+      errors.push(`manifest.artifacts.nqeChecks must be ${DEFAULT_NQE_CHECKS_PATH}.`);
+    }
+    if (
+      nqeDiffRequests.length > 0 &&
+      manifest.artifacts.nqeDiffRequests !== DEFAULT_NQE_DIFF_REQUESTS_PATH
+    ) {
+      errors.push(
+        `manifest.artifacts.nqeDiffRequests must be ${DEFAULT_NQE_DIFF_REQUESTS_PATH}.`,
+      );
+    }
   }
 
   if (requireObject(manifest.integrity, "manifest.integrity", errors)) {
@@ -861,6 +1274,28 @@ export const validateManifest = (
       manifest.integrity.intentChecksSha256 !== sha256Hex(checksText)
     ) {
       errors.push("manifest.integrity.intentChecksSha256 does not match forward-intent-checks.json.");
+    }
+    if (nqeChecks.length > 0) {
+      if (!/^[a-f0-9]{64}$/.test(manifest.integrity.nqeChecksSha256 || "")) {
+        errors.push("manifest.integrity.nqeChecksSha256 must be a SHA-256 hex digest.");
+      } else if (
+        nqeChecksText !== undefined &&
+        manifest.integrity.nqeChecksSha256 !== sha256Hex(nqeChecksText)
+      ) {
+        errors.push("manifest.integrity.nqeChecksSha256 does not match forward-nqe-checks.json.");
+      }
+    }
+    if (nqeDiffRequests.length > 0) {
+      if (!/^[a-f0-9]{64}$/.test(manifest.integrity.nqeDiffRequestsSha256 || "")) {
+        errors.push("manifest.integrity.nqeDiffRequestsSha256 must be a SHA-256 hex digest.");
+      } else if (
+        nqeDiffRequestsText !== undefined &&
+        manifest.integrity.nqeDiffRequestsSha256 !== sha256Hex(nqeDiffRequestsText)
+      ) {
+        errors.push(
+          "manifest.integrity.nqeDiffRequestsSha256 does not match forward-nqe-diff-requests.json.",
+        );
+      }
     }
   }
 
@@ -881,6 +1316,65 @@ export const validateManifest = (
     }
     if (manifest.intentChecks.dedupeRequiredBeforePost !== true) {
       errors.push("manifest.intentChecks.dedupeRequiredBeforePost must be true.");
+    }
+  }
+
+  if (manifest.nqeChecks || nqeChecks.length > 0) {
+    if (requireObject(manifest.nqeChecks, "manifest.nqeChecks", errors)) {
+      if (manifest.nqeChecks.count !== nqeChecks.length) {
+        errors.push(
+          `manifest.nqeChecks.count ${manifest.nqeChecks.count} does not match package count ${nqeChecks.length}.`,
+        );
+      }
+      if (manifest.nqeChecks.payloadShape !== "NewNetworkCheck[]") {
+        errors.push("manifest.nqeChecks.payloadShape must be NewNetworkCheck[].");
+      }
+      if (manifest.nqeChecks.checkType !== "NQE") {
+        errors.push("manifest.nqeChecks.checkType must be NQE.");
+      }
+      if (manifest.nqeChecks.bulkEndpoint !== "/api/snapshots/{snapshotId}/checks?bulk") {
+        errors.push("manifest.nqeChecks.bulkEndpoint must target /checks?bulk.");
+      }
+      if (manifest.nqeChecks.dedupeRequiredBeforePost !== true) {
+        errors.push("manifest.nqeChecks.dedupeRequiredBeforePost must be true.");
+      }
+      if (manifest.nqeChecks.queryIdPolicy !== "forward-owned-allowlist") {
+        errors.push("manifest.nqeChecks.queryIdPolicy must be forward-owned-allowlist.");
+      }
+    }
+  }
+
+  if (manifest.nqeDiffRequests || nqeDiffRequests.length > 0) {
+    if (requireObject(manifest.nqeDiffRequests, "manifest.nqeDiffRequests", errors)) {
+      if (manifest.nqeDiffRequests.count !== nqeDiffRequests.length) {
+        errors.push(
+          `manifest.nqeDiffRequests.count ${manifest.nqeDiffRequests.count} does not match package count ${nqeDiffRequests.length}.`,
+        );
+      }
+      if (
+        manifest.nqeDiffRequests.payloadShape !==
+        "ForwardDynatraceNqeDiffRequest[]"
+      ) {
+        errors.push(
+          "manifest.nqeDiffRequests.payloadShape must be ForwardDynatraceNqeDiffRequest[].",
+        );
+      }
+      if (manifest.nqeDiffRequests.endpoint !== "/api/nqe-diffs/{before}/{after}") {
+        errors.push("manifest.nqeDiffRequests.endpoint must target /nqe-diffs/{before}/{after}.");
+      }
+      if (manifest.nqeDiffRequests.queryIdPolicy !== "forward-owned-allowlist") {
+        errors.push(
+          "manifest.nqeDiffRequests.queryIdPolicy must be forward-owned-allowlist.",
+        );
+      }
+      if (
+        manifest.nqeDiffRequests.executionPolicy !==
+        "read-only-forward-side-optional"
+      ) {
+        errors.push(
+          "manifest.nqeDiffRequests.executionPolicy must be read-only-forward-side-optional.",
+        );
+      }
     }
   }
 
@@ -927,6 +1421,7 @@ const main = async () => {
     : {};
   const args = mergeConfigArgs(rawArgs, connectorConfig);
   validateArgs(args);
+  validatePolicyArgs(args);
 
   const apply = Boolean(args.apply);
   const batchSize = args["batch-size"]
@@ -938,6 +1433,12 @@ const main = async () => {
   const maxPackageAgeMinutes = args["max-package-age-minutes"]
     ? toPositiveInteger(args["max-package-age-minutes"], "--max-package-age-minutes")
     : DEFAULT_MAX_PACKAGE_AGE_MINUTES;
+  const maxUpdates = args["max-updates"]
+    ? toNonNegativeInteger(args["max-updates"], "--max-updates")
+    : 0;
+  const maxDeactivations = args["max-deactivations"]
+    ? toNonNegativeInteger(args["max-deactivations"], "--max-deactivations")
+    : 0;
 
   const locators = resolvePackageLocators(args);
   const plannedPackage = await readJsonFromLocator(locators.checks, "Forward checks package");
@@ -952,11 +1453,55 @@ const main = async () => {
     );
     manifest = manifestPackage.value;
     manifestText = manifestPackage.text;
+  }
+
+  const optionalLocators = resolveOptionalPackageLocators(args, manifest);
+  const nqeQueryIdAllowlist = parseQueryIdAllowlist(args["nqe-query-id-allowlist"]);
+  let plannedNqeChecks = [];
+  let nqeChecksText;
+  if (optionalLocators.nqeChecks) {
+    const nqeChecksPackage = await readJsonFromLocator(
+      optionalLocators.nqeChecks,
+      "Forward NQE checks package",
+    );
+    plannedNqeChecks = nqeChecksPackage.value;
+    nqeChecksText = nqeChecksPackage.text;
+    validateNqeChecks(plannedNqeChecks, {
+      allowedQueryIds: nqeQueryIdAllowlist,
+    });
+  }
+
+  let plannedNqeDiffRequests = [];
+  let nqeDiffRequestsText;
+  if (optionalLocators.nqeDiffRequests) {
+    const nqeDiffRequestsPackage = await readJsonFromLocator(
+      optionalLocators.nqeDiffRequests,
+      "Forward NQE diff requests package",
+    );
+    plannedNqeDiffRequests = nqeDiffRequestsPackage.value;
+    nqeDiffRequestsText = nqeDiffRequestsPackage.text;
+    validateNqeDiffRequests(plannedNqeDiffRequests, {
+      allowedQueryIds: nqeQueryIdAllowlist,
+    });
+  }
+  validateNoCrossArtifactDuplicates(plannedChecks, plannedNqeChecks);
+
+  if (manifest) {
     validateManifest(manifest, plannedChecks, {
       checksText: plannedPackage.text,
+      nqeChecks: plannedNqeChecks,
+      nqeChecksText,
+      nqeDiffRequests: plannedNqeDiffRequests,
+      nqeDiffRequestsText,
       maxPackageAgeMinutes,
     });
   }
+  const approval = args["require-approval-file"]
+    ? validateApprovalFile(await readJson(args["require-approval-file"]), {
+        packageId: manifest?.packageId,
+        changeWindowId: args["change-window-id"],
+      })
+    : null;
   const signatureLocators = resolveSignatureLocators(args);
   const signatureRequired = Boolean(args["require-signature"]);
   if (
@@ -989,10 +1534,20 @@ const main = async () => {
       manifestText,
       publicKeyText,
       signatureText,
+      extraArtifacts: {
+        "nqe-checks": nqeChecksText,
+        "nqe-diff-requests": nqeDiffRequestsText,
+      },
     });
   }
   const signatureStatus =
     signatureLocators.signature && signatureLocators.publicKey ? "verified" : "not-provided";
+  if (
+    (args["apply-updates"] || args["deactivate-stale"]) &&
+    signatureStatus !== "verified"
+  ) {
+    throw new Error("Approved update/stale actions require a verified package signature.");
+  }
 
   if (args["validate-only"]) {
     const finishedAt = new Date().toISOString();
@@ -1009,9 +1564,14 @@ const main = async () => {
         publicKeySource: signatureLocators.publicKey || null,
         signatureSource: signatureLocators.signature || null,
       },
+      approval: toApprovalSummary(approval),
       checksSource: locators.checks,
       manifestSource: locators.manifest || null,
+      nqeChecksSource: optionalLocators.nqeChecks || null,
+      nqeDiffRequestsSource: optionalLocators.nqeDiffRequests || null,
       plannedChecks: plannedChecks.length,
+      plannedNqeChecks: plannedNqeChecks.length,
+      plannedNqeDiffRequests: plannedNqeDiffRequests.length,
       status: "valid",
     };
 
@@ -1049,13 +1609,53 @@ const main = async () => {
     "GET",
     `/api/snapshots/${snapshotId}/checks?type=Existential`,
   );
-  const reconciliation = reconcileChecks(plannedChecks, existingChecks);
+  const existingNqeChecks =
+    plannedNqeChecks.length > 0
+      ? await api("GET", `/api/snapshots/${snapshotId}/checks?type=NQE`)
+      : [];
+  const intentReconciliation = annotateReconciliation(
+    reconcileChecks(plannedChecks, existingChecks),
+    "intentChecks",
+  );
+  const nqeReconciliation = annotateReconciliation(
+    reconcileChecks(plannedNqeChecks, existingNqeChecks),
+    "nqeChecks",
+  );
+  const reconciliation = mergeReconciliations(intentReconciliation, nqeReconciliation);
+  const approvedMutations = planApprovedMutations(reconciliation, approval, {
+    applyUpdates: Boolean(args["apply-updates"]),
+    deactivateStale: Boolean(args["deactivate-stale"]),
+    maxUpdates,
+    maxDeactivations,
+  });
 
+  let createdCount = 0;
+  let updatedCount = 0;
+  let deactivatedCount = 0;
   if (apply) {
     for (const batch of chunk(reconciliation.create.map((item) => item.check), batchSize)) {
       await api("POST", `/api/snapshots/${snapshotId}/checks?bulk`, {
         body: batch,
       });
+      createdCount += batch.length;
+    }
+
+    for (const item of approvedMutations.update) {
+      await api("DELETE", `/api/snapshots/${snapshotId}/checks/${item.existingId}`);
+    }
+    for (const batch of chunk(
+      approvedMutations.update.map((item) => item.planned.check),
+      batchSize,
+    )) {
+      await api("POST", `/api/snapshots/${snapshotId}/checks?bulk`, {
+        body: batch,
+      });
+      updatedCount += batch.length;
+    }
+
+    for (const item of approvedMutations.deactivate) {
+      await api("DELETE", `/api/snapshots/${snapshotId}/checks/${item.id}`);
+      deactivatedCount += 1;
     }
   }
 
@@ -1076,21 +1676,63 @@ const main = async () => {
     sources: {
       checks: locators.checks,
       manifest: locators.manifest || null,
+      nqeChecks: optionalLocators.nqeChecks || null,
+      nqeDiffRequests: optionalLocators.nqeDiffRequests || null,
     },
-    applyPolicy: "create-missing-only",
+    applyPolicy:
+      args["apply-updates"] || args["deactivate-stale"]
+        ? "create-missing-with-approved-updates-and-retirements"
+        : "create-missing-only",
     settings: {
       batchSize,
       maxRetries,
+      maxUpdates,
+      maxDeactivations,
+      changeWindowId: args["change-window-id"] || null,
     },
+    approval: toApprovalSummary(approval),
     networkId,
     snapshotId,
     plannedChecks: plannedChecks.length,
-    existingDynatraceManagedChecks: existingChecks.filter((check) => dynatraceKeys(check).length > 0).length,
+    plannedNqeChecks: plannedNqeChecks.length,
+    plannedNqeDiffRequests: plannedNqeDiffRequests.length,
+    existingDynatraceManagedChecks: [
+      ...existingChecks,
+      ...existingNqeChecks,
+    ].filter((check) => dynatraceKeys(check).length > 0).length,
+    artifactCounts: {
+      intentChecks: {
+        planned: plannedChecks.length,
+        create: intentReconciliation.create.length,
+        unchanged: intentReconciliation.unchanged.length,
+        changed: intentReconciliation.changed.length,
+        stale: intentReconciliation.stale.length,
+      },
+      nqeChecks: {
+        planned: plannedNqeChecks.length,
+        create: nqeReconciliation.create.length,
+        unchanged: nqeReconciliation.unchanged.length,
+        changed: nqeReconciliation.changed.length,
+        stale: nqeReconciliation.stale.length,
+      },
+      nqeDiffRequests: {
+        planned: plannedNqeDiffRequests.length,
+      },
+    },
     counts: {
       create: reconciliation.create.length,
       unchanged: reconciliation.unchanged.length,
       changed: reconciliation.changed.length,
       stale: reconciliation.stale.length,
+    },
+    unresolvedCounts: {
+      changed: reconciliation.changed.length - approvedMutations.update.length,
+      stale: reconciliation.stale.length - approvedMutations.deactivate.length,
+    },
+    mutationCounts: {
+      created: createdCount,
+      updated: updatedCount,
+      deactivated: deactivatedCount,
     },
     create: reconciliation.create.map(({ check: _check, ...item }) => item),
     unchanged: reconciliation.unchanged,
@@ -1100,6 +1742,14 @@ const main = async () => {
       existingFingerprint: existing.fingerprint,
     })),
     stale: reconciliation.stale,
+    mutations: {
+      updated: approvedMutations.update.map(({ planned, existing, ...item }) => ({
+        ...item,
+        plannedFingerprint: planned.fingerprint,
+        existingFingerprint: existing.fingerprint,
+      })),
+      deactivated: approvedMutations.deactivate,
+    },
   };
 
   if (args.report) {
@@ -1114,7 +1764,10 @@ const main = async () => {
 
   process.stdout.write(JSON.stringify(report, null, 2) + "\n");
 
-  if (args["fail-on-drift"] && (reconciliation.changed.length > 0 || reconciliation.stale.length > 0)) {
+  if (
+    args["fail-on-drift"] &&
+    (report.unresolvedCounts.changed > 0 || report.unresolvedCounts.stale > 0)
+  ) {
     process.exitCode = 2;
   }
 };

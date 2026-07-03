@@ -37,6 +37,23 @@ The current package schema is `forward-dynatrace/v1`.
 - `reconciliation.changedChecks = report-only`
 - `reconciliation.staleChecks = report-only`
 
+`forward-dynatrace/v1` also allows additive optional fields:
+
+- `artifacts.nqeChecks = forward-nqe-checks.json`
+- `integrity.nqeChecksSha256`
+- `nqeChecks.count`
+- `nqeChecks.checkType = NQE`
+- `nqeChecks.payloadShape = NewNetworkCheck[]`
+- `nqeChecks.bulkEndpoint = /api/snapshots/{snapshotId}/checks?bulk`
+- `nqeChecks.queryIdPolicy = forward-owned-allowlist`
+- `artifacts.nqeDiffRequests = forward-nqe-diff-requests.json`
+- `integrity.nqeDiffRequestsSha256`
+- `nqeDiffRequests.count`
+- `nqeDiffRequests.payloadShape = ForwardDynatraceNqeDiffRequest[]`
+- `nqeDiffRequests.endpoint = /api/nqe-diffs/{before}/{after}`
+- `nqeDiffRequests.queryIdPolicy = forward-owned-allowlist`
+- `nqeDiffRequests.executionPolicy = read-only-forward-side-optional`
+
 ## Migration Checklist
 
 For any future schema version:

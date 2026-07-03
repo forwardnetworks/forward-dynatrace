@@ -4,10 +4,12 @@ import { test } from "node:test";
 
 import {
   fingerprintCheck,
+  planApprovedMutations,
   reconcileChecks,
   reconciliationKey,
   packageSigningPayload,
   toStatusArtifact,
+  validateApprovalFile,
   validateConnectorConfig,
   validateManifest,
   validatePlannedChecks,
@@ -94,6 +96,95 @@ const baseManifest = (checks = [baseCheck]) => ({
   },
 });
 
+const baseNqeCheck = {
+  definition: {
+    checkType: "NQE",
+    queryId: "FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    params: {
+      application: "Checkout",
+      environment: "prod",
+    },
+  },
+  enabled: true,
+  name: "[Dynatrace] Checkout prod: NQE policy",
+  note: "Generated from Dynatrace app metadata",
+  priority: "MEDIUM",
+  tags: [
+    "dynatrace",
+    "nqe",
+    "app:checkout",
+    "environment:prod",
+    "dynatrace-key:dt:nqe:checkout:prod:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  ],
+};
+
+const baseNqeDiffRequest = {
+  name: "[Dynatrace] Checkout prod: NQE diff",
+  queryId: "FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  beforeSnapshotId: "snapshot-before",
+  afterSnapshotId: "snapshot-after",
+  parameters: {
+    application: "Checkout",
+    environment: "prod",
+  },
+  options: {
+    itemFormat: "JSON",
+    limit: 1000,
+  },
+  templateId: "app-environment-policy",
+  dynatraceKey: "dynatrace-key:dt:nqe:checkout:prod:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:diff",
+  tags: [
+    "dynatrace",
+    "nqe-diff",
+    "app:checkout",
+    "environment:prod",
+    "dynatrace-key:dt:nqe:checkout:prod:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:diff",
+  ],
+};
+
+const manifestWithNqeArtifacts = ({
+  checks = [baseCheck],
+  nqeChecks = [baseNqeCheck],
+  nqeDiffRequests = [baseNqeDiffRequest],
+  checksText = JSON.stringify([baseCheck], null, 2) + "\n",
+  nqeChecksText = JSON.stringify([baseNqeCheck], null, 2) + "\n",
+  nqeDiffRequestsText = JSON.stringify([baseNqeDiffRequest], null, 2) + "\n",
+} = {}) => ({
+  ...baseManifest(checks),
+  artifacts: {
+    manifest: "forward-dynatrace-manifest.json",
+    intentChecks: "forward-intent-checks.json",
+    nqeChecks: "forward-nqe-checks.json",
+    nqeDiffRequests: "forward-nqe-diff-requests.json",
+  },
+  integrity: {
+    algorithm: "sha256",
+    intentChecksSha256: createHash("sha256").update(checksText, "utf8").digest("hex"),
+    nqeChecksSha256: createHash("sha256").update(nqeChecksText, "utf8").digest("hex"),
+    nqeDiffRequestsSha256: createHash("sha256")
+      .update(nqeDiffRequestsText, "utf8")
+      .digest("hex"),
+  },
+  nqeChecks: {
+    count: nqeChecks.length,
+    checkType: "NQE",
+    payloadShape: "NewNetworkCheck[]",
+    bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk",
+    dedupeRequiredBeforePost: true,
+    dedupe: "name-or-dynatrace-key-tag",
+    queryIdPolicy: "forward-owned-allowlist",
+    parameterSource: "dynatrace-app-environment",
+  },
+  nqeDiffRequests: {
+    count: nqeDiffRequests.length,
+    payloadShape: "ForwardDynatraceNqeDiffRequest[]",
+    endpoint: "/api/nqe-diffs/{before}/{after}",
+    queryIdPolicy: "forward-owned-allowlist",
+    executionPolicy: "read-only-forward-side-optional",
+    parameterSource: "dynatrace-app-environment",
+  },
+});
+
 test("uses the dynatrace-key tag as the reconciliation key", () => {
   assert.equal(
     reconciliationKey(baseCheck),
@@ -142,6 +233,138 @@ test("classifies managed checks missing from the package as stale", () => {
   assert.equal(result.stale[0].id, "check-1");
 });
 
+test("accepts valid exact-key approval for changed and stale mutations", () => {
+  const approval = validateApprovalFile(
+    {
+      schemaVersion: "forward-dynatrace-approval/v1",
+      packageId: "dynatrace-forward-test",
+      changeWindowId: "CHG-123",
+      expiresAt: "2026-01-02T00:00:00.000Z",
+      approvedBy: "forward-operator@example.com",
+      reason: "approved dependency refresh",
+      approvedChangedKeys: [
+        "dynatrace-key:dt:checkout:prod:service-123:checkout-vip:orders-db:tcp:443",
+      ],
+      approvedStaleKeys: ["dynatrace-key:dt:stale:demo"],
+    },
+    {
+      packageId: "dynatrace-forward-test",
+      changeWindowId: "CHG-123",
+      now: new Date("2026-01-01T00:00:00.000Z"),
+    },
+  );
+
+  assert.equal(approval.approvedChangedKeys.length, 1);
+  assert.equal(approval.approvedStaleKeys.length, 1);
+});
+
+test("rejects stale or mismatched approval files", () => {
+  const validApproval = {
+    schemaVersion: "forward-dynatrace-approval/v1",
+    packageId: "dynatrace-forward-test",
+    changeWindowId: "CHG-123",
+    expiresAt: "2026-01-02T00:00:00.000Z",
+    approvedChangedKeys: [
+      "dynatrace-key:dt:checkout:prod:service-123:checkout-vip:orders-db:tcp:443",
+    ],
+    approvedStaleKeys: [],
+  };
+
+  assert.throws(
+    () =>
+      validateApprovalFile(
+        { ...validApproval, packageId: "wrong-package" },
+        {
+          packageId: "dynatrace-forward-test",
+          changeWindowId: "CHG-123",
+          now: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ),
+    /packageId must match manifest packageId/,
+  );
+  assert.throws(
+    () =>
+      validateApprovalFile(validApproval, {
+        packageId: "dynatrace-forward-test",
+        changeWindowId: "CHG-999",
+        now: new Date("2026-01-01T00:00:00.000Z"),
+      }),
+    /changeWindowId must match CHG-999/,
+  );
+  assert.throws(
+    () =>
+      validateApprovalFile(
+        { ...validApproval, expiresAt: "2025-12-31T23:59:59.000Z" },
+        {
+          packageId: "dynatrace-forward-test",
+          changeWindowId: "CHG-123",
+          now: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ),
+    /expiresAt must be in the future/,
+  );
+});
+
+test("plans only approved update and stale deactivation mutations", () => {
+  const existingChanged = structuredClone(baseCheck);
+  existingChanged.id = "check-1";
+  existingChanged.definition.filters.from.headers[1].values.tp_dst = ["8443"];
+  const staleExisting = withResultFields(
+    {
+      ...structuredClone(baseCheck),
+      name: "[Dynatrace] Stale demo check",
+      tags: ["dynatrace", "dynatrace-key:dt:stale:demo"],
+    },
+    98,
+  );
+  const reconciliation = reconcileChecks([baseCheck], [existingChanged, staleExisting]);
+  const approval = validateApprovalFile(
+    {
+      schemaVersion: "forward-dynatrace-approval/v1",
+      packageId: "dynatrace-forward-test",
+      expiresAt: "2026-01-02T00:00:00.000Z",
+      approvedChangedKeys: [reconciliation.changed[0].key],
+      approvedStaleKeys: [reconciliation.stale[0].key],
+    },
+    {
+      packageId: "dynatrace-forward-test",
+      now: new Date("2026-01-01T00:00:00.000Z"),
+    },
+  );
+
+  const mutations = planApprovedMutations(reconciliation, approval, {
+    applyUpdates: true,
+    deactivateStale: true,
+    maxUpdates: 1,
+    maxDeactivations: 1,
+  });
+
+  assert.equal(mutations.update.length, 1);
+  assert.equal(mutations.deactivate.length, 1);
+  assert.throws(
+    () =>
+      planApprovedMutations(reconciliation, approval, {
+        applyUpdates: true,
+        deactivateStale: true,
+        maxUpdates: 0,
+        maxDeactivations: 1,
+      }),
+    /exceeds --max-updates 0/,
+  );
+  assert.throws(
+    () =>
+      planApprovedMutations(
+        reconciliation,
+        { ...approval, approvedChangedKeys: ["dynatrace-key:dt:not-current"] },
+        {
+          applyUpdates: true,
+          maxUpdates: 1,
+        },
+      ),
+    /not present in current reconciliation/,
+  );
+});
+
 test("accepts a valid generated intent package", () => {
   assert.doesNotThrow(() => validatePlannedChecks([baseCheck]));
 });
@@ -174,6 +397,42 @@ test("rejects a manifest checksum that does not match the planned package", () =
         checksText: JSON.stringify([baseCheck], null, 2) + "\n",
       }),
     /intentChecksSha256 does not match/,
+  );
+});
+
+test("accepts optional NQE check and diff artifacts in manifest validation", () => {
+  const checksText = JSON.stringify([baseCheck], null, 2) + "\n";
+  const nqeChecksText = JSON.stringify([baseNqeCheck], null, 2) + "\n";
+  const nqeDiffRequestsText = JSON.stringify([baseNqeDiffRequest], null, 2) + "\n";
+
+  assert.doesNotThrow(() =>
+    validateManifest(manifestWithNqeArtifacts(), [baseCheck], {
+      checksText,
+      nqeChecks: [baseNqeCheck],
+      nqeChecksText,
+      nqeDiffRequests: [baseNqeDiffRequest],
+      nqeDiffRequestsText,
+    }),
+  );
+});
+
+test("rejects optional NQE artifact checksum drift", () => {
+  const checksText = JSON.stringify([baseCheck], null, 2) + "\n";
+  const nqeChecksText = JSON.stringify([baseNqeCheck], null, 2) + "\n";
+  const nqeDiffRequestsText = JSON.stringify([baseNqeDiffRequest], null, 2) + "\n";
+  const manifest = manifestWithNqeArtifacts();
+  manifest.integrity.nqeChecksSha256 = "0".repeat(64);
+
+  assert.throws(
+    () =>
+      validateManifest(manifest, [baseCheck], {
+        checksText,
+        nqeChecks: [baseNqeCheck],
+        nqeChecksText,
+        nqeDiffRequests: [baseNqeDiffRequest],
+        nqeDiffRequestsText,
+      }),
+    /nqeChecksSha256 does not match/,
   );
 });
 
@@ -274,6 +533,48 @@ test("rejects a detached package signature for changed package bytes", () => {
         manifestText,
         publicKeyText: publicKey.export({ format: "pem", type: "spki" }),
         signatureText,
+      }),
+    /signature verification failed/,
+  );
+});
+
+test("verifies detached signatures over optional NQE artifacts", () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const checksText = JSON.stringify([baseCheck], null, 2) + "\n";
+  const manifestText = JSON.stringify(manifestWithNqeArtifacts(), null, 2) + "\n";
+  const extraArtifacts = {
+    "nqe-checks": JSON.stringify([baseNqeCheck], null, 2) + "\n",
+    "nqe-diff-requests": JSON.stringify([baseNqeDiffRequest], null, 2) + "\n",
+  };
+  const signatureText = sign(
+    null,
+    Buffer.from(
+      packageSigningPayload({ checksText, manifestText, extraArtifacts }),
+      "utf8",
+    ),
+    privateKey,
+  ).toString("base64");
+
+  assert.doesNotThrow(() =>
+    verifyPackageSignature({
+      checksText,
+      manifestText,
+      publicKeyText: publicKey.export({ format: "pem", type: "spki" }),
+      signatureText,
+      extraArtifacts,
+    }),
+  );
+  assert.throws(
+    () =>
+      verifyPackageSignature({
+        checksText,
+        manifestText,
+        publicKeyText: publicKey.export({ format: "pem", type: "spki" }),
+        signatureText,
+        extraArtifacts: {
+          ...extraArtifacts,
+          "nqe-checks": extraArtifacts["nqe-checks"].replace("Checkout", "Tampered"),
+        },
       }),
     /signature verification failed/,
   );

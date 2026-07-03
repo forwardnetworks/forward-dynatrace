@@ -25,11 +25,17 @@ It remains a field-built reference, not an officially supported Forward product 
 - Done in repo: observability guide with report fields, metrics, alert thresholds, and evidence retention.
 - Done in repo: sanitized read-only Forward ingest status artifact for Dynatrace display.
 - Done in repo: release checksum generation for published artifacts.
+- Done in repo: optional detached Ed25519 signing and verification for `SHA256SUMS`; external before signed releases:
+  provision and protect the release signing key.
 - Done in repo: release archive packager smoke-tested in CI.
 - Done in repo: GitHub release workflow that builds app/importer archives, uploads artifacts, and publishes tag releases
   with `SHA256SUMS`.
 - Done in repo: weekly Dependabot checks for npm and GitHub Actions.
 - Done in repo: synthetic 1001-check bulk import, chunk sizing, and transient retry coverage.
+- Done in repo: load and scale smoke for 2500 synthetic Dynatrace dependency rows through normalization, package build,
+  validate-only import, batched fake Forward apply, and unchanged rerun.
+- Done in repo: runtime SLO gate for importer reports and metrics, including duration, unresolved drift, signature
+  requirements, and metric/report consistency.
 - External before wider use: assign an owner for the Forward-side runtime: team, on-call path, escalation path, release
   approver, and customer handoff owner.
 - Done in repo: provide scheduled-job runtime templates for systemd and Kubernetes; external before wider use: choose
@@ -40,8 +46,8 @@ It remains a field-built reference, not an officially supported Forward product 
 - External before wider use: provision signing keys if checksum-only integrity is not sufficient for the deployment
   trust model.
 - Done in repo: pin package schema contract and migration rules for future `schemaVersion` changes.
-- Done in repo: first approved apply policy is `create-missing-only`; changed and stale checks stay report-only until
-  Forward approves update and retirement workflows.
+- Done in repo: default apply policy is `create-missing-only`; optional update/stale automation requires signed package
+  verification, exact approval artifact, and mutation budgets.
 - Done in repo: customer-safe runbook for install, generate package, validate-only, dry-run, apply, rollback, drift
   review, and evidence collection.
 - Done in repo: incident runbook for importer failure, partial bulk create, stale package, auth failure, rate limit, bad
@@ -52,8 +58,8 @@ It remains a field-built reference, not an officially supported Forward product 
 ## P1 Enterprise Controls
 
 - External before wider use: provision the durable package handoff location described in `docs/package-handoff.md`.
-- External before release: add cryptographic release signing if GitHub release artifacts plus `SHA256SUMS` are not
-  enough.
+- Done in repo: release checksum signing utility and CI tamper-detection tests; external before signed releases:
+  provision the actual release signing key outside GitHub source.
 - Done in repo: generate a CycloneDX SBOM and run production dependency audit in CI.
 - Done in repo: branch protection requiring the `gitops` workflow, one approving review, linear history, conversation
   resolution, and no force-push/delete.
@@ -74,10 +80,12 @@ It remains a field-built reference, not an officially supported Forward product 
   formal support policy.
 - Future productization: add signed image or binary publication if this graduates beyond source-based delivery.
 - Future schema work: add upgrade tests when a second schema version exists.
-- Future compatibility work: add compatibility tests against Forward API versions and Dynatrace App Toolkit versions.
+- Future compatibility work: add compatibility tests against multiple real Forward API versions and Dynatrace App
+  Toolkit versions.
 - Done in repo: synthetic end-to-end harness publishes a package, pulls it, imports it, verifies fake Forward checks,
   and reruns the same package to confirm idempotency.
-- External after policy decision: add policy-driven update and stale retirement flows.
+- External after policy decision: operate the approval process for update/stale automation and decide whether it is
+  enabled for each deployment.
 - Future productization: add a UI view for package history, rejected rows, drift state, and last Forward-side ingest
   result.
 

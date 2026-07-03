@@ -18,6 +18,9 @@ const requiredFiles = [
   "docs/workflow.md",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
+  "docs/forward-nqe-preview.md",
+  "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
   "docs/forward-importer.md",
   "docs/production-readiness.md",
   "docs/enterprise-hardening.md",
@@ -37,20 +40,53 @@ const requiredFiles = [
   "docs/harness-engineering.md",
   "docs/gitops.md",
   "docs/demo-data.md",
+  "docs/client-trial-plan.md",
+  "docs/live-demo-runbook.md",
+  "docs/execution-roadmap.md",
   "docs/agent-guides/dynatrace-app.md",
   "shared/demo-dependencies.json",
+  "shared/demo-dynatrace-query-rows.json",
+  "shared/demo-forward-ingest-status.json",
   "config/forward-connector.config.example.json",
   "config/forward-connector.signed.config.example.json",
+  "config/forward-nqe-live-smoke.approval.example.json",
+  "api/forward-status.function.ts",
+  "api/forward-nqe-preview.function.ts",
+  "ui/app/types/forward-status.ts",
+  "ui/app/types/forward-nqe-preview.ts",
   "scripts/sign-forward-package.mjs",
+  "scripts/sign-release-checksums.mjs",
+  "scripts/sign-release-checksums.test.mjs",
   "scripts/package-release-artifacts.mjs",
+  "scripts/publish-forward-status.mjs",
+  "scripts/publish-forward-status.test.mjs",
   "scripts/write-release-checksums.mjs",
   "scripts/release-checksums.test.mjs",
+  "scripts/query-dynatrace-dependencies.mjs",
+  "scripts/copy-dynatrace-demo-data.mjs",
+  "scripts/forward-nqe-live-smoke.mjs",
+  "scripts/forward-nqe-live-smoke.test.mjs",
+  "scripts/forward-nqe-artifacts.mjs",
+  "scripts/forward-nqe-artifacts.test.mjs",
+  "scripts/forward-nqe-preview.test.mjs",
+  "scripts/forward-package.test.mjs",
+  "scripts/forward-status.test.mjs",
+  "scripts/build-forward-package.mjs",
+  "scripts/normalize-dynatrace-dependencies.mjs",
+  "scripts/normalize-dynatrace-dependencies.test.mjs",
+  "scripts/demo-rehearsal.mjs",
+  "scripts/load-scale-smoke.mjs",
+  "scripts/runtime-slo-check.mjs",
+  "scripts/runtime-slo-check.test.mjs",
   "scripts/workflow-smoke.mjs",
   "scripts/validate-runtime-manifests.mjs",
   "scripts/validate-dynatrace-workflow-examples.mjs",
   "scripts/seed-dynatrace-demo-data.mjs",
+  "deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql",
+  "deploy/dynatrace-dql/service-dependencies-smartscape.dql",
   "deploy/dynatrace-workflows/forward-sync-schedule.payload.example.json",
   "deploy/dynatrace-workflows/forward-sync-problem.payload.example.json",
+  "deploy/dynatrace-workflows/forward-sync-on-demand.payload.example.json",
   "deploy/systemd/forward-dynatrace-connector.service",
   "deploy/systemd/forward-dynatrace-connector.timer",
   "deploy/systemd/forward-dynatrace.env.example",
@@ -87,6 +123,7 @@ const textExtensions = new Set([
   ".html",
   ".js",
   ".json",
+  ".dql",
   ".md",
   ".mjs",
   ".ts",
@@ -177,7 +214,14 @@ const publicBrandingFiles = [
   "package.json",
   "api/forward-sync.function.ts",
   "api/network-proof.function.ts",
+  "api/forward-status.function.ts",
+  "api/forward-nqe-preview.function.ts",
   "docs/harness-engineering.md",
+  "docs/execution-roadmap.md",
+  "docs/forward-nqe-preview.md",
+  "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
+  "docs/live-demo-runbook.md",
   "docs/install.md",
   "docs/production-readiness.md",
   "docs/enterprise-hardening.md",
@@ -323,6 +367,12 @@ for (const target of [
   "docs/admin-operations.md",
   "docs/release.md",
   "docs/demo-data.md",
+  "docs/client-trial-plan.md",
+  "docs/live-demo-runbook.md",
+  "docs/execution-roadmap.md",
+  "docs/forward-nqe-preview.md",
+  "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
   "docs/harness-engineering.md",
   "docs/agent-guides/dynatrace-app.md",
 ]) {
@@ -381,11 +431,19 @@ for (const nodeVersionFile of [".nvmrc", ".node-version"]) {
 
 for (const scriptName of [
   "release:checksums:test",
+  "release:sign:test",
+  "forward:nqe-preview:test",
+  "forward:nqe-live-smoke:test",
+  "dynatrace:normalize:test",
   "runtime:validate",
+  "runtime:slo:test",
   "dynatrace:workflow:validate",
+  "demo:rehearsal",
+  "load:scale",
   "release:package:smoke",
   "security:audit",
   "sbom:check",
+  "whitespace:check",
 ]) {
   if (!packageJson.scripts?.[scriptName]) {
     fail(`package.json must define npm script ${scriptName}.`);
@@ -399,8 +457,32 @@ if (!packageJson.scripts?.["forward:sign"]) {
 if (!packageJson.scripts?.["release:checksums"]) {
   fail("package.json must define npm script release:checksums.");
 }
+if (!packageJson.scripts?.["release:sign"]) {
+  fail("package.json must define npm script release:sign.");
+}
 if (!packageJson.scripts?.["release:package"]) {
   fail("package.json must define npm script release:package.");
+}
+if (!packageJson.scripts?.["dynatrace:normalize"]) {
+  fail("package.json must define npm script dynatrace:normalize.");
+}
+if (!packageJson.scripts?.["dynatrace:query"]) {
+  fail("package.json must define npm script dynatrace:query.");
+}
+if (!packageJson.scripts?.["dynatrace:copy-demo"]) {
+  fail("package.json must define npm script dynatrace:copy-demo.");
+}
+if (!packageJson.scripts?.["dynatrace:bundle"]) {
+  fail("package.json must define npm script dynatrace:bundle.");
+}
+if (!packageJson.scripts?.["forward:package"]) {
+  fail("package.json must define npm script forward:package.");
+}
+if (!packageJson.scripts?.["forward:nqe-live-smoke"]) {
+  fail("package.json must define npm script forward:nqe-live-smoke.");
+}
+if (!packageJson.scripts?.["forward:status:publish"]) {
+  fail("package.json must define npm script forward:status:publish.");
 }
 
 const releaseWorkflow = await readText(".github/workflows/release.yml");
@@ -421,12 +503,29 @@ for (const requiredPackagerText of [
   "forward-dynatrace-app-",
   "forward-dynatrace-importer-",
   "deploy/dynatrace-workflows",
+  "deploy/dynatrace-dql",
+  "service-dependency-candidates-openpipeline-events.dql",
+  "service-dependencies-smartscape.dql",
+  "forward-sync-on-demand.payload.example.json",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
+  "docs/forward-nqe-preview.md",
+  "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
+  "docs/live-demo-runbook.md",
+  "docs/execution-roadmap.md",
   "docs/connector-runtime.md",
   "deploy/systemd/forward-dynatrace-connector.service",
   "deploy/kubernetes/forward-dynatrace-connector-cronjob.yaml",
   "scripts/write-release-checksums.mjs",
+  "scripts/sign-release-checksums.mjs",
+  "scripts/query-dynatrace-dependencies.mjs",
+  "scripts/copy-dynatrace-demo-data.mjs",
+  "scripts/build-forward-package.mjs",
+  "scripts/normalize-dynatrace-dependencies.mjs",
+  "scripts/demo-rehearsal.mjs",
+  "scripts/load-scale-smoke.mjs",
+  "scripts/runtime-slo-check.mjs",
   "SHA256SUMS",
 ]) {
   if (!releasePackager.includes(requiredPackagerText)) {

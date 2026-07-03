@@ -65,6 +65,14 @@ journalctl -u forward-dynatrace-connector.service
 The service is oneshot, uses `NoNewPrivileges`, writes only to `/var/lib/forward-dynatrace` and
 `/var/log/forward-dynatrace`, and relies on `UMask=0077` for generated artifacts.
 
+After a successful run, publish sanitized status to the approved handoff location:
+
+```bash
+node scripts/publish-forward-status.mjs \
+  --status /var/lib/forward-dynatrace/forward-ingest-status.json \
+  --output-dir /handoff/dynatrace-forward/latest
+```
+
 ## Kubernetes Runtime
 
 Build the importer image from `Dockerfile.forward-importer` and publish it to an internal registry. Update
@@ -106,5 +114,9 @@ Default runtime policy should stay conservative:
 - `apply=true` only after the Forward operator approves the package and target network.
 - `failOnDrift=true` for scheduled automation so changed or stale checks block and require review.
 - `requireSignature=true` when a package signing key is provisioned.
+- `nqeQueryIdAllowlist` only when optional NQE artifacts are enabled.
+- `applyUpdates=false` and `deactivateStale=false` unless the runtime owner has an approved change process.
+- `maxUpdates=0` and `maxDeactivations=0` unless the same run supplies an approval file and explicit budget.
 
-Changed and stale checks remain report-only. Update and retirement workflows require separate Forward-side policy.
+Changed and stale checks remain report-only by default. Optional update and retirement workflows require Forward-side
+approval, a verified signed package, exact approved `dynatrace-key:*` values, and a non-expired approval artifact.

@@ -32,8 +32,10 @@ Use this checklist before enabling Forward-side ingest.
 - Create missing checks only with `POST /api/snapshots/{snapshotId}/checks?bulk`.
 - Chunk large `NewNetworkCheck[]` imports and report per-batch status.
 - Keep Forward writes in the manual importer or Forward-side connector, never in the Dynatrace app.
-- Do not delete stale checks automatically in the first production version.
-- Make check retirement a separate reviewed workflow.
+- Enable optional NQE artifacts only with Forward-owned query IDs and a Forward-side allowlist.
+- Keep update/stale automation disabled by default.
+- Require a verified signed package, exact approval file, change window when used, and mutation budgets before
+  replacing changed generated checks or deactivating stale generated checks.
 
 ## Workflow
 
@@ -45,7 +47,8 @@ Use this checklist before enabling Forward-side ingest.
 - Runtime workflow: deploy the connector with the systemd or Kubernetes scheduler templates and keep credentials in the
   runtime secret store.
 - Treat each export as desired state and reconcile before writing.
-- Keep the default apply policy as create-missing-only until update and stale-check policies are approved.
+- Keep the default apply policy as create-missing-only. Enable update/stale automation only as an approved optional
+  Forward-side path.
 
 ## Reliability
 

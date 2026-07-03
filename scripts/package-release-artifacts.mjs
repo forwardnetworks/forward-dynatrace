@@ -13,7 +13,7 @@ Release artifact packager
 
 Usage:
   node scripts/package-release-artifacts.mjs
-  node scripts/package-release-artifacts.mjs --output-dir out/release --release-name v1.0.4
+  node scripts/package-release-artifacts.mjs --output-dir out/release --release-name v1.0.6
 
 Builds the GitHub release archives and SHA256SUMS. By default it writes to a
 temporary directory and uses the package version with a smoke suffix.
@@ -25,23 +25,49 @@ const appArchiveEntries = [
   "package-lock.json",
   "README.md",
   "dist",
+  "deploy/dynatrace-dql",
   "deploy/dynatrace-workflows",
   "docs/install.md",
   "docs/workflow.md",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
+  "docs/forward-nqe-preview.md",
+  "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
+  "docs/client-trial-plan.md",
+  "docs/live-demo-runbook.md",
+  "docs/execution-roadmap.md",
 ];
 
 const importerArchiveEntries = [
   "Dockerfile.forward-importer",
+  "api/forward-sync.function.ts",
   "config",
   "deploy",
   "package.json",
   "package-lock.json",
+  "shared/demo-dynatrace-query-rows.json",
+  "scripts/query-dynatrace-dependencies.mjs",
+  "scripts/copy-dynatrace-demo-data.mjs",
+  "scripts/build-forward-package.mjs",
   "scripts/forward-import-package.mjs",
+  "scripts/forward-nqe-live-smoke.mjs",
+  "scripts/forward-nqe-live-smoke.test.mjs",
+  "scripts/forward-nqe-artifacts.mjs",
+  "scripts/normalize-dynatrace-dependencies.mjs",
+  "scripts/demo-rehearsal.mjs",
+  "scripts/load-scale-smoke.mjs",
+  "scripts/runtime-slo-check.mjs",
+  "scripts/runtime-slo-check.test.mjs",
+  "scripts/publish-forward-status.mjs",
   "scripts/sign-forward-package.mjs",
+  "scripts/sign-release-checksums.mjs",
+  "scripts/sign-release-checksums.test.mjs",
   "scripts/write-release-checksums.mjs",
   "docs/forward-importer.md",
+  "docs/forward-nqe-preview.md",
+  "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
   "docs/container-runtime.md",
   "docs/connector-runtime.md",
   "docs/operations-runbook.md",
@@ -49,6 +75,9 @@ const importerArchiveEntries = [
   "docs/observability.md",
   "docs/rbac.md",
   "docs/package-handoff.md",
+  "docs/client-trial-plan.md",
+  "docs/live-demo-runbook.md",
+  "docs/execution-roadmap.md",
 ];
 
 const requiredAppMembers = [
@@ -59,22 +88,48 @@ const requiredAppMembers = [
   "dist",
   "deploy/dynatrace-workflows/forward-sync-schedule.payload.example.json",
   "deploy/dynatrace-workflows/forward-sync-problem.payload.example.json",
+  "deploy/dynatrace-workflows/forward-sync-on-demand.payload.example.json",
+  "deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql",
+  "deploy/dynatrace-dql/service-dependencies-smartscape.dql",
   "docs/install.md",
   "docs/workflow.md",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
+  "docs/forward-nqe-preview.md",
+  "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
+  "docs/live-demo-runbook.md",
+  "docs/execution-roadmap.md",
 ];
 
 const requiredImporterMembers = [
   "Dockerfile.forward-importer",
+  "api/forward-sync.function.ts",
   "config/forward-connector.config.example.json",
   "config/forward-connector.signed.config.example.json",
+  "config/forward-nqe-live-smoke.approval.example.json",
   "deploy/systemd/forward-dynatrace-connector.service",
   "deploy/kubernetes/forward-dynatrace-connector-cronjob.yaml",
   "scripts/forward-import-package.mjs",
+  "scripts/forward-nqe-live-smoke.mjs",
+  "scripts/forward-nqe-live-smoke.test.mjs",
+  "scripts/forward-nqe-artifacts.mjs",
+  "scripts/query-dynatrace-dependencies.mjs",
+  "scripts/copy-dynatrace-demo-data.mjs",
+  "scripts/build-forward-package.mjs",
+  "scripts/normalize-dynatrace-dependencies.mjs",
+  "scripts/demo-rehearsal.mjs",
+  "scripts/load-scale-smoke.mjs",
+  "scripts/runtime-slo-check.mjs",
+  "scripts/publish-forward-status.mjs",
+  "shared/demo-dynatrace-query-rows.json",
   "scripts/sign-forward-package.mjs",
+  "scripts/sign-release-checksums.mjs",
   "scripts/write-release-checksums.mjs",
   "docs/forward-importer.md",
+  "docs/forward-nqe-preview.md",
+  "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
   "docs/container-runtime.md",
   "docs/connector-runtime.md",
   "docs/operations-runbook.md",
@@ -82,6 +137,9 @@ const requiredImporterMembers = [
   "docs/observability.md",
   "docs/rbac.md",
   "docs/package-handoff.md",
+  "docs/client-trial-plan.md",
+  "docs/live-demo-runbook.md",
+  "docs/execution-roadmap.md",
 ];
 
 const parseArgs = (argv) => {

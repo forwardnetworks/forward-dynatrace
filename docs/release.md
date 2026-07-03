@@ -16,8 +16,8 @@ Actions. It is not published to PyPI.
 3. Tag the release:
 
    ```bash
-   git tag v1.0.4
-   git push origin v1.0.4
+   git tag v1.0.6
+   git push origin v1.0.6
    ```
 
 4. The `release` workflow builds with Node 24, runs `npm run ci`, runs `npm run release:package`, uploads workflow
@@ -36,6 +36,8 @@ npm run release:package:smoke
 - `forward-dynatrace-importer-<tag>.tgz`: Forward-side importer, signer, container file, config examples, and
   runtime templates and operations docs.
 - `SHA256SUMS`: SHA-256 digests for release archives.
+- Optional `SHA256SUMS.sig`: detached Ed25519 signature over the checksum file. The release signing key must be
+  separate from Forward intent-package signing keys.
 
 ## Verification
 
@@ -45,5 +47,23 @@ Before installing release artifacts, verify checksums:
 sha256sum -c SHA256SUMS
 ```
 
-If detached package signing is used for exported Forward intent-check packages, keep those signing keys separate from
-GitHub release signing or artifact checksum handling.
+If release checksum signing is used, verify the detached signature before trusting `SHA256SUMS`:
+
+```bash
+npm run release:sign -- \
+  --verify \
+  --checksums SHA256SUMS \
+  --public-key /secure/path/release-ed25519-public.pem \
+  --signature SHA256SUMS.sig
+```
+
+To sign a release checksum file:
+
+```bash
+npm run release:sign -- \
+  --checksums SHA256SUMS \
+  --private-key /secure/path/release-ed25519-private.pem \
+  --signature SHA256SUMS.sig
+```
+
+Keep release signing keys outside the repo and separate from exported Forward intent-package signing keys.
