@@ -66,6 +66,21 @@ Start with these thresholds, then tune per deployment:
 | Repeated transient errors | Three consecutive runs with `429` or `5xx` retries. |
 | Missing signature | Any production run where `packageSignature.status` is not `verified`. |
 
+## Runtime SLO Gate
+
+Use the report and metrics output as a deployment gate:
+
+```bash
+node scripts/runtime-slo-check.mjs \
+  --report forward-import-report.json \
+  --metrics forward-import-metrics.prom \
+  --max-duration-ms 300000 \
+  --require-signature
+```
+
+The gate fails on excessive runtime duration, unresolved changed/stale drift unless `--allow-drift` is supplied,
+missing verified signature when required, or metrics that do not match the JSON report.
+
 ## Evidence Retention
 
 Retain the package manifest, intent-check JSON, optional NQE artifacts, signature if used, import report, metrics, and

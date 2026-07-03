@@ -18,6 +18,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Schema versioning policy | `docs/schema-versioning.md` defines the current `forward-dynatrace/v1` contract and migration checklist. |
 | Connector config validation | Importer supports `--config`, rejects secrets in config files, and accepts non-secret runtime settings. |
 | Connector metrics | `npm run workflow:smoke` verifies Prometheus-style metrics output from config import. |
+| Runtime SLO gate | `npm run runtime:slo:test` verifies report/metrics SLO checks for duration, unresolved drift, signature requirements, and metric/report mismatch. |
 | Read-only status artifact | `npm run workflow:smoke` verifies `forward-dynatrace-status/v1` output and confirms it omits check-level topology strings. |
 | Forward status display and URL fetch | `npm run forward:status:test` verifies supplied artifact display, read-only localhost URL fetch, and non-local HTTP rejection. |
 | Forward status publication | `npm run forward:status:publish:test` verifies sanitized status publication, checksum output, unknown-field rejection, and credential-like content rejection. |
@@ -72,6 +73,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Load and scale smoke | `npm run load:scale` |
 | Client rehearsal | `npm run demo:rehearsal` |
 | Runtime manifest validation | `npm run runtime:validate` |
+| Runtime SLO gate | `npm run runtime:slo:test` |
 | Dynatrace workflow payload validation | `npm run dynatrace:workflow:validate` |
 | Release checksum script | `npm run release:checksums:test` |
 | Release archive packaging | `npm run release:package:smoke` |

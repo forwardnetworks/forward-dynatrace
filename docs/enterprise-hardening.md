@@ -32,6 +32,8 @@ It remains a field-built reference, not an officially supported Forward product 
 - Done in repo: synthetic 1001-check bulk import, chunk sizing, and transient retry coverage.
 - Done in repo: load and scale smoke for 2500 synthetic Dynatrace dependency rows through normalization, package build,
   validate-only import, batched fake Forward apply, and unchanged rerun.
+- Done in repo: runtime SLO gate for importer reports and metrics, including duration, unresolved drift, signature
+  requirements, and metric/report consistency.
 - External before wider use: assign an owner for the Forward-side runtime: team, on-call path, escalation path, release
   approver, and customer handoff owner.
 - Done in repo: provide scheduled-job runtime templates for systemd and Kubernetes; external before wider use: choose

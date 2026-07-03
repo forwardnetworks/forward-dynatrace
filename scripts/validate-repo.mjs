@@ -74,6 +74,8 @@ const requiredFiles = [
   "scripts/normalize-dynatrace-dependencies.test.mjs",
   "scripts/demo-rehearsal.mjs",
   "scripts/load-scale-smoke.mjs",
+  "scripts/runtime-slo-check.mjs",
+  "scripts/runtime-slo-check.test.mjs",
   "scripts/workflow-smoke.mjs",
   "scripts/validate-runtime-manifests.mjs",
   "scripts/validate-dynatrace-workflow-examples.mjs",
@@ -431,6 +433,7 @@ for (const scriptName of [
   "forward:nqe-live-smoke:test",
   "dynatrace:normalize:test",
   "runtime:validate",
+  "runtime:slo:test",
   "dynatrace:workflow:validate",
   "demo:rehearsal",
   "load:scale",
@@ -515,6 +518,7 @@ for (const requiredPackagerText of [
   "scripts/normalize-dynatrace-dependencies.mjs",
   "scripts/demo-rehearsal.mjs",
   "scripts/load-scale-smoke.mjs",
+  "scripts/runtime-slo-check.mjs",
   "SHA256SUMS",
 ]) {
   if (!releasePackager.includes(requiredPackagerText)) {
