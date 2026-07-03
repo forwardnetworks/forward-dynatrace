@@ -13,6 +13,7 @@ Usage:
   npm run forward:nqe-live-smoke -- \\
     --forward-base-url https://forward.example.com \\
     --forward-network-id <network-id> \\
+    --approval-file /secure/path/nqe-preview-approval.json \\
     --authorization-file /secure/path/read-only-forward-auth-header \\
     --execute \\
     --output /tmp/forward-nqe-live-smoke.json
@@ -21,6 +22,7 @@ Options:
   --forward-base-url url       Forward base URL.
   --forward-network-id id      Forward network ID for NQE execution.
   --snapshot-id id             Optional snapshot ID.
+  --approval-file path         Customer approval artifact required with --execute.
   --authorization-file path    File containing the full read-only Authorization header value.
   --query-id FQ_<id>           Optional Forward-owned query ID.
   --allow-query-id FQ_<id>     Allow one optional query ID. Repeatable.
@@ -75,12 +77,86 @@ const required = (args, key) => {
   return args[key];
 };
 
+const forbiddenApprovalTextPatterns = [
+  /Authorization/i,
+  /Basic\s+[A-Za-z0-9+/=]+/i,
+  /Bearer\s+[A-Za-z0-9._-]+/i,
+  /FORWARD_PASSWORD/i,
+  /dt0[a-z0-9]{2,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{20,}/i,
+];
+
 const readAuthorizationFile = async (filePath) => {
   const value = (await readFile(path.resolve(filePath), "utf8")).trim();
   if (!value) {
     throw new Error("Authorization file is empty.");
   }
   return value;
+};
+
+const normalizeBaseUrl = (value) => value.replace(/\/+$/, "");
+
+const readJsonFile = async (filePath) =>
+  JSON.parse(await readFile(path.resolve(filePath), "utf8"));
+
+const requireArrayIncludes = (approval, key, expected) => {
+  const values = approval[key];
+  if (!Array.isArray(values) || !values.includes(expected)) {
+    throw new Error(`Approval file ${key} must include ${expected}.`);
+  }
+};
+
+export const validateLiveSmokeApproval = (approval, request) => {
+  if (!approval || typeof approval !== "object" || Array.isArray(approval)) {
+    throw new Error("Approval file must contain a JSON object.");
+  }
+  const approvalText = JSON.stringify(approval);
+  for (const pattern of forbiddenApprovalTextPatterns) {
+    if (pattern.test(approvalText)) {
+      throw new Error("Approval file contains credential-like content.");
+    }
+  }
+  if (approval.schemaVersion !== "forward-dynatrace-nqe-preview-approval/v1") {
+    throw new Error(
+      "Approval file schemaVersion must be forward-dynatrace-nqe-preview-approval/v1.",
+    );
+  }
+  if (!approval.approvedBy || typeof approval.approvedBy !== "string") {
+    throw new Error("Approval file must include approvedBy.");
+  }
+  if (!approval.credentialModel || typeof approval.credentialModel !== "string") {
+    throw new Error("Approval file must include credentialModel.");
+  }
+  const expiresAtMs = Date.parse(approval.expiresAt || "");
+  if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) {
+    throw new Error("Approval file expiresAt must be a future ISO timestamp.");
+  }
+  if (
+    approval.forwardBaseUrl &&
+    normalizeBaseUrl(approval.forwardBaseUrl) !== normalizeBaseUrl(request.forwardBaseUrl)
+  ) {
+    throw new Error("Approval file forwardBaseUrl does not match the requested Forward URL.");
+  }
+  if (
+    approval.forwardNetworkId &&
+    approval.forwardNetworkId !== request.forwardNetworkId
+  ) {
+    throw new Error("Approval file forwardNetworkId does not match the requested network.");
+  }
+  requireArrayIncludes(approval, "allowedOperations", "POST /api/nqe");
+  requireArrayIncludes(approval, "requiredForwardPermissions", "NetworkOperation.USE_NQE");
+  requireArrayIncludes(approval, "forbiddenForwardPermissions", "NetworkOperation.EDIT_CHECKS");
+  if (request.templateId) {
+    requireArrayIncludes(approval, "allowedTemplates", request.templateId);
+  }
+  if (request.queryId) {
+    requireArrayIncludes(approval, "allowedQueryIds", request.queryId);
+  }
+  return {
+    status: "verified",
+    approvedBy: approval.approvedBy,
+    expiresAt: approval.expiresAt,
+    credentialModel: approval.credentialModel,
+  };
 };
 
 const parsePositiveInteger = (value, fallback) => {
@@ -125,6 +201,22 @@ const main = async () => {
 
   const forwardBaseUrl = required(args, "forward-base-url");
   const forwardNetworkId = required(args, "forward-network-id");
+  const request = {
+    forwardBaseUrl,
+    forwardNetworkId,
+    ...(args["snapshot-id"] ? { snapshotId: args["snapshot-id"] } : {}),
+    templateId: args["template-id"] || "endpoint-inventory-smoke",
+    ...(args["query-id"] ? { queryId: args["query-id"] } : {}),
+    maxRows: parsePositiveInteger(args["max-rows"], 1),
+    execute: Boolean(args.execute),
+    includeResultSample: Boolean(args["include-result-sample"]),
+  };
+  const approval = args["approval-file"]
+    ? validateLiveSmokeApproval(await readJsonFile(args["approval-file"]), request)
+    : null;
+  if (args.execute && !approval) {
+    throw new Error("--approval-file is required when --execute is supplied.");
+  }
   if (args["authorization-file"] && !process.env.FORWARD_NQE_READONLY_AUTHORIZATION) {
     process.env.FORWARD_NQE_READONLY_AUTHORIZATION = await readAuthorizationFile(
       args["authorization-file"],
@@ -135,16 +227,7 @@ const main = async () => {
   const moduleUrl = pathToFileURL(path.join(root, "api/forward-nqe-preview.function.ts")).href;
   const { buildForwardNqePreview } = await import(moduleUrl);
 
-  const result = await buildForwardNqePreview({
-    forwardBaseUrl,
-    forwardNetworkId,
-    ...(args["snapshot-id"] ? { snapshotId: args["snapshot-id"] } : {}),
-    templateId: args["template-id"] || "endpoint-inventory-smoke",
-    ...(args["query-id"] ? { queryId: args["query-id"] } : {}),
-    maxRows: parsePositiveInteger(args["max-rows"], 1),
-    execute: Boolean(args.execute),
-    includeResultSample: Boolean(args["include-result-sample"]),
-  });
+  const result = await buildForwardNqePreview(request);
 
   const report = {
     schemaVersion: "forward-dynatrace-nqe-live-smoke/v1",
@@ -153,6 +236,7 @@ const main = async () => {
     status: result.status,
     summary: result.summary,
     requestPreview: result.requestPreview,
+    approval,
     evidence: result.evidence,
     result: result.result || null,
     nextSteps: result.nextSteps,
@@ -168,7 +252,9 @@ const main = async () => {
   }
 };
 
-main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    process.exitCode = 1;
+  });
+}

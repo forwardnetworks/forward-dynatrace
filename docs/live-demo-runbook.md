@@ -58,6 +58,7 @@ when the trial tenant does not yet have useful dependency evidence.
    npm run forward:nqe-live-smoke -- \
      --forward-base-url https://forward.example.com \
      --forward-network-id <network-id> \
+     --approval-file /secure/path/nqe-preview-approval.json \
      --authorization-file /secure/path/read-only-forward-auth-header \
      --execute \
      --output /tmp/forward-nqe-live-smoke.json

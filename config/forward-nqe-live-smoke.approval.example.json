@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "forward-dynatrace-nqe-preview-approval/v1",
+  "approvedBy": "change-or-ticket-id",
+  "approvedAt": "2099-01-01T00:00:00.000Z",
+  "expiresAt": "2099-01-08T00:00:00.000Z",
+  "credentialModel": "dedicated-read-only-nqe-principal",
+  "forwardBaseUrl": "https://forward.example.com",
+  "forwardNetworkId": "<network-id>",
+  "allowedOperations": ["POST /api/nqe"],
+  "allowedTemplates": ["endpoint-inventory-smoke"],
+  "allowedQueryIds": [],
+  "requiredForwardPermissions": ["NetworkOperation.USE_NQE"],
+  "forbiddenForwardPermissions": [
+    "NetworkOperation.EDIT_CHECKS",
+    "NetworkOperation.EDIT_OBJECTS",
+    "NetworkOperation.UPLOAD_SNAPSHOT",
+    "NetworkOperation.DELETE_SNAPSHOT"
+  ],
+  "notes": "Example only. Do not put credentials, tokens, tenant IDs, hostnames, or topology data in approval artifacts committed to source control."
+}

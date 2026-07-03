@@ -380,20 +380,24 @@ Exit criteria:
 
 ## Open Decisions
 
-1. Which Forward read-only credential model is acceptable for Dynatrace dynamic NQE preview?
-2. Should dynamic NQE preview run from Dynatrace app functions, a Forward-side proxy, or both?
+1. Dynamic NQE preview credential model: dedicated Forward principal with `NetworkOperation.USE_NQE`, no
+   `NetworkOperation.EDIT_CHECKS`, and a live-smoke approval artifact. Use a Forward-side proxy instead when a built-in
+   role would grant broader NQE Library authority than the customer accepts.
+2. Dynamic NQE preview runtime: Dynatrace app function by default after approval; Forward-side proxy when customer
+   policy requires Forward credentials to stay entirely outside Dynatrace.
 3. What exact NQE templates should be allowlisted for endpoint mapping and blast radius?
 4. Where should the Forward-side connector publish the sanitized status artifact for Dynatrace to read?
 5. When, if ever, should changed checks be auto-replaced?
 6. When, if ever, should stale checks be auto-deactivated?
 7. Which Forward-owned query IDs, if any, should be enabled for optional persistent NQE checks?
 8. Which Forward-owned query IDs, if any, should be enabled for optional NQE diffs?
-9. What customer approval artifact is required before update or stale automation?
+9. What customer approval artifact is required before update or stale automation? Current implementation uses a
+   separate exact-key approval file for update/stale mutations.
 
 ## Near-Term Execution Backlog
 
-1. Run `npm run forward:nqe-live-smoke -- --execute` once the customer approves the exact Forward read-only credential
-   model.
+1. Run `npm run forward:nqe-live-smoke -- --execute --approval-file <approval.json>` once the customer approves the
+   exact Forward read-only credential model.
 2. Capture customer-approved query IDs only if the optional persistent NQE or NQE diff path is enabled.
 
 Completed near-term execution docs:

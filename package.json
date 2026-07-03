@@ -26,7 +26,7 @@
     "forward:nqe-artifacts:test": "node --test scripts/forward-nqe-artifacts.test.mjs",
     "forward:nqe-preview:test": "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/forward-nqe-preview.test.mjs",
     "forward:nqe-live-smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/forward-nqe-live-smoke.mjs",
-    "forward:nqe-live-smoke:test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/forward-nqe-live-smoke.mjs --forward-base-url https://forward.example.com --forward-network-id network-1 --output /tmp/forward-nqe-live-smoke-plan.json",
+    "forward:nqe-live-smoke:test": "node --test scripts/forward-nqe-live-smoke.test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/forward-nqe-live-smoke.mjs --forward-base-url https://forward.example.com --forward-network-id network-1 --output /tmp/forward-nqe-live-smoke-plan.json",
     "forward:package": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/build-forward-package.mjs",
     "forward:package:test": "node --test scripts/forward-package.test.mjs",
     "forward:import": "node scripts/forward-import-package.mjs",
