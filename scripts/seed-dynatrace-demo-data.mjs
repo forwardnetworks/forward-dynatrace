@@ -18,16 +18,16 @@ Live ingest:
   node scripts/seed-dynatrace-demo-data.mjs --apply
 
 Options:
-  --apply                         POST synthetic demo business events to Dynatrace.
+  --apply                         POST synthetic demo dependency events to Dynatrace.
   --environment-url URL           Dynatrace app/environment URL. Defaults to app.config.json.
-  --api-base-url URL              Override API base URL. Defaults to https://{environment-id}.live.dynatrace.com.
+  --api-base-url URL              Override API base URL. Defaults to the Dynatrace Apps environment origin.
   --token-file path               Optional local token file outside the repo.
   --run-id id                     Demo run ID. Defaults to a timestamp-based ID.
 
 Required for --apply:
   DYNATRACE_TOKEN, DYNATRACE_TOKEN_FILE, or --token-file.
 
-The token needs the bizevents.ingest scope.
+Uses OpenPipeline events with Bearer auth. The Platform Token needs openpipeline:events:ingest.
 `;
 
 const parseArgs = (argv) => {
@@ -85,13 +85,15 @@ const readToken = async (tokenFile) => {
   return extractToken(await readFile(expandedTokenFile, "utf8"));
 };
 
-const toLiveApiBaseUrl = (environmentUrl) => {
+const toPlatformApiBaseUrl = (environmentUrl) => {
   const url = new URL(environmentUrl);
-  const environmentId = url.hostname.split(".")[0];
-  return `https://${environmentId}.live.dynatrace.com`;
+  return url.origin;
 };
 
-const toBusinessEvent = (dependency, runId, timestamp) => ({
+const OPENPIPELINE_EVENTS_ENDPOINT = "/platform/ingest/v1/events";
+const OPENPIPELINE_EVENTS_SCOPE = "openpipeline:events:ingest";
+
+const toDependencyEvent = (dependency, runId, timestamp) => ({
   "event.provider": "forward-dynatrace-demo",
   "event.type": "com.forward.demo.dependency",
   "demo.synthetic": true,
@@ -128,18 +130,22 @@ const main = async () => {
   const apiBaseUrl =
     args["api-base-url"] ||
     process.env.DYNATRACE_API_BASE_URL ||
-    toLiveApiBaseUrl(environmentUrl);
+    toPlatformApiBaseUrl(environmentUrl);
   const runId =
     args["run-id"] ||
     `forward-dynatrace-demo-${new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14)}`;
   const timestamp = new Date().toISOString();
   const events = dependencies.map((dependency) =>
-    toBusinessEvent(dependency, runId, timestamp),
+    toDependencyEvent(dependency, runId, timestamp),
   );
 
   const summary = {
     mode: args.apply ? "apply" : "dry-run",
+    target: "openpipeline-events",
     apiBaseUrl,
+    endpoint: OPENPIPELINE_EVENTS_ENDPOINT,
+    requiredScope: OPENPIPELINE_EVENTS_SCOPE,
+    queryTable: "events",
     runId,
     eventType: "com.forward.demo.dependency",
     provider: "forward-dynatrace-demo",
@@ -155,10 +161,10 @@ const main = async () => {
   }
 
   const token = await readToken(args["token-file"] || process.env.DYNATRACE_TOKEN_FILE);
-  const response = await fetch(`${apiBaseUrl}/api/v2/bizevents/ingest`, {
+  const response = await fetch(`${apiBaseUrl}${OPENPIPELINE_EVENTS_ENDPOINT}`, {
     method: "POST",
     headers: {
-      Authorization: `Api-Token ${token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(events),

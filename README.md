@@ -12,7 +12,12 @@ imports or pulls that package.
 - UI: `ui/app/pages/Home.tsx`
 - Path preview app function: `api/network-proof.function.ts`
 - Forward export app function: `api/forward-sync.function.ts`
+- Forward ingest status app function: `api/forward-status.function.ts`
 - UI request/response types: `ui/app/types/network-proof.ts`
+- Dynatrace live DQL exporter: `scripts/query-dynatrace-dependencies.mjs`
+- Dynatrace dependency normalizer: `scripts/normalize-dynatrace-dependencies.mjs`
+- Forward package builder: `scripts/build-forward-package.mjs`
+- Client trial plan: `docs/client-trial-plan.md`
 - Install and release model: `docs/install.md`
 - Workflow notes: `docs/workflow.md`
 - Dynatrace workflow trigger examples: `docs/dynatrace-workflow-trigger.md`,
@@ -25,7 +30,8 @@ imports or pulls that package.
   `config/forward-connector.signed.config.example.json`
 - Forward importer container: `Dockerfile.forward-importer`, `docs/container-runtime.md`
 - Forward connector runtime templates: `deploy/systemd/`, `deploy/kubernetes/`, `docs/connector-runtime.md`
-- Synthetic fixture and Dynatrace seeding: `docs/demo-data.md`
+- Demo/test data sidecars: `docs/demo-data.md`
+- Dynatrace DQL starter query: `deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql`
 - Production checklist: `docs/production-readiness.md`
 - Enterprise hardening backlog: `docs/enterprise-hardening.md`
 - Operations runbook: `docs/operations-runbook.md`
@@ -46,11 +52,13 @@ imports or pulls that package.
 
 1. Dynatrace application mapping supplies dependency rows: app, environment, source, destination, protocol, port,
    owner, criticality, and confidence.
-2. The app generates a deterministic `integration_key` for each dependency.
-3. The app stages one Forward-native `NewNetworkCheck` JSON object per eligible dependency.
-4. A Dynatrace Workflow can call the same function on a problem trigger or schedule.
-5. Forward-side ingest performs latest snapshot lookup, existing-check readback, name/tag dedupe, bulk persistent
+2. The query exporter can pull those rows from a live Dynatrace tenant with a Platform Token.
+3. The app or package builder generates a deterministic `integration_key` for each dependency.
+4. The app or package builder stages one Forward-native `NewNetworkCheck` JSON object per eligible dependency.
+5. A Dynatrace Workflow can call the same function on a problem trigger or schedule.
+6. Forward-side ingest performs latest snapshot lookup, existing-check readback, name/tag dedupe, bulk persistent
    check creation, and status reporting.
+7. Dynatrace displays the sanitized Forward ingest status artifact without Forward credentials or topology details.
 
 ## Screenshots
 
@@ -148,6 +156,10 @@ npm run forward:sign -- --help
 npm run workflow:smoke
 npm run runtime:validate
 npm run dynatrace:workflow:validate
+npm run dynatrace:query -- --help
+npm run dynatrace:normalize:test
+npm run forward:package -- --help
+npm run demo:rehearsal
 npm run security:audit
 npm run sbom:check
 npm run dynatrace:seed:demo
@@ -159,5 +171,7 @@ npm run deploy
 ```
 
 `npm run ci` is the local equivalent of the GitHub Actions `gitops` workflow.
-`npm run dynatrace:seed:demo -- --apply` optionally posts only synthetic Business Events to Dynatrace using a local
-token; it is dry-run by default.
+`npm run dynatrace:seed:demo -- --apply` posts only synthetic OpenPipeline dependency events to Dynatrace using a
+local Platform Token; it is dry-run by default.
+`npm run dynatrace:copy-demo` is a demo-only sidecar for copying dependency evidence into a trial sandbox. Production
+integrations should query the customer's own Dynatrace topology.

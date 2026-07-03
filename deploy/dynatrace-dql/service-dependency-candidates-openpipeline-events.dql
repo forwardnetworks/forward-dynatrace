@@ -1,0 +1,20 @@
+// Forward Dynatrace Field Integration dependency candidate query for OpenPipeline generic events.
+// Use this with npm run dynatrace:query and adapt filters/fields to the tenant's dependency data source.
+// Adjust entity filters, ownership joins, and endpoint mapping fields for the tenant.
+
+fetch events
+| filter event.provider == "forward-dynatrace-demo"
+| filter event.type == "com.forward.demo.dependency"
+| fields
+    app.name,
+    app.environment,
+    dt.entity.service,
+    service.name,
+    network.source,
+    network.destination,
+    network.protocol,
+    network.port,
+    owner.team,
+    criticality,
+    dependency.confidence
+| sort app.name asc, service.name asc

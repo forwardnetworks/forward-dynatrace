@@ -7,6 +7,11 @@ Example payloads live in:
 
 - `deploy/dynatrace-workflows/forward-sync-schedule.payload.example.json`
 - `deploy/dynatrace-workflows/forward-sync-problem.payload.example.json`
+- `deploy/dynatrace-workflows/forward-sync-on-demand.payload.example.json`
+
+The DQL starter query for dependency candidates lives at:
+
+- `deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql`
 
 Validate the examples with:
 
@@ -33,6 +38,15 @@ Use a problem trigger for impacted-service export. The workflow should:
 3. Publish the same two package artifacts.
 4. Mark low-confidence or incomplete rows as review-only or `needs-map`.
 5. Let the Forward-side importer reconcile the package before any check creation.
+
+## On-Demand Trigger
+
+Use on-demand export during trials or mapping review. The workflow should:
+
+1. Query a small dependency set.
+2. Call the Forward sync app function with `syncMode=manual-import`.
+3. Publish package artifacts for manual Forward-side validation.
+4. Keep low-confidence rows in review or `needs-map`.
 
 ## Guardrails
 

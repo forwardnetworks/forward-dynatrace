@@ -37,20 +37,34 @@ const requiredFiles = [
   "docs/harness-engineering.md",
   "docs/gitops.md",
   "docs/demo-data.md",
+  "docs/client-trial-plan.md",
   "docs/agent-guides/dynatrace-app.md",
   "shared/demo-dependencies.json",
+  "shared/demo-dynatrace-query-rows.json",
+  "shared/demo-forward-ingest-status.json",
   "config/forward-connector.config.example.json",
   "config/forward-connector.signed.config.example.json",
+  "api/forward-status.function.ts",
+  "ui/app/types/forward-status.ts",
   "scripts/sign-forward-package.mjs",
   "scripts/package-release-artifacts.mjs",
   "scripts/write-release-checksums.mjs",
   "scripts/release-checksums.test.mjs",
+  "scripts/query-dynatrace-dependencies.mjs",
+  "scripts/copy-dynatrace-demo-data.mjs",
+  "scripts/build-forward-package.mjs",
+  "scripts/normalize-dynatrace-dependencies.mjs",
+  "scripts/normalize-dynatrace-dependencies.test.mjs",
+  "scripts/demo-rehearsal.mjs",
   "scripts/workflow-smoke.mjs",
   "scripts/validate-runtime-manifests.mjs",
   "scripts/validate-dynatrace-workflow-examples.mjs",
   "scripts/seed-dynatrace-demo-data.mjs",
+  "deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql",
+  "deploy/dynatrace-dql/service-dependencies-smartscape.dql",
   "deploy/dynatrace-workflows/forward-sync-schedule.payload.example.json",
   "deploy/dynatrace-workflows/forward-sync-problem.payload.example.json",
+  "deploy/dynatrace-workflows/forward-sync-on-demand.payload.example.json",
   "deploy/systemd/forward-dynatrace-connector.service",
   "deploy/systemd/forward-dynatrace-connector.timer",
   "deploy/systemd/forward-dynatrace.env.example",
@@ -87,6 +101,7 @@ const textExtensions = new Set([
   ".html",
   ".js",
   ".json",
+  ".dql",
   ".md",
   ".mjs",
   ".ts",
@@ -177,6 +192,7 @@ const publicBrandingFiles = [
   "package.json",
   "api/forward-sync.function.ts",
   "api/network-proof.function.ts",
+  "api/forward-status.function.ts",
   "docs/harness-engineering.md",
   "docs/install.md",
   "docs/production-readiness.md",
@@ -323,6 +339,7 @@ for (const target of [
   "docs/admin-operations.md",
   "docs/release.md",
   "docs/demo-data.md",
+  "docs/client-trial-plan.md",
   "docs/harness-engineering.md",
   "docs/agent-guides/dynatrace-app.md",
 ]) {
@@ -381,8 +398,10 @@ for (const nodeVersionFile of [".nvmrc", ".node-version"]) {
 
 for (const scriptName of [
   "release:checksums:test",
+  "dynatrace:normalize:test",
   "runtime:validate",
   "dynatrace:workflow:validate",
+  "demo:rehearsal",
   "release:package:smoke",
   "security:audit",
   "sbom:check",
@@ -401,6 +420,21 @@ if (!packageJson.scripts?.["release:checksums"]) {
 }
 if (!packageJson.scripts?.["release:package"]) {
   fail("package.json must define npm script release:package.");
+}
+if (!packageJson.scripts?.["dynatrace:normalize"]) {
+  fail("package.json must define npm script dynatrace:normalize.");
+}
+if (!packageJson.scripts?.["dynatrace:query"]) {
+  fail("package.json must define npm script dynatrace:query.");
+}
+if (!packageJson.scripts?.["dynatrace:copy-demo"]) {
+  fail("package.json must define npm script dynatrace:copy-demo.");
+}
+if (!packageJson.scripts?.["dynatrace:bundle"]) {
+  fail("package.json must define npm script dynatrace:bundle.");
+}
+if (!packageJson.scripts?.["forward:package"]) {
+  fail("package.json must define npm script forward:package.");
 }
 
 const releaseWorkflow = await readText(".github/workflows/release.yml");
@@ -421,12 +455,21 @@ for (const requiredPackagerText of [
   "forward-dynatrace-app-",
   "forward-dynatrace-importer-",
   "deploy/dynatrace-workflows",
+  "deploy/dynatrace-dql",
+  "service-dependency-candidates-openpipeline-events.dql",
+  "service-dependencies-smartscape.dql",
+  "forward-sync-on-demand.payload.example.json",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
   "docs/connector-runtime.md",
   "deploy/systemd/forward-dynatrace-connector.service",
   "deploy/kubernetes/forward-dynatrace-connector-cronjob.yaml",
   "scripts/write-release-checksums.mjs",
+  "scripts/query-dynatrace-dependencies.mjs",
+  "scripts/copy-dynatrace-demo-data.mjs",
+  "scripts/build-forward-package.mjs",
+  "scripts/normalize-dynatrace-dependencies.mjs",
+  "scripts/demo-rehearsal.mjs",
   "SHA256SUMS",
 ]) {
   if (!releasePackager.includes(requiredPackagerText)) {

@@ -1,0 +1,54 @@
+[
+  {
+    "app.name": "Checkout",
+    "app.environment": "prod",
+    "dt.entity.service": "SERVICE-DEMO-CHECKOUT",
+    "service.name": "checkout-api",
+    "network.source": "checkout-vip",
+    "network.destination": "orders-db",
+    "network.protocol": "tcp",
+    "network.port": "443",
+    "owner.team": "commerce-platform",
+    "criticality": "critical",
+    "dependency.confidence": 98
+  },
+  {
+    "app.name": "Checkout",
+    "app.environment": "prod",
+    "dt.entity.service": "SERVICE-DEMO-CHECKOUT",
+    "service.name": "checkout-api",
+    "network.source": "checkout-vip",
+    "network.destination": "payment-gateway",
+    "network.protocol": "tcp",
+    "network.port": "8443",
+    "owner.team": "payments",
+    "criticality": "critical",
+    "dependency.confidence": 94
+  },
+  {
+    "app.name": "Inventory",
+    "app.environment": "prod",
+    "dt.entity.service": "SERVICE-DEMO-INVENTORY",
+    "service.name": "inventory-api",
+    "network.source": "inventory-vip",
+    "network.destination": "redis-cache",
+    "network.protocol": "tcp",
+    "network.port": "6379",
+    "owner.team": "supply-chain",
+    "criticality": "high",
+    "dependency.confidence": 87
+  },
+  {
+    "app.name": "Mobile",
+    "app.environment": "uat",
+    "dt.entity.service": "SERVICE-DEMO-MOBILE",
+    "service.name": "mobile-bff",
+    "network.source": "mobile-bff",
+    "network.destination": "",
+    "network.protocol": "tcp",
+    "network.port": "443",
+    "owner.team": "digital",
+    "criticality": "medium",
+    "dependency.confidence": 73
+  }
+]

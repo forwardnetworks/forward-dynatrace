@@ -23,6 +23,7 @@ import {
 } from "@dynatrace/strato-icons";
 import { useAppFunction } from "@dynatrace-sdk/react-hooks";
 
+import demoForwardStatus from "../../../shared/demo-forward-ingest-status.json";
 import syntheticDependencies from "../../../shared/demo-dependencies.json";
 import type {
   NetworkProofRequest,
@@ -34,10 +35,17 @@ import type {
   ForwardSyncRequest,
   ForwardSyncResponse,
 } from "../types/forward-sync";
+import type {
+  ForwardIngestStatusArtifact,
+  ForwardStatusRequest,
+  ForwardStatusResponse,
+} from "../types/forward-status";
 
 import "./Home.css";
 
 const dependencies = syntheticDependencies as DependencyCandidate[];
+const sampleForwardStatus = demoForwardStatus as ForwardIngestStatusArtifact;
+const sampleForwardStatusCounts = sampleForwardStatus.counts ?? {};
 const dynatraceLogoUrl = "assets/Dynatrace_Logo.svg";
 const forwardLogoUrl = "assets/forward-logo.svg";
 
@@ -83,6 +91,9 @@ export const Home = () => {
   const [syncRequest, setSyncRequest] = useState<
     ForwardSyncRequest | undefined
   >();
+  const [statusRequest, setStatusRequest] = useState<
+    ForwardStatusRequest | undefined
+  >();
 
   const proof = useAppFunction<NetworkProofResponse>({
     name: "network-proof",
@@ -91,6 +102,10 @@ export const Home = () => {
   const sync = useAppFunction<ForwardSyncResponse>({
     name: "forward-sync",
     data: syncRequest,
+  }, { autoFetch: false, autoFetchOnUpdate: true });
+  const forwardStatus = useAppFunction<ForwardStatusResponse>({
+    name: "forward-status",
+    data: statusRequest,
   }, { autoFetch: false, autoFetchOnUpdate: true });
 
   const readiness = useMemo(() => {
@@ -123,6 +138,12 @@ export const Home = () => {
       forwardNetworkId,
       syncMode,
       dependencies: selectedForSync,
+    });
+  }
+
+  function loadForwardStatus() {
+    setStatusRequest({
+      statusArtifact: sampleForwardStatus,
     });
   }
 
@@ -214,6 +235,12 @@ export const Home = () => {
           label="Intent checks"
           value={`${selectedForSync.length}`}
           detail="persistent candidates"
+        />
+        <MetricCard
+          icon={<CheckmarkIcon />}
+          label="Last ingest"
+          value={sampleForwardStatus.importState ?? "unknown"}
+          detail={`${sampleForwardStatusCounts.changed ?? 0} changed / ${sampleForwardStatusCounts.stale ?? 0} stale`}
         />
       </section>
 
@@ -368,6 +395,38 @@ export const Home = () => {
           <EmptyState text="No preview result yet." />
         )}
         {proof.error && <Paragraph>{proof.error.message}</Paragraph>}
+      </section>
+
+      <section className="panel">
+        <PanelHeader
+          icon={<CheckmarkIcon />}
+          title="Forward Ingest Status"
+          detail="Read-only status from Forward-side runtime"
+        />
+        <div className="status-actions">
+          <Button color="primary" variant="accent" onClick={loadForwardStatus}>
+            <Button.Prefix>
+              <DownloadIcon />
+            </Button.Prefix>
+            Load status artifact
+          </Button>
+          <span>
+            Forward-side connector publishes aggregate status only. No Forward
+            credentials, hostnames, check names, or API bodies are shown here.
+          </span>
+        </div>
+        {forwardStatus.isLoading && <ProgressCircle aria-label="Loading Forward status" />}
+        {forwardStatus.data ? (
+          <ResultBody
+            status={forwardStatus.data.status}
+            summary={forwardStatus.data.summary}
+            rows={forwardStatus.data.rows}
+            nextSteps={forwardStatus.data.nextSteps}
+          />
+        ) : (
+          <EmptyState text="No Forward ingest status loaded yet." />
+        )}
+        {forwardStatus.error && <Paragraph>{forwardStatus.error.message}</Paragraph>}
       </section>
 
       <section className="panel">

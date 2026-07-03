@@ -29,7 +29,8 @@ docs and executable checks.
 - [docs/admin-operations.md](docs/admin-operations.md): audit export, config restore, disaster recovery, and access review.
 - [docs/release.md](docs/release.md): release workflow, artifacts, and checksum verification.
 - [docs/validation-matrix.md](docs/validation-matrix.md): tested, automated, and remaining validation.
-- [docs/demo-data.md](docs/demo-data.md): synthetic fixtures and optional Dynatrace seeding.
+- [docs/demo-data.md](docs/demo-data.md): synthetic fixtures and demo-only Dynatrace sidecars.
+- [docs/client-trial-plan.md](docs/client-trial-plan.md): meeting/demo rehearsal, trial tenant, and live Forward workflow.
 - [docs/harness-engineering.md](docs/harness-engineering.md): agent-first operating model for this repo.
 - [docs/agent-guides/dynatrace-app.md](docs/agent-guides/dynatrace-app.md): detailed Dynatrace AppEngine, Strato, and SDK guidance.
 
@@ -54,7 +55,12 @@ For faster iteration:
 ```bash
 npm run repo:validate
 npm run forward:import:test
+npm run dynatrace:query -- --help
+npm run dynatrace:copy-demo -- --help
+npm run dynatrace:normalize:test
+npm run forward:package -- --help
 npm run release:checksums:test
+npm run demo:rehearsal
 npm run workflow:smoke
 npm run lint
 npm run build
