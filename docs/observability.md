@@ -57,6 +57,27 @@ The event includes:
 The event excludes check names, hostnames, dependency rows, credentials, and Forward API response bodies. Treat it as
 Forward-to-Dynatrace telemetry, not as a command channel.
 
+Dry-run the Dynatrace publish path before enabling it:
+
+```bash
+npm run dynatrace:status:publish -- \
+  --event /handoff/dynatrace-forward/latest/forward-ingest-status-event.json \
+  --environment-url https://<environment-id>.apps.dynatrace.com/
+```
+
+When approved, publish with a Platform Token that has `openpipeline:events:ingest`:
+
+```bash
+export DYNATRACE_TOKEN=<platform-token>
+npm run dynatrace:status:publish -- \
+  --event /handoff/dynatrace-forward/latest/forward-ingest-status-event.json \
+  --environment-url https://<environment-id>.apps.dynatrace.com/ \
+  --apply
+```
+
+This is the only Forward-to-Dynatrace write path in the reference workflow. It sends aggregate ingest health back to
+Dynatrace and does not expose Forward credentials, check names, endpoint names, or dependency rows.
+
 ## Metrics
 
 The metrics file currently includes:

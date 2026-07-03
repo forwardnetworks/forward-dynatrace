@@ -22,7 +22,7 @@ Steps:
 ```bash
 git clone https://github.com/forwardnetworks/forward-dynatrace.git
 cd forward-dynatrace
-git checkout v1.0.10
+git checkout v1.0.11
 npm ci
 npm run ci
 ```

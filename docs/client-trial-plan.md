@@ -126,7 +126,20 @@ Use only a non-production Forward network.
      --status-artifact forward-ingest-status.json
    ```
 
-4. Apply only after reviewing create/changed/stale counts:
+4. Publish sanitized status for Dynatrace display, then optionally publish the aggregate status event:
+
+   ```bash
+   npm run forward:status:publish -- \
+     --status forward-ingest-status.json \
+     --output-dir /handoff/dynatrace-forward/latest
+
+   npm run dynatrace:status:publish -- \
+     --event /handoff/dynatrace-forward/latest/forward-ingest-status-event.json \
+     --environment-url https://<environment-id>.apps.dynatrace.com/ \
+     --apply
+   ```
+
+5. Apply only after reviewing create/changed/stale counts:
 
    ```bash
    npm run forward:import -- \
@@ -135,9 +148,9 @@ Use only a non-production Forward network.
      --apply
    ```
 
-5. Re-run without `--apply` and confirm the same package reports unchanged.
+6. Re-run without `--apply` and confirm the same package reports unchanged.
 
-6. Delete demo checks after the trial if they were created in a shared test network.
+7. Delete demo checks after the trial if they were created in a shared test network.
 
 ## Standard Demo Replay
 

@@ -73,6 +73,8 @@ npm run dynatrace:query -- --help
 npm run dynatrace:deploy -- --help
 npm run dynatrace:deploy:test
 npm run dynatrace:replay-demo -- --help
+npm run dynatrace:status:publish -- --help
+npm run dynatrace:status:publish:test
 npm run dynatrace:normalize:test
 npm run forward:package -- --help
 npm run forward:status:test

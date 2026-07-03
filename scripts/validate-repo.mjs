@@ -62,6 +62,8 @@ const requiredFiles = [
   "scripts/package-release-artifacts.mjs",
   "scripts/publish-forward-status.mjs",
   "scripts/publish-forward-status.test.mjs",
+  "scripts/publish-dynatrace-status-event.mjs",
+  "scripts/publish-dynatrace-status-event.test.mjs",
   "scripts/write-release-checksums.mjs",
   "scripts/release-checksums.test.mjs",
   "scripts/deploy-dynatrace-app.mjs",
@@ -456,6 +458,7 @@ for (const scriptName of [
   "forward:nqe-preview:test",
   "forward:nqe-live-smoke:test",
   "forward:readiness:test",
+  "dynatrace:status:publish:test",
   "dynatrace:normalize:test",
   "dynatrace:deploy:test",
   "runtime:validate",
@@ -497,6 +500,9 @@ if (!packageJson.scripts?.["dynatrace:deploy"]) {
 }
 if (!packageJson.scripts?.["dynatrace:replay-demo"]) {
   fail("package.json must define npm script dynatrace:replay-demo.");
+}
+if (!packageJson.scripts?.["dynatrace:status:publish"]) {
+  fail("package.json must define npm script dynatrace:status:publish.");
 }
 if (!packageJson.scripts?.["dynatrace:bundle"]) {
   fail("package.json must define npm script dynatrace:bundle.");

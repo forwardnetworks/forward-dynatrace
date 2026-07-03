@@ -74,6 +74,19 @@ node scripts/publish-forward-status.mjs \
   --output-dir /handoff/dynatrace-forward/latest
 ```
 
+If the customer wants the Forward-side result visible as Dynatrace telemetry, the runtime can publish the derived
+aggregate status event after the sanitized handoff file is written:
+
+```bash
+node scripts/publish-dynatrace-status-event.mjs \
+  --event /handoff/dynatrace-forward/latest/forward-ingest-status-event.json \
+  --environment-url https://<environment-id>.apps.dynatrace.com/ \
+  --apply
+```
+
+That step requires only a Dynatrace Platform Token with `openpipeline:events:ingest`. It still runs outside Dynatrace,
+does not use Forward credentials for the publish step, and sends only aggregate ingest health.
+
 ## Kubernetes Runtime
 
 Build the importer image from `Dockerfile.forward-importer` and publish it to an internal registry. Update

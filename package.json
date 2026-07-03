@@ -1,6 +1,6 @@
 {
   "name": "forward-dynatrace",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Forward Field Integration reference for exporting intent-check packages from Dynatrace service dependency evidence",
   "scripts": {
     "build": "dt-app build",
@@ -25,6 +25,8 @@
     "dynatrace:replay-demo:test": "node --test scripts/replay-dynatrace-demo-data.test.mjs",
     "dynatrace:normalize": "node scripts/normalize-dynatrace-dependencies.mjs",
     "dynatrace:normalize:test": "node --test scripts/normalize-dynatrace-dependencies.test.mjs",
+    "dynatrace:status:publish": "node scripts/publish-dynatrace-status-event.mjs",
+    "dynatrace:status:publish:test": "node --test scripts/publish-dynatrace-status-event.test.mjs",
     "dynatrace:bundle": "dt-app deploy --dry-run --no-open --non-interactive",
     "demo:capture": "npm run build && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/capture-demo-screenshots.mjs",
     "demo:rehearsal": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/demo-rehearsal.mjs",
@@ -53,7 +55,7 @@
     "whitespace:check": "git diff --check",
     "test": "npm run forward:import:test && npm run release:checksums:test",
     "lint": "eslint .",
-    "ci": "npm run repo:validate && npm run whitespace:check && npm run forward:import:test && npm run forward:nqe-artifacts:test && npm run forward:nqe-preview:test && npm run forward:nqe-live-smoke:test && npm run forward:package:test && npm run forward:readiness:test && npm run forward:status:test && npm run forward:status:publish:test && npm run dynatrace:normalize:test && npm run dynatrace:replay-demo:test && npm run dynatrace:deploy:test && npm run release:checksums:test && npm run release:sign:test && npm run workflow:smoke && npm run load:scale && npm run runtime:validate && npm run runtime:slo:test && npm run dynatrace:workflow:validate && npm run demo:rehearsal && npm run security:audit && npm run sbom:check && npm run lint && npm run build && npm run release:package:smoke"
+    "ci": "npm run repo:validate && npm run whitespace:check && npm run forward:import:test && npm run forward:nqe-artifacts:test && npm run forward:nqe-preview:test && npm run forward:nqe-live-smoke:test && npm run forward:package:test && npm run forward:readiness:test && npm run forward:status:test && npm run forward:status:publish:test && npm run dynatrace:status:publish:test && npm run dynatrace:normalize:test && npm run dynatrace:replay-demo:test && npm run dynatrace:deploy:test && npm run release:checksums:test && npm run release:sign:test && npm run workflow:smoke && npm run load:scale && npm run runtime:validate && npm run runtime:slo:test && npm run dynatrace:workflow:validate && npm run demo:rehearsal && npm run security:audit && npm run sbom:check && npm run lint && npm run build && npm run release:package:smoke"
   },
   "engines": {
     "node": ">=24.0.0 <25.0.0"

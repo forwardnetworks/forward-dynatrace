@@ -34,6 +34,7 @@ imports or pulls that package.
 - Forward deployment readiness: `scripts/forward-deployment-readiness.mjs`, `docs/deployment-readiness.md`
 - Dynatrace deploy wrapper: `scripts/deploy-dynatrace-app.mjs`
 - Forward status publisher: `scripts/publish-forward-status.mjs`
+- Dynatrace status event publisher: `scripts/publish-dynatrace-status-event.mjs`
 - Forward package signer: `scripts/sign-forward-package.mjs`
 - Forward connector config examples: `config/forward-connector.config.example.json`,
   `config/forward-connector.signed.config.example.json`
@@ -72,7 +73,8 @@ imports or pulls that package.
 5. A Dynatrace Workflow can call the same function on a problem trigger or schedule.
 6. Forward-side ingest performs latest snapshot lookup, existing-check readback, name/tag dedupe, bulk persistent
    check creation, and status reporting.
-7. Dynatrace displays the sanitized Forward ingest status artifact without Forward credentials or topology details.
+7. Dynatrace displays the sanitized Forward ingest status artifact, or receives the aggregate status event through
+   OpenPipeline, without Forward credentials or topology details.
 
 ## Screenshots
 
