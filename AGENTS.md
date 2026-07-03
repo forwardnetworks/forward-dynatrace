@@ -31,6 +31,7 @@ docs and executable checks.
 - [docs/validation-matrix.md](docs/validation-matrix.md): tested, automated, and remaining validation.
 - [docs/demo-data.md](docs/demo-data.md): synthetic fixtures and demo-only Dynatrace sidecars.
 - [docs/client-trial-plan.md](docs/client-trial-plan.md): meeting/demo rehearsal, trial tenant, and live Forward workflow.
+- [docs/execution-roadmap.md](docs/execution-roadmap.md): phased plan, optional NQE path, and ownership boundaries.
 - [docs/harness-engineering.md](docs/harness-engineering.md): agent-first operating model for this repo.
 - [docs/agent-guides/dynatrace-app.md](docs/agent-guides/dynatrace-app.md): detailed Dynatrace AppEngine, Strato, and SDK guidance.
 

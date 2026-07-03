@@ -32,6 +32,7 @@ const appArchiveEntries = [
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
   "docs/client-trial-plan.md",
+  "docs/execution-roadmap.md",
 ];
 
 const importerArchiveEntries = [
@@ -59,6 +60,7 @@ const importerArchiveEntries = [
   "docs/rbac.md",
   "docs/package-handoff.md",
   "docs/client-trial-plan.md",
+  "docs/execution-roadmap.md",
 ];
 
 const requiredAppMembers = [
@@ -76,6 +78,7 @@ const requiredAppMembers = [
   "docs/workflow.md",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
+  "docs/execution-roadmap.md",
 ];
 
 const requiredImporterMembers = [
@@ -103,6 +106,7 @@ const requiredImporterMembers = [
   "docs/rbac.md",
   "docs/package-handoff.md",
   "docs/client-trial-plan.md",
+  "docs/execution-roadmap.md",
 ];
 
 const parseArgs = (argv) => {

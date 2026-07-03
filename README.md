@@ -18,6 +18,7 @@ imports or pulls that package.
 - Dynatrace dependency normalizer: `scripts/normalize-dynatrace-dependencies.mjs`
 - Forward package builder: `scripts/build-forward-package.mjs`
 - Client trial plan: `docs/client-trial-plan.md`
+- Execution roadmap: `docs/execution-roadmap.md`
 - Install and release model: `docs/install.md`
 - Workflow notes: `docs/workflow.md`
 - Dynatrace workflow trigger examples: `docs/dynatrace-workflow-trigger.md`,
