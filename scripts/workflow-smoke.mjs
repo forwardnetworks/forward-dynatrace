@@ -15,10 +15,57 @@ import {
 } from "./forward-nqe-artifacts.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const demoDependenciesPath = path.join(root, "shared/demo-dependencies.json");
 const importerPath = path.join(root, "scripts/forward-import-package.mjs");
 
 const readJson = async (filePath) => JSON.parse(await readFile(filePath, "utf8"));
+
+const smokeDependencies = [
+  {
+    id: "smoke-frontend-api",
+    appName: "Smoke App",
+    environment: "demo",
+    serviceEntityId: "SERVICE-SMOKE-FRONTEND",
+    serviceName: "smoke-frontend",
+    source: "frontend-vip",
+    destination: "api-vip",
+    protocol: "tcp",
+    port: "443",
+    owner: "platform",
+    criticality: "critical",
+    confidence: 95,
+    mappingState: "ready",
+  },
+  {
+    id: "smoke-api-db",
+    appName: "Smoke App",
+    environment: "demo",
+    serviceEntityId: "SERVICE-SMOKE-API",
+    serviceName: "smoke-api",
+    source: "api-vip",
+    destination: "database-vip",
+    protocol: "tcp",
+    port: "5432",
+    owner: "platform",
+    criticality: "high",
+    confidence: 90,
+    mappingState: "ready",
+  },
+  {
+    id: "smoke-api-queue",
+    appName: "Smoke App",
+    environment: "demo",
+    serviceEntityId: "SERVICE-SMOKE-QUEUE",
+    serviceName: "smoke-worker",
+    source: "api-vip",
+    destination: "queue-vip",
+    protocol: "tcp",
+    port: "5672",
+    owner: "platform",
+    criticality: "medium",
+    confidence: 85,
+    mappingState: "review",
+  },
+];
 
 const toSlug = (value) =>
   value
@@ -328,8 +375,7 @@ const runImporter = async (args, env = {}) =>
   });
 
 const main = async () => {
-  const dependencies = await readJson(demoDependenciesPath);
-  const exportableDependencies = dependencies.filter(
+  const exportableDependencies = smokeDependencies.filter(
     (dependency) => dependency.mappingState !== "needs-map",
   );
   const checks = exportableDependencies.map(toIntentCheck);

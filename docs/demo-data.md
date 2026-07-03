@@ -1,18 +1,17 @@
 # Demo And Test Data
 
-The repo keeps committed fixtures synthetic. Production integrations must use customer-owned Dynatrace topology through
-`npm run dynatrace:query` or the Dynatrace app workflow and keep exported rows outside GitHub. Demo-copy and
-synthetic-seed workflows are sidecars for trial sandboxes only. Do not put customer names, customer topology, real
+The repo keeps committed fixtures demo-only and customer-safe. Production integrations must use customer-owned
+Dynatrace topology through `npm run dynatrace:query` or the Dynatrace app workflow and keep exported rows outside
+GitHub. Saved demo replay is a sidecar for trial sandboxes only. Do not put customer names, customer topology, real
 Forward network IDs, or real credentials in GitHub.
 
 ## Fixtures
 
 The app fixture is [shared/demo-dependencies.json](../shared/demo-dependencies.json). It contains:
 
-- 3 Forward-exportable rows
-- 1 `needs-map` row that proves incomplete mappings are rejected from check creation
-- synthetic service IDs prefixed with `SERVICE-DEMO-`
-- synthetic host names, app names, owners, and ports
+- 100 Forward-exportable review rows from a Dynatrace Playground Smartscape service-call export
+- deterministic service IDs, service names, source names, destination names, protocol, and port fields
+- no tenant ID, user identity, credential, customer name, Forward network ID, or customer topology
 
 The local app imports this fixture so screenshots, browser tests, and package generation tell the same story.
 
@@ -77,53 +76,47 @@ npm run forward:package -- \
   --output-dir /tmp/forward-dynatrace-package
 ```
 
-## Demo Tenant Copy Sidecar
+## Saved Demo Replay
 
-Use this only to copy demo dependency evidence into a trial sandbox when the live demo tenant has the topology you want
-to show but the sandbox has the permissions you want to validate. This is not a production workflow.
-
-```bash
-npm run dynatrace:copy-demo -- \
-  --source-environment-url https://<demo-source-id>.apps.dynatrace.com/ \
-  --destination-environment-url https://<trial-sandbox-id>.apps.dynatrace.com/ \
-  --source-token-file /secure/path/source-token.txt \
-  --destination-token-file /secure/path/destination-token.txt \
-  --output-dir /tmp/forward-dynatrace-demo-copy \
-  --apply
-```
-
-The sidecar writes local `source-rows.json`, `openpipeline-events.json`, and `dependencies.json` artifacts. Keep those
-outside GitHub.
-
-## Synthetic Dynatrace Seed
-
-Use this only for isolated test tenants that do not already have useful demo topology. This is not a production
+Use this only for isolated trial tenants that do not already have useful demo topology. This is not a production
 workflow.
+
+The repo includes a saved Dynatrace Playground service-dependency fixture:
+
+- `shared/demo-dynatrace-query-rows.json`
+- `shared/demo-dependencies.json`
+
+Replay it into a trial sandbox with OpenPipeline ingest. This does not require access to the live demo tenant.
 
 Dry-run:
 
 ```bash
-npm run dynatrace:seed:demo
+npm run dynatrace:replay-demo
 ```
 
 Live ingest:
 
 ```bash
-npm run dynatrace:seed:demo -- --apply
+npm run dynatrace:replay-demo -- \
+  --environment-url https://<trial-sandbox-id>.apps.dynatrace.com/ \
+  --token-file /secure/path/platform-token \
+  --apply
 ```
 
 The script reads `DYNATRACE_TOKEN`, `DYNATRACE_TOKEN_FILE`, or `--token-file` locally. The Platform Token must have the
-`openpipeline:events:ingest` scope. No token is written to the repo. The script sends synthetic dependency events to:
+`openpipeline:events:ingest` scope. No token is written to the repo. When given an Apps URL, the script derives the
+Dynatrace live ingest origin and sends saved demo dependency events to:
 
 ```text
-https://{environment-id}.apps.dynatrace.com/platform/ingest/v1/events
+https://{environment-id}.live.dynatrace.com/platform/ingest/v1/events
 ```
 
 All events include:
 
 - `event.provider = forward-dynatrace-demo`
 - `event.type = com.forward.demo.dependency`
-- `demo.synthetic = true`
+- `demo.fixture = dynatrace-playground-smartscape`
+- `demo.replay = true`
 - `demo.run_id = <timestamped run id>`
 
 Example DQL for verification in Dynatrace:

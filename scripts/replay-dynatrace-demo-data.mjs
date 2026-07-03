@@ -9,25 +9,28 @@ const demoDependenciesPath = path.join(root, "shared/demo-dependencies.json");
 const appConfigPath = path.join(root, "app.config.json");
 
 const usage = `
-Dynatrace demo dependency seeder
+Dynatrace saved demo dependency replay
 
 Dry-run by default:
-  node scripts/seed-dynatrace-demo-data.mjs
+  node scripts/replay-dynatrace-demo-data.mjs
 
 Live ingest:
-  node scripts/seed-dynatrace-demo-data.mjs --apply
+  node scripts/replay-dynatrace-demo-data.mjs --apply
 
 Options:
-  --apply                         POST synthetic demo dependency events to Dynatrace.
+  --apply                         POST saved demo dependency events to Dynatrace.
   --environment-url URL           Dynatrace app/environment URL. Defaults to app.config.json.
-  --api-base-url URL              Override API base URL. Defaults to the Dynatrace Apps environment origin.
+  --api-base-url URL              Override API base URL. Defaults to the Dynatrace live ingest origin.
   --token-file path               Optional local token file outside the repo.
   --run-id id                     Demo run ID. Defaults to a timestamp-based ID.
 
 Required for --apply:
   DYNATRACE_TOKEN, DYNATRACE_TOKEN_FILE, or --token-file.
 
-Uses OpenPipeline events with Bearer auth. The Platform Token needs openpipeline:events:ingest.
+Uses the checked shared/demo-dependencies.json fixture and OpenPipeline events
+with Bearer auth. The Platform Token needs openpipeline:events:ingest. This is
+for demos and trial sandboxes only; production deployments should query the
+customer's own Dynatrace topology.
 `;
 
 const parseArgs = (argv) => {
@@ -85,8 +88,11 @@ const readToken = async (tokenFile) => {
   return extractToken(await readFile(expandedTokenFile, "utf8"));
 };
 
-const toPlatformApiBaseUrl = (environmentUrl) => {
+const toOpenPipelineApiBaseUrl = (environmentUrl) => {
   const url = new URL(environmentUrl);
+  if (url.hostname.endsWith(".apps.dynatrace.com")) {
+    url.hostname = url.hostname.replace(/\.apps\.dynatrace\.com$/u, ".live.dynatrace.com");
+  }
   return url.origin;
 };
 
@@ -96,7 +102,9 @@ const OPENPIPELINE_EVENTS_SCOPE = "openpipeline:events:ingest";
 const toDependencyEvent = (dependency, runId, timestamp) => ({
   "event.provider": "forward-dynatrace-demo",
   "event.type": "com.forward.demo.dependency",
-  "demo.synthetic": true,
+  "demo.fixture": "dynatrace-playground-smartscape",
+  "demo.replay": true,
+  "demo.synthetic": false,
   "demo.run_id": runId,
   "dependency.id": dependency.id,
   "dependency.mapping_state": dependency.mappingState,
@@ -130,7 +138,7 @@ const main = async () => {
   const apiBaseUrl =
     args["api-base-url"] ||
     process.env.DYNATRACE_API_BASE_URL ||
-    toPlatformApiBaseUrl(environmentUrl);
+    toOpenPipelineApiBaseUrl(environmentUrl);
   const runId =
     args["run-id"] ||
     `forward-dynatrace-demo-${new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14)}`;
@@ -149,7 +157,8 @@ const main = async () => {
     runId,
     eventType: "com.forward.demo.dependency",
     provider: "forward-dynatrace-demo",
-    syntheticEvents: events.length,
+    fixture: "shared/demo-dependencies.json",
+    replayEvents: events.length,
     readyRows: dependencies.filter((dependency) => dependency.mappingState === "ready").length,
     reviewRows: dependencies.filter((dependency) => dependency.mappingState === "review").length,
     needsMapRows: dependencies.filter((dependency) => dependency.mappingState === "needs-map").length,
@@ -173,7 +182,7 @@ const main = async () => {
 
   if (!response.ok) {
     throw new Error(
-      `Dynatrace demo seed failed with ${response.status}: ${text.slice(0, 500)}`,
+      `Dynatrace demo replay failed with ${response.status}: ${text.slice(0, 500)}`,
     );
   }
 
@@ -181,7 +190,7 @@ const main = async () => {
     JSON.stringify(
       {
         ...summary,
-        status: "seeded",
+        status: "replayed",
         responseStatus: response.status,
       },
       null,

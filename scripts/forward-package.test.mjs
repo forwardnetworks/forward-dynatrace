@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -35,13 +35,68 @@ const runJson = async (args) =>
 
 test("builds optional NQE artifacts and validates the full package", async () => {
   const outputDir = await mkdtemp(path.join(tmpdir(), "forward-dynatrace-nqe-package-"));
+  const dependenciesPath = path.join(outputDir, "dependencies.json");
+  await writeFile(
+    dependenciesPath,
+    `${JSON.stringify(
+      [
+        {
+          id: "checkout-orders-db",
+          appName: "Checkout",
+          environment: "prod",
+          serviceEntityId: "SERVICE-DEMO-CHECKOUT",
+          serviceName: "checkout-api",
+          source: "checkout-vip",
+          destination: "orders-db",
+          protocol: "tcp",
+          port: "443",
+          owner: "commerce-platform",
+          criticality: "critical",
+          confidence: 98,
+          mappingState: "ready",
+        },
+        {
+          id: "checkout-payment",
+          appName: "Checkout",
+          environment: "prod",
+          serviceEntityId: "SERVICE-DEMO-CHECKOUT",
+          serviceName: "checkout-api",
+          source: "checkout-vip",
+          destination: "payment-gateway",
+          protocol: "tcp",
+          port: "8443",
+          owner: "payments",
+          criticality: "critical",
+          confidence: 94,
+          mappingState: "ready",
+        },
+        {
+          id: "inventory-cache",
+          appName: "Inventory",
+          environment: "prod",
+          serviceEntityId: "SERVICE-DEMO-INVENTORY",
+          serviceName: "inventory-api",
+          source: "inventory-vip",
+          destination: "redis-cache",
+          protocol: "tcp",
+          port: "6379",
+          owner: "supply-chain",
+          criticality: "high",
+          confidence: 87,
+          mappingState: "review",
+        },
+      ],
+      null,
+      2,
+    )}\n`,
+  );
 
   const buildResult = await runJson([
     "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON",
     "--experimental-strip-types",
     "scripts/build-forward-package.mjs",
     "--dependencies",
-    "shared/demo-dependencies.json",
+    dependenciesPath,
     "--output-dir",
     outputDir,
     "--nqe-query-id",
@@ -85,4 +140,70 @@ test("builds optional NQE artifacts and validates the full package", async () =>
   assert.equal(importResult.plannedChecks, 3);
   assert.equal(importResult.plannedNqeChecks, 2);
   assert.equal(importResult.plannedNqeDiffRequests, 2);
+});
+
+test("keeps generated check names unique for duplicate service edges", async () => {
+  const outputDir = await mkdtemp(path.join(tmpdir(), "forward-dynatrace-duplicate-edge-"));
+  const dependenciesPath = path.join(outputDir, "dependencies.json");
+  const duplicateEdgeDependencies = [
+    {
+      id: "frontend-web-frontend-proxy-service-a",
+      appName: "Dynatrace Demo",
+      environment: "demo",
+      serviceEntityId: "SERVICE-00677FCCD8F24235",
+      serviceName: "frontend-web",
+      source: "frontend-web",
+      destination: "frontend-proxy",
+      protocol: "tcp",
+      port: "443",
+      owner: "dynatrace-demo",
+      criticality: "medium",
+      confidence: 80,
+      mappingState: "review",
+    },
+    {
+      id: "frontend-web-frontend-proxy-service-b",
+      appName: "Dynatrace Demo",
+      environment: "demo",
+      serviceEntityId: "SERVICE-95D96EDE93AA13DB",
+      serviceName: "frontend-web",
+      source: "frontend-web",
+      destination: "frontend-proxy",
+      protocol: "tcp",
+      port: "443",
+      owner: "dynatrace-demo",
+      criticality: "medium",
+      confidence: 80,
+      mappingState: "review",
+    },
+  ];
+  await writeFile(dependenciesPath, `${JSON.stringify(duplicateEdgeDependencies, null, 2)}\n`);
+
+  const buildResult = await runJson([
+    "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON",
+    "--experimental-strip-types",
+    "scripts/build-forward-package.mjs",
+    "--dependencies",
+    dependenciesPath,
+    "--output-dir",
+    outputDir,
+  ]);
+
+  assert.equal(buildResult.intentChecks, 2);
+  const checks = JSON.parse(
+    await readFile(path.join(outputDir, "forward-intent-checks.json"), "utf8"),
+  );
+  assert.equal(new Set(checks.map((check) => check.name)).size, 2);
+  assert.ok(checks.every((check) => /\[[a-z0-9-]+\]$/.test(check.name)));
+
+  const importResult = await runJson([
+    "scripts/forward-import-package.mjs",
+    "--checks",
+    path.join(outputDir, "forward-intent-checks.json"),
+    "--manifest",
+    path.join(outputDir, "forward-dynatrace-manifest.json"),
+    "--validate-only",
+  ]);
+  assert.equal(importResult.status, "valid");
+  assert.equal(importResult.plannedChecks, 2);
 });

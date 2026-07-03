@@ -19,7 +19,7 @@ repo, and enforce important invariants mechanically.
 | Agent legibility | Compact root `AGENTS.md` with links to deeper docs |
 | Mechanical invariants | `npm run repo:validate`, importer tests, security audit, SBOM generation, lint, build, GitHub Actions |
 | Synthetic workflow validation | `npm run workflow:smoke` with a fake Forward API |
-| Synthetic seed path | `npm run dynatrace:seed:demo` dry-run by default |
+| Saved demo replay path | `npm run dynatrace:replay-demo` dry-run by default |
 | Workflow evidence | Real browser screenshots under `docs/assets/screenshots/` |
 | Boundary enforcement | Importer validation, create-missing-only policy, no Forward credentials in Dynatrace |
 

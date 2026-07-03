@@ -182,7 +182,7 @@ npm run forward:status:publish:test
 npm run demo:rehearsal
 npm run security:audit
 npm run sbom:check
-npm run dynatrace:seed:demo
+npm run dynatrace:replay-demo
 npm run lint
 npm run build
 npm run ci
@@ -191,7 +191,6 @@ npm run deploy
 ```
 
 `npm run ci` is the local equivalent of the GitHub Actions `gitops` workflow.
-`npm run dynatrace:seed:demo -- --apply` posts only synthetic OpenPipeline dependency events to Dynatrace using a
-local Platform Token; it is dry-run by default.
-`npm run dynatrace:copy-demo` is a demo-only sidecar for copying dependency evidence into a trial sandbox. Production
-integrations should query the customer's own Dynatrace topology.
+`npm run dynatrace:replay-demo -- --apply` posts the checked Dynatrace Playground fixture to a trial sandbox using a
+local Platform Token; it is dry-run by default. Production integrations should query the customer's own Dynatrace
+topology.

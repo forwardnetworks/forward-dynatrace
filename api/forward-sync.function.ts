@@ -163,8 +163,20 @@ const INTEGRATION_BOUNDARY_DISCLAIMER =
 const MANIFEST_FILE_NAME = "forward-dynatrace-manifest.json";
 const INTENT_CHECKS_FILE_NAME = "forward-intent-checks.json";
 
-const toCheckName = (dependency: DependencyCandidate): string =>
+const toBaseCheckName = (dependency: DependencyCandidate): string =>
   `[Dynatrace] ${dependency.appName} ${dependency.environment}: ${dependency.source} -> ${dependency.destination} ${dependency.protocol}/${dependency.port}`;
+
+const toCheckName = (
+  dependency: DependencyCandidate,
+  duplicateBaseNames: Set<string>,
+): string => {
+  const baseName = toBaseCheckName(dependency);
+  if (!duplicateBaseNames.has(baseName)) {
+    return baseName;
+  }
+  const suffix = toSlug(dependency.serviceEntityId).slice(-16) || "duplicate";
+  return `${baseName} [${suffix}]`;
+};
 
 const toSlug = (value: string): string =>
   value
@@ -210,7 +222,10 @@ const toLocation = (
   type: ForwardLocationFilterType = "HostFilter",
 ): ForwardEndpoint["location"] => ({ type, value });
 
-const toIntentCheck = (dependency: DependencyCandidate): ForwardIntentCheck => ({
+const toIntentCheck = (
+  dependency: DependencyCandidate,
+  duplicateBaseNames: Set<string>,
+): ForwardIntentCheck => ({
   definition: {
     checkType: "Existential",
     filters: {
@@ -244,7 +259,7 @@ const toIntentCheck = (dependency: DependencyCandidate): ForwardIntentCheck => (
     returnPath: "ANY",
   },
   enabled: true,
-  name: toCheckName(dependency),
+  name: toCheckName(dependency, duplicateBaseNames),
   note: [
     `Generated from Dynatrace service ${dependency.serviceName}`,
     `serviceEntityId=${dependency.serviceEntityId}`,
@@ -261,6 +276,24 @@ const toIntentCheck = (dependency: DependencyCandidate): ForwardIntentCheck => (
     `dynatrace-key:${toIntegrationKey(dependency)}`,
   ],
 });
+
+const toIntentChecks = (
+  dependencies: DependencyCandidate[],
+): ForwardIntentCheck[] => {
+  const baseNameCounts = new Map<string, number>();
+  for (const dependency of dependencies) {
+    const baseName = toBaseCheckName(dependency);
+    baseNameCounts.set(baseName, (baseNameCounts.get(baseName) || 0) + 1);
+  }
+  const duplicateBaseNames = new Set(
+    [...baseNameCounts.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([baseName]) => baseName),
+  );
+  return dependencies.map((dependency) =>
+    toIntentCheck(dependency, duplicateBaseNames),
+  );
+};
 
 const toPackageId = (generatedAt: string): string =>
   `dynatrace-forward-${generatedAt.replace(/[^0-9]/g, "").slice(0, 14)}`;
@@ -490,7 +523,7 @@ export default function (
   const exportableDependencies = payload.dependencies.filter(isExportableDependency);
   const rejectedDependencyCount =
     payload.dependencies.length - exportableDependencies.length;
-  const intentChecks = exportableDependencies.map(toIntentCheck);
+  const intentChecks = toIntentChecks(exportableDependencies);
   const intentChecksPreview = JSON.stringify(
     intentChecks,
     null,
