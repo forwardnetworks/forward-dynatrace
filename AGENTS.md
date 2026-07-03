@@ -36,6 +36,7 @@ docs and executable checks.
 - [docs/demo-data.md](docs/demo-data.md): standard demo fixtures and Dynatrace replay data.
 - [docs/client-trial-plan.md](docs/client-trial-plan.md): meeting/demo rehearsal, trial tenant, and live Forward workflow.
 - [docs/live-demo-runbook.md](docs/live-demo-runbook.md): customer-owned path and standard demo replay execution.
+- [docs/prospect-talk-track.md](docs/prospect-talk-track.md): prospect/customer value narrative and demo flow.
 - [docs/execution-roadmap.md](docs/execution-roadmap.md): phased plan, optional NQE path, and ownership boundaries.
 - [docs/harness-engineering.md](docs/harness-engineering.md): agent-first operating model for this repo.
 - [docs/agent-guides/dynatrace-app.md](docs/agent-guides/dynatrace-app.md): detailed Dynatrace AppEngine, Strato, and SDK guidance.
@@ -69,6 +70,8 @@ npm run forward:nqe-preview:test
 npm run forward:package:test
 npm run forward:readiness:test
 npm run dynatrace:query -- --help
+npm run dynatrace:deploy -- --help
+npm run dynatrace:deploy:test
 npm run dynatrace:replay-demo -- --help
 npm run dynatrace:normalize:test
 npm run forward:package -- --help

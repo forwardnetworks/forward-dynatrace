@@ -24,6 +24,8 @@ It remains a field-built reference, not an officially supported Forward product 
 - Done in repo: admin operations guide for audit export, config restore, disaster recovery, and access review.
 - Done in repo: observability guide with report fields, metrics, alert thresholds, and evidence retention.
 - Done in repo: sanitized read-only Forward ingest status artifact for Dynatrace display.
+- Done in repo: Dynatrace deploy wrapper that separates unsigned `my.*` trial installs from signed enterprise namespace
+  installs and tests the policy locally.
 - Done in repo: release checksum generation for published artifacts.
 - Done in repo: optional detached Ed25519 signing and verification for `SHA256SUMS`; external before signed releases:
   provision and protect the release signing key.

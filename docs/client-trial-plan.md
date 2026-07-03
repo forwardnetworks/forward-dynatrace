@@ -35,8 +35,15 @@ as the production source of intent.
 1. Deploy the app to the trial tenant:
 
    ```bash
-   npm run deploy -- --environment-url https://<environment-id>.apps.dynatrace.com/ --no-open --non-interactive
+   npm run dynatrace:deploy -- \
+     --environment-url https://<environment-id>.apps.dynatrace.com/ \
+     --app-id my.forwardnetworks.dynatrace.field.integration \
+     --no-open \
+     --non-interactive
    ```
+
+   Use the default `com.forwardnetworks.*` app ID only when the deployment is signed with the Dynatrace App Toolkit
+   signing OAuth client.
 
 2. Create a Platform Token with the trial-safe scopes:
 
@@ -161,6 +168,7 @@ checked replay fixture.
 - Teams can see Forward ingest state without Forward credentials in Dynatrace.
 - Problem or schedule workflows can regenerate packages as app topology changes.
 - Drift remains visible without letting Dynatrace mutate Forward.
+- See `docs/prospect-talk-track.md` for the concise customer-facing explanation of what Forward and Dynatrace each get.
 
 ## Stop Conditions
 

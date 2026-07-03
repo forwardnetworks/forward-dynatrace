@@ -43,6 +43,7 @@ const requiredFiles = [
   "docs/demo-data.md",
   "docs/client-trial-plan.md",
   "docs/live-demo-runbook.md",
+  "docs/prospect-talk-track.md",
   "docs/execution-roadmap.md",
   "docs/agent-guides/dynatrace-app.md",
   "shared/demo-dependencies.json",
@@ -63,6 +64,8 @@ const requiredFiles = [
   "scripts/publish-forward-status.test.mjs",
   "scripts/write-release-checksums.mjs",
   "scripts/release-checksums.test.mjs",
+  "scripts/deploy-dynatrace-app.mjs",
+  "scripts/deploy-dynatrace-app.test.mjs",
   "scripts/query-dynatrace-dependencies.mjs",
   "scripts/forward-deployment-readiness.mjs",
   "scripts/forward-deployment-readiness.test.mjs",
@@ -171,6 +174,7 @@ const expectedPublicEnvironmentUrl =
   "https://your-environment-id.apps.dynatrace.com/";
 const expectedNodeVersionFile = "24";
 const expectedNodeEngineRange = ">=24.0.0 <25.0.0";
+const expectedDtAppVersion = "1.11.2";
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const localMachineUser = process.env.USER || process.env.LOGNAME || "";
@@ -228,6 +232,7 @@ const publicBrandingFiles = [
   "docs/forward-nqe-artifacts.md",
   "docs/forward-api-compatibility.md",
   "docs/live-demo-runbook.md",
+  "docs/prospect-talk-track.md",
   "docs/install.md",
   "docs/production-readiness.md",
   "docs/enterprise-hardening.md",
@@ -377,6 +382,7 @@ for (const target of [
   "docs/demo-data.md",
   "docs/client-trial-plan.md",
   "docs/live-demo-runbook.md",
+  "docs/prospect-talk-track.md",
   "docs/execution-roadmap.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
@@ -430,6 +436,13 @@ if (packageLock.packages?.[""]?.engines?.node !== packageJson.engines.node) {
   fail("package-lock root engines.node must match package.json.");
 }
 
+if (packageJson.devDependencies?.["dt-app"] !== expectedDtAppVersion) {
+  fail(`package.json must pin dt-app exactly to ${expectedDtAppVersion}.`);
+}
+if (packageLock.packages?.[""]?.devDependencies?.["dt-app"] !== expectedDtAppVersion) {
+  fail(`package-lock root devDependencies must pin dt-app exactly to ${expectedDtAppVersion}.`);
+}
+
 for (const nodeVersionFile of [".nvmrc", ".node-version"]) {
   const nodeVersion = (await readText(nodeVersionFile)).trim();
   if (nodeVersion !== expectedNodeVersionFile) {
@@ -444,6 +457,7 @@ for (const scriptName of [
   "forward:nqe-live-smoke:test",
   "forward:readiness:test",
   "dynatrace:normalize:test",
+  "dynatrace:deploy:test",
   "runtime:validate",
   "runtime:slo:test",
   "dynatrace:workflow:validate",
@@ -477,6 +491,9 @@ if (!packageJson.scripts?.["dynatrace:normalize"]) {
 }
 if (!packageJson.scripts?.["dynatrace:query"]) {
   fail("package.json must define npm script dynatrace:query.");
+}
+if (!packageJson.scripts?.["dynatrace:deploy"]) {
+  fail("package.json must define npm script dynatrace:deploy.");
 }
 if (!packageJson.scripts?.["dynatrace:replay-demo"]) {
   fail("package.json must define npm script dynatrace:replay-demo.");
@@ -519,12 +536,14 @@ for (const requiredPackagerText of [
   "service-dependency-candidates-openpipeline-events.dql",
   "service-dependencies-smartscape.dql",
   "forward-sync-on-demand.payload.example.json",
+  "docs/assets/screenshots",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
   "docs/forward-api-compatibility.md",
   "docs/live-demo-runbook.md",
+  "docs/prospect-talk-track.md",
   "docs/execution-roadmap.md",
   "docs/connector-runtime.md",
   "docs/deployment-readiness.md",
@@ -534,6 +553,7 @@ for (const requiredPackagerText of [
   "scripts/write-release-checksums.mjs",
   "scripts/sign-release-checksums.mjs",
   "scripts/query-dynatrace-dependencies.mjs",
+  "scripts/deploy-dynatrace-app.mjs",
   "scripts/forward-deployment-readiness.mjs",
   "scripts/replay-dynatrace-demo-data.mjs",
   "scripts/build-forward-package.mjs",

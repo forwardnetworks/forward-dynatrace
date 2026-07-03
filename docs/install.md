@@ -22,14 +22,39 @@ Steps:
 ```bash
 git clone https://github.com/forwardnetworks/forward-dynatrace.git
 cd forward-dynatrace
-git checkout v1.0.9
+git checkout v1.0.10
 npm ci
 npm run ci
-npm run deploy -- --environment-url https://your-environment-id.apps.dynatrace.com/
+```
+
+For an unsigned trial or development install, use a `my.*` app ID:
+
+```bash
+npm run dynatrace:deploy -- \
+  --environment-url https://your-environment-id.apps.dynatrace.com/ \
+  --app-id my.forwardnetworks.dynatrace.field.integration \
+  --no-open \
+  --non-interactive
+```
+
+For an enterprise install with the default `com.forwardnetworks.dynatrace.field.integration` app ID, sign the archive:
+
+```bash
+export DT_APP_OAUTH_SIGN_CLIENT_ID=<signing-oauth-client-id>
+export DT_APP_OAUTH_SIGN_CLIENT_SECRET=<signing-oauth-client-secret>
+
+npm run dynatrace:deploy -- \
+  --environment-url https://your-environment-id.apps.dynatrace.com/ \
+  --sign-archive \
+  --no-open \
+  --non-interactive
 ```
 
 Keep tenant-specific values local. Do not commit a concrete `environmentUrl`, access token, OAuth callback URL, or
 customer-specific reference. `npm run repo:validate` fails if those values are added to the public repo.
+
+Dynatrace AppEngine rejects unsigned app IDs outside the `my.*` namespace. The wrapper command makes that policy
+explicit before invoking `dt-app`, so trial installs and signed enterprise installs are separate operator choices.
 
 ## Forward Manual Import
 

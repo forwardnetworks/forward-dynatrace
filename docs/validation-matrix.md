@@ -30,7 +30,10 @@ This document tracks what is validated today and what still needs a live Forward
 | Load and scale smoke | `npm run load:scale` generates 2500 synthetic Dynatrace dependency rows, normalizes them, builds a `data-connector` package, validates it, applies exportable checks to a fake Forward API in 400-check batches, and reruns the same package to confirm unchanged reconciliation. |
 | Live Forward workflow | Real non-production Forward test network validated on 2026-06-30: dry-run create=3, apply create=3, rerun unchanged=3, changed drift=1, stale drift=1, and `--fail-on-drift` exit code 2. Validation checks were deleted after the run and confirmed remaining=0. |
 | UI workflow screenshots | `npm run demo:capture` captures `docs/assets/screenshots/*.jpg` from the built app with local app-function shims and placeholder data. |
-| Dynatrace app build package | Version `1.0.9` builds locally. |
+| Dynatrace app build package | Version `1.0.10` builds locally. |
+| Dynatrace install policy | A live unsigned deploy of the default `com.forwardnetworks.*` app ID was correctly rejected by Dynatrace AppEngine because unsigned non-`my.*` app IDs must be signed. `npm run dynatrace:deploy:test` now enforces the signed enterprise path or explicit `my.*` trial app ID before invoking `dt-app`. |
+| Dynatrace trial app install | Version `1.0.10` installed successfully into a non-production Dynatrace Apps tenant on 2026-07-03 with the explicit unsigned trial app ID `my.forwardnetworks.dynatrace.field.integration`. The deploy wrapper restored the public `app.config.json` after install. |
+| Dynatrace App Toolkit pin | `dt-app` is pinned to `1.11.2` and enforced by `npm run repo:validate`; a newer toolkit was not adopted during this pass because tenant deploy did not complete reliably in local validation. |
 | Dynatrace live query path | Live read-only DQL queries against a non-production Dynatrace Apps environment succeeded on 2026-07-03. The saved demo fixture provides 100 replayable dependency records for trial tenants. |
 | Dynatrace app deploy | Version `1.0.6` deployed successfully to a non-production Dynatrace Apps environment on 2026-07-03. The previous `1.0.5` deploy attempt was correctly rejected because that version was already installed with a different checksum. |
 | Dynatrace saved demo replay | `npm run dynatrace:replay-demo` dry-runs a checked 100-row standard demo fixture. With `--apply`, it replays those rows into a trial tenant through OpenPipeline using a local Platform Token. Live replay/query on 2026-07-03 returned 100 records, 100 ready rows, and 0 review/needs-map rows. |
@@ -43,12 +46,13 @@ This document tracks what is validated today and what still needs a live Forward
 | Dynatrace workflow trigger payloads | `deploy/dynatrace-workflows/` includes schedule and problem-trigger payload examples; `npm run dynatrace:workflow:validate` checks they generate valid package artifacts without Forward writes. |
 | Dynatrace live query command | `npm run dynatrace:query` exports DQL records from a tenant and can write normalized dependency candidates without contacting Forward. |
 | Dynatrace dependency normalization | `npm run dynatrace:normalize:test` verifies DQL-shaped rows normalize into ready/review/needs-map dependency candidates. |
+| Dynatrace deploy wrapper | `npm run dynatrace:deploy:test` verifies unsigned trial app IDs, signed enterprise app ID requirements, dry-run behavior, and invalid app ID rejection. |
 | Forward package builder | `npm run forward:package` builds manifest and `NewNetworkCheck[]` artifacts from normalized dependencies without contacting Forward. |
 | Client rehearsal | `npm run demo:rehearsal` generates a package from DQL-shaped synthetic rows and validates it without Forward credentials. |
 | Forward ingest status display | `api/forward-status.function.ts` and `shared/demo-forward-ingest-status.json` validate/display aggregate Forward-side ingest status only. |
 | Dependency audit | `npm run security:audit` passes for production dependencies. |
 | SBOM generation | `npm run sbom:check` generates a CycloneDX SBOM from production dependencies. |
-| Importer container | `docker build -f Dockerfile.forward-importer -t forward-dynatrace-importer:local .`, `docker run --rm forward-dynatrace-importer:local --help`, and `docker run --rm --entrypoint node forward-dynatrace-importer:local scripts/forward-deployment-readiness.mjs --help` pass locally for version `1.0.9`. |
+| Importer container | `docker build -f Dockerfile.forward-importer -t forward-dynatrace-importer:local .`, `docker run --rm forward-dynatrace-importer:local --help`, and `docker run --rm --entrypoint node forward-dynatrace-importer:local scripts/forward-deployment-readiness.mjs --help` pass locally for version `1.0.10`. |
 | Release checksums | `npm run release:checksums:test` verifies SHA-256 checksum file generation for release artifacts. |
 | Release checksum signing | `npm run release:sign:test` verifies detached Ed25519 signing and tamper-detection for `SHA256SUMS`. |
 | Release archive packaging | `npm run release:package:smoke` builds the app/importer archives in a temporary directory and verifies required archive members plus `SHA256SUMS`. |
@@ -75,6 +79,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Forward status display | `npm run forward:status:test` |
 | Forward status publisher | `npm run forward:status:publish:test` |
 | Dynatrace live query help/shape | `npm run dynatrace:query -- --help` |
+| Dynatrace deploy policy | `npm run dynatrace:deploy:test` |
 | Dynatrace dependency normalization | `npm run dynatrace:normalize:test` |
 | Forward package builder help/shape | `npm run forward:package -- --help` |
 | Synthetic end-to-end workflow | `npm run workflow:smoke` |

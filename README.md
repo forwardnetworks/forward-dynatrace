@@ -32,6 +32,7 @@ imports or pulls that package.
 - Forward importer workflow: `docs/forward-importer.md`
 - Forward importer script: `scripts/forward-import-package.mjs`
 - Forward deployment readiness: `scripts/forward-deployment-readiness.mjs`, `docs/deployment-readiness.md`
+- Dynatrace deploy wrapper: `scripts/deploy-dynatrace-app.mjs`
 - Forward status publisher: `scripts/publish-forward-status.mjs`
 - Forward package signer: `scripts/sign-forward-package.mjs`
 - Forward connector config examples: `config/forward-connector.config.example.json`,
@@ -57,6 +58,7 @@ imports or pulls that package.
 - Validation matrix: `docs/validation-matrix.md`
 - Harness engineering notes: `docs/harness-engineering.md`
 - GitOps checks: `docs/gitops.md`
+- Prospect talk track: `docs/prospect-talk-track.md`
 
 ## Flow
 
@@ -153,8 +155,16 @@ The dev environment is configured in `app.config.json`:
 Keep `app.config.json` on the public placeholder and pass the tenant URL at deploy time:
 
 ```bash
-npm run deploy -- --environment-url https://your-environment-id.apps.dynatrace.com/
+npm run dynatrace:deploy -- \
+  --environment-url https://your-environment-id.apps.dynatrace.com/ \
+  --app-id my.forwardnetworks.dynatrace.field.integration \
+  --no-open \
+  --non-interactive
 ```
+
+Use `my.*` app IDs for unsigned trial or development installs. For the default enterprise `com.forwardnetworks.*` app
+ID, use `--sign-archive` and provide the Dynatrace signing OAuth client environment variables required by the
+Dynatrace App Toolkit.
 
 The Dynatrace app should not store Forward write credentials. Forward credentials belong in Forward-side manual import
 or the Forward-side connector.
@@ -178,6 +188,8 @@ npm run workflow:smoke
 npm run runtime:validate
 npm run dynatrace:workflow:validate
 npm run dynatrace:query -- --help
+npm run dynatrace:deploy -- --help
+npm run dynatrace:deploy:test
 npm run dynatrace:normalize:test
 npm run forward:package -- --help
 npm run forward:status:test
