@@ -28,6 +28,7 @@ imports or pulls that package.
 - Forward ingest contract: `docs/forward-ingest-contract.md`
 - Read-only NQE preview: `docs/forward-nqe-preview.md`
 - Optional NQE artifacts: `docs/forward-nqe-artifacts.md`
+- Forward API compatibility gates: `docs/forward-api-compatibility.md`
 - Forward importer workflow: `docs/forward-importer.md`
 - Forward importer script: `scripts/forward-import-package.mjs`
 - Forward status publisher: `scripts/publish-forward-status.mjs`
@@ -37,6 +38,7 @@ imports or pulls that package.
 - Forward importer container: `Dockerfile.forward-importer`, `docs/container-runtime.md`
 - Forward connector runtime templates: `deploy/systemd/`, `deploy/kubernetes/`, `docs/connector-runtime.md`
 - Demo/test data sidecars: `docs/demo-data.md`
+- Live demo runbook: `docs/live-demo-runbook.md`
 - Dynatrace DQL starter query: `deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql`
 - Production checklist: `docs/production-readiness.md`
 - Enterprise hardening backlog: `docs/enterprise-hardening.md`
@@ -173,6 +175,7 @@ npm run dynatrace:query -- --help
 npm run dynatrace:normalize:test
 npm run forward:package -- --help
 npm run forward:status:test
+npm run forward:status:publish -- --help
 npm run forward:status:publish:test
 npm run demo:rehearsal
 npm run security:audit

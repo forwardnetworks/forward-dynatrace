@@ -20,6 +20,8 @@ This document tracks what is validated today and what still needs a live Forward
 | Read-only status artifact | `npm run workflow:smoke` verifies `forward-dynatrace-status/v1` output and confirms it omits check-level topology strings. |
 | Forward status display and URL fetch | `npm run forward:status:test` verifies supplied artifact display, read-only localhost URL fetch, and non-local HTTP rejection. |
 | Forward status publication | `npm run forward:status:publish:test` verifies sanitized status publication, checksum output, unknown-field rejection, and credential-like content rejection. |
+| Live demo runbook | `docs/live-demo-runbook.md` keeps customer-owned Dynatrace data as the primary path and marks synthetic seed/demo-copy as optional sidecars only. `npm run repo:validate` requires the doc and release packaging includes it. |
+| Forward API compatibility notes | `docs/forward-api-compatibility.md` documents required Forward endpoints, the no-fallback bulk create gate, and optional NQE/query-ID paths. `npm run repo:validate` requires the doc and release packaging includes it. |
 | Synthetic Forward workflow | `npm run workflow:smoke` exercises validate-only, signed package validation, config import, metrics output, dry-run, 1001-check chunked apply, transient retry, unchanged, changed, stale, approved changed replacement, and approved stale deactivation flows against a fake Forward API. |
 | Live Forward workflow | Real non-production Forward test network validated on 2026-06-30: dry-run create=3, apply create=3, rerun unchanged=3, changed drift=1, stale drift=1, and `--fail-on-drift` exit code 2. Validation checks were deleted after the run and confirmed remaining=0. |
 | UI workflow screenshots | `docs/assets/screenshots/*.jpg` were captured from the running local app. |
@@ -81,6 +83,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Forward-side connector runtime installation | Target runtime selection and operational ownership. Current repo includes systemd and Kubernetes templates plus the connector command path and package URL pull behavior. |
 | Dynatrace Workflow installation | A real problem or schedule workflow installed in the target tenant. Current repo includes checked schedule/problem payload examples for the export function. |
 | Live Dynatrace demo dependency query | Needs trial tenant query execution against the live demo data source with `storage:events:read` and `storage:buckets:read`. |
+| Read-only dynamic NQE credential model | Needs customer approval for the exact Forward read-only credential model before enabling execute mode in Dynatrace. Base package export/import does not depend on this optional path. |
 | Demo tenant copy sidecar | `npm run dynatrace:copy-demo -- --help` documents a demo-only copy workflow for trial sandboxes; not for production source-of-intent. |
 | Dynatrace synthetic OpenPipeline seed | Dry-run passes with 4 synthetic dependency events. Live seed requires a Platform Token with `openpipeline:events:ingest`; use only for isolated test tenants without suitable live demo topology. |
 | Version 1.0.5 trial deploy | Deploy the new app build to the trial tenant after this branch merges. |

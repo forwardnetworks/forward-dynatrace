@@ -15,6 +15,7 @@ docs and executable checks.
 - [docs/forward-ingest-contract.md](docs/forward-ingest-contract.md): package and API contract.
 - [docs/forward-nqe-preview.md](docs/forward-nqe-preview.md): optional read-only Forward NQE preview workflow.
 - [docs/forward-nqe-artifacts.md](docs/forward-nqe-artifacts.md): optional NQE check and diff artifact workflow.
+- [docs/forward-api-compatibility.md](docs/forward-api-compatibility.md): Forward API version and optional NQE gates.
 - [docs/forward-importer.md](docs/forward-importer.md): manual Forward-side importer behavior.
 - [docs/production-readiness.md](docs/production-readiness.md): production checklist.
 - [docs/enterprise-hardening.md](docs/enterprise-hardening.md): enterprise hardening backlog and exit criteria.
@@ -33,6 +34,7 @@ docs and executable checks.
 - [docs/validation-matrix.md](docs/validation-matrix.md): tested, automated, and remaining validation.
 - [docs/demo-data.md](docs/demo-data.md): synthetic fixtures and demo-only Dynatrace sidecars.
 - [docs/client-trial-plan.md](docs/client-trial-plan.md): meeting/demo rehearsal, trial tenant, and live Forward workflow.
+- [docs/live-demo-runbook.md](docs/live-demo-runbook.md): customer-owned demo path and optional sidecar execution.
 - [docs/execution-roadmap.md](docs/execution-roadmap.md): phased plan, optional NQE path, and ownership boundaries.
 - [docs/harness-engineering.md](docs/harness-engineering.md): agent-first operating model for this repo.
 - [docs/agent-guides/dynatrace-app.md](docs/agent-guides/dynatrace-app.md): detailed Dynatrace AppEngine, Strato, and SDK guidance.
@@ -67,6 +69,7 @@ npm run dynatrace:copy-demo -- --help
 npm run dynatrace:normalize:test
 npm run forward:package -- --help
 npm run forward:status:test
+npm run forward:status:publish -- --help
 npm run forward:status:publish:test
 npm run release:checksums:test
 npm run demo:rehearsal

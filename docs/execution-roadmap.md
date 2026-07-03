@@ -393,6 +393,10 @@ Exit criteria:
 ## Near-Term Execution Backlog
 
 1. Validate read-only dynamic NQE preview against a customer-approved Forward credential model.
-2. Add live demo runbook that uses customer-owned data first and demo-copy only as a sidecar.
-3. Add screenshots for the NQE preview and iterative Forward reconciliation workflow.
-4. Add compatibility notes from Forward checks and NQE API contracts.
+2. Capture customer-approved query IDs only if the optional persistent NQE or NQE diff path is enabled.
+
+Completed near-term execution docs:
+
+- Live demo runbook uses customer-owned data first and keeps demo-copy as a sidecar: `docs/live-demo-runbook.md`.
+- Workflow screenshots cover optional NQE preview and iterative Forward reconciliation: `docs/screenshots.md`.
+- Forward checks, NQE, and NQE diff compatibility notes: `docs/forward-api-compatibility.md`.

@@ -33,7 +33,9 @@ const appArchiveEntries = [
   "docs/forward-ingest-contract.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
   "docs/client-trial-plan.md",
+  "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
 ];
 
@@ -58,6 +60,7 @@ const importerArchiveEntries = [
   "docs/forward-importer.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
   "docs/container-runtime.md",
   "docs/connector-runtime.md",
   "docs/operations-runbook.md",
@@ -66,6 +69,7 @@ const importerArchiveEntries = [
   "docs/rbac.md",
   "docs/package-handoff.md",
   "docs/client-trial-plan.md",
+  "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
 ];
 
@@ -86,6 +90,8 @@ const requiredAppMembers = [
   "docs/forward-ingest-contract.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
+  "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
 ];
 
@@ -110,6 +116,7 @@ const requiredImporterMembers = [
   "docs/forward-importer.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
   "docs/container-runtime.md",
   "docs/connector-runtime.md",
   "docs/operations-runbook.md",
@@ -118,6 +125,7 @@ const requiredImporterMembers = [
   "docs/rbac.md",
   "docs/package-handoff.md",
   "docs/client-trial-plan.md",
+  "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
 ];
 

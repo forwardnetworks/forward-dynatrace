@@ -30,6 +30,7 @@
     "forward:import": "node scripts/forward-import-package.mjs",
     "forward:import:test": "node --test scripts/forward-import-package.test.mjs",
     "forward:status:test": "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/forward-status.test.mjs",
+    "forward:status:publish": "node scripts/publish-forward-status.mjs",
     "forward:sign": "node scripts/sign-forward-package.mjs",
     "release:package": "node scripts/package-release-artifacts.mjs",
     "release:package:smoke": "node scripts/package-release-artifacts.mjs",

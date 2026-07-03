@@ -20,6 +20,7 @@ const requiredFiles = [
   "docs/forward-ingest-contract.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
   "docs/forward-importer.md",
   "docs/production-readiness.md",
   "docs/enterprise-hardening.md",
@@ -40,6 +41,7 @@ const requiredFiles = [
   "docs/gitops.md",
   "docs/demo-data.md",
   "docs/client-trial-plan.md",
+  "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
   "docs/agent-guides/dynatrace-app.md",
   "shared/demo-dependencies.json",
@@ -210,6 +212,8 @@ const publicBrandingFiles = [
   "docs/execution-roadmap.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
+  "docs/live-demo-runbook.md",
   "docs/install.md",
   "docs/production-readiness.md",
   "docs/enterprise-hardening.md",
@@ -356,9 +360,11 @@ for (const target of [
   "docs/release.md",
   "docs/demo-data.md",
   "docs/client-trial-plan.md",
+  "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
   "docs/harness-engineering.md",
   "docs/agent-guides/dynatrace-app.md",
 ]) {
@@ -457,6 +463,9 @@ if (!packageJson.scripts?.["dynatrace:bundle"]) {
 if (!packageJson.scripts?.["forward:package"]) {
   fail("package.json must define npm script forward:package.");
 }
+if (!packageJson.scripts?.["forward:status:publish"]) {
+  fail("package.json must define npm script forward:status:publish.");
+}
 
 const releaseWorkflow = await readText(".github/workflows/release.yml");
 for (const requiredReleaseWorkflowText of [
@@ -484,6 +493,8 @@ for (const requiredPackagerText of [
   "docs/forward-ingest-contract.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
+  "docs/forward-api-compatibility.md",
+  "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
   "docs/connector-runtime.md",
   "deploy/systemd/forward-dynatrace-connector.service",

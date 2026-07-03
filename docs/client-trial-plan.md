@@ -1,7 +1,8 @@
 # Client Trial Plan
 
 Use this before a customer meeting or short Dynatrace trial. The goal is to prove value on both sides without changing
-the trust boundary: Dynatrace exports packages and status views; Forward imports packages.
+the trust boundary: Dynatrace exports packages and status views; Forward imports packages. The detailed execution
+runbook is in `docs/live-demo-runbook.md`.
 
 ## Demo Story
 
@@ -74,6 +75,9 @@ the production source of intent.
      --output-dir /tmp/forward-dynatrace-package \
      --sync-mode manual-import
    ```
+
+   Optional Forward-owned query ID paths for persistent NQE checks or NQE diffs can be added here only after the
+   customer approves specific query IDs. Do not make query IDs a prerequisite for the base intent-check trial.
 
 6. Use this DQL shape as the starting point for tenant data:
 
