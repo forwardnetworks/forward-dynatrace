@@ -30,6 +30,7 @@ Options:
                                   Snapshot ID for optional NQE diff base.
   --nqe-diff-after-snapshot-id id Snapshot ID for optional NQE diff target.
   --output-dir path               Output directory. Defaults to current directory.
+  --eligibility-report path        Optional dependency eligibility report JSON.
   --include-review                Explicit override: include mappingState=review rows in intent-check artifacts.
   --sync-mode manual-import       manual-import, data-connector, or intent-package.
 
@@ -68,6 +69,79 @@ const validSyncModes = new Set(["manual-import", "data-connector", "intent-packa
 
 const sha256Hex = (text) => createHash("sha256").update(text, "utf8").digest("hex");
 
+const requiredDependencyFields = [
+  "source",
+  "destination",
+  "protocol",
+  "port",
+  "serviceEntityId",
+];
+
+const missingFields = (dependency) =>
+  requiredDependencyFields.filter((field) => !String(dependency[field] ?? "").trim());
+
+const eligibilityReason = (dependency, includeReviewRows) => {
+  const missing = missingFields(dependency);
+  if (missing.length > 0) {
+    return `Missing required field(s): ${missing.join(", ")}.`;
+  }
+  if (dependency.mappingState === "ready") {
+    return "Ready: both endpoints are marked Forward-resolvable.";
+  }
+  if (dependency.mappingState === "review") {
+    return includeReviewRows
+      ? "Included by explicit review-row override; Forward apply can still reject unresolved locations."
+      : "Held for review: run read-only endpoint-resolution before export.";
+  }
+  if (dependency.mappingState === "needs-map") {
+    return "Blocked: source or destination is not mapped to a Forward-resolvable location.";
+  }
+  return `Blocked: unsupported mappingState ${dependency.mappingState}.`;
+};
+
+const isEligible = (dependency, includeReviewRows) =>
+  missingFields(dependency).length === 0 &&
+  (dependency.mappingState === "ready" ||
+    (includeReviewRows && dependency.mappingState === "review"));
+
+const buildEligibilityReport = ({ dependencies, includeReviewRows, generatedAt }) => {
+  const rows = dependencies.map((dependency) => ({
+    id: dependency.id,
+    appName: dependency.appName,
+    environment: dependency.environment,
+    serviceEntityId: dependency.serviceEntityId,
+    serviceName: dependency.serviceName,
+    source: dependency.source,
+    sourceFilterType: dependency.sourceFilterType || "HostFilter",
+    destination: dependency.destination,
+    destinationFilterType: dependency.destinationFilterType || "HostFilter",
+    protocol: dependency.protocol,
+    port: dependency.port,
+    owner: dependency.owner,
+    criticality: dependency.criticality,
+    confidence: dependency.confidence,
+    mappingState: dependency.mappingState,
+    eligible: isEligible(dependency, includeReviewRows),
+    reason: eligibilityReason(dependency, includeReviewRows),
+  }));
+
+  const count = (predicate) => rows.filter(predicate).length;
+  return {
+    schemaVersion: "forward-dynatrace-dependency-eligibility/v1",
+    generatedAt,
+    includeReviewRows,
+    counts: {
+      total: rows.length,
+      ready: count((row) => row.mappingState === "ready"),
+      review: count((row) => row.mappingState === "review"),
+      needsMap: count((row) => row.mappingState === "needs-map"),
+      eligible: count((row) => row.eligible),
+      blocked: count((row) => !row.eligible),
+    },
+    rows,
+  };
+};
+
 const main = async () => {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
@@ -89,6 +163,7 @@ const main = async () => {
   }
 
   const includeReviewRows = Boolean(args["include-review"]);
+  const generatedAt = new Date().toISOString();
   const selectedDependencies = dependencies.filter((dependency) =>
     dependency.mappingState === "ready" ||
       (includeReviewRows && dependency.mappingState === "review"),
@@ -169,6 +244,16 @@ const main = async () => {
 
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
   await writeFile(checksPath, result.intentChecksPreview);
+  if (args["eligibility-report"]) {
+    await writeFile(
+      args["eligibility-report"],
+      `${JSON.stringify(
+        buildEligibilityReport({ dependencies, includeReviewRows, generatedAt }),
+        null,
+        2,
+      )}\n`,
+    );
+  }
 
   process.stdout.write(
     JSON.stringify(
@@ -183,6 +268,7 @@ const main = async () => {
         rejectedDependencies: result.rejectedDependencyCount,
         manifest: manifestPath,
         checks: checksPath,
+        eligibilityReport: args["eligibility-report"] || null,
       },
       null,
       2,

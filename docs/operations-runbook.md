@@ -19,7 +19,15 @@ Before enabling scheduled import, fill in these local values outside the repo:
    If the customer enabled optional NQE workflows, also download `forward-nqe-checks.json` and
    `forward-nqe-diff-requests.json`.
 2. Put those files in the Forward-controlled runtime.
-3. Validate package integrity:
+3. Run the deployment readiness wrapper:
+
+   ```bash
+   npm run forward:readiness -- \
+     --checks forward-intent-checks.json \
+     --manifest forward-dynatrace-manifest.json
+   ```
+
+4. Validate package integrity directly when debugging package failures:
 
    ```bash
    npm run forward:import -- \
@@ -30,7 +38,7 @@ Before enabling scheduled import, fill in these local values outside the repo:
 
    Add `--nqe-checks`, `--nqe-diff-requests`, and `--nqe-query-id-allowlist` when validating optional NQE artifacts.
 
-4. Dry-run reconciliation:
+5. Dry-run reconciliation:
 
    ```bash
    export FORWARD_BASE_URL=https://forward.example.com
@@ -45,8 +53,8 @@ Before enabling scheduled import, fill in these local values outside the repo:
      --metrics forward-import-metrics.prom
    ```
 
-5. Review `create`, `unchanged`, `changed`, `stale`, and rejected package rows.
-6. Apply missing checks only when `changed` and `stale` are understood:
+6. Review `create`, `unchanged`, `changed`, `stale`, and rejected package rows.
+7. Apply missing checks only when `changed` and `stale` are understood:
 
    ```bash
    npm run forward:import -- \
@@ -58,7 +66,7 @@ Before enabling scheduled import, fill in these local values outside the repo:
      --status-artifact forward-ingest-status.json
    ```
 
-7. To replace changed generated checks or deactivate stale generated checks, use the optional approval-gated workflow
+8. To replace changed generated checks or deactivate stale generated checks, use the optional approval-gated workflow
    after reviewing the dry-run report:
 
    ```bash
@@ -83,7 +91,7 @@ Before enabling scheduled import, fill in these local values outside the repo:
    The approval file must name exact `dynatrace-key:*` values from the current dry-run report. Keep the approval file
    with the import report for audit.
 
-8. Publish sanitized status for Dynatrace display:
+9. Publish sanitized status for Dynatrace display:
 
    ```bash
    node scripts/publish-forward-status.mjs \
@@ -91,7 +99,8 @@ Before enabling scheduled import, fill in these local values outside the repo:
      --output-dir /handoff/dynatrace-forward/latest
    ```
 
-   Publish only the sanitized status artifact and checksum. Do not publish the full import report back to Dynatrace.
+   Publish only the sanitized status artifact, checksum, and optional status-event payload. Do not publish the full
+   import report back to Dynatrace.
 
 ## Connector Import
 

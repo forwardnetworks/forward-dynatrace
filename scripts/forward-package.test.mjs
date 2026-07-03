@@ -268,3 +268,112 @@ test("requires explicit override to include review rows in generated checks", as
   assert.equal(manifest.dependencyRows.reviewOverrideEnabled, true);
   assert.equal(manifest.dependencyRows.includedReviewRowCount, 1);
 });
+
+test("writes dependency eligibility report with blocked-row reasons", async () => {
+  const outputDir = await mkdtemp(path.join(tmpdir(), "forward-dynatrace-eligibility-"));
+  const dependenciesPath = path.join(outputDir, "dependencies.json");
+  const eligibilityPath = path.join(outputDir, "forward-dependency-eligibility.json");
+  await writeFile(
+    dependenciesPath,
+    `${JSON.stringify(
+      [
+        {
+          id: "ready-row",
+          appName: "Checkout",
+          environment: "prod",
+          serviceEntityId: "SERVICE-DEMO-CHECKOUT",
+          serviceName: "checkout-api",
+          source: "checkout-vip",
+          destination: "orders-db",
+          protocol: "tcp",
+          port: "443",
+          owner: "commerce-platform",
+          criticality: "critical",
+          confidence: 98,
+          mappingState: "ready",
+        },
+        {
+          id: "review-row",
+          appName: "Inventory",
+          environment: "prod",
+          serviceEntityId: "SERVICE-DEMO-INVENTORY",
+          serviceName: "inventory-api",
+          source: "inventory-vip",
+          destination: "redis-cache",
+          protocol: "tcp",
+          port: "6379",
+          owner: "supply-chain",
+          criticality: "high",
+          confidence: 87,
+          mappingState: "review",
+        },
+        {
+          id: "needs-map-row",
+          appName: "Payments",
+          environment: "prod",
+          serviceEntityId: "SERVICE-DEMO-PAYMENTS",
+          serviceName: "payments-api",
+          source: "payments-vip",
+          destination: "unknown-host",
+          protocol: "tcp",
+          port: "8443",
+          owner: "payments",
+          criticality: "critical",
+          confidence: 75,
+          mappingState: "needs-map",
+        },
+        {
+          id: "missing-source-row",
+          appName: "Shipping",
+          environment: "prod",
+          serviceEntityId: "SERVICE-DEMO-SHIPPING",
+          serviceName: "shipping-api",
+          source: "",
+          destination: "shipping-db",
+          protocol: "tcp",
+          port: "5432",
+          owner: "fulfillment",
+          criticality: "medium",
+          confidence: 60,
+          mappingState: "ready",
+        },
+      ],
+      null,
+      2,
+    )}\n`,
+  );
+
+  const buildResult = await runJson([
+    "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON",
+    "--experimental-strip-types",
+    "scripts/build-forward-package.mjs",
+    "--dependencies",
+    dependenciesPath,
+    "--output-dir",
+    outputDir,
+    "--eligibility-report",
+    eligibilityPath,
+  ]);
+
+  assert.equal(buildResult.intentChecks, 1);
+  assert.equal(buildResult.eligibilityReport, eligibilityPath);
+
+  const report = JSON.parse(await readFile(eligibilityPath, "utf8"));
+  assert.equal(report.schemaVersion, "forward-dynatrace-dependency-eligibility/v1");
+  assert.equal(report.counts.total, 4);
+  assert.equal(report.counts.eligible, 1);
+  assert.equal(report.counts.blocked, 3);
+  assert.equal(report.rows.find((row) => row.id === "ready-row")?.eligible, true);
+  assert.match(
+    report.rows.find((row) => row.id === "review-row")?.reason,
+    /Held for review/,
+  );
+  assert.match(
+    report.rows.find((row) => row.id === "needs-map-row")?.reason,
+    /not mapped/,
+  );
+  assert.match(
+    report.rows.find((row) => row.id === "missing-source-row")?.reason,
+    /source/,
+  );
+});

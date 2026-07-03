@@ -31,12 +31,14 @@ imports or pulls that package.
 - Forward API compatibility gates: `docs/forward-api-compatibility.md`
 - Forward importer workflow: `docs/forward-importer.md`
 - Forward importer script: `scripts/forward-import-package.mjs`
+- Forward deployment readiness: `scripts/forward-deployment-readiness.mjs`, `docs/deployment-readiness.md`
 - Forward status publisher: `scripts/publish-forward-status.mjs`
 - Forward package signer: `scripts/sign-forward-package.mjs`
 - Forward connector config examples: `config/forward-connector.config.example.json`,
   `config/forward-connector.signed.config.example.json`
 - Forward importer container: `Dockerfile.forward-importer`, `docs/container-runtime.md`
-- Forward connector runtime templates: `deploy/systemd/`, `deploy/kubernetes/`, `docs/connector-runtime.md`
+- Forward connector runtime templates: `deploy/docker-compose/`, `deploy/systemd/`, `deploy/kubernetes/`,
+  `docs/connector-runtime.md`
 - Demo/test data: `docs/demo-data.md`
 - Live demo runbook: `docs/live-demo-runbook.md`
 - Dynatrace DQL starter query: `deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql`

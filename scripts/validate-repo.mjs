@@ -29,6 +29,7 @@ const requiredFiles = [
   "docs/threat-model.md",
   "docs/container-runtime.md",
   "docs/connector-runtime.md",
+  "docs/deployment-readiness.md",
   "docs/schema-versioning.md",
   "docs/data-handling.md",
   "docs/rbac.md",
@@ -63,6 +64,8 @@ const requiredFiles = [
   "scripts/write-release-checksums.mjs",
   "scripts/release-checksums.test.mjs",
   "scripts/query-dynatrace-dependencies.mjs",
+  "scripts/forward-deployment-readiness.mjs",
+  "scripts/forward-deployment-readiness.test.mjs",
   "scripts/forward-nqe-live-smoke.mjs",
   "scripts/forward-nqe-live-smoke.test.mjs",
   "scripts/forward-nqe-artifacts.mjs",
@@ -91,6 +94,9 @@ const requiredFiles = [
   "deploy/systemd/forward-dynatrace-connector.timer",
   "deploy/systemd/forward-dynatrace.env.example",
   "deploy/systemd/forward-connector.config.example.json",
+  "deploy/docker-compose/compose.yaml",
+  "deploy/docker-compose/forward-connector.config.example.json",
+  "deploy/docker-compose/forward-dynatrace.env.example",
   "deploy/kubernetes/forward-dynatrace-connector-cronjob.yaml",
   "deploy/kubernetes/forward-dynatrace-configmap.example.yaml",
   "deploy/kubernetes/forward-dynatrace-secret.example.yaml",
@@ -230,6 +236,7 @@ const publicBrandingFiles = [
   "docs/threat-model.md",
   "docs/container-runtime.md",
   "docs/connector-runtime.md",
+  "docs/deployment-readiness.md",
   "docs/schema-versioning.md",
   "docs/data-handling.md",
   "docs/rbac.md",
@@ -359,6 +366,7 @@ for (const target of [
   "docs/threat-model.md",
   "docs/container-runtime.md",
   "docs/connector-runtime.md",
+  "docs/deployment-readiness.md",
   "docs/schema-versioning.md",
   "docs/data-handling.md",
   "docs/rbac.md",
@@ -434,6 +442,7 @@ for (const scriptName of [
   "release:sign:test",
   "forward:nqe-preview:test",
   "forward:nqe-live-smoke:test",
+  "forward:readiness:test",
   "dynatrace:normalize:test",
   "runtime:validate",
   "runtime:slo:test",
@@ -484,6 +493,9 @@ if (!packageJson.scripts?.["forward:nqe-live-smoke"]) {
 if (!packageJson.scripts?.["forward:status:publish"]) {
   fail("package.json must define npm script forward:status:publish.");
 }
+if (!packageJson.scripts?.["forward:readiness"]) {
+  fail("package.json must define npm script forward:readiness.");
+}
 
 const releaseWorkflow = await readText(".github/workflows/release.yml");
 for (const requiredReleaseWorkflowText of [
@@ -515,11 +527,14 @@ for (const requiredPackagerText of [
   "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
   "docs/connector-runtime.md",
+  "docs/deployment-readiness.md",
   "deploy/systemd/forward-dynatrace-connector.service",
+  "deploy/docker-compose/compose.yaml",
   "deploy/kubernetes/forward-dynatrace-connector-cronjob.yaml",
   "scripts/write-release-checksums.mjs",
   "scripts/sign-release-checksums.mjs",
   "scripts/query-dynatrace-dependencies.mjs",
+  "scripts/forward-deployment-readiness.mjs",
   "scripts/replay-dynatrace-demo-data.mjs",
   "scripts/build-forward-package.mjs",
   "scripts/normalize-dynatrace-dependencies.mjs",
@@ -547,13 +562,21 @@ for (const requiredPullRequestTemplateText of [
 for (const connectorConfigPath of [
   "config/forward-connector.config.example.json",
   "config/forward-connector.signed.config.example.json",
+  "deploy/docker-compose/forward-connector.config.example.json",
+  "deploy/systemd/forward-connector.config.example.json",
 ]) {
   const connectorConfig = await readJson(connectorConfigPath);
   if (connectorConfig.schemaVersion !== "forward-dynatrace-connector/v1") {
     fail(`${connectorConfigPath} must use schemaVersion forward-dynatrace-connector/v1.`);
   }
-  if (connectorConfig.statusArtifactPath !== "forward-ingest-status.json") {
-    fail(`${connectorConfigPath} must define statusArtifactPath forward-ingest-status.json.`);
+  if (!connectorConfig.statusArtifactPath?.endsWith("forward-ingest-status.json")) {
+    fail(`${connectorConfigPath} must define statusArtifactPath ending in forward-ingest-status.json.`);
+  }
+  if (
+    connectorConfigPath.startsWith("config/") &&
+    connectorConfig.statusArtifactPath !== "forward-ingest-status.json"
+  ) {
+    fail(`${connectorConfigPath} must define local statusArtifactPath forward-ingest-status.json.`);
   }
   for (const forbiddenKey of [
     "forwardPassword",

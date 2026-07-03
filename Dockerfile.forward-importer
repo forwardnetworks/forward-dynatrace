@@ -4,8 +4,11 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY scripts/forward-import-package.mjs ./scripts/forward-import-package.mjs
+COPY scripts/forward-deployment-readiness.mjs ./scripts/forward-deployment-readiness.mjs
 COPY scripts/forward-nqe-artifacts.mjs ./scripts/forward-nqe-artifacts.mjs
+COPY scripts/forward-nqe-live-smoke.mjs ./scripts/forward-nqe-live-smoke.mjs
 COPY scripts/publish-forward-status.mjs ./scripts/publish-forward-status.mjs
+COPY api/forward-nqe-preview.function.ts ./api/forward-nqe-preview.function.ts
 COPY config ./config
 
 RUN addgroup -S forward && adduser -S forward -G forward

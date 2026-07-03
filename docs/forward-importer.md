@@ -70,6 +70,17 @@ npm run forward:import -- \
   --validate-only
 ```
 
+For a deployment-oriented gate report, use:
+
+```bash
+npm run forward:readiness -- \
+  --checks forward-intent-checks.json \
+  --manifest forward-dynatrace-manifest.json \
+  --output forward-deployment-readiness.json
+```
+
+Use `--dry-run` on the readiness command after Forward credentials and network ID are configured.
+
 ## Apply Checks
 
 ```bash
@@ -108,6 +119,18 @@ npm run forward:package -- \
   --nqe-diff-before-snapshot-id <before-snapshot-id> \
   --nqe-diff-after-snapshot-id <after-snapshot-id>
 ```
+
+Generate dependency eligibility evidence with:
+
+```bash
+npm run forward:package -- \
+  --dependencies normalized-dependencies.json \
+  --output-dir /tmp/forward-dynatrace-package \
+  --eligibility-report /tmp/forward-dynatrace-package/forward-dependency-eligibility.json
+```
+
+Rows marked `review`, `needs-map`, or missing required endpoint fields are reported with reasons before any Forward
+dry-run or apply.
 
 Validate or import them with an explicit Forward-owned query ID allowlist:
 

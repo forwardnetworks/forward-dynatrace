@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 
 const DEFAULT_STATUS_FILE = "forward-ingest-status.json";
 const DEFAULT_CHECKSUM_FILE = "forward-ingest-status.sha256";
+const DEFAULT_EVENT_FILE = "forward-ingest-status-event.json";
 
 const usage = `
 Forward ingest status publisher
@@ -21,6 +22,7 @@ Options:
   --output path       Write sanitized status to this exact path.
   --output-dir path   Write forward-ingest-status.json into this directory.
   --checksum path     Write sha256 checksum to this path.
+  --event-output path Write publish-safe Dynatrace event payload JSON.
 
 This script does not contact Forward or Dynatrace. It validates and republishes
 aggregate status for a customer-controlled package handoff location.
@@ -87,6 +89,20 @@ const required = (args, key) => {
 
 const sha256Hex = (text) => createHash("sha256").update(text, "utf8").digest("hex");
 
+const eventSeverity = (artifact) => {
+  if (artifact.importState === "failed") {
+    return "ERROR";
+  }
+  if (
+    artifact.importState === "needs-review" ||
+    (artifact.unresolvedCounts?.changed ?? 0) > 0 ||
+    (artifact.unresolvedCounts?.stale ?? 0) > 0
+  ) {
+    return "WARN";
+  }
+  return "INFO";
+};
+
 export const sanitizeStatusArtifact = (artifact) => {
   if (!artifact || typeof artifact !== "object" || Array.isArray(artifact)) {
     throw new Error("Status artifact must be a JSON object.");
@@ -144,6 +160,36 @@ export const sanitizeStatusArtifact = (artifact) => {
   };
 };
 
+export const toDynatraceStatusEvent = (artifact) => ({
+  schemaVersion: "forward-dynatrace-status-event/v1",
+  timestamp: artifact.generatedAt || new Date().toISOString(),
+  eventType: "forward.dynatrace.ingest.status",
+  severity: eventSeverity(artifact),
+  title: `Forward Dynatrace ingest ${artifact.importState || "unknown"}`,
+  properties: {
+    "forward.dynatrace.run_id": artifact.runId,
+    "forward.dynatrace.package_id": artifact.packageId,
+    "forward.dynatrace.mode": artifact.mode,
+    "forward.dynatrace.import_state": artifact.importState,
+    "forward.dynatrace.apply_policy": artifact.applyPolicy,
+    "forward.dynatrace.signature_status": artifact.packageSignature.status,
+    "forward.dynatrace.target.network_id": artifact.target.networkId,
+    "forward.dynatrace.target.snapshot_id": artifact.target.snapshotId,
+    "forward.dynatrace.planned_checks": artifact.plannedChecks,
+    "forward.dynatrace.planned_nqe_checks": artifact.plannedNqeChecks,
+    "forward.dynatrace.planned_nqe_diff_requests": artifact.plannedNqeDiffRequests,
+    "forward.dynatrace.count.create": artifact.counts.create,
+    "forward.dynatrace.count.unchanged": artifact.counts.unchanged,
+    "forward.dynatrace.count.changed": artifact.counts.changed,
+    "forward.dynatrace.count.stale": artifact.counts.stale,
+    "forward.dynatrace.unresolved.changed": artifact.unresolvedCounts.changed,
+    "forward.dynatrace.unresolved.stale": artifact.unresolvedCounts.stale,
+    "forward.dynatrace.mutation.created": artifact.mutationCounts.created,
+    "forward.dynatrace.mutation.updated": artifact.mutationCounts.updated,
+    "forward.dynatrace.mutation.deactivated": artifact.mutationCounts.deactivated,
+  },
+});
+
 const main = async () => {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
@@ -158,11 +204,21 @@ const main = async () => {
   const sanitized = sanitizeStatusArtifact(JSON.parse(statusText));
   const outputPath = args.output || path.join(required(args, "output-dir"), DEFAULT_STATUS_FILE);
   const checksumPath = args.checksum || path.join(path.dirname(outputPath), DEFAULT_CHECKSUM_FILE);
+  const eventOutputPath =
+    args["event-output"] ||
+    (args["output-dir"] ? path.join(args["output-dir"], DEFAULT_EVENT_FILE) : null);
   const outputText = JSON.stringify(sanitized, null, 2) + "\n";
 
   await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, outputText);
   await writeFile(checksumPath, `${sha256Hex(outputText)}  ${path.basename(outputPath)}\n`);
+  if (eventOutputPath) {
+    await mkdir(path.dirname(eventOutputPath), { recursive: true });
+    await writeFile(
+      eventOutputPath,
+      `${JSON.stringify(toDynatraceStatusEvent(sanitized), null, 2)}\n`,
+    );
+  }
 
   process.stdout.write(
     JSON.stringify(
@@ -170,6 +226,7 @@ const main = async () => {
         status: "published",
         output: outputPath,
         checksum: checksumPath,
+        eventOutput: eventOutputPath,
         sha256: sha256Hex(outputText),
       },
       null,

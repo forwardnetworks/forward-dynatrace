@@ -18,6 +18,11 @@ const kubernetesConfigMap = await readText(
 const kubernetesSecret = await readText(
   "deploy/kubernetes/forward-dynatrace-secret.example.yaml",
 );
+const dockerCompose = await readText("deploy/docker-compose/compose.yaml");
+const dockerComposeEnv = await readText("deploy/docker-compose/forward-dynatrace.env.example");
+const dockerComposeConfig = JSON.parse(
+  await readText("deploy/docker-compose/forward-connector.config.example.json"),
+);
 const service = await readText("deploy/systemd/forward-dynatrace-connector.service");
 const timer = await readText("deploy/systemd/forward-dynatrace-connector.timer");
 const envExample = await readText("deploy/systemd/forward-dynatrace.env.example");
@@ -121,10 +126,56 @@ if (systemdConfig.apply !== false || systemdConfig.failOnDrift !== true) {
   fail("systemd connector config example must default to dry-run and fail-on-drift.");
 }
 
+for (const snippet of [
+  "services:",
+  "forward-dynatrace-importer:",
+  "Dockerfile.forward-importer",
+  "FORWARD_USER:",
+  "FORWARD_PASSWORD:",
+  "read_only: true",
+  "cap_drop:",
+  "no-new-privileges:true",
+  "/config/forward-connector.config.json:ro",
+  "forward-dynatrace-state:",
+]) {
+  if (!dockerCompose.includes(snippet)) {
+    fail(`Docker Compose example missing ${snippet}.`);
+  }
+}
+if (!dockerCompose.includes(`:${packageJson.version}`)) {
+  fail(`Docker Compose importer image tag must match package version ${packageJson.version}.`);
+}
+if (!dockerComposeEnv.includes("FORWARD_USER=<user>")) {
+  fail("Docker Compose env example must contain a placeholder Forward user.");
+}
+if (!dockerComposeEnv.includes("FORWARD_PASSWORD=<password-or-token>")) {
+  fail("Docker Compose env example must contain a placeholder Forward password.");
+}
+if (dockerComposeConfig.schemaVersion !== "forward-dynatrace-connector/v1") {
+  fail("Docker Compose connector config example must use the connector schema version.");
+}
+if (
+  dockerComposeConfig.reportPath !==
+  "/var/lib/forward-dynatrace/forward-import-report.json"
+) {
+  fail("Docker Compose connector config example must write the report under /var/lib/forward-dynatrace.");
+}
+if (
+  dockerComposeConfig.apply !== false ||
+  dockerComposeConfig.applyUpdates !== false ||
+  dockerComposeConfig.deactivateStale !== false ||
+  dockerComposeConfig.failOnDrift !== true
+) {
+  fail("Docker Compose connector config example must default to dry-run, fail-on-drift, and no update/stale mutations.");
+}
+
 for (const content of [
   cronJob,
   kubernetesConfigMap,
   kubernetesSecret,
+  dockerCompose,
+  dockerComposeEnv,
+  JSON.stringify(dockerComposeConfig),
   service,
   timer,
   envExample,

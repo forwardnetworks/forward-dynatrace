@@ -6,7 +6,10 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { sanitizeStatusArtifact } from "./publish-forward-status.mjs";
+import {
+  sanitizeStatusArtifact,
+  toDynatraceStatusEvent,
+} from "./publish-forward-status.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -63,6 +66,30 @@ test("rejects credential-like status artifact content", () => {
   );
 });
 
+test("builds publish-safe Dynatrace status event", () => {
+  const event = toDynatraceStatusEvent(
+    sanitizeStatusArtifact({
+      ...baseStatus,
+      importState: "needs-review",
+      unresolvedCounts: {
+        changed: 1,
+        stale: 0,
+      },
+      mutationCounts: {
+        created: 0,
+        updated: 0,
+        deactivated: 0,
+      },
+    }),
+  );
+
+  assert.equal(event.schemaVersion, "forward-dynatrace-status-event/v1");
+  assert.equal(event.severity, "WARN");
+  assert.equal(event.properties["forward.dynatrace.count.create"], 1);
+  assert.equal(event.properties["forward.dynatrace.unresolved.changed"], 1);
+  assert.equal(JSON.stringify(event).includes("checkout-vip"), false);
+});
+
 test("publishes sanitized status and checksum to a handoff directory", async () => {
   const workdir = await mkdtemp(path.join(tmpdir(), "forward-status-publish-"));
   const statusPath = path.join(workdir, "status.json");
@@ -107,10 +134,15 @@ test("publishes sanitized status and checksum to a handoff directory", async () 
   const published = JSON.parse(
     await readFile(path.join(outputDir, "forward-ingest-status.json"), "utf8"),
   );
+  const event = JSON.parse(
+    await readFile(path.join(outputDir, "forward-ingest-status-event.json"), "utf8"),
+  );
   const checksum = await readFile(
     path.join(outputDir, "forward-ingest-status.sha256"),
     "utf8",
   );
   assert.equal(published.packageSignature.status, "verified");
+  assert.equal(event.eventType, "forward.dynatrace.ingest.status");
+  assert.equal(result.eventOutput, path.join(outputDir, "forward-ingest-status-event.json"));
   assert.match(checksum, /forward-ingest-status\.json/);
 });

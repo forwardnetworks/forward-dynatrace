@@ -1,0 +1,25 @@
+services:
+  forward-dynatrace-importer:
+    image: ${FORWARD_DYNATRACE_IMPORTER_IMAGE:-registry.example.com/forward-dynatrace-importer:1.0.9}
+    build:
+      context: ../..
+      dockerfile: Dockerfile.forward-importer
+    command:
+      - "--config"
+      - "/config/forward-connector.config.json"
+    environment:
+      FORWARD_USER: ${FORWARD_USER:?set FORWARD_USER}
+      FORWARD_PASSWORD: ${FORWARD_PASSWORD:?set FORWARD_PASSWORD}
+    volumes:
+      - ./forward-connector.config.example.json:/config/forward-connector.config.json:ro
+      - forward-dynatrace-state:/var/lib/forward-dynatrace
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+
+volumes:
+  forward-dynatrace-state:

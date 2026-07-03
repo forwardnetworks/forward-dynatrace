@@ -4,8 +4,9 @@ The connector runtime is the scheduled process that imports a Dynatrace-generate
 Dynatrace, holds Forward credentials, validates the package, reconciles against existing checks, and applies only
 missing checks when `apply` is enabled.
 
-The repo includes two deployable runtime templates:
+The repo includes three deployable runtime templates:
 
+- `deploy/docker-compose/`: a small controlled runtime or trial environment.
 - `deploy/systemd/`: a VM or appliance-style scheduled import.
 - `deploy/kubernetes/`: a Kubernetes CronJob scheduled import.
 
@@ -120,3 +121,22 @@ Default runtime policy should stay conservative:
 
 Changed and stale checks remain report-only by default. Optional update and retirement workflows require Forward-side
 approval, a verified signed package, exact approved `dynatrace-key:*` values, and a non-expired approval artifact.
+
+## Docker Compose Runtime
+
+Use the Compose template for a small controlled runtime or trial environment:
+
+```bash
+cd deploy/docker-compose
+cp forward-dynatrace.env.example .env
+```
+
+Populate `.env` from the local secret manager, update `forward-connector.config.example.json` with package and Forward
+metadata, then run:
+
+```bash
+docker compose --env-file .env -f compose.yaml run --rm forward-dynatrace-importer
+```
+
+The Compose service uses a read-only root filesystem, drops Linux capabilities, sets `no-new-privileges`, and writes
+only to the named state volume.

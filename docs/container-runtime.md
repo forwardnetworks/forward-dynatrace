@@ -22,6 +22,20 @@ docker run --rm \
   --validate-only
 ```
 
+## Readiness Check
+
+Run the deployment readiness wrapper before enabling scheduled import:
+
+```bash
+docker run --rm \
+  --entrypoint node \
+  -v "$PWD/package:/package:ro" \
+  forward-dynatrace-importer:local \
+  scripts/forward-deployment-readiness.mjs \
+  --checks /package/forward-intent-checks.json \
+  --manifest /package/forward-dynatrace-manifest.json
+```
+
 ## Connector Mode
 
 Mount a non-secret connector config and inject Forward credentials from the runtime secret store:
@@ -39,5 +53,6 @@ Do not bake Forward credentials into the image or config file.
 For signed packages, mount the trusted public key and use a config based on
 `config/forward-connector.signed.config.example.json`.
 
-For scheduled operation, use the systemd or Kubernetes templates in
-[connector-runtime.md](connector-runtime.md).
+For scheduled operation, use Docker Compose, systemd, or Kubernetes templates in
+[connector-runtime.md](connector-runtime.md). Deployment gate details are in
+[deployment-readiness.md](deployment-readiness.md).

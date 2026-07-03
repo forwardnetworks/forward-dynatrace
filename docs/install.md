@@ -22,7 +22,7 @@ Steps:
 ```bash
 git clone https://github.com/forwardnetworks/forward-dynatrace.git
 cd forward-dynatrace
-git checkout v1.0.8
+git checkout v1.0.9
 npm ci
 npm run ci
 npm run deploy -- --environment-url https://your-environment-id.apps.dynatrace.com/
@@ -121,7 +121,7 @@ Use `config/forward-connector.signed.config.example.json` when the package hando
 verification.
 
 For scheduled operation, use the systemd or Kubernetes templates in `deploy/` and follow
-`docs/connector-runtime.md`.
+`docs/connector-runtime.md`. Run `docs/deployment-readiness.md` checks before enabling a schedule or apply.
 
 ## Dynatrace Workflow Trigger
 

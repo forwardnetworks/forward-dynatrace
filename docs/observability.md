@@ -36,8 +36,26 @@ node scripts/publish-forward-status.mjs \
   --output-dir /handoff/dynatrace-forward/latest
 ```
 
-This writes `forward-ingest-status.json` and `forward-ingest-status.sha256`. Dynatrace can display that aggregate
-status by supplying the artifact or a read-only HTTPS artifact URL to the `forward-status` app function.
+This writes `forward-ingest-status.json`, `forward-ingest-status.sha256`, and
+`forward-ingest-status-event.json`. Dynatrace can display the aggregate status by supplying the artifact or a
+read-only HTTPS artifact URL to the `forward-status` app function.
+
+## Dynatrace Status Event
+
+`forward-ingest-status-event.json` is a publish-safe event payload derived from the sanitized status artifact. It can be
+sent to a customer-approved Dynatrace event ingestion path when the customer wants Dynatrace alerting on Forward-side
+import health.
+
+The event includes:
+
+- run ID, package ID, mode, import state, and apply policy
+- signature status
+- target network and snapshot IDs
+- planned intent/NQE counts
+- create, unchanged, changed, stale, unresolved, and mutation counts
+
+The event excludes check names, hostnames, dependency rows, credentials, and Forward API response bodies. Treat it as
+Forward-to-Dynatrace telemetry, not as a command channel.
 
 ## Metrics
 

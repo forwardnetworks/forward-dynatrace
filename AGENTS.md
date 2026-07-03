@@ -24,6 +24,7 @@ docs and executable checks.
 - [docs/threat-model.md](docs/threat-model.md): trust boundary, threats, controls, and residual risk.
 - [docs/container-runtime.md](docs/container-runtime.md): Forward importer container build and run workflow.
 - [docs/connector-runtime.md](docs/connector-runtime.md): systemd and Kubernetes scheduler runtime templates.
+- [docs/deployment-readiness.md](docs/deployment-readiness.md): package, dry-run, optional NQE, and deployment gate checks.
 - [docs/schema-versioning.md](docs/schema-versioning.md): package schema compatibility and migration rules.
 - [docs/data-handling.md](docs/data-handling.md): publish-safe data, screenshot, and artifact handling rules.
 - [docs/rbac.md](docs/rbac.md): least-privilege roles and separation rules.
@@ -66,6 +67,7 @@ npm run forward:nqe-live-smoke -- --help
 npm run forward:nqe-live-smoke:test
 npm run forward:nqe-preview:test
 npm run forward:package:test
+npm run forward:readiness:test
 npm run dynatrace:query -- --help
 npm run dynatrace:replay-demo -- --help
 npm run dynatrace:normalize:test

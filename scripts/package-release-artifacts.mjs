@@ -37,6 +37,7 @@ const appArchiveEntries = [
   "docs/client-trial-plan.md",
   "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
+  "docs/deployment-readiness.md",
 ];
 
 const importerArchiveEntries = [
@@ -49,6 +50,8 @@ const importerArchiveEntries = [
   "shared/demo-dynatrace-query-rows.json",
   "shared/demo-dependencies.json",
   "scripts/query-dynatrace-dependencies.mjs",
+  "scripts/forward-deployment-readiness.mjs",
+  "scripts/forward-deployment-readiness.test.mjs",
   "scripts/replay-dynatrace-demo-data.mjs",
   "scripts/replay-dynatrace-demo-data.test.mjs",
   "scripts/build-forward-package.mjs",
@@ -72,6 +75,7 @@ const importerArchiveEntries = [
   "docs/forward-api-compatibility.md",
   "docs/container-runtime.md",
   "docs/connector-runtime.md",
+  "docs/deployment-readiness.md",
   "docs/operations-runbook.md",
   "docs/incident-response.md",
   "docs/observability.md",
@@ -102,6 +106,7 @@ const requiredAppMembers = [
   "docs/forward-api-compatibility.md",
   "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
+  "docs/deployment-readiness.md",
 ];
 
 const requiredImporterMembers = [
@@ -111,8 +116,12 @@ const requiredImporterMembers = [
   "config/forward-connector.signed.config.example.json",
   "config/forward-nqe-live-smoke.approval.example.json",
   "deploy/systemd/forward-dynatrace-connector.service",
+  "deploy/docker-compose/compose.yaml",
+  "deploy/docker-compose/forward-connector.config.example.json",
+  "deploy/docker-compose/forward-dynatrace.env.example",
   "deploy/kubernetes/forward-dynatrace-connector-cronjob.yaml",
   "scripts/forward-import-package.mjs",
+  "scripts/forward-deployment-readiness.mjs",
   "scripts/forward-nqe-live-smoke.mjs",
   "scripts/forward-nqe-live-smoke.test.mjs",
   "scripts/forward-nqe-artifacts.mjs",
@@ -136,6 +145,7 @@ const requiredImporterMembers = [
   "docs/forward-api-compatibility.md",
   "docs/container-runtime.md",
   "docs/connector-runtime.md",
+  "docs/deployment-readiness.md",
   "docs/operations-runbook.md",
   "docs/incident-response.md",
   "docs/observability.md",

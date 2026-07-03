@@ -12,7 +12,9 @@ This document tracks what is validated today and what still needs a live Forward
 | Optional NQE artifacts | `npm run forward:nqe-artifacts:test` covers NQE check and diff artifact generation, query-ID validation, and allowlist rejection. |
 | Read-only NQE preview | `npm run forward:nqe-preview:test` covers plan mode, missing runtime authorization blocking, query-ID allowlisting, and the read-only `POST /api/nqe` execution path. |
 | Optional NQE package workflow | `npm run forward:package:test` builds optional `forward-nqe-checks.json` and `forward-nqe-diff-requests.json`, validates manifest metadata, and runs importer validate-only with a query-ID allowlist. |
+| Dependency eligibility report | `npm run forward:package:test` verifies `--eligibility-report` output for ready, review, needs-map, and missing-field rows. |
 | Read-only NQE live smoke harness | `npm run forward:nqe-live-smoke:test` validates approval-file rules and plan-mode report generation; `npm run forward:nqe-live-smoke -- --help` exposes a customer-approved live smoke command that calls only `POST /api/nqe` when `--execute` is supplied. |
+| Deployment readiness gate | `npm run forward:readiness:test` verifies validate-only readiness, dry-run failure reporting, mutation-policy refusal, and report output. |
 | Package validation | Importer rejects malformed packages and checksum mismatches before Forward environment variables or API calls are required. |
 | Package signature validation | Importer verifies valid detached Ed25519 signatures and rejects signatures for changed package bytes. |
 | Schema versioning policy | `docs/schema-versioning.md` defines the current `forward-dynatrace/v1` contract and migration checklist. |
@@ -21,14 +23,14 @@ This document tracks what is validated today and what still needs a live Forward
 | Runtime SLO gate | `npm run runtime:slo:test` verifies report/metrics SLO checks for duration, unresolved drift, signature requirements, and metric/report mismatch. |
 | Read-only status artifact | `npm run workflow:smoke` verifies `forward-dynatrace-status/v1` output and confirms it omits check-level topology strings. |
 | Forward status display and URL fetch | `npm run forward:status:test` verifies supplied artifact display, read-only localhost URL fetch, and non-local HTTP rejection. |
-| Forward status publication | `npm run forward:status:publish:test` verifies sanitized status publication, checksum output, unknown-field rejection, and credential-like content rejection. |
+| Forward status publication | `npm run forward:status:publish:test` verifies sanitized status publication, checksum output, publish-safe Dynatrace status event output, unknown-field rejection, and credential-like content rejection. |
 | Live demo runbook | `docs/live-demo-runbook.md` keeps customer-owned Dynatrace data as the production path and documents standard demo replay for trial sandboxes. `npm run repo:validate` requires the doc and release packaging includes it. |
 | Forward API compatibility notes | `docs/forward-api-compatibility.md` documents required Forward endpoints, the no-fallback bulk create gate, and optional NQE/query-ID paths. `npm run repo:validate` requires the doc and release packaging includes it. |
 | Synthetic Forward workflow | `npm run workflow:smoke` exercises validate-only, signed package validation, config import, metrics output, dry-run, 1001-check chunked apply, transient retry, unchanged, changed, stale, approved changed replacement, and approved stale deactivation flows against a fake Forward API. |
 | Load and scale smoke | `npm run load:scale` generates 2500 synthetic Dynatrace dependency rows, normalizes them, builds a `data-connector` package, validates it, applies exportable checks to a fake Forward API in 400-check batches, and reruns the same package to confirm unchanged reconciliation. |
 | Live Forward workflow | Real non-production Forward test network validated on 2026-06-30: dry-run create=3, apply create=3, rerun unchanged=3, changed drift=1, stale drift=1, and `--fail-on-drift` exit code 2. Validation checks were deleted after the run and confirmed remaining=0. |
 | UI workflow screenshots | `npm run demo:capture` captures `docs/assets/screenshots/*.jpg` from the built app with local app-function shims and placeholder data. |
-| Dynatrace app build package | Version `1.0.8` builds locally. |
+| Dynatrace app build package | Version `1.0.9` builds locally. |
 | Dynatrace live query path | Live read-only DQL queries against a non-production Dynatrace Apps environment succeeded on 2026-07-03. The saved demo fixture provides 100 replayable dependency records for trial tenants. |
 | Dynatrace app deploy | Version `1.0.6` deployed successfully to a non-production Dynatrace Apps environment on 2026-07-03. The previous `1.0.5` deploy attempt was correctly rejected because that version was already installed with a different checksum. |
 | Dynatrace saved demo replay | `npm run dynatrace:replay-demo` dry-runs a checked 100-row standard demo fixture. With `--apply`, it replays those rows into a trial tenant through OpenPipeline using a local Platform Token. Live replay/query on 2026-07-03 returned 100 records, 100 ready rows, and 0 review/needs-map rows. |
@@ -36,7 +38,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Legacy export path removal | `npm run repo:validate` blocks legacy secondary-artifact terms. |
 | Secret hygiene | `npm run repo:validate` blocks committed Dynatrace token-shaped secrets, concrete tenant URLs, OAuth callbacks, private token filenames, personal references, and non-placeholder Forward credentials. |
 | Connector pull workflow | Importer supports `--package-url`, validates the manifest, rejects stale packages, and still performs create-missing-only reconciliation. |
-| Forward-side connector runtime templates | `deploy/systemd/` and `deploy/kubernetes/` provide scheduled import templates; `npm run runtime:validate` checks required safety controls and secret boundaries. Kubernetes YAML parsed locally on 2026-06-30. |
+| Forward-side connector runtime templates | `deploy/docker-compose/`, `deploy/systemd/`, and `deploy/kubernetes/` provide scheduled import templates; `npm run runtime:validate` checks required safety controls and secret boundaries. Kubernetes YAML parsed locally on 2026-06-30. |
 | Dynatrace workflow trigger payloads | `deploy/dynatrace-workflows/` includes schedule and problem-trigger payload examples; `npm run dynatrace:workflow:validate` checks they generate valid package artifacts without Forward writes. |
 | Dynatrace live query command | `npm run dynatrace:query` exports DQL records from a tenant and can write normalized dependency candidates without contacting Forward. |
 | Dynatrace dependency normalization | `npm run dynatrace:normalize:test` verifies DQL-shaped rows normalize into ready/review/needs-map dependency candidates. |
@@ -45,7 +47,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Forward ingest status display | `api/forward-status.function.ts` and `shared/demo-forward-ingest-status.json` validate/display aggregate Forward-side ingest status only. |
 | Dependency audit | `npm run security:audit` passes for production dependencies. |
 | SBOM generation | `npm run sbom:check` generates a CycloneDX SBOM from production dependencies. |
-| Importer container | `docker build -f Dockerfile.forward-importer -t forward-dynatrace-importer:local .` and `docker run --rm forward-dynatrace-importer:local --help` pass locally for version `1.0.6`. |
+| Importer container | `docker build -f Dockerfile.forward-importer -t forward-dynatrace-importer:local .`, `docker run --rm forward-dynatrace-importer:local --help`, and `docker run --rm --entrypoint node forward-dynatrace-importer:local scripts/forward-deployment-readiness.mjs --help` pass locally for version `1.0.9`. |
 | Release checksums | `npm run release:checksums:test` verifies SHA-256 checksum file generation for release artifacts. |
 | Release checksum signing | `npm run release:sign:test` verifies detached Ed25519 signing and tamper-detection for `SHA256SUMS`. |
 | Release archive packaging | `npm run release:package:smoke` builds the app/importer archives in a temporary directory and verifies required archive members plus `SHA256SUMS`. |
@@ -67,6 +69,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Read-only NQE preview tests | `npm run forward:nqe-preview:test` |
 | Read-only NQE live smoke shape | `npm run forward:nqe-live-smoke:test` |
 | Optional NQE package workflow | `npm run forward:package:test` |
+| Deployment readiness | `npm run forward:readiness:test` |
 | Forward status display | `npm run forward:status:test` |
 | Forward status publisher | `npm run forward:status:publish:test` |
 | Dynatrace live query help/shape | `npm run dynatrace:query -- --help` |
