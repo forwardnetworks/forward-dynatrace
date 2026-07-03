@@ -62,6 +62,8 @@ For faster iteration:
 npm run repo:validate
 npm run forward:import:test
 npm run forward:nqe-artifacts:test
+npm run forward:nqe-live-smoke -- --help
+npm run forward:nqe-live-smoke:test
 npm run forward:nqe-preview:test
 npm run forward:package:test
 npm run dynatrace:query -- --help

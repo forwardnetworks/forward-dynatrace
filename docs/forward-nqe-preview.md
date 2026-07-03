@@ -83,3 +83,27 @@ npm run forward:nqe-preview:test
 
 The test covers plan mode, missing authorization blocking, query-ID allowlisting, and the read-only `POST /api/nqe`
 execution path.
+
+For a customer-approved live credential smoke, run plan mode first:
+
+```bash
+npm run forward:nqe-live-smoke -- \
+  --forward-base-url https://forward.example.com \
+  --forward-network-id <network-id> \
+  --output /tmp/forward-nqe-live-smoke-plan.json
+```
+
+Then execute only with a read-only Forward authorization header supplied by secret file or runtime secret:
+
+```bash
+npm run forward:nqe-live-smoke -- \
+  --forward-base-url https://forward.example.com \
+  --forward-network-id <network-id> \
+  --authorization-file /secure/path/read-only-forward-auth-header \
+  --execute \
+  --output /tmp/forward-nqe-live-smoke.json
+```
+
+The live smoke calls only `POST /api/nqe`, uses the `endpoint-inventory-smoke` template by default, and emits a
+sanitized JSON report. Query-ID templates remain optional and require `--query-id` plus `--allow-query-id` or
+`FORWARD_NQE_ALLOWED_QUERY_IDS`.

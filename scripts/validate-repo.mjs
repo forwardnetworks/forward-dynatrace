@@ -61,6 +61,7 @@ const requiredFiles = [
   "scripts/release-checksums.test.mjs",
   "scripts/query-dynatrace-dependencies.mjs",
   "scripts/copy-dynatrace-demo-data.mjs",
+  "scripts/forward-nqe-live-smoke.mjs",
   "scripts/forward-nqe-artifacts.mjs",
   "scripts/forward-nqe-artifacts.test.mjs",
   "scripts/forward-nqe-preview.test.mjs",
@@ -424,6 +425,7 @@ for (const nodeVersionFile of [".nvmrc", ".node-version"]) {
 for (const scriptName of [
   "release:checksums:test",
   "forward:nqe-preview:test",
+  "forward:nqe-live-smoke:test",
   "dynatrace:normalize:test",
   "runtime:validate",
   "dynatrace:workflow:validate",
@@ -462,6 +464,9 @@ if (!packageJson.scripts?.["dynatrace:bundle"]) {
 }
 if (!packageJson.scripts?.["forward:package"]) {
   fail("package.json must define npm script forward:package.");
+}
+if (!packageJson.scripts?.["forward:nqe-live-smoke"]) {
+  fail("package.json must define npm script forward:nqe-live-smoke.");
 }
 if (!packageJson.scripts?.["forward:status:publish"]) {
   fail("package.json must define npm script forward:status:publish.");

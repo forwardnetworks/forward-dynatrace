@@ -51,7 +51,22 @@ when the trial tenant does not yet have useful dependency evidence.
      --validate-only
    ```
 
-8. Run a Forward dry run:
+8. Optional read-only NQE live smoke: run only when the customer has approved a read-only Forward credential for NQE
+   execution from the selected runtime. This proves the preview path without creating, updating, or deleting checks:
+
+   ```bash
+   npm run forward:nqe-live-smoke -- \
+     --forward-base-url https://forward.example.com \
+     --forward-network-id <network-id> \
+     --authorization-file /secure/path/read-only-forward-auth-header \
+     --execute \
+     --output /tmp/forward-nqe-live-smoke.json
+   ```
+
+   Skip this step when the customer has not approved Dynatrace-hosted read-only execution. The base intent package
+   workflow does not depend on it.
+
+9. Run a Forward dry run:
 
    ```bash
    FORWARD_BASE_URL=https://forward.example.com \
@@ -65,7 +80,7 @@ when the trial tenant does not yet have useful dependency evidence.
      --status-artifact /tmp/forward-ingest-status.json
    ```
 
-9. Apply only after the Forward operator reviews create, changed, stale, unresolved, and optional NQE counts:
+10. Apply only after the Forward operator reviews create, changed, stale, unresolved, and optional NQE counts:
 
    ```bash
    npm run forward:import -- \
@@ -74,8 +89,8 @@ when the trial tenant does not yet have useful dependency evidence.
      --apply
    ```
 
-10. Rerun the same package without `--apply`. The expected result is unchanged for checks created by the previous run.
-11. Publish the sanitized status artifact for Dynatrace display:
+11. Rerun the same package without `--apply`. The expected result is unchanged for checks created by the previous run.
+12. Publish the sanitized status artifact for Dynatrace display:
 
    ```bash
    npm run forward:status:publish -- \
@@ -83,7 +98,7 @@ when the trial tenant does not yet have useful dependency evidence.
      --output-dir /tmp/forward-dynatrace-status
    ```
 
-12. In the Dynatrace app, load the status artifact or status artifact URL through the Forward ingest status function.
+13. In the Dynatrace app, load the status artifact or status artifact URL through the Forward ingest status function.
 
 ## Iterative Update Path
 

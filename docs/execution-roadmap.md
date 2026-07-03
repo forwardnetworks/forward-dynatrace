@@ -185,8 +185,8 @@ Exit criteria:
 
 ## Phase 3: Read-Only Dynamic NQE Preview
 
-Status: implemented for plan mode and optional server-side execution. Live customer execution still requires the
-customer-approved read-only Forward credential model.
+Status: implemented for plan mode, optional server-side execution, and a live smoke harness. Live customer execution
+still requires the customer-approved read-only Forward credential model.
 
 Goal: let Dynatrace ask Forward for read-only network evidence before creating persistent package artifacts.
 
@@ -392,7 +392,8 @@ Exit criteria:
 
 ## Near-Term Execution Backlog
 
-1. Validate read-only dynamic NQE preview against a customer-approved Forward credential model.
+1. Run `npm run forward:nqe-live-smoke -- --execute` once the customer approves the exact Forward read-only credential
+   model.
 2. Capture customer-approved query IDs only if the optional persistent NQE or NQE diff path is enabled.
 
 Completed near-term execution docs:

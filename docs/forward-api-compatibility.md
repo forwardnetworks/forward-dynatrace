@@ -48,13 +48,13 @@ Read-only preview uses:
 POST /api/nqe
 ```
 
-The `NqeExecutionRequest` contract supports exactly one of:
+The synchronous `NqeQueryRunRequest` contract supports exactly one of:
 
 - raw `query` source, used for allowlisted preview templates
 - committed Forward NQE Library `queryId`, used only when the customer enables the optional query-ID path
 
-It may also include `commitId`, `parameters`, `columnFilters`, and `sortKeys`. Dynatrace preview execution must use a
-read-only Forward credential with NQE execution permission only.
+It may also include `commitId`, `parameters`, and `queryOptions` such as `limit` and `offset`. Dynatrace preview
+execution must use a read-only Forward credential with NQE execution permission only.
 
 Query-ID preview is optional. The base intent-check workflow must continue to work when no Forward query IDs are
 configured.

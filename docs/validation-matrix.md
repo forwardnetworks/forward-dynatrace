@@ -12,6 +12,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Optional NQE artifacts | `npm run forward:nqe-artifacts:test` covers NQE check and diff artifact generation, query-ID validation, and allowlist rejection. |
 | Read-only NQE preview | `npm run forward:nqe-preview:test` covers plan mode, missing runtime authorization blocking, query-ID allowlisting, and the read-only `POST /api/nqe` execution path. |
 | Optional NQE package workflow | `npm run forward:package:test` builds optional `forward-nqe-checks.json` and `forward-nqe-diff-requests.json`, validates manifest metadata, and runs importer validate-only with a query-ID allowlist. |
+| Read-only NQE live smoke harness | `npm run forward:nqe-live-smoke:test` validates plan-mode report generation; `npm run forward:nqe-live-smoke -- --help` exposes a customer-approved live smoke command that calls only `POST /api/nqe` when `--execute` is supplied. |
 | Package validation | Importer rejects malformed packages and checksum mismatches before Forward environment variables or API calls are required. |
 | Package signature validation | Importer verifies valid detached Ed25519 signatures and rejects signatures for changed package bytes. |
 | Schema versioning policy | `docs/schema-versioning.md` defines the current `forward-dynatrace/v1` contract and migration checklist. |
@@ -58,6 +59,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Importer tests | `npm run forward:import:test` |
 | Optional NQE artifact tests | `npm run forward:nqe-artifacts:test` |
 | Read-only NQE preview tests | `npm run forward:nqe-preview:test` |
+| Read-only NQE live smoke shape | `npm run forward:nqe-live-smoke:test` |
 | Optional NQE package workflow | `npm run forward:package:test` |
 | Forward status display | `npm run forward:status:test` |
 | Forward status publisher | `npm run forward:status:publish:test` |
@@ -83,7 +85,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Forward-side connector runtime installation | Target runtime selection and operational ownership. Current repo includes systemd and Kubernetes templates plus the connector command path and package URL pull behavior. |
 | Dynatrace Workflow installation | A real problem or schedule workflow installed in the target tenant. Current repo includes checked schedule/problem payload examples for the export function. |
 | Live Dynatrace demo dependency query | Needs trial tenant query execution against the live demo data source with `storage:events:read` and `storage:buckets:read`. |
-| Read-only dynamic NQE credential model | Needs customer approval for the exact Forward read-only credential model before enabling execute mode in Dynatrace. Base package export/import does not depend on this optional path. |
+| Read-only dynamic NQE credential model | Needs customer approval and a live run of `npm run forward:nqe-live-smoke -- --execute` for the exact Forward read-only credential model before enabling execute mode in Dynatrace. Base package export/import does not depend on this optional path. |
 | Demo tenant copy sidecar | `npm run dynatrace:copy-demo -- --help` documents a demo-only copy workflow for trial sandboxes; not for production source-of-intent. |
 | Dynatrace synthetic OpenPipeline seed | Dry-run passes with 4 synthetic dependency events. Live seed requires a Platform Token with `openpipeline:events:ingest`; use only for isolated test tenants without suitable live demo topology. |
 | Version 1.0.5 trial deploy | Deploy the new app build to the trial tenant after this branch merges. |
