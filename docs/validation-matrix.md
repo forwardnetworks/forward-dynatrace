@@ -56,7 +56,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Release checksums | `npm run release:checksums:test` verifies SHA-256 checksum file generation for release artifacts. |
 | Release checksum signing | `npm run release:sign:test` verifies detached Ed25519 signing and tamper-detection for `SHA256SUMS`. |
 | Release archive packaging | `npm run release:package:smoke` builds the app/importer archives in a temporary directory and verifies required archive members plus `SHA256SUMS`. |
-| Release archive download verification | The `v1.0.9` GitHub release archives were downloaded, `SHA256SUMS` verified locally, and the importer archive was checked for the readiness CLI, deployment-readiness doc, Docker Compose template, and status publisher. |
+| Release archive download verification | The `v1.0.9` and `v1.0.10` GitHub release archives were downloaded and `SHA256SUMS` verified locally. The `v1.0.10` app archive was checked for the Dynatrace deploy wrapper, prospect talk track, and screenshot assets; the importer archive was checked for the readiness CLI, prospect talk track, and Docker Compose template. |
 | GitHub release workflow | `.github/workflows/release.yml` runs CI, calls `npm run release:package`, uploads artifacts, and publishes tag releases with `SHA256SUMS`. |
 | Data handling rules | `docs/data-handling.md` defines publish-safe artifact rules and `npm run repo:validate` blocks known tenant, token, local path, and personal-reference patterns. |
 | RBAC model | `docs/rbac.md` defines least-privilege roles and separation rules for package publishing, review, apply, signing, and runtime administration. |
