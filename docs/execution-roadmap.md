@@ -38,8 +38,9 @@ Shared package artifacts:
 
 - `forward-dynatrace-manifest.json`
 - `forward-intent-checks.json`
-- Optional `forward-nqe-checks.json` for persistent NQE checks that reference Forward-owned query IDs.
-- Optional NQE diff requests for approved Forward-owned query IDs.
+- Optional `forward-nqe-checks.json` for persistent NQE checks that reference approved Forward-owned query IDs.
+- Optional NQE diff requests for approved Forward-owned query IDs. Query IDs are never required for the base
+  intent-check workflow.
 - Optional detached signature and public-key verification material.
 
 ## Phase 0: Boundary And Demo Readiness
@@ -192,8 +193,9 @@ Goal: let Dynatrace ask Forward for read-only network evidence before creating p
 
 Allowed Dynatrace behavior:
 
-- Execute dynamic NQE queries with raw `query` source against approved Forward networks/snapshots.
-- Execute approved `queryId` queries when the customer chooses the optional query-ID path.
+- Execute dynamic NQE preview templates with raw `query` source against approved Forward networks/snapshots.
+- Execute approved `queryId` queries only when the customer chooses the optional query-ID path for stable diffs or
+  Forward-owned reusable checks.
 - Read NQE result rows for endpoint mapping, app-to-network correlation, and blast radius preview.
 - Use results to raise/lower mapping confidence and mark rows `ready`, `review`, or `needs-map`.
 
@@ -216,7 +218,9 @@ Implementation requirements:
 
 - Add a Dynatrace app function for read-only Forward NQE preview.
 - Require a read-only Forward credential with NQE execution permission only.
-- Add allowlisted NQE templates; reject arbitrary user-provided NQE in production mode unless explicitly enabled.
+- Add allowlisted raw-query NQE templates for the default preview path; reject arbitrary user-provided NQE in production
+  mode unless explicitly enabled.
+- Treat committed Forward `queryId` use as an opt-in enhancement, not as a prerequisite for preview or export.
 - Return aggregate/sanitized evidence to UI; avoid leaking broad topology by default.
 - Log query ID/template ID, run ID, network ID, snapshot ID, and row counts.
 
@@ -252,6 +256,9 @@ Design rule:
 
 - Query ID based NQE checks and NQE diffs are optional. The base integration must still work with intent-check packages
   only, with no committed Forward NQE query IDs.
+- Do not block a production rollout, trial, or package export because the customer has not approved query IDs. Use query
+  IDs only where they add value: stable reusable NQE checks, repeatable NQE diffs, or explicit customer-approved
+  read-only preview templates.
 
 Deliverables:
 

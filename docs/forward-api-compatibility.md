@@ -50,14 +50,15 @@ POST /api/nqe
 
 The synchronous `NqeQueryRunRequest` contract supports exactly one of:
 
-- raw `query` source, used for allowlisted preview templates
+- raw `query` source, used for allowlisted preview templates and the default read-only preview path
 - committed Forward NQE Library `queryId`, used only when the customer enables the optional query-ID path
 
 It may also include `commitId`, `parameters`, and `queryOptions` such as `limit` and `offset`. Dynatrace preview
 execution must use a read-only Forward credential with NQE execution permission only.
 
-Query-ID preview is optional. The base intent-check workflow must continue to work when no Forward query IDs are
-configured.
+Query-ID preview is optional. The base intent-check workflow and the default read-only preview path must continue to
+work when no Forward query IDs are configured. Use query IDs only for customer-approved stable previews, persistent NQE
+checks, or NQE diffs.
 
 ## Optional Persistent NQE Checks
 
@@ -94,7 +95,8 @@ parameter support for queries that declare parameters. Because this is a read-on
 validates and reports diff request metadata but does not execute diffs during check import.
 
 NQE diffs are optional. They are useful for before/after evidence and trial storytelling, but the production intent
-workflow must not depend on them.
+workflow must not depend on them and must not require a customer to approve query IDs before base intent-check ingest
+works.
 
 ## Version Gate Before A Customer Trial
 

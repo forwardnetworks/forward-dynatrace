@@ -108,7 +108,8 @@ mapping confidence only:
 
 - plan mode builds the request and performs no network call
 - execute mode calls only `POST /api/nqe`
-- query-ID templates require a Forward-owned query ID in the runtime allowlist
+- raw-query templates are the default read-only preview path
+- query-ID templates are optional and require a Forward-owned query ID in the runtime allowlist
 - runtime authorization must come from a secret store, not from a UI field or package artifact
 - preview failures should lower confidence or mark the row for review, not block package export
 

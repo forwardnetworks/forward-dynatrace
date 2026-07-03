@@ -13,7 +13,7 @@ Release artifact packager
 
 Usage:
   node scripts/package-release-artifacts.mjs
-  node scripts/package-release-artifacts.mjs --output-dir out/release --release-name v1.0.5
+  node scripts/package-release-artifacts.mjs --output-dir out/release --release-name v1.0.6
 
 Builds the GitHub release archives and SHA256SUMS. By default it writes to a
 temporary directory and uses the package version with a smoke suffix.

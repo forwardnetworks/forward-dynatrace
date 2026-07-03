@@ -11,7 +11,8 @@ Plan mode is the default:
 
 - builds the Forward NQE request body
 - shows the target `POST /api/nqe` path
-- includes dependency parameters when an approved query ID is used
+- uses allowlisted raw-query templates by default
+- includes dependency parameters when an approved optional query ID is used
 - performs no network call
 
 Execute mode is optional:
@@ -41,7 +42,9 @@ config files.
 | `approved-endpoint-resolution` | No | Yes | Run a Forward-owned endpoint-resolution query with Dynatrace dependency parameters. |
 | `approved-blast-radius` | No | Yes | Run a Forward-owned blast-radius query with Dynatrace service context. |
 
-The query-ID templates are optional. The base integration continues to work with intent-check packages only.
+The raw-query template path is the default read-only preview option. Query-ID templates are optional and should be used
+only when the customer approves specific Forward-owned query IDs for stable reusable previews, diffs, or persistent NQE
+checks. The base integration continues to work with intent-check packages only.
 
 ## Request Example
 
