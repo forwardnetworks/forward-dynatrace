@@ -45,6 +45,7 @@ This document tracks what is validated today and what still needs a live Forward
 | SBOM generation | `npm run sbom:check` generates a CycloneDX SBOM from production dependencies. |
 | Importer container | `docker build -f Dockerfile.forward-importer -t forward-dynatrace-importer:local .` and `docker run --rm forward-dynatrace-importer:local --help` pass locally for version `1.0.6`. |
 | Release checksums | `npm run release:checksums:test` verifies SHA-256 checksum file generation for release artifacts. |
+| Release checksum signing | `npm run release:sign:test` verifies detached Ed25519 signing and tamper-detection for `SHA256SUMS`. |
 | Release archive packaging | `npm run release:package:smoke` builds the app/importer archives in a temporary directory and verifies required archive members plus `SHA256SUMS`. |
 | GitHub release workflow | `.github/workflows/release.yml` runs CI, calls `npm run release:package`, uploads artifacts, and publishes tag releases with `SHA256SUMS`. |
 | Data handling rules | `docs/data-handling.md` defines publish-safe artifact rules and `npm run repo:validate` blocks known tenant, token, local path, and personal-reference patterns. |
@@ -76,6 +77,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Runtime SLO gate | `npm run runtime:slo:test` |
 | Dynatrace workflow payload validation | `npm run dynatrace:workflow:validate` |
 | Release checksum script | `npm run release:checksums:test` |
+| Release checksum signing | `npm run release:sign:test` |
 | Release archive packaging | `npm run release:package:smoke` |
 | Dependency audit | `npm run security:audit` |
 | SBOM generation | `npm run sbom:check` |

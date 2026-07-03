@@ -55,6 +55,8 @@ const requiredFiles = [
   "ui/app/types/forward-status.ts",
   "ui/app/types/forward-nqe-preview.ts",
   "scripts/sign-forward-package.mjs",
+  "scripts/sign-release-checksums.mjs",
+  "scripts/sign-release-checksums.test.mjs",
   "scripts/package-release-artifacts.mjs",
   "scripts/publish-forward-status.mjs",
   "scripts/publish-forward-status.test.mjs",
@@ -429,6 +431,7 @@ for (const nodeVersionFile of [".nvmrc", ".node-version"]) {
 
 for (const scriptName of [
   "release:checksums:test",
+  "release:sign:test",
   "forward:nqe-preview:test",
   "forward:nqe-live-smoke:test",
   "dynatrace:normalize:test",
@@ -453,6 +456,9 @@ if (!packageJson.scripts?.["forward:sign"]) {
 }
 if (!packageJson.scripts?.["release:checksums"]) {
   fail("package.json must define npm script release:checksums.");
+}
+if (!packageJson.scripts?.["release:sign"]) {
+  fail("package.json must define npm script release:sign.");
 }
 if (!packageJson.scripts?.["release:package"]) {
   fail("package.json must define npm script release:package.");
@@ -512,6 +518,7 @@ for (const requiredPackagerText of [
   "deploy/systemd/forward-dynatrace-connector.service",
   "deploy/kubernetes/forward-dynatrace-connector-cronjob.yaml",
   "scripts/write-release-checksums.mjs",
+  "scripts/sign-release-checksums.mjs",
   "scripts/query-dynatrace-dependencies.mjs",
   "scripts/copy-dynatrace-demo-data.mjs",
   "scripts/build-forward-package.mjs",

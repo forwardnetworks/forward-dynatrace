@@ -25,6 +25,8 @@ It remains a field-built reference, not an officially supported Forward product 
 - Done in repo: observability guide with report fields, metrics, alert thresholds, and evidence retention.
 - Done in repo: sanitized read-only Forward ingest status artifact for Dynatrace display.
 - Done in repo: release checksum generation for published artifacts.
+- Done in repo: optional detached Ed25519 signing and verification for `SHA256SUMS`; external before signed releases:
+  provision and protect the release signing key.
 - Done in repo: release archive packager smoke-tested in CI.
 - Done in repo: GitHub release workflow that builds app/importer archives, uploads artifacts, and publishes tag releases
   with `SHA256SUMS`.
@@ -56,8 +58,8 @@ It remains a field-built reference, not an officially supported Forward product 
 ## P1 Enterprise Controls
 
 - External before wider use: provision the durable package handoff location described in `docs/package-handoff.md`.
-- External before release: add cryptographic release signing if GitHub release artifacts plus `SHA256SUMS` are not
-  enough.
+- Done in repo: release checksum signing utility and CI tamper-detection tests; external before signed releases:
+  provision the actual release signing key outside GitHub source.
 - Done in repo: generate a CycloneDX SBOM and run production dependency audit in CI.
 - Done in repo: branch protection requiring the `gitops` workflow, one approving review, linear history, conversation
   resolution, and no force-push/delete.
