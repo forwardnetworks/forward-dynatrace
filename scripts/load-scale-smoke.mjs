@@ -166,12 +166,15 @@ const main = async () => {
 
   const dependencies = await readJson(dependenciesPath);
   const exportableDependencies = dependencies.filter(
-    (dependency) => dependency.mappingState !== "needs-map",
+    (dependency) => dependency.mappingState === "ready",
   );
-  const needsMapDependencies = dependencies.length - exportableDependencies.length;
+  const needsMapDependencies = dependencies.filter(
+    (dependency) => dependency.mappingState === "needs-map",
+  ).length;
   const reviewDependencies = dependencies.filter(
     (dependency) => dependency.mappingState === "review",
   ).length;
+  const rejectedDependencies = needsMapDependencies + reviewDependencies;
   assert.equal(dependencies.length, dependencyRows);
   assert.equal(needsMapDependencies > 0, true);
   assert.equal(reviewDependencies > 0, true);
@@ -191,13 +194,13 @@ const main = async () => {
   assert.equal(buildResult.dependencies, dependencyRows);
   assert.equal(buildResult.selectedDependencies, exportableDependencies.length);
   assert.equal(buildResult.intentChecks, exportableDependencies.length);
-  assert.equal(buildResult.rejectedDependencies, needsMapDependencies);
+  assert.equal(buildResult.rejectedDependencies, rejectedDependencies);
 
   const manifest = await readJson(manifestPath);
   const checks = await readJson(checksPath);
   assert.equal(manifest.requestedIngestPath, "data-connector");
-  assert.equal(manifest.dependencyRows.rowCount, exportableDependencies.length);
-  assert.equal(manifest.dependencyRows.rejectedRowCount, needsMapDependencies);
+  assert.equal(manifest.dependencyRows.rowCount, dependencies.length);
+  assert.equal(manifest.dependencyRows.rejectedRowCount, rejectedDependencies);
   assert.equal(manifest.intentChecks.count, exportableDependencies.length);
   assert.equal(checks.length, exportableDependencies.length);
 

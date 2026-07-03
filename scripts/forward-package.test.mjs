@@ -109,9 +109,9 @@ test("builds optional NQE artifacts and validates the full package", async () =>
     "snapshot-after",
   ]);
 
-  assert.equal(buildResult.intentChecks, 3);
-  assert.equal(buildResult.nqeChecks, 2);
-  assert.equal(buildResult.nqeDiffRequests, 2);
+  assert.equal(buildResult.intentChecks, 2);
+  assert.equal(buildResult.nqeChecks, 1);
+  assert.equal(buildResult.nqeDiffRequests, 1);
 
   const manifest = JSON.parse(
     await readFile(path.join(outputDir, "forward-dynatrace-manifest.json"), "utf8"),
@@ -137,9 +137,9 @@ test("builds optional NQE artifacts and validates the full package", async () =>
   ]);
 
   assert.equal(importResult.status, "valid");
-  assert.equal(importResult.plannedChecks, 3);
-  assert.equal(importResult.plannedNqeChecks, 2);
-  assert.equal(importResult.plannedNqeDiffRequests, 2);
+  assert.equal(importResult.plannedChecks, 2);
+  assert.equal(importResult.plannedNqeChecks, 1);
+  assert.equal(importResult.plannedNqeDiffRequests, 1);
 });
 
 test("keeps generated check names unique for duplicate service edges", async () => {
@@ -159,7 +159,7 @@ test("keeps generated check names unique for duplicate service edges", async () 
       owner: "dynatrace-demo",
       criticality: "medium",
       confidence: 80,
-      mappingState: "review",
+      mappingState: "ready",
     },
     {
       id: "frontend-web-frontend-proxy-service-b",
@@ -174,7 +174,7 @@ test("keeps generated check names unique for duplicate service edges", async () 
       owner: "dynatrace-demo",
       criticality: "medium",
       confidence: 80,
-      mappingState: "review",
+      mappingState: "ready",
     },
   ];
   await writeFile(dependenciesPath, `${JSON.stringify(duplicateEdgeDependencies, null, 2)}\n`);
@@ -206,4 +206,65 @@ test("keeps generated check names unique for duplicate service edges", async () 
   ]);
   assert.equal(importResult.status, "valid");
   assert.equal(importResult.plannedChecks, 2);
+});
+
+test("requires explicit override to include review rows in generated checks", async () => {
+  const outputDir = await mkdtemp(path.join(tmpdir(), "forward-dynatrace-review-override-"));
+  const dependenciesPath = path.join(outputDir, "dependencies.json");
+  await writeFile(
+    dependenciesPath,
+    `${JSON.stringify(
+      [
+        {
+          id: "review-only-row",
+          appName: "Inventory",
+          environment: "prod",
+          serviceEntityId: "SERVICE-DEMO-INVENTORY",
+          serviceName: "inventory-api",
+          source: "inventory-vip",
+          destination: "redis-cache",
+          protocol: "tcp",
+          port: "6379",
+          owner: "supply-chain",
+          criticality: "high",
+          confidence: 87,
+          mappingState: "review",
+        },
+      ],
+      null,
+      2,
+    )}\n`,
+  );
+
+  await assert.rejects(
+    runJson([
+      "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON",
+      "--experimental-strip-types",
+      "scripts/build-forward-package.mjs",
+      "--dependencies",
+      dependenciesPath,
+      "--output-dir",
+      outputDir,
+    ]),
+    /No rows are production-ready/,
+  );
+
+  const buildResult = await runJson([
+    "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON",
+    "--experimental-strip-types",
+    "scripts/build-forward-package.mjs",
+    "--dependencies",
+    dependenciesPath,
+    "--output-dir",
+    outputDir,
+    "--include-review",
+  ]);
+
+  assert.equal(buildResult.includeReviewRows, true);
+  assert.equal(buildResult.intentChecks, 1);
+  const manifest = JSON.parse(
+    await readFile(path.join(outputDir, "forward-dynatrace-manifest.json"), "utf8"),
+  );
+  assert.equal(manifest.dependencyRows.reviewOverrideEnabled, true);
+  assert.equal(manifest.dependencyRows.includedReviewRowCount, 1);
 });

@@ -1,9 +1,13 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@dynatrace/strato-components/buttons";
 import { ProgressCircle } from "@dynatrace/strato-components/content";
 import { Flex, TitleBar } from "@dynatrace/strato-components/layouts";
-import { TextInput, ToggleButtonGroup } from "@dynatrace/strato-components/forms";
+import {
+  Switch,
+  TextInput,
+  ToggleButtonGroup,
+} from "@dynatrace/strato-components/forms";
 import {
   Heading,
   Paragraph,
@@ -53,10 +57,6 @@ const sampleForwardStatusCounts = sampleForwardStatus.counts ?? {};
 const dynatraceLogoUrl = "assets/Dynatrace_Logo.svg";
 const forwardLogoUrl = "assets/forward-logo.svg";
 
-const selectedForSync = dependencies.filter(
-  (dependency) => dependency.mappingState !== "needs-map",
-);
-
 const statusLabel: Record<DependencyCandidate["mappingState"], string> = {
   ready: "Ready",
   review: "Review",
@@ -81,13 +81,15 @@ const downloadTextFile = (fileName: string, text: string, type: string) => {
 
 export const Home = () => {
   const [activeDependencyId, setActiveDependencyId] = useState(dependencies[0].id);
-  const activeDependency =
-    dependencies.find((dependency) => dependency.id === activeDependencyId) ||
-    dependencies[0];
-
   const [problemId, setProblemId] = useState("P-000000");
   const [forwardBaseUrl, setForwardBaseUrl] = useState("");
   const [forwardNetworkId, setForwardNetworkId] = useState("");
+  const [endpointQueryId, setEndpointQueryId] = useState("");
+  const [includeReviewRows, setIncludeReviewRows] = useState(false);
+  const [mappingOverrides, setMappingOverrides] = useState<
+    Record<string, DependencyCandidate["mappingState"]>
+  >({});
+  const [nqePreviewDependencyId, setNqePreviewDependencyId] = useState<string>();
   const [syncMode, setSyncMode] = useState<ForwardSyncMode>("manual-import");
   const [proofRequest, setProofRequest] = useState<
     NetworkProofRequest | undefined
@@ -119,12 +121,44 @@ export const Home = () => {
     data: statusRequest,
   }, { autoFetch: false, autoFetchOnUpdate: true });
 
+  const effectiveDependencies = useMemo(
+    () =>
+      dependencies.map((dependency) => ({
+        ...dependency,
+        mappingState: mappingOverrides[dependency.id] || dependency.mappingState,
+      })),
+    [mappingOverrides],
+  );
+  const activeDependency =
+    effectiveDependencies.find((dependency) => dependency.id === activeDependencyId) ||
+    effectiveDependencies[0];
+
+  const selectedForSync = useMemo(
+    () =>
+      effectiveDependencies.filter((dependency) =>
+        dependency.mappingState === "ready" ||
+        (includeReviewRows && dependency.mappingState === "review"),
+      ),
+    [effectiveDependencies, includeReviewRows],
+  );
+
   const readiness = useMemo(() => {
-    const readyRows = dependencies.filter(
+    const readyRows = effectiveDependencies.filter(
       (dependency) => dependency.mappingState === "ready",
     ).length;
-    return Math.round((readyRows / dependencies.length) * 100);
-  }, []);
+    return Math.round((readyRows / effectiveDependencies.length) * 100);
+  }, [effectiveDependencies]);
+
+  useEffect(() => {
+    const endpointResolution = nqePreview.data?.endpointResolution;
+    if (!endpointResolution || !nqePreviewDependencyId) {
+      return;
+    }
+    setMappingOverrides((current) => ({
+      ...current,
+      [nqePreviewDependencyId]: endpointResolution.mappingState,
+    }));
+  }, [nqePreview.data, nqePreviewDependencyId]);
 
   function runPreview(dependency = activeDependency) {
     setProofRequest({
@@ -161,12 +195,37 @@ export const Home = () => {
     });
   }
 
+  function checkEndpointMapping(dependency = activeDependency) {
+    setActiveDependencyId(dependency.id);
+    setNqePreviewDependencyId(dependency.id);
+    setNqePreviewRequest({
+      forwardBaseUrl,
+      forwardNetworkId,
+      templateId: "approved-endpoint-resolution",
+      queryId: endpointQueryId,
+      maxRows: 25,
+      execute: true,
+      dependency: {
+        appName: dependency.appName,
+        environment: dependency.environment,
+        serviceEntityId: dependency.serviceEntityId,
+        serviceName: dependency.serviceName,
+        source: dependency.source,
+        destination: dependency.destination,
+        protocol: dependency.protocol,
+        port: dependency.port,
+        owner: dependency.owner,
+      },
+    });
+  }
+
   function buildExportPackage() {
     setSyncRequest({
       forwardBaseUrl,
       forwardNetworkId,
       syncMode,
-      dependencies: selectedForSync,
+      includeReviewRows,
+      dependencies: effectiveDependencies,
     });
   }
 
@@ -227,6 +286,12 @@ export const Home = () => {
               <SyncIcon />
             </Button.Prefix>
             Build package
+          </Button>
+          <Button color="primary" variant="emphasized" onClick={() => checkEndpointMapping()}>
+            <Button.Prefix>
+              <NetworkIcon />
+            </Button.Prefix>
+            Check mapping
           </Button>
         </div>
       </section>
@@ -294,7 +359,7 @@ export const Home = () => {
                 </tr>
               </thead>
               <tbody>
-                {dependencies.map((dependency) => (
+                {effectiveDependencies.map((dependency) => (
                   <tr
                     key={dependency.id}
                     className={
@@ -325,19 +390,33 @@ export const Home = () => {
                       </span>
                     </td>
                     <td>
-                      <Button
-                        color="primary"
-                        size="condensed"
-                        onClick={() => {
-                          setActiveDependencyId(dependency.id);
-                          runPreview(dependency);
-                        }}
-                      >
-                        <Button.Prefix>
-                          <PathIcon />
-                        </Button.Prefix>
-                        Preview
-                      </Button>
+                      <div className="row-actions">
+                        <Button
+                          color="primary"
+                          size="condensed"
+                          onClick={() => {
+                            setActiveDependencyId(dependency.id);
+                            runPreview(dependency);
+                          }}
+                        >
+                          <Button.Prefix>
+                            <PathIcon />
+                          </Button.Prefix>
+                          Preview
+                        </Button>
+                        <Button
+                          color="primary"
+                          size="condensed"
+                          onClick={() => {
+                            checkEndpointMapping(dependency);
+                          }}
+                        >
+                          <Button.Prefix>
+                            <NetworkIcon />
+                          </Button.Prefix>
+                          Check
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -377,6 +456,14 @@ export const Home = () => {
                 placeholder="123"
               />
             </label>
+            <label>
+              <span>Endpoint NQE query ID</span>
+              <TextInput
+                value={endpointQueryId}
+                onChange={setEndpointQueryId}
+                placeholder="FQ_..."
+              />
+            </label>
           </div>
 
           <div className="mode-control">
@@ -397,11 +484,30 @@ export const Home = () => {
             </ToggleButtonGroup>
           </div>
 
+          <div className="override-control">
+            <Switch
+              name="include-review-rows"
+              value={includeReviewRows}
+              onChange={setIncludeReviewRows}
+            >
+              Force include review rows
+            </Switch>
+            <small>
+              Override only after operator review. Default export requires Forward-resolved endpoints.
+            </small>
+          </div>
+
           <Button color="primary" variant="accent" onClick={buildExportPackage}>
             <Button.Prefix>
               <SyncIcon />
             </Button.Prefix>
             Build export package
+          </Button>
+          <Button color="primary" variant="accent" onClick={() => checkEndpointMapping()}>
+            <Button.Prefix>
+              <NetworkIcon />
+            </Button.Prefix>
+            Check endpoint mapping
           </Button>
         </section>
       </main>
@@ -429,8 +535,8 @@ export const Home = () => {
       <section className="panel">
         <PanelHeader
           icon={<PathIcon />}
-          title="Read-Only NQE Preview"
-          detail="Plan approved Forward evidence queries"
+          title="Forward Endpoint Resolution"
+          detail="Read-only NQE preflight"
         />
         {nqePreview.isLoading && <ProgressCircle aria-label="Loading NQE preview" />}
         {nqePreview.data ? (
@@ -475,6 +581,23 @@ export const Home = () => {
                 <div>
                   <span>Columns</span>
                   <Strong>{nqePreview.data.result.columns.join(", ") || "none"}</Strong>
+                </div>
+              </div>
+            )}
+            {nqePreview.data.endpointResolution && (
+              <div className="endpoint-resolution-grid">
+                <ResolutionCard
+                  label="Source"
+                  endpoint={nqePreview.data.endpointResolution.source}
+                />
+                <ResolutionCard
+                  label="Destination"
+                  endpoint={nqePreview.data.endpointResolution.destination}
+                />
+                <div className={`resolution-card ${nqePreview.data.endpointResolution.mappingState}`}>
+                  <span>Export state</span>
+                  <Strong>{statusLabel[nqePreview.data.endpointResolution.mappingState]}</Strong>
+                  <small>{nqePreview.data.endpointResolution.summary}</small>
                 </div>
               </div>
             )}
@@ -697,6 +820,28 @@ const ResultBody = ({
 const EmptyState = ({ text }: { text: string }) => (
   <div className="empty-state">
     <Paragraph>{text}</Paragraph>
+  </div>
+);
+
+const ResolutionCard = ({
+  label,
+  endpoint,
+}: {
+  label: string;
+  endpoint: {
+    value: string;
+    status: string;
+    matchCount: number | null;
+    detail: string;
+  };
+}) => (
+  <div className={`resolution-card ${endpoint.status}`}>
+    <span>{label}</span>
+    <Strong>{endpoint.value}</Strong>
+    <small>{endpoint.detail}</small>
+    <small>
+      {endpoint.matchCount === null ? endpoint.status : `${endpoint.matchCount} ${endpoint.status}`}
+    </small>
   </div>
 );
 

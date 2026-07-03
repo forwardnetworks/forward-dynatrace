@@ -56,6 +56,11 @@ Dry-run validates package shape and reconciliation only. Live apply also depends
 filter in the target snapshot. Unresolved `HostFilter`, `DeviceFilter`, or `SubnetLocationFilter` values are rejected
 by Forward before any bulk create succeeds.
 
+If apply fails with `No hosts matching the alias` or another unresolved-location error, do not retry the same package
+unchanged. Run the Dynatrace app's read-only endpoint-resolution preflight for the affected dependencies, map the
+Dynatrace source/destination values to Forward-resolvable locations, and keep unresolved rows as `needs-map` until the
+mapping is corrected.
+
 Validate package shape without Forward credentials:
 
 ```bash

@@ -28,7 +28,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Load and scale smoke | `npm run load:scale` generates 2500 synthetic Dynatrace dependency rows, normalizes them, builds a `data-connector` package, validates it, applies exportable checks to a fake Forward API in 400-check batches, and reruns the same package to confirm unchanged reconciliation. |
 | Live Forward workflow | Real non-production Forward test network validated on 2026-06-30: dry-run create=3, apply create=3, rerun unchanged=3, changed drift=1, stale drift=1, and `--fail-on-drift` exit code 2. Validation checks were deleted after the run and confirmed remaining=0. |
 | UI workflow screenshots | `docs/assets/screenshots/*.jpg` were captured from the running local app. |
-| Dynatrace app build package | Version `1.0.6` builds locally. |
+| Dynatrace app build package | Version `1.0.7` builds locally. |
 | Dynatrace live query path | Live read-only DQL queries against a non-production Dynatrace Apps environment succeeded on 2026-07-03. The first tenant query validated auth/query plumbing with no useful topology; the saved demo fixture now provides 100 replayable dependency records for trial tenants. |
 | Dynatrace app deploy | Version `1.0.6` deployed successfully to a non-production Dynatrace Apps environment on 2026-07-03. The previous `1.0.5` deploy attempt was correctly rejected because that version was already installed with a different checksum. |
 | Dynatrace saved demo replay | `npm run dynatrace:replay-demo` dry-runs a checked 100-row Dynatrace Playground fixture. With `--apply`, it replays those rows into a trial tenant through OpenPipeline using a local Platform Token. |

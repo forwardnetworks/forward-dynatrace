@@ -30,6 +30,7 @@ export interface ForwardSyncRequest {
   forwardBaseUrl?: string;
   forwardNetworkId?: string;
   syncMode: ForwardSyncMode;
+  includeReviewRows?: boolean;
   dependencies: DependencyCandidate[];
 }
 

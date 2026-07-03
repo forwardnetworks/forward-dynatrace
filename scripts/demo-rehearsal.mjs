@@ -105,9 +105,10 @@ const main = async () => {
     JSON.stringify(
       {
         status: "ok",
+        packageStatus: result.status,
         outputDir,
         rows: dependencies.length,
-        exportableRows: dependencies.filter((dependency) => dependency.mappingState !== "needs-map").length,
+        exportableRows: dependencies.filter((dependency) => dependency.mappingState === "ready").length,
         readyRows: dependencies.filter((dependency) => dependency.mappingState === "ready").length,
         reviewRows: dependencies.filter((dependency) => dependency.mappingState === "review").length,
         needsMapRows: dependencies.filter((dependency) => dependency.mappingState === "needs-map").length,

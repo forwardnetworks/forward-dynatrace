@@ -30,7 +30,7 @@ Options:
                                   Snapshot ID for optional NQE diff base.
   --nqe-diff-after-snapshot-id id Snapshot ID for optional NQE diff target.
   --output-dir path               Output directory. Defaults to current directory.
-  --ready-only                    Exclude mappingState=review rows. By default ready and review rows are exportable.
+  --include-review                Explicit override: include mappingState=review rows in intent-check artifacts.
   --sync-mode manual-import       manual-import, data-connector, or intent-package.
 
 Writes:
@@ -50,7 +50,7 @@ const parseArgs = (argv) => {
       throw new Error(`Unexpected positional argument: ${value}`);
     }
     const key = value.slice(2);
-    if (key === "help" || key === "ready-only") {
+    if (key === "help" || key === "include-review") {
       args[key] = true;
       continue;
     }
@@ -88,20 +88,18 @@ const main = async () => {
     throw new Error("--dependencies must contain a JSON array.");
   }
 
+  const includeReviewRows = Boolean(args["include-review"]);
   const selectedDependencies = dependencies.filter((dependency) =>
-    args["ready-only"]
-      ? dependency.mappingState === "ready"
-      : dependency.mappingState !== "needs-map",
+    dependency.mappingState === "ready" ||
+      (includeReviewRows && dependency.mappingState === "review"),
   );
-  const packageDependencies = args["ready-only"]
-    ? selectedDependencies
-    : dependencies;
 
   const result = forwardSync({
     forwardBaseUrl: args["forward-base-url"],
     forwardNetworkId: args["forward-network-id"],
     syncMode,
-    dependencies: packageDependencies,
+    includeReviewRows,
+    dependencies,
   });
 
   if (result.status !== "ready") {
@@ -178,6 +176,7 @@ const main = async () => {
         status: "ok",
         dependencies: dependencies.length,
         selectedDependencies: selectedDependencies.length,
+        includeReviewRows,
         intentChecks: result.intentCheckCount,
         nqeChecks: nqeChecks.length,
         nqeDiffRequests: nqeDiffRequests.length,

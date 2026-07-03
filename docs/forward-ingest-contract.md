@@ -76,7 +76,9 @@ DELETE /api/snapshots/{snapshotId}/checks/{checkId}
 Important: the Forward bulk endpoint accepts an array and creates checks, but the import workflow must dedupe before
 posting. Do not rely on the endpoint to dedupe Dynatrace-managed intent checks by name or tag.
 
-For each eligible dependency, the package includes one persistent `Existential` check request. Forward persistence
+For each eligible dependency, the package includes one persistent `Existential` check request. Eligible dependencies
+must have source and destination values that endpoint-resolution has marked `ready` for the target Forward network.
+Rows in `review` are held by default and rows in `needs-map` are never included in apply packages. Forward persistence
 defaults to true for this endpoint. Include `persistent=false` only for single-snapshot test imports.
 
 If `forward-nqe-checks.json` is present, Forward-side ingest validates it separately, reads existing NQE checks with:

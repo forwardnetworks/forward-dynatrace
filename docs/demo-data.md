@@ -9,11 +9,13 @@ Forward network IDs, or real credentials in GitHub.
 
 The app fixture is [shared/demo-dependencies.json](../shared/demo-dependencies.json). It contains:
 
-- 100 Forward-exportable review rows from a Dynatrace Playground Smartscape service-call export
+- 100 review rows from a Dynatrace Playground Smartscape service-call export
 - deterministic service IDs, service names, source names, destination names, protocol, and port fields
 - no tenant ID, user identity, credential, customer name, Forward network ID, or customer topology
 
-The local app imports this fixture so screenshots, browser tests, and package generation tell the same story.
+The local app imports this fixture so screenshots and browser tests tell the same story. These rows are demo evidence,
+not production-ready Forward write candidates until endpoint-resolution marks both endpoints `ready`. The explicit
+`--include-review` override exists for isolated demo replay only.
 
 The DQL-shaped fixture is
 [shared/demo-dynatrace-query-rows.json](../shared/demo-dynatrace-query-rows.json). Normalize it with:
@@ -36,7 +38,8 @@ Run:
 npm run demo:rehearsal
 ```
 
-This normalizes DQL-shaped rows, builds the Forward package, and validates package shape without Forward credentials.
+This normalizes DQL-shaped rows, builds the Forward package shape, and validates it without Forward credentials. The
+saved demo fixture remains review-only unless a Forward endpoint-resolution preflight promotes rows to `ready`.
 
 ## Local Workflow Smoke
 

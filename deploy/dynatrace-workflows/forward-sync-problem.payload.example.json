@@ -14,7 +14,7 @@
       "owner": "supply-chain",
       "criticality": "high",
       "confidence": 87,
-      "mappingState": "review"
+      "mappingState": "ready"
     }
   ]
 }

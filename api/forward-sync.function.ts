@@ -29,6 +29,7 @@ interface ForwardSyncRequest {
   forwardBaseUrl?: string;
   forwardNetworkId?: string;
   syncMode: ForwardSyncMode;
+  includeReviewRows?: boolean;
   dependencies: DependencyCandidate[];
 }
 
@@ -118,6 +119,11 @@ interface ForwardExportManifest {
   dependencyRows: {
     rowCount: number;
     rejectedRowCount: number;
+    readyRowCount: number;
+    reviewRowCount: number;
+    needsMapRowCount: number;
+    includedReviewRowCount: number;
+    reviewOverrideEnabled: boolean;
   };
   intentChecks: {
     count: number;
@@ -343,8 +349,13 @@ const toExportManifest = ({
     intentChecksSha256,
   },
   dependencyRows: {
-    rowCount: exportableDependencies.length,
+    rowCount: payload.dependencies.length,
     rejectedRowCount: rejectedDependencyCount,
+    readyRowCount: payload.dependencies.filter((dependency) => dependency.mappingState === "ready").length,
+    reviewRowCount: payload.dependencies.filter((dependency) => dependency.mappingState === "review").length,
+    needsMapRowCount: payload.dependencies.filter((dependency) => dependency.mappingState === "needs-map").length,
+    includedReviewRowCount: exportableDependencies.filter((dependency) => dependency.mappingState === "review").length,
+    reviewOverrideEnabled: Boolean(payload.includeReviewRows),
   },
   intentChecks: {
     count: intentChecks.length,
@@ -395,66 +406,85 @@ const toExportManifest = ({
 const toReadinessChecks = (
   payload: ForwardSyncRequest,
   exportableDependencies: DependencyCandidate[],
-): ReadinessCheck[] => [
-  {
-    label: "Forward target metadata",
-    status: "ready",
-    detail:
-      missing(payload.forwardBaseUrl) || missing(payload.forwardNetworkId)
-        ? "Optional. Forward URL and network ID can be added during Forward-side import."
-        : "Forward URL and network ID are included as package metadata.",
-  },
-  {
-    label: "No Dynatrace write credential",
-    status: "ready",
-    detail:
-      "The Dynatrace app does not collect or store Forward write credentials.",
-  },
-  {
-    label: "Forward-side ingest",
-    status: "ready",
-    detail:
-      "A manual importer or Forward-side connector is responsible for all Forward writes.",
-  },
-  {
-    label: "Dependency quality",
-    status: exportableDependencies.length > 0 ? "ready" : "blocked",
-    detail: `${exportableDependencies.length} dependency rows are eligible for Forward artifact generation.`,
-  },
-  {
-    label: "Idempotency",
-    status: "ready",
-    detail:
-      "Rows include deterministic integration keys and intent-check tags; Forward-side import must dedupe before bulk create.",
-  },
-  {
-    label: "Forward endpoint mapping",
-    status: "ready",
-    detail:
-      "Source and destination values must resolve to valid Forward HostFilter, DeviceFilter, or SubnetLocationFilter locations in the target snapshot.",
-  },
-  {
-    label: "Package validation",
-    status: "ready",
-    detail:
-      "Forward-side import rejects malformed packages, missing dynatrace-key tags, duplicate keys, duplicate names, and unsupported check types before writes.",
-  },
-  {
-    label: "Bulk import",
-    status: "ready",
-    detail:
-      "Intent checks are exported as NewNetworkCheck[] for Forward's standard /checks?bulk endpoint.",
-  },
-  {
-    label: "Reconciliation",
-    status: "ready",
-    detail:
-      "Forward-side import creates missing checks and reports changed or stale Dynatrace-managed checks.",
-  },
-];
+): ReadinessCheck[] => {
+  const readyCount = payload.dependencies.filter(
+    (dependency) => dependency.mappingState === "ready",
+  ).length;
+  const reviewCount = payload.dependencies.filter(
+    (dependency) => dependency.mappingState === "review",
+  ).length;
+  const includedReviewCount = exportableDependencies.filter(
+    (dependency) => dependency.mappingState === "review",
+  ).length;
 
-const isExportableDependency = (dependency: DependencyCandidate): boolean =>
-  dependency.mappingState !== "needs-map" &&
+  return [
+    {
+      label: "Forward target metadata",
+      status: "ready",
+      detail:
+        missing(payload.forwardBaseUrl) || missing(payload.forwardNetworkId)
+          ? "Optional. Forward URL and network ID can be added during Forward-side import."
+          : "Forward URL and network ID are included as package metadata.",
+    },
+    {
+      label: "No Dynatrace write credential",
+      status: "ready",
+      detail:
+        "The Dynatrace app does not collect or store Forward write credentials.",
+    },
+    {
+      label: "Forward-side ingest",
+      status: "ready",
+      detail:
+        "A manual importer or Forward-side connector is responsible for all Forward writes.",
+    },
+    {
+      label: "Dependency quality",
+      status: exportableDependencies.length > 0 ? "ready" : "blocked",
+      detail: `${readyCount} ready row(s), ${reviewCount} review row(s), ${exportableDependencies.length} eligible for Forward artifact generation.`,
+    },
+    {
+      label: "Idempotency",
+      status: "ready",
+      detail:
+        "Rows include deterministic integration keys and intent-check tags; Forward-side import must dedupe before bulk create.",
+    },
+    {
+      label: "Forward endpoint mapping",
+      status: reviewCount > includedReviewCount ? "needs-work" : "ready",
+      detail: reviewCount > includedReviewCount
+        ? `${reviewCount - includedReviewCount} review row(s) are held until read-only endpoint-resolution marks them ready. Unresolved endpoints must become needs-map.`
+        : includedReviewCount > 0
+          ? `${includedReviewCount} review row(s) included by explicit override. Forward apply may still reject unresolved locations.`
+        : "Source and destination values are marked ready for Forward location resolution.",
+    },
+    {
+      label: "Package validation",
+      status: "ready",
+      detail:
+        "Forward-side import rejects malformed packages, missing dynatrace-key tags, duplicate keys, duplicate names, and unsupported check types before writes.",
+    },
+    {
+      label: "Bulk import",
+      status: "ready",
+      detail:
+        "Intent checks are exported as NewNetworkCheck[] for Forward's standard /checks?bulk endpoint.",
+    },
+    {
+      label: "Reconciliation",
+      status: "ready",
+      detail:
+        "Forward-side import creates missing checks and reports changed or stale Dynatrace-managed checks.",
+    },
+  ];
+};
+
+const isExportableDependency = (
+  dependency: DependencyCandidate,
+  includeReviewRows: boolean | undefined,
+): boolean =>
+  (dependency.mappingState === "ready" ||
+    (Boolean(includeReviewRows) && dependency.mappingState === "review")) &&
   Boolean(
     dependency.source &&
       dependency.destination &&
@@ -520,7 +550,9 @@ export default function (
     };
   }
 
-  const exportableDependencies = payload.dependencies.filter(isExportableDependency);
+  const exportableDependencies = payload.dependencies.filter((dependency) =>
+    isExportableDependency(dependency, payload.includeReviewRows),
+  );
   const rejectedDependencyCount =
     payload.dependencies.length - exportableDependencies.length;
   const intentChecks = toIntentChecks(exportableDependencies);
@@ -548,7 +580,7 @@ export default function (
     return {
       status: "blocked",
       summary:
-        "No rows are production-ready for Forward. Map each dependency to a source, destination, protocol, port, and Dynatrace service entity.",
+        "No rows are production-ready for Forward. Map each dependency to a Forward-resolved source, destination, protocol, port, and Dynatrace service entity.",
       generatedAt,
       disclaimer: INTEGRATION_BOUNDARY_DISCLAIMER,
       exportManifestPreview,
@@ -560,7 +592,9 @@ export default function (
       workflowTrigger: "Not staged",
       nextSteps: [
         "Complete endpoint mapping for at least one dependency.",
+        "Run the read-only Forward endpoint-resolution preflight; only resolved rows should become ready.",
         "Keep needs-map rows out of automated Forward check creation.",
+        "Use includeReviewRows only as an explicit operator override.",
       ],
     };
   }
@@ -582,6 +616,7 @@ export default function (
       "Dynatrace Workflow on problem trigger or schedule can generate this package. Forward then imports it manually, or a Forward-side connector pulls it.",
     nextSteps: [
       "Export the manifest and NewNetworkCheck[] JSON package.",
+      "Run endpoint-resolution preflight for review rows before apply, or enable the review-row override deliberately.",
       "Import with the Forward-side script, or let a Forward-side connector pull the package.",
       "Forward-side import resolves latest processed snapshot, reads existing checks, dedupes by name/tag, then calls /checks?bulk.",
       "Review changed or stale Dynatrace-managed checks before any update or retirement workflow.",

@@ -278,6 +278,13 @@
   white-space: nowrap;
 }
 
+.row-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .chip,
 .result-status {
   display: inline-flex;
@@ -335,6 +342,20 @@
   align-items: flex-start;
 }
 
+.override-control {
+  display: grid;
+  gap: 4px;
+  margin: 16px 0;
+  padding: 12px;
+  background: #fff8e6;
+  border: 1px solid #ead28c;
+  border-radius: 8px;
+}
+
+.override-control small {
+  color: #60717d;
+}
+
 .empty-state {
   display: flex;
   align-items: center;
@@ -374,6 +395,50 @@
 
 .evidence-grid strong {
   word-break: break-word;
+}
+
+.endpoint-resolution-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.resolution-card {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  background: #f7f9fb;
+  border: 1px solid #e7edf1;
+  border-left: 4px solid #9aa9b2;
+  border-radius: 8px;
+}
+
+.resolution-card span {
+  color: #60717d;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.resolution-card small {
+  color: #60717d;
+}
+
+.resolution-card.resolved,
+.resolution-card.ready {
+  border-left-color: #167d68;
+}
+
+.resolution-card.ambiguous,
+.resolution-card.review,
+.resolution-card.unknown {
+  border-left-color: #d58a00;
+}
+
+.resolution-card.unresolved,
+.resolution-card.needs-map {
+  border-left-color: #c03720;
 }
 
 .next-list,
@@ -550,6 +615,7 @@
   .metric-grid,
   .automation-flow,
   .evidence-grid,
+  .endpoint-resolution-grid,
   .readiness-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -583,6 +649,7 @@
   .metric-grid,
   .automation-flow,
   .evidence-grid,
+  .endpoint-resolution-grid,
   .field-grid,
   .boundary-callout,
   .readiness-grid {

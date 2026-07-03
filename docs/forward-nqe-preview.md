@@ -46,6 +46,41 @@ The raw-query template path is the default read-only preview option. Query-ID te
 only when the customer approves specific Forward-owned query IDs for stable reusable previews, diffs, or persistent NQE
 checks. The base integration continues to work with intent-check packages only.
 
+## Endpoint-Resolution Contract
+
+Run `approved-endpoint-resolution` before applying generated intent checks. This catches the common Forward apply
+failure where `/api/snapshots/{snapshotId}/checks?bulk` rejects a `HostFilter` because a Dynatrace source or destination
+name does not match any location in the target Forward snapshot.
+
+The Forward-owned NQE query should return either one aggregate row:
+
+```json
+{
+  "sourceMatchCount": 1,
+  "destinationMatchCount": 0
+}
+```
+
+or one row per endpoint:
+
+```json
+[
+  {"endpointRole": "source", "endpoint": "checkout-vip", "matchCount": 1},
+  {"endpointRole": "destination", "endpoint": "orders-db", "matchCount": 0}
+]
+```
+
+The Dynatrace app classifies the dependency as:
+
+- `ready`: source and destination each resolve to exactly one Forward location; the row can become an intent-check
+  candidate.
+- `review`: either endpoint is ambiguous or the query result is not recognized; the row is held unless an operator uses
+  the explicit review-row override.
+- `needs-map`: either endpoint has zero matches.
+
+Rows classified as `needs-map` are excluded from apply packages until the Dynatrace dependency is mapped to a
+Forward-resolvable `HostFilter`, `SubnetLocationFilter`, or `DeviceFilter` value.
+
 ## Request Example
 
 ```json
@@ -69,7 +104,9 @@ checks. The base integration continues to work with intent-check packages only.
 
 ## Production Rules
 
-- Use the preview to improve mapping confidence or mark rows for review.
+- Use the preview to mark rows `ready`, `review`, or `needs-map`.
+- Use endpoint-resolution results to mark unresolved rows as `needs-map` before Forward apply.
+- Treat `ready` as the default package-eligibility gate.
 - Do not block package export when NQE preview fails.
 - Do not let Dynatrace commit NQE Library content.
 - Keep persistent Forward writes in the manual importer or Forward-side connector.

@@ -16,8 +16,8 @@ Actions. It is not published to PyPI.
 3. Tag the release:
 
    ```bash
-   git tag v1.0.6
-   git push origin v1.0.6
+   git tag v1.0.7
+   git push origin v1.0.7
    ```
 
 4. The `release` workflow builds with Node 24, runs `npm run ci`, runs `npm run release:package`, uploads workflow

@@ -19,7 +19,9 @@ when the trial tenant does not yet have useful dependency evidence.
      --dependencies-output /tmp/forward-dynatrace-dependencies.json
    ```
 
-4. Review rows marked `needs-map`. Those rows are evidence for follow-up mapping, not check creation.
+4. Run the read-only endpoint-resolution preflight for review rows when a Forward NQE query ID is approved. If Forward
+   cannot resolve the Dynatrace source or destination, mark the row `needs-map`; those rows are evidence for follow-up
+   mapping, not check creation.
 5. Build the base package:
 
    ```bash
@@ -81,7 +83,8 @@ when the trial tenant does not yet have useful dependency evidence.
      --status-artifact /tmp/forward-ingest-status.json
    ```
 
-10. Apply only after the Forward operator reviews create, changed, stale, unresolved, and optional NQE counts:
+10. Apply only after the Forward operator reviews create, changed, stale, unresolved, endpoint-resolution, and optional
+    NQE counts:
 
    ```bash
    npm run forward:import -- \

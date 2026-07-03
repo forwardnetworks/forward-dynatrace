@@ -3,9 +3,9 @@
   "environmentUrl": "https://your-environment-id.apps.dynatrace.com/",
   "app": {
     "name": "forward-dynatrace-field-integration",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "description": "Field Integration reference for Forward intent-check package export",
-    "id": "my.dynatrace.forward.network.proof",
+    "id": "com.forwardnetworks.dynatrace.field.integration",
     "scopes": [
       {
         "name": "environment-api:entities:read",

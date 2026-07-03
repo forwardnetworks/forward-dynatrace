@@ -155,3 +155,83 @@ test("executes only POST /api/nqe and returns sanitized aggregate evidence", asy
   assert.deepEqual(result.result.columns, ["Status", "Confidence", "Device"]);
   assert.equal(result.result.sampleRows, undefined);
 });
+
+test("marks endpoint-resolution rows needs-map when Forward cannot resolve a dependency endpoint", async () => {
+  const queryId = "FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+  const result = await withEnv(
+    {
+      FORWARD_NQE_READONLY_AUTHORIZATION: "Basic read-only-demo",
+      FORWARD_NQE_ALLOWED_QUERY_IDS: queryId,
+    },
+    () => buildForwardNqePreview(
+      {
+        ...baseRequest,
+        templateId: "approved-endpoint-resolution",
+        queryId,
+        execute: true,
+      },
+      async () => new Response(
+        JSON.stringify({
+          totalNumItems: 2,
+          items: [
+            { endpointRole: "source", endpoint: "checkout-vip", matchCount: 1 },
+            { endpointRole: "destination", endpoint: "orders-db", matchCount: 0 },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    ),
+  );
+
+  assert.equal(result.status, "ready");
+  assert.equal(result.endpointResolution.mappingState, "needs-map");
+  assert.equal(result.endpointResolution.source.status, "resolved");
+  assert.equal(result.endpointResolution.destination.status, "unresolved");
+  assert.match(result.summary, /could not resolve/);
+  assert.equal(
+    result.nextSteps.includes("Mark unresolved dependencies as needs-map before exporting an apply package."),
+    true,
+  );
+});
+
+test("marks endpoint-resolution rows review when Forward returns ambiguous endpoint matches", async () => {
+  const queryId = "FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+  const result = await withEnv(
+    {
+      FORWARD_NQE_READONLY_AUTHORIZATION: "Basic read-only-demo",
+      FORWARD_NQE_ALLOWED_QUERY_IDS: queryId,
+    },
+    () => buildForwardNqePreview(
+      {
+        ...baseRequest,
+        templateId: "approved-endpoint-resolution",
+        queryId,
+        execute: true,
+      },
+      async () => new Response(
+        JSON.stringify({
+          totalNumItems: 1,
+          items: [
+            {
+              sourceMatchCount: 2,
+              destinationMatchCount: 1,
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    ),
+  );
+
+  assert.equal(result.endpointResolution.mappingState, "review");
+  assert.equal(result.endpointResolution.source.status, "ambiguous");
+  assert.equal(result.endpointResolution.destination.status, "resolved");
+});

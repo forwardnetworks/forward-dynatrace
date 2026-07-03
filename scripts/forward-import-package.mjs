@@ -904,8 +904,16 @@ const makeClient = ({ baseUrl, user, password, maxRetries }) => {
         continue;
       }
 
+      const responsePreview = text.slice(0, 500);
+      const unresolvedLocationHint =
+        method === "POST" &&
+        path.includes("/checks?bulk") &&
+        response.status === 400 &&
+        /No .*matching|No hosts matching|alias|location|HostFilter|DeviceFilter|SubnetLocationFilter/i.test(text)
+          ? " Forward rejected one or more check locations. This usually means a Dynatrace source or destination does not resolve in the target Forward snapshot; run the Dynatrace read-only endpoint-resolution preflight and mark unresolved rows needs-map before apply."
+          : "";
       throw new Error(
-        `${method} ${path} failed with ${response.status}: ${text.slice(0, 500)}`,
+        `${method} ${path} failed with ${response.status}: ${responsePreview}${unresolvedLocationHint}`,
       );
     }
 

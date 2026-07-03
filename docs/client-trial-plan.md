@@ -64,8 +64,9 @@ production source of intent.
      --dependencies-output /tmp/forward-dynatrace-dependencies.json
    ```
 
-4. Review the normalized dependencies and endpoint mappings. Rows with `mappingState=needs-map` are excluded from
-   package creation.
+4. Review the normalized dependencies and endpoint mappings. When a Forward endpoint-resolution query ID is approved,
+   run the read-only preflight from the Dynatrace app. Rows with unresolved Forward locations should be set to
+   `mappingState=needs-map` and excluded from package creation.
 
 5. Build the Forward package:
 
@@ -165,5 +166,5 @@ checked replay fixture.
 ## Stop Conditions
 
 - Dynatrace token lacks `openpipeline:events:ingest`: stop and issue a Platform Token with the required scope.
-- Forward dry-run shows unresolved locations: keep those rows `needs-map`.
+- Forward endpoint-resolution preflight or apply shows unresolved locations: keep those rows `needs-map`.
 - Forward import reports changed or stale checks: review in Forward before update or retirement.

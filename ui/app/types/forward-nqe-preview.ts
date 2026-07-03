@@ -1,4 +1,10 @@
 export type NqePreviewStatus = "planned" | "ready" | "blocked" | "failed";
+export type EndpointResolutionStatus =
+  | "resolved"
+  | "unresolved"
+  | "ambiguous"
+  | "unknown";
+export type EndpointResolutionMappingState = "ready" | "review" | "needs-map";
 
 export type NqeTemplateId =
   | "endpoint-inventory-smoke"
@@ -49,5 +55,21 @@ export interface ForwardNqePreviewResponse {
     columns: string[];
     sampleRows?: Array<Record<string, unknown>>;
   };
+  endpointResolution?: EndpointResolutionSummary;
   nextSteps: string[];
+}
+
+export interface EndpointResolutionEndpoint {
+  role: "source" | "destination";
+  value: string;
+  status: EndpointResolutionStatus;
+  matchCount: number | null;
+  detail: string;
+}
+
+export interface EndpointResolutionSummary {
+  mappingState: EndpointResolutionMappingState;
+  source: EndpointResolutionEndpoint;
+  destination: EndpointResolutionEndpoint;
+  summary: string;
 }

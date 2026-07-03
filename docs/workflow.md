@@ -135,7 +135,10 @@ status, IDs, creators, and timestamps do not create false drift.
 
 ## Intent Check Mapping
 
-The first useful mapping is one Forward `Existential` check per eligible Dynatrace dependency:
+The first useful mapping is one Forward `Existential` check per eligible Dynatrace dependency. A dependency is eligible
+only after the selected Forward network resolves the Dynatrace source and destination to valid Forward locations.
+Review rows are exported as evidence and held out of check creation unless a Forward operator deliberately enables the
+review-row override.
 
 ```json
 {

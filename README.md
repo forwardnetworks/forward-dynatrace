@@ -63,6 +63,8 @@ imports or pulls that package.
 2. The query exporter can pull those rows from a live Dynatrace tenant with a Platform Token.
 3. The app or package builder generates a deterministic `integration_key` for each dependency.
 4. The app or package builder stages one Forward-native `NewNetworkCheck` JSON object per eligible dependency.
+   Eligible means the source and destination have been resolved in the target Forward network. Review rows are held
+   unless an operator deliberately uses the review-row override.
 5. A Dynatrace Workflow can call the same function on a problem trigger or schedule.
 6. Forward-side ingest performs latest snapshot lookup, existing-check readback, name/tag dedupe, bulk persistent
    check creation, and status reporting.
