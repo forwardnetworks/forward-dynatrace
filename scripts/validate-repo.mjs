@@ -73,6 +73,7 @@ const requiredFiles = [
   "scripts/normalize-dynatrace-dependencies.mjs",
   "scripts/normalize-dynatrace-dependencies.test.mjs",
   "scripts/demo-rehearsal.mjs",
+  "scripts/load-scale-smoke.mjs",
   "scripts/workflow-smoke.mjs",
   "scripts/validate-runtime-manifests.mjs",
   "scripts/validate-dynatrace-workflow-examples.mjs",
@@ -432,6 +433,7 @@ for (const scriptName of [
   "runtime:validate",
   "dynatrace:workflow:validate",
   "demo:rehearsal",
+  "load:scale",
   "release:package:smoke",
   "security:audit",
   "sbom:check",
@@ -512,6 +514,7 @@ for (const requiredPackagerText of [
   "scripts/build-forward-package.mjs",
   "scripts/normalize-dynatrace-dependencies.mjs",
   "scripts/demo-rehearsal.mjs",
+  "scripts/load-scale-smoke.mjs",
   "SHA256SUMS",
 ]) {
   if (!releasePackager.includes(requiredPackagerText)) {

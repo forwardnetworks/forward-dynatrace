@@ -24,6 +24,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Live demo runbook | `docs/live-demo-runbook.md` keeps customer-owned Dynatrace data as the primary path and marks synthetic seed/demo-copy as optional sidecars only. `npm run repo:validate` requires the doc and release packaging includes it. |
 | Forward API compatibility notes | `docs/forward-api-compatibility.md` documents required Forward endpoints, the no-fallback bulk create gate, and optional NQE/query-ID paths. `npm run repo:validate` requires the doc and release packaging includes it. |
 | Synthetic Forward workflow | `npm run workflow:smoke` exercises validate-only, signed package validation, config import, metrics output, dry-run, 1001-check chunked apply, transient retry, unchanged, changed, stale, approved changed replacement, and approved stale deactivation flows against a fake Forward API. |
+| Load and scale smoke | `npm run load:scale` generates 2500 synthetic Dynatrace dependency rows, normalizes them, builds a `data-connector` package, validates it, applies exportable checks to a fake Forward API in 400-check batches, and reruns the same package to confirm unchanged reconciliation. |
 | Live Forward workflow | Real non-production Forward test network validated on 2026-06-30: dry-run create=3, apply create=3, rerun unchanged=3, changed drift=1, stale drift=1, and `--fail-on-drift` exit code 2. Validation checks were deleted after the run and confirmed remaining=0. |
 | UI workflow screenshots | `docs/assets/screenshots/*.jpg` were captured from the running local app. |
 | Dynatrace app build package | Version `1.0.6` builds locally. |
@@ -68,6 +69,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Dynatrace dependency normalization | `npm run dynatrace:normalize:test` |
 | Forward package builder help/shape | `npm run forward:package -- --help` |
 | Synthetic end-to-end workflow | `npm run workflow:smoke` |
+| Load and scale smoke | `npm run load:scale` |
 | Client rehearsal | `npm run demo:rehearsal` |
 | Runtime manifest validation | `npm run runtime:validate` |
 | Dynatrace workflow payload validation | `npm run dynatrace:workflow:validate` |

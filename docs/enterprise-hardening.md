@@ -30,6 +30,8 @@ It remains a field-built reference, not an officially supported Forward product 
   with `SHA256SUMS`.
 - Done in repo: weekly Dependabot checks for npm and GitHub Actions.
 - Done in repo: synthetic 1001-check bulk import, chunk sizing, and transient retry coverage.
+- Done in repo: load and scale smoke for 2500 synthetic Dynatrace dependency rows through normalization, package build,
+  validate-only import, batched fake Forward apply, and unchanged rerun.
 - External before wider use: assign an owner for the Forward-side runtime: team, on-call path, escalation path, release
   approver, and customer handoff owner.
 - Done in repo: provide scheduled-job runtime templates for systemd and Kubernetes; external before wider use: choose
@@ -74,7 +76,8 @@ It remains a field-built reference, not an officially supported Forward product 
   formal support policy.
 - Future productization: add signed image or binary publication if this graduates beyond source-based delivery.
 - Future schema work: add upgrade tests when a second schema version exists.
-- Future compatibility work: add compatibility tests against Forward API versions and Dynatrace App Toolkit versions.
+- Future compatibility work: add compatibility tests against multiple real Forward API versions and Dynatrace App
+  Toolkit versions.
 - Done in repo: synthetic end-to-end harness publishes a package, pulls it, imports it, verifies fake Forward checks,
   and reruns the same package to confirm idempotency.
 - External after policy decision: operate the approval process for update/stale automation and decide whether it is
