@@ -11,6 +11,7 @@ unreviewed package-generation authority and unrestricted Forward write authority
 | Dynatrace package publisher | Generate and publish `forward-dynatrace-manifest.json` and `forward-intent-checks.json`. | Store Forward credentials or call Forward write APIs. |
 | Forward import reviewer | Run validate-only and dry-run, inspect create/changed/stale counts, approve apply. | Change Dynatrace mappings or bypass package validation. |
 | Forward import applier | Run apply with create-missing-only policy after review. | Delete or update stale/changed checks without separate approval. |
+| Forward mutation approver | Approve exact changed/stale `dynatrace-key:*` values, change window, and mutation budgets. | Generate packages, hold signing private keys, or run unreviewed imports. |
 | Signing key custodian | Rotate signing keys and publish trusted public key material. | Run Forward imports using private signing keys. |
 | Runtime administrator | Configure scheduler, package URL, network ID, log shipping, metrics, and secret references. | Commit secrets or package artifacts to source control. |
 
@@ -19,7 +20,7 @@ unreviewed package-generation authority and unrestricted Forward write authority
 - Dynatrace app roles must not have Forward write credentials.
 - Forward importer credentials must live only in the Forward-side runtime secret store.
 - Package signing private keys must not be present in the Forward import runtime.
-- Changed and stale checks require review before any update or retirement workflow.
+- Changed and stale checks require a signed package and exact approval artifact before update or retirement automation.
 - Production apply requires a recorded package ID, run ID, and reviewer identity.
 
 ## Review Cadence

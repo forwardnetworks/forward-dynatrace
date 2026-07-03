@@ -40,8 +40,8 @@ It remains a field-built reference, not an officially supported Forward product 
 - External before wider use: provision signing keys if checksum-only integrity is not sufficient for the deployment
   trust model.
 - Done in repo: pin package schema contract and migration rules for future `schemaVersion` changes.
-- Done in repo: first approved apply policy is `create-missing-only`; changed and stale checks stay report-only until
-  Forward approves update and retirement workflows.
+- Done in repo: default apply policy is `create-missing-only`; optional update/stale automation requires signed package
+  verification, exact approval artifact, and mutation budgets.
 - Done in repo: customer-safe runbook for install, generate package, validate-only, dry-run, apply, rollback, drift
   review, and evidence collection.
 - Done in repo: incident runbook for importer failure, partial bulk create, stale package, auth failure, rate limit, bad
@@ -77,7 +77,8 @@ It remains a field-built reference, not an officially supported Forward product 
 - Future compatibility work: add compatibility tests against Forward API versions and Dynatrace App Toolkit versions.
 - Done in repo: synthetic end-to-end harness publishes a package, pulls it, imports it, verifies fake Forward checks,
   and reruns the same package to confirm idempotency.
-- External after policy decision: add policy-driven update and stale retirement flows.
+- External after policy decision: operate the approval process for update/stale automation and decide whether it is
+  enabled for each deployment.
 - Future productization: add a UI view for package history, rejected rows, drift state, and last Forward-side ingest
   result.
 

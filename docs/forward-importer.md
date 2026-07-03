@@ -63,7 +63,7 @@ npm run forward:import -- \
   --apply
 ```
 
-The apply run posts only missing checks:
+The default apply run posts only missing checks:
 
 ```text
 POST /api/snapshots/{snapshotId}/checks?bulk
@@ -71,10 +71,77 @@ POST /api/snapshots/{snapshotId}/checks?bulk
 
 Body shape is `NewNetworkCheck[]`. The Forward API defaults `persistent` to `true`.
 
-Changed and stale checks remain report-only. Use the import report to review updates or retirement separately.
+Changed and stale checks remain report-only unless the optional approval-gated update/stale path is enabled.
 
 The importer retries transient Forward API responses (`408`, `409`, `425`, `429`, and `5xx`) with bounded backoff.
 Use `--max-retries 0` to disable retries in test harnesses.
+
+## Approved Update And Retirement
+
+The importer can also replace changed generated checks and deactivate stale generated checks, but only from the
+Forward-controlled runtime. This path is optional. The base production workflow works without it.
+
+Required gates:
+
+- `--apply`
+- `--require-signature` with a verified detached package signature
+- `--require-approval-file approval.json`
+- explicit mutation budgets with `--max-updates` and `--max-deactivations`
+
+Approval files name exact `dynatrace-key:*` values from the current dry-run report:
+
+```json
+{
+  "schemaVersion": "forward-dynatrace-approval/v1",
+  "packageId": "dynatrace-forward-20260703120000",
+  "changeWindowId": "CHG-12345",
+  "expiresAt": "2026-07-10T23:59:59.000Z",
+  "approvedBy": "forward-operator@example.com",
+  "reason": "Approved app dependency refresh",
+  "approvedChangedKeys": [
+    "dynatrace-key:dt:checkout:prod:service-123:checkout-vip:orders-db:tcp:443"
+  ],
+  "approvedStaleKeys": [
+    "dynatrace-key:dt:checkout:prod:service-456:old-vip:orders-db:tcp:443"
+  ]
+}
+```
+
+Run the approved apply:
+
+```bash
+npm run forward:import -- \
+  --checks forward-intent-checks.json \
+  --manifest forward-dynatrace-manifest.json \
+  --signature forward-dynatrace-package.sig \
+  --public-key /secure/path/forward-dynatrace-public.pem \
+  --require-signature \
+  --require-approval-file approval.json \
+  --change-window-id CHG-12345 \
+  --apply \
+  --apply-updates \
+  --deactivate-stale \
+  --max-updates 10 \
+  --max-deactivations 10 \
+  --report forward-import-report.json \
+  --status-artifact forward-ingest-status.json
+```
+
+Changed-check replacement uses the Forward checks API as two explicit steps:
+
+```text
+DELETE /api/snapshots/{snapshotId}/checks/{checkId}
+POST /api/snapshots/{snapshotId}/checks?bulk
+```
+
+Stale retirement uses:
+
+```text
+DELETE /api/snapshots/{snapshotId}/checks/{checkId}
+```
+
+Approval files are intentionally exact and short-lived. Unknown keys, package ID mismatches, change window mismatches,
+expired approvals, missing signatures, or budget overages fail before mutation.
 
 ## Reconciliation Report
 
@@ -116,7 +183,7 @@ npm run forward:import -- \
 
 For iterative use, schedule package generation in Dynatrace and run the importer or connector on the same cadence.
 Each run should be treated as desired-state reconciliation: create only missing checks by default, report changed
-checks for review, and report stale checks before any retirement workflow.
+checks for review, and retire or replace generated checks only through the approval-gated optional path above.
 
 ## Connector Pull Mode
 
@@ -146,8 +213,8 @@ npm run forward:import -- --config /secure/path/forward-connector.config.json
 ```
 
 The config may contain package URL, Forward base URL, network ID, batch size, retry count, package age, drift policy,
-report path, metrics path, and status artifact path. It must not contain Forward user, password, token, or other
-secrets; the importer rejects those fields.
+optional update/stale settings, report path, metrics path, and status artifact path. It must not contain Forward user,
+password, token, or other secrets; the importer rejects those fields.
 
 ## Detached Signature Mode
 

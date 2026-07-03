@@ -122,10 +122,14 @@ npm run forward:import -- \
 Exit criteria:
 
 - Same package rerun reports unchanged.
-- Drift is visible before any update or stale policy exists.
+- Drift is visible before any optional update or stale policy is enabled.
 - Operator runbook covers rollback by deactivating checks created in that run.
 
 ## Phase 2: Forward-Side Connector Automation
+
+Status: implemented for signed package pull/import, metrics/status artifacts, and optional approval-gated update/stale
+mutations. Production deployment still requires customer-owned runtime scheduling, secrets, signing keys, and approval
+process ownership.
 
 Goal: make the workflow iterative without letting Dynatrace push changes into Forward.
 
@@ -150,27 +154,28 @@ Apply policy stages:
 | Create missing | Create checks not present in Forward. | Enabled with `--apply`. |
 | Changed drift | Report checks whose generated definition changed. | Report-only. |
 | Stale drift | Report managed checks absent from latest package. | Report-only. |
-| Replace changed | Deactivate old generated check and create replacement. | Future explicit flag. |
-| Retire stale | Deactivate stale generated checks. | Future explicit flag. |
+| Replace changed | Deactivate old generated check and create replacement. | Optional with approval gates. |
+| Retire stale | Deactivate stale generated checks. | Optional with approval gates. |
 
-Future importer flags:
+Optional importer flags:
 
 ```bash
 --apply-updates
 --deactivate-stale
---max-updates 10
---max-deactivations 10
+--max-updates <count>
+--max-deactivations <count>
 --require-approval-file approval.json
 --change-window-id <id>
 ```
 
-Hardening requirements before update/stale automation:
+Update/stale automation controls:
 
 - Approval artifact names exact changed/stale keys allowed for mutation.
 - Maximum update/deactivation budget is enforced.
 - Connector refuses update/stale actions without package signature.
 - Status artifact reports update/deactivation counts separately.
 - Incident runbook includes partial update recovery.
+- Defaults keep both update and stale automation disabled.
 
 Exit criteria:
 
@@ -384,11 +389,9 @@ Exit criteria:
 ## Near-Term Execution Backlog
 
 1. Validate read-only dynamic NQE preview against a customer-approved Forward credential model.
-2. Add Forward-side import flags for approved changed-check replacement and stale deactivation.
-3. Add approval-file schema and tests for update/stale automation.
-4. Add optional persistent NQE check package schema using Forward-owned query IDs.
-5. Add optional NQE diff workflow for Forward-owned query IDs.
-6. Add connector status publication workflow back to Dynatrace.
-7. Add live demo runbook that uses customer-owned data first and demo-copy only as a sidecar.
-8. Add screenshots for the NQE preview and iterative Forward reconciliation workflow.
-9. Add compatibility notes from Forward checks and NQE API contracts.
+2. Add optional persistent NQE check package schema using Forward-owned query IDs.
+3. Add optional NQE diff workflow for Forward-owned query IDs.
+4. Add connector status publication workflow back to Dynatrace.
+5. Add live demo runbook that uses customer-owned data first and demo-copy only as a sidecar.
+6. Add screenshots for the NQE preview and iterative Forward reconciliation workflow.
+7. Add compatibility notes from Forward checks and NQE API contracts.

@@ -106,5 +106,8 @@ Default runtime policy should stay conservative:
 - `apply=true` only after the Forward operator approves the package and target network.
 - `failOnDrift=true` for scheduled automation so changed or stale checks block and require review.
 - `requireSignature=true` when a package signing key is provisioned.
+- `applyUpdates=false` and `deactivateStale=false` unless the runtime owner has an approved change process.
+- `maxUpdates=0` and `maxDeactivations=0` unless the same run supplies an approval file and explicit budget.
 
-Changed and stale checks remain report-only. Update and retirement workflows require separate Forward-side policy.
+Changed and stale checks remain report-only by default. Optional update and retirement workflows require Forward-side
+approval, a verified signed package, exact approved `dynatrace-key:*` values, and a non-expired approval artifact.

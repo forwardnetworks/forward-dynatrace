@@ -122,11 +122,12 @@ Each connector or importer run should compute:
 
 - `new`: `dynatrace-key:*` exists in the package but not in Forward. Create it.
 - `unchanged`: key and generated fingerprint match. Skip it.
-- `changed`: same key, different generated fingerprint. Update only under the configured policy, or report for review.
+- `changed`: same key, different generated fingerprint. Replace only through the optional approval-gated policy, or
+  report for review.
 - `stale`: key exists in Forward but not in the latest package. Mark for review by default.
 
-The first production-safe policy should auto-create only missing checks. Updates and stale removals should be reviewed
-until ownership and retirement rules are explicit.
+The default production-safe policy auto-creates only missing checks. Updates and stale removals require a verified
+signed package, exact approval file, and explicit mutation budgets.
 
 The importer uses a canonical JSON SHA-256 fingerprint over generated check fields so Forward result fields such as
 status, IDs, creators, and timestamps do not create false drift.

@@ -103,6 +103,8 @@ Dynatrace push into Forward.
 7. Forward-side ingest produces a create/unchanged/changed/stale reconciliation report.
 8. Forward-side ingest creates missing persistent Forward intent checks with
    `POST /api/snapshots/{snapshotId}/checks?bulk`.
+9. Optional approved update/stale automation can replace or deactivate generated checks only from the Forward-side
+   runtime with a verified signed package, exact approval file, and explicit mutation budgets.
 
 For fully automatic package generation, create a Dynatrace Workflow with either:
 
@@ -128,8 +130,8 @@ npm run forward:import -- --package-url https://package.example.com/dynatrace-fo
 ```
 
 The importer is dry-run by default, rejects malformed packages before Forward API calls, retries transient Forward API
-responses, verifies package checksums, and applies a create-missing-only policy unless a future reviewed
-update/retirement workflow is added.
+responses, verifies package checksums, and applies a create-missing-only policy by default. Approved changed-check
+replacement and stale-check deactivation are optional Forward-side paths described in `docs/forward-importer.md`.
 For package provenance, sign the exact manifest/check package with `npm run forward:sign` and run the importer with
 `--require-signature`.
 

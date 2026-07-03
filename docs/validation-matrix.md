@@ -8,6 +8,7 @@ This document tracks what is validated today and what still needs a live Forward
 | --- | --- |
 | Dynatrace app build | `npm run build` passes locally and in GitHub Actions. |
 | Forward importer reconciliation | `npm run forward:import:test` covers create, unchanged, changed, stale, fingerprints, keys, and validation failures. |
+| Approved update/stale gates | `npm run forward:import:test` covers approval schema, package/window/expiry rejection, exact-key selection, and mutation budget enforcement. |
 | Read-only NQE preview | `npm run forward:nqe-preview:test` covers plan mode, missing runtime authorization blocking, query-ID allowlisting, and the read-only `POST /api/nqe` execution path. |
 | Package validation | Importer rejects malformed packages and checksum mismatches before Forward environment variables or API calls are required. |
 | Package signature validation | Importer verifies valid detached Ed25519 signatures and rejects signatures for changed package bytes. |
@@ -15,7 +16,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Connector config validation | Importer supports `--config`, rejects secrets in config files, and accepts non-secret runtime settings. |
 | Connector metrics | `npm run workflow:smoke` verifies Prometheus-style metrics output from config import. |
 | Read-only status artifact | `npm run workflow:smoke` verifies `forward-dynatrace-status/v1` output and confirms it omits check-level topology strings. |
-| Synthetic Forward workflow | `npm run workflow:smoke` exercises validate-only, signed package validation, config import, metrics output, dry-run, 1001-check chunked apply, transient retry, unchanged, changed, and stale flows against a fake Forward API. |
+| Synthetic Forward workflow | `npm run workflow:smoke` exercises validate-only, signed package validation, config import, metrics output, dry-run, 1001-check chunked apply, transient retry, unchanged, changed, stale, approved changed replacement, and approved stale deactivation flows against a fake Forward API. |
 | Live Forward workflow | Real non-production Forward test network validated on 2026-06-30: dry-run create=3, apply create=3, rerun unchanged=3, changed drift=1, stale drift=1, and `--fail-on-drift` exit code 2. Validation checks were deleted after the run and confirmed remaining=0. |
 | UI workflow screenshots | `docs/assets/screenshots/*.jpg` were captured from the running local app. |
 | Dynatrace app build package | Version `1.0.5` builds locally. |
@@ -85,4 +86,5 @@ Before promoting a field integration deployment beyond this reference implementa
 3. Re-run the same package and confirm it reports unchanged.
 4. Change one dependency and confirm it reports changed.
 5. Remove one dependency and confirm it reports stale.
-6. Document the approved update and stale-check policy, or keep both report-only.
+6. If update/stale automation is enabled, require signed package verification, exact-key approval, change window, and
+   mutation budgets. Otherwise keep both report-only.

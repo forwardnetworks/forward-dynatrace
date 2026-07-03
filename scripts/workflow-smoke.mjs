@@ -249,6 +249,23 @@ const startFakeForward = async (state) =>
         return;
       }
 
+      if (
+        request.method === "DELETE" &&
+        url.pathname.startsWith("/api/snapshots/snapshot-demo/checks/")
+      ) {
+        const checkId = decodeURIComponent(url.pathname.split("/").pop() || "");
+        const before = state.existingChecks.length;
+        state.existingChecks = state.existingChecks.filter((check) => check.id !== checkId);
+        if (state.existingChecks.length === before) {
+          jsonResponse(response, 404, { error: `check not found: ${checkId}` });
+          return;
+        }
+        state.deleteCount += 1;
+        state.deletedIds.push(checkId);
+        jsonResponse(response, 200, { deleted: checkId });
+        return;
+      }
+
       jsonResponse(response, 404, { error: `${request.method} ${url.pathname}` });
     });
 
@@ -299,6 +316,7 @@ const main = async () => {
   const manifestPath = path.join(workdir, "forward-dynatrace-manifest.json");
   const connectorConfigPath = path.join(workdir, "forward-connector.config.json");
   const publicKeyPath = path.join(workdir, "forward-dynatrace-public.pem");
+  const signaturePath = path.join(workdir, "forward-dynatrace-package.sig");
   const checksText = JSON.stringify(checks, null, 2) + "\n";
   const manifest = toManifest(checks, checksText);
   const manifestText = JSON.stringify(manifest, null, 2) + "\n";
@@ -318,6 +336,7 @@ const main = async () => {
     publicKeyPath,
     publicKey.export({ format: "pem", type: "spki" }),
   );
+  await writeFile(signaturePath, packageSignatureText);
 
   const validation = await runImporter([
     "--checks",
@@ -339,6 +358,8 @@ const main = async () => {
     bulkFailureResponses: 0,
     bulkPostCount: 0,
     bulkSizes: [],
+    deleteCount: 0,
+    deletedIds: [],
     transientBulkFailures: 0,
   };
   const { server, port } = await startFakeForward(state);
@@ -455,6 +476,8 @@ const main = async () => {
     state.bulkSizes = [];
     state.transientBulkFailures = 0;
     state.bulkFailureResponses = 0;
+    state.deleteCount = 0;
+    state.deletedIds = [];
 
     const dryRun = await runImporter(["--checks", checksPath, "--manifest", manifestPath], env);
     assert.equal(dryRun.packageId, manifest.packageId);
@@ -506,6 +529,61 @@ const main = async () => {
     );
     const stale = await runImporter(["--checks", checksPath, "--manifest", manifestPath], env);
     assert.equal(stale.counts.stale, 1);
+
+    state.existingChecks[0].definition.filters.from.headers[1].values.tp_dst = ["9443"];
+    const approvalPath = path.join(workdir, "forward-approval.json");
+    await writeFile(
+      approvalPath,
+      JSON.stringify(
+        {
+          schemaVersion: "forward-dynatrace-approval/v1",
+          packageId: manifest.packageId,
+          changeWindowId: "CHG-demo",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          approvedBy: "workflow-smoke",
+          reason: "exercise approved update and retirement workflow",
+          approvedChangedKeys: [checks[0].tags.find((tag) => tag.startsWith("dynatrace-key:"))],
+          approvedStaleKeys: ["dynatrace-key:dt:stale:demo"],
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+
+    const approvedApply = await runImporter([
+      "--checks",
+      checksPath,
+      "--manifest",
+      manifestPath,
+      "--apply",
+      "--apply-updates",
+      "--deactivate-stale",
+      "--require-signature",
+      "--signature",
+      signaturePath,
+      "--public-key",
+      publicKeyPath,
+      "--require-approval-file",
+      approvalPath,
+      "--change-window-id",
+      "CHG-demo",
+      "--max-updates",
+      "1",
+      "--max-deactivations",
+      "1",
+      "--fail-on-drift",
+    ], env);
+    assert.equal(approvedApply.counts.changed, 1);
+    assert.equal(approvedApply.counts.stale, 1);
+    assert.equal(approvedApply.unresolvedCounts.changed, 0);
+    assert.equal(approvedApply.unresolvedCounts.stale, 0);
+    assert.deepEqual(approvedApply.mutationCounts, {
+      created: 0,
+      updated: 1,
+      deactivated: 1,
+    });
+    assert.equal(state.deleteCount, 2);
+    assert.equal(state.existingChecks.length, 3);
   } finally {
     await new Promise((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()));

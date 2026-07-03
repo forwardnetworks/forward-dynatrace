@@ -62,6 +62,12 @@ GET /api/snapshots/{snapshotId}/checks?type=Existential
 POST /api/snapshots/{snapshotId}/checks?bulk
 ```
 
+The optional approval-gated update/stale path also uses:
+
+```text
+DELETE /api/snapshots/{snapshotId}/checks/{checkId}
+```
+
 Important: the Forward bulk endpoint accepts an array and creates checks, but the import workflow must dedupe before
 posting. Do not rely on the endpoint to dedupe Dynatrace-managed intent checks by name or tag.
 
@@ -69,7 +75,8 @@ For each eligible dependency, the package includes one persistent `Existential` 
 defaults to true for this endpoint. Include `persistent=false` only for single-snapshot test imports.
 
 The default apply policy is `create-missing-only`. Changed and stale Dynatrace-managed checks are reported for review
-instead of being updated, disabled, or deleted automatically.
+unless the Forward-side runtime enables the optional approval-gated update/stale path with a verified signed package,
+exact approval file, and mutation budgets.
 
 Endpoint mapping must be Forward-resolvable before apply. `HostFilter` works for known hostnames, IP prefixes, or MAC
 addresses. Use `SubnetLocationFilter` for subnet/IP mappings and `DeviceFilter` only when the dependency has been
@@ -102,8 +109,8 @@ Then:
    `priority`, and sorted `tags`.
 3. Skip unchanged checks.
 4. Create missing checks with `POST /api/snapshots/{snapshotId}/checks?bulk`.
-5. Report changed checks for review unless an update policy is configured.
-6. Report stale Dynatrace-managed checks for review before disable/delete.
+5. Report changed checks for review unless exact-key approval allows replacement.
+6. Report stale Dynatrace-managed checks for review unless exact-key approval allows deactivation.
 
 Do not blindly delete checks. Forward may contain user-owned checks that look similar but are not managed by this app.
 
@@ -175,4 +182,6 @@ Forward-side ingest gates:
 - Detached signature verifies when the runtime policy requires package provenance.
 - Dedupe/read-before-write is enabled before check creation.
 - Bulk post chunking is configured for large packages.
-- Update and stale-check policies are explicit before automated modification/removal.
+- Update and stale-check automation is disabled by default.
+- Update and stale-check automation requires a verified signed package, exact approval file, non-expired approval,
+  matching package ID, optional matching change window, and explicit mutation budgets.

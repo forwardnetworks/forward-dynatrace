@@ -11,6 +11,10 @@
   "maxPackageAgeMinutes": 1440,
   "failOnDrift": true,
   "apply": false,
+  "applyUpdates": false,
+  "deactivateStale": false,
+  "maxUpdates": 0,
+  "maxDeactivations": 0,
   "reportPath": "forward-import-report.json",
   "metricsPath": "forward-import-metrics.prom",
   "statusArtifactPath": "forward-ingest-status.json"

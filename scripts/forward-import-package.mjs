@@ -13,6 +13,7 @@ const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_MAX_PACKAGE_AGE_MINUTES = 24 * 60;
 const PACKAGE_SCHEMA_VERSION = "forward-dynatrace/v1";
 const PACKAGE_TYPE = "forward-intent-import";
+const APPROVAL_SCHEMA_VERSION = "forward-dynatrace-approval/v1";
 const TRANSIENT_STATUS_CODES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
 const ALLOWED_CHECK_TYPES = new Set(["Existential"]);
 const LOCAL_HTTP_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
@@ -33,20 +34,31 @@ Usage:
   node scripts/forward-import-package.mjs --package-url https://package.example.com/dynatrace-forward/latest/ --report forward-import-report.json
 
 Options:
-  --apply              Create missing checks. Changed and stale checks are still report-only.
+  --apply              Create missing checks.
+  --apply-updates      Replace approved changed generated checks. Requires --apply,
+                       --require-signature, and --require-approval-file.
   --batch-size 500     Batch size for /checks?bulk.
+  --change-window-id id
+                       Require approval file to match this change window ID.
   --checks-url url      Pull forward-intent-checks.json from a read-only HTTPS URL.
   --config path         Load non-secret connector/importer settings from JSON.
+  --deactivate-stale   Deactivate approved stale generated checks. Requires --apply,
+                       --require-signature, and --require-approval-file.
   --fail-on-drift      Exit non-zero when changed or stale Dynatrace-managed checks are found.
   --manifest path      Validate the package manifest before importing.
   --manifest-url url    Pull forward-dynatrace-manifest.json from a read-only HTTPS URL.
+  --max-deactivations 0
+                       Maximum approved stale checks to deactivate.
   --max-package-age-minutes 1440
                        Reject manifests older than this age.
   --max-retries 3      Retry count for transient Forward API responses.
+  --max-updates 0      Maximum approved changed checks to replace.
   --metrics path       Write Prometheus-style import metrics to a text file.
   --package-url url     Pull manifest and checks from a base URL.
   --public-key path     Verify detached Ed25519 package signature with PEM public key.
   --public-key-url url   Pull detached-signature public key from HTTPS URL.
+  --require-approval-file path
+                       Approval artifact for exact changed/stale dynatrace keys.
   --require-signature   Reject package unless signature and public key are supplied.
   --report path        Write the reconciliation report to a JSON file.
   --signature path      Verify detached package signature.
@@ -55,27 +67,34 @@ Options:
                        Write sanitized read-only ingest status JSON for Dynatrace display.
   --validate-only      Validate package shape without contacting Forward.
 
-The default mode is dry-run. The apply policy is create-missing-only. Non-local
+The default mode is dry-run. The default apply policy is create-missing-only.
+Approved update/stale actions are an optional Forward-side path. Non-local
 package URLs must use HTTPS.
 `;
 
 const SUPPORTED_ARGS = new Set([
   "_",
   "apply",
+  "apply-updates",
   "batch-size",
+  "change-window-id",
   "checks",
   "checks-url",
   "config",
+  "deactivate-stale",
   "fail-on-drift",
   "help",
   "manifest",
   "manifest-url",
+  "max-deactivations",
   "max-package-age-minutes",
   "max-retries",
+  "max-updates",
   "metrics",
   "package-url",
   "public-key",
   "public-key-url",
+  "require-approval-file",
   "require-signature",
   "report",
   "signature",
@@ -95,6 +114,8 @@ const parseArgs = (argv) => {
     const key = value.slice(2);
     if (
       key === "apply" ||
+      key === "apply-updates" ||
+      key === "deactivate-stale" ||
       key === "fail-on-drift" ||
       key === "help" ||
       key === "require-signature" ||
@@ -136,6 +157,21 @@ const validateArgs = (args) => {
   }
   if (args["public-key"] && args["public-key-url"]) {
     throw new Error("Use either --public-key or --public-key-url, not both.");
+  }
+};
+
+const validatePolicyArgs = (args) => {
+  const hasMutationFlag = Boolean(args["apply-updates"] || args["deactivate-stale"]);
+  if (hasMutationFlag && !args.apply) {
+    throw new Error("--apply-updates and --deactivate-stale require --apply.");
+  }
+  if (hasMutationFlag && !args["require-signature"]) {
+    throw new Error("--apply-updates and --deactivate-stale require --require-signature.");
+  }
+  if (hasMutationFlag && !args["require-approval-file"]) {
+    throw new Error(
+      "--apply-updates and --deactivate-stale require --require-approval-file.",
+    );
   }
 };
 
@@ -220,16 +256,22 @@ const readJsonFromLocator = async (locator, label) => {
 const CONNECTOR_CONFIG_SCHEMA_VERSION = "forward-dynatrace-connector/v1";
 const CONNECTOR_CONFIG_KEYS = new Set([
   "apply",
+  "applyUpdates",
+  "approvalFile",
   "batchSize",
+  "changeWindowId",
   "checks",
   "checksUrl",
+  "deactivateStale",
   "failOnDrift",
   "forwardBaseUrl",
   "forwardNetworkId",
   "manifest",
   "manifestUrl",
+  "maxDeactivations",
   "maxPackageAgeMinutes",
   "maxRetries",
+  "maxUpdates",
   "metricsPath",
   "packageUrl",
   "publicKey",
@@ -283,6 +325,8 @@ export const validateConnectorConfig = (config) => {
 
   for (const [key, value] of Object.entries({
     checks: config.checks,
+    approvalFile: config.approvalFile,
+    changeWindowId: config.changeWindowId,
     manifest: config.manifest,
     metricsPath: config.metricsPath,
     forwardNetworkId: config.forwardNetworkId,
@@ -298,6 +342,8 @@ export const validateConnectorConfig = (config) => {
 
   for (const [key, value] of Object.entries({
     apply: config.apply,
+    applyUpdates: config.applyUpdates,
+    deactivateStale: config.deactivateStale,
     failOnDrift: config.failOnDrift,
     requireSignature: config.requireSignature,
     validateOnly: config.validateOnly,
@@ -309,8 +355,10 @@ export const validateConnectorConfig = (config) => {
 
   for (const [key, value] of Object.entries({
     batchSize: config.batchSize,
+    maxDeactivations: config.maxDeactivations,
     maxPackageAgeMinutes: config.maxPackageAgeMinutes,
     maxRetries: config.maxRetries,
+    maxUpdates: config.maxUpdates,
   })) {
     if (value !== undefined && (!Number.isInteger(value) || value < 0)) {
       errors.push(`${key} must be a non-negative integer when supplied.`);
@@ -330,16 +378,24 @@ export const validateConnectorConfig = (config) => {
 
 const toArgsFromConnectorConfig = (config) => ({
   ...(config.apply ? { apply: true } : {}),
+  ...(config.applyUpdates ? { "apply-updates": true } : {}),
+  ...(config.approvalFile ? { "require-approval-file": config.approvalFile } : {}),
   ...(config.batchSize !== undefined ? { "batch-size": String(config.batchSize) } : {}),
+  ...(config.changeWindowId ? { "change-window-id": config.changeWindowId } : {}),
   ...(config.checks ? { checks: config.checks } : {}),
   ...(config.checksUrl ? { "checks-url": config.checksUrl } : {}),
+  ...(config.deactivateStale ? { "deactivate-stale": true } : {}),
   ...(config.failOnDrift ? { "fail-on-drift": true } : {}),
   ...(config.manifest ? { manifest: config.manifest } : {}),
   ...(config.manifestUrl ? { "manifest-url": config.manifestUrl } : {}),
+  ...(config.maxDeactivations !== undefined
+    ? { "max-deactivations": String(config.maxDeactivations) }
+    : {}),
   ...(config.maxPackageAgeMinutes !== undefined
     ? { "max-package-age-minutes": String(config.maxPackageAgeMinutes) }
     : {}),
   ...(config.maxRetries !== undefined ? { "max-retries": String(config.maxRetries) } : {}),
+  ...(config.maxUpdates !== undefined ? { "max-updates": String(config.maxUpdates) } : {}),
   ...(config.metricsPath ? { metrics: config.metricsPath } : {}),
   ...(config.packageUrl ? { "package-url": config.packageUrl } : {}),
   ...(config.publicKey ? { "public-key": config.publicKey } : {}),
@@ -385,6 +441,13 @@ const toMetricsText = (report) => {
   for (const [result, value] of Object.entries(report.counts || {})) {
     lines.push(toMetricLine("forward_dynatrace_import_result_count", value, { result }));
   }
+  lines.push(
+    "# HELP forward_dynatrace_import_mutation_count Forward mutation counts performed by the importer.",
+    "# TYPE forward_dynatrace_import_mutation_count gauge",
+  );
+  for (const [mutation, value] of Object.entries(report.mutationCounts || {})) {
+    lines.push(toMetricLine("forward_dynatrace_import_mutation_count", value, { mutation }));
+  }
 
   lines.push(
     "# HELP forward_dynatrace_import_duration_ms Import runtime duration in milliseconds.",
@@ -406,14 +469,35 @@ const toImportState = (report) => {
   if (report.status === "valid") {
     return "valid";
   }
-  if (report.counts?.changed > 0 || report.counts?.stale > 0) {
+  const unresolvedChanged = report.unresolvedCounts?.changed ?? report.counts?.changed ?? 0;
+  const unresolvedStale = report.unresolvedCounts?.stale ?? report.counts?.stale ?? 0;
+  if (unresolvedChanged > 0 || unresolvedStale > 0) {
     return "needs-review";
   }
-  if (report.mode === "apply" && report.counts?.create > 0) {
+  if (
+    report.mode === "apply" &&
+    ((report.counts?.create || 0) > 0 ||
+      (report.mutationCounts?.updated || 0) > 0 ||
+      (report.mutationCounts?.deactivated || 0) > 0)
+  ) {
     return "applied";
   }
   return "reconciled";
 };
+
+const toApprovalSummary = (approval) =>
+  approval
+    ? {
+        schemaVersion: approval.schemaVersion,
+        packageId: approval.packageId,
+        changeWindowId: approval.changeWindowId,
+        expiresAt: approval.expiresAt,
+        approvedBy: approval.approvedBy,
+        reason: approval.reason,
+        approvedChangedCount: approval.approvedChangedKeys.length,
+        approvedStaleCount: approval.approvedStaleKeys.length,
+      }
+    : null;
 
 export const toStatusArtifact = (report) => ({
   schemaVersion: "forward-dynatrace-status/v1",
@@ -437,6 +521,25 @@ export const toStatusArtifact = (report) => ({
     changed: 0,
     stale: 0,
   },
+  unresolvedCounts: report.unresolvedCounts || {
+    changed: report.counts?.changed || 0,
+    stale: report.counts?.stale || 0,
+  },
+  mutationCounts: report.mutationCounts || {
+    created: 0,
+    updated: 0,
+    deactivated: 0,
+  },
+  approval: report.approval
+    ? {
+        schemaVersion: report.approval.schemaVersion,
+        packageId: report.approval.packageId,
+        changeWindowId: report.approval.changeWindowId,
+        expiresAt: report.approval.expiresAt,
+        approvedChangedCount: report.approval.approvedChangedCount,
+        approvedStaleCount: report.approval.approvedStaleCount,
+      }
+    : null,
   plannedChecks: report.plannedChecks,
   durationMs: report.durationMs,
 });
@@ -724,6 +827,184 @@ const requireObject = (value, label, errors) => {
   return true;
 };
 
+const exactDynatraceKeyArray = (approval, key, errors) => {
+  const value = approval[key] === undefined ? [] : approval[key];
+  if (!Array.isArray(value)) {
+    errors.push(`${key} must be an array when supplied.`);
+    return [];
+  }
+
+  const seen = new Set();
+  value.forEach((item, index) => {
+    if (!requireString(item)) {
+      errors.push(`${key}[${index}] must be a non-empty string.`);
+    } else if (!item.startsWith("dynatrace-key:")) {
+      errors.push(`${key}[${index}] must start with dynatrace-key:.`);
+    } else if (hasWhitespace(item)) {
+      errors.push(`${key}[${index}] must not contain whitespace.`);
+    } else if (seen.has(item)) {
+      errors.push(`${key}[${index}] duplicates an earlier key.`);
+    } else {
+      seen.add(item);
+    }
+  });
+  return [...seen];
+};
+
+export const validateApprovalFile = (
+  approval,
+  {
+    packageId,
+    changeWindowId,
+    now = new Date(),
+  } = {},
+) => {
+  const errors = [];
+  if (!requireObject(approval, "approval", errors)) {
+    throw new Error(
+      `Invalid Forward approval file:\n${errors.map((error) => `- ${error}`).join("\n")}`,
+    );
+  }
+
+  const allowedKeys = new Set([
+    "approvedBy",
+    "approvedChangedKeys",
+    "approvedStaleKeys",
+    "changeWindowId",
+    "expiresAt",
+    "packageId",
+    "reason",
+    "schemaVersion",
+  ]);
+  for (const key of Object.keys(approval)) {
+    if (!allowedKeys.has(key)) {
+      errors.push(`Unsupported approval field: ${key}.`);
+    }
+  }
+
+  if (approval.schemaVersion !== APPROVAL_SCHEMA_VERSION) {
+    errors.push(`schemaVersion must be ${APPROVAL_SCHEMA_VERSION}.`);
+  }
+  if (!requireString(approval.packageId)) {
+    errors.push("packageId is required.");
+  } else if (packageId && approval.packageId !== packageId) {
+    errors.push(`packageId must match manifest packageId ${packageId}.`);
+  }
+  if (changeWindowId && approval.changeWindowId !== changeWindowId) {
+    errors.push(`changeWindowId must match ${changeWindowId}.`);
+  }
+  if (approval.changeWindowId !== undefined && !requireString(approval.changeWindowId)) {
+    errors.push("changeWindowId must be a non-empty string when supplied.");
+  }
+  if (approval.approvedBy !== undefined && !requireString(approval.approvedBy)) {
+    errors.push("approvedBy must be a non-empty string when supplied.");
+  }
+  if (approval.reason !== undefined && !requireString(approval.reason)) {
+    errors.push("reason must be a non-empty string when supplied.");
+  }
+
+  if (!requireString(approval.expiresAt)) {
+    errors.push("expiresAt is required.");
+  } else {
+    const expiresAtMs = Date.parse(approval.expiresAt);
+    if (!Number.isFinite(expiresAtMs)) {
+      errors.push("expiresAt must be an ISO timestamp.");
+    } else if (expiresAtMs <= now.getTime()) {
+      errors.push("expiresAt must be in the future.");
+    }
+  }
+
+  const approvedChangedKeys = exactDynatraceKeyArray(
+    approval,
+    "approvedChangedKeys",
+    errors,
+  );
+  const approvedStaleKeys = exactDynatraceKeyArray(
+    approval,
+    "approvedStaleKeys",
+    errors,
+  );
+
+  if (errors.length > 0) {
+    throw new Error(
+      `Invalid Forward approval file:\n${errors
+        .map((error) => `- ${error}`)
+        .join("\n")}`,
+    );
+  }
+
+  return {
+    schemaVersion: APPROVAL_SCHEMA_VERSION,
+    packageId: approval.packageId,
+    changeWindowId: approval.changeWindowId || null,
+    expiresAt: approval.expiresAt,
+    approvedBy: approval.approvedBy || null,
+    reason: approval.reason || null,
+    approvedChangedKeys,
+    approvedStaleKeys,
+  };
+};
+
+const assertApprovalKeysMatchCurrentDrift = (approvedKeys, currentKeys, label) => {
+  const unknownKeys = approvedKeys.filter((key) => !currentKeys.has(key));
+  if (unknownKeys.length > 0) {
+    throw new Error(
+      `${label} approval references key(s) not present in current reconciliation: ${unknownKeys.join(", ")}`,
+    );
+  }
+};
+
+export const planApprovedMutations = (
+  reconciliation,
+  approval,
+  {
+    applyUpdates = false,
+    deactivateStale = false,
+    maxUpdates = 0,
+    maxDeactivations = 0,
+  } = {},
+) => {
+  const approvedChangedKeys = new Set(approval?.approvedChangedKeys || []);
+  const approvedStaleKeys = new Set(approval?.approvedStaleKeys || []);
+  const currentChangedKeys = new Set(reconciliation.changed.map((item) => item.key));
+  const currentStaleKeys = new Set(reconciliation.stale.map((item) => item.key));
+
+  if (applyUpdates) {
+    assertApprovalKeysMatchCurrentDrift(
+      [...approvedChangedKeys],
+      currentChangedKeys,
+      "Changed-check",
+    );
+  }
+  if (deactivateStale) {
+    assertApprovalKeysMatchCurrentDrift(
+      [...approvedStaleKeys],
+      currentStaleKeys,
+      "Stale-check",
+    );
+  }
+
+  const update = applyUpdates
+    ? reconciliation.changed.filter((item) => approvedChangedKeys.has(item.key))
+    : [];
+  const deactivate = deactivateStale
+    ? reconciliation.stale.filter((item) => approvedStaleKeys.has(item.key))
+    : [];
+
+  if (update.length > maxUpdates) {
+    throw new Error(
+      `Approved update count ${update.length} exceeds --max-updates ${maxUpdates}.`,
+    );
+  }
+  if (deactivate.length > maxDeactivations) {
+    throw new Error(
+      `Approved deactivation count ${deactivate.length} exceeds --max-deactivations ${maxDeactivations}.`,
+    );
+  }
+
+  return { update, deactivate };
+};
+
 export const validatePlannedChecks = (checks) => {
   if (!Array.isArray(checks)) {
     throw new Error(
@@ -927,6 +1208,7 @@ const main = async () => {
     : {};
   const args = mergeConfigArgs(rawArgs, connectorConfig);
   validateArgs(args);
+  validatePolicyArgs(args);
 
   const apply = Boolean(args.apply);
   const batchSize = args["batch-size"]
@@ -938,6 +1220,12 @@ const main = async () => {
   const maxPackageAgeMinutes = args["max-package-age-minutes"]
     ? toPositiveInteger(args["max-package-age-minutes"], "--max-package-age-minutes")
     : DEFAULT_MAX_PACKAGE_AGE_MINUTES;
+  const maxUpdates = args["max-updates"]
+    ? toNonNegativeInteger(args["max-updates"], "--max-updates")
+    : 0;
+  const maxDeactivations = args["max-deactivations"]
+    ? toNonNegativeInteger(args["max-deactivations"], "--max-deactivations")
+    : 0;
 
   const locators = resolvePackageLocators(args);
   const plannedPackage = await readJsonFromLocator(locators.checks, "Forward checks package");
@@ -957,6 +1245,12 @@ const main = async () => {
       maxPackageAgeMinutes,
     });
   }
+  const approval = args["require-approval-file"]
+    ? validateApprovalFile(await readJson(args["require-approval-file"]), {
+        packageId: manifest?.packageId,
+        changeWindowId: args["change-window-id"],
+      })
+    : null;
   const signatureLocators = resolveSignatureLocators(args);
   const signatureRequired = Boolean(args["require-signature"]);
   if (
@@ -993,6 +1287,12 @@ const main = async () => {
   }
   const signatureStatus =
     signatureLocators.signature && signatureLocators.publicKey ? "verified" : "not-provided";
+  if (
+    (args["apply-updates"] || args["deactivate-stale"]) &&
+    signatureStatus !== "verified"
+  ) {
+    throw new Error("Approved update/stale actions require a verified package signature.");
+  }
 
   if (args["validate-only"]) {
     const finishedAt = new Date().toISOString();
@@ -1009,6 +1309,7 @@ const main = async () => {
         publicKeySource: signatureLocators.publicKey || null,
         signatureSource: signatureLocators.signature || null,
       },
+      approval: toApprovalSummary(approval),
       checksSource: locators.checks,
       manifestSource: locators.manifest || null,
       plannedChecks: plannedChecks.length,
@@ -1050,12 +1351,40 @@ const main = async () => {
     `/api/snapshots/${snapshotId}/checks?type=Existential`,
   );
   const reconciliation = reconcileChecks(plannedChecks, existingChecks);
+  const approvedMutations = planApprovedMutations(reconciliation, approval, {
+    applyUpdates: Boolean(args["apply-updates"]),
+    deactivateStale: Boolean(args["deactivate-stale"]),
+    maxUpdates,
+    maxDeactivations,
+  });
 
+  let createdCount = 0;
+  let updatedCount = 0;
+  let deactivatedCount = 0;
   if (apply) {
     for (const batch of chunk(reconciliation.create.map((item) => item.check), batchSize)) {
       await api("POST", `/api/snapshots/${snapshotId}/checks?bulk`, {
         body: batch,
       });
+      createdCount += batch.length;
+    }
+
+    for (const item of approvedMutations.update) {
+      await api("DELETE", `/api/snapshots/${snapshotId}/checks/${item.existingId}`);
+    }
+    for (const batch of chunk(
+      approvedMutations.update.map((item) => item.planned.check),
+      batchSize,
+    )) {
+      await api("POST", `/api/snapshots/${snapshotId}/checks?bulk`, {
+        body: batch,
+      });
+      updatedCount += batch.length;
+    }
+
+    for (const item of approvedMutations.deactivate) {
+      await api("DELETE", `/api/snapshots/${snapshotId}/checks/${item.id}`);
+      deactivatedCount += 1;
     }
   }
 
@@ -1077,11 +1406,18 @@ const main = async () => {
       checks: locators.checks,
       manifest: locators.manifest || null,
     },
-    applyPolicy: "create-missing-only",
+    applyPolicy:
+      args["apply-updates"] || args["deactivate-stale"]
+        ? "create-missing-with-approved-updates-and-retirements"
+        : "create-missing-only",
     settings: {
       batchSize,
       maxRetries,
+      maxUpdates,
+      maxDeactivations,
+      changeWindowId: args["change-window-id"] || null,
     },
+    approval: toApprovalSummary(approval),
     networkId,
     snapshotId,
     plannedChecks: plannedChecks.length,
@@ -1092,6 +1428,15 @@ const main = async () => {
       changed: reconciliation.changed.length,
       stale: reconciliation.stale.length,
     },
+    unresolvedCounts: {
+      changed: reconciliation.changed.length - approvedMutations.update.length,
+      stale: reconciliation.stale.length - approvedMutations.deactivate.length,
+    },
+    mutationCounts: {
+      created: createdCount,
+      updated: updatedCount,
+      deactivated: deactivatedCount,
+    },
     create: reconciliation.create.map(({ check: _check, ...item }) => item),
     unchanged: reconciliation.unchanged,
     changed: reconciliation.changed.map(({ planned, existing, ...item }) => ({
@@ -1100,6 +1445,14 @@ const main = async () => {
       existingFingerprint: existing.fingerprint,
     })),
     stale: reconciliation.stale,
+    mutations: {
+      updated: approvedMutations.update.map(({ planned, existing, ...item }) => ({
+        ...item,
+        plannedFingerprint: planned.fingerprint,
+        existingFingerprint: existing.fingerprint,
+      })),
+      deactivated: approvedMutations.deactivate,
+    },
   };
 
   if (args.report) {
@@ -1114,7 +1467,10 @@ const main = async () => {
 
   process.stdout.write(JSON.stringify(report, null, 2) + "\n");
 
-  if (args["fail-on-drift"] && (reconciliation.changed.length > 0 || reconciliation.stale.length > 0)) {
+  if (
+    args["fail-on-drift"] &&
+    (report.unresolvedCounts.changed > 0 || report.unresolvedCounts.stale > 0)
+  ) {
     process.exitCode = 2;
   }
 };

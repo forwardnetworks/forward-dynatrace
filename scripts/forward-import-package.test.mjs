@@ -4,10 +4,12 @@ import { test } from "node:test";
 
 import {
   fingerprintCheck,
+  planApprovedMutations,
   reconcileChecks,
   reconciliationKey,
   packageSigningPayload,
   toStatusArtifact,
+  validateApprovalFile,
   validateConnectorConfig,
   validateManifest,
   validatePlannedChecks,
@@ -140,6 +142,138 @@ test("classifies managed checks missing from the package as stale", () => {
 
   assert.equal(result.stale.length, 1);
   assert.equal(result.stale[0].id, "check-1");
+});
+
+test("accepts valid exact-key approval for changed and stale mutations", () => {
+  const approval = validateApprovalFile(
+    {
+      schemaVersion: "forward-dynatrace-approval/v1",
+      packageId: "dynatrace-forward-test",
+      changeWindowId: "CHG-123",
+      expiresAt: "2026-01-02T00:00:00.000Z",
+      approvedBy: "forward-operator@example.com",
+      reason: "approved dependency refresh",
+      approvedChangedKeys: [
+        "dynatrace-key:dt:checkout:prod:service-123:checkout-vip:orders-db:tcp:443",
+      ],
+      approvedStaleKeys: ["dynatrace-key:dt:stale:demo"],
+    },
+    {
+      packageId: "dynatrace-forward-test",
+      changeWindowId: "CHG-123",
+      now: new Date("2026-01-01T00:00:00.000Z"),
+    },
+  );
+
+  assert.equal(approval.approvedChangedKeys.length, 1);
+  assert.equal(approval.approvedStaleKeys.length, 1);
+});
+
+test("rejects stale or mismatched approval files", () => {
+  const validApproval = {
+    schemaVersion: "forward-dynatrace-approval/v1",
+    packageId: "dynatrace-forward-test",
+    changeWindowId: "CHG-123",
+    expiresAt: "2026-01-02T00:00:00.000Z",
+    approvedChangedKeys: [
+      "dynatrace-key:dt:checkout:prod:service-123:checkout-vip:orders-db:tcp:443",
+    ],
+    approvedStaleKeys: [],
+  };
+
+  assert.throws(
+    () =>
+      validateApprovalFile(
+        { ...validApproval, packageId: "wrong-package" },
+        {
+          packageId: "dynatrace-forward-test",
+          changeWindowId: "CHG-123",
+          now: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ),
+    /packageId must match manifest packageId/,
+  );
+  assert.throws(
+    () =>
+      validateApprovalFile(validApproval, {
+        packageId: "dynatrace-forward-test",
+        changeWindowId: "CHG-999",
+        now: new Date("2026-01-01T00:00:00.000Z"),
+      }),
+    /changeWindowId must match CHG-999/,
+  );
+  assert.throws(
+    () =>
+      validateApprovalFile(
+        { ...validApproval, expiresAt: "2025-12-31T23:59:59.000Z" },
+        {
+          packageId: "dynatrace-forward-test",
+          changeWindowId: "CHG-123",
+          now: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ),
+    /expiresAt must be in the future/,
+  );
+});
+
+test("plans only approved update and stale deactivation mutations", () => {
+  const existingChanged = structuredClone(baseCheck);
+  existingChanged.id = "check-1";
+  existingChanged.definition.filters.from.headers[1].values.tp_dst = ["8443"];
+  const staleExisting = withResultFields(
+    {
+      ...structuredClone(baseCheck),
+      name: "[Dynatrace] Stale demo check",
+      tags: ["dynatrace", "dynatrace-key:dt:stale:demo"],
+    },
+    98,
+  );
+  const reconciliation = reconcileChecks([baseCheck], [existingChanged, staleExisting]);
+  const approval = validateApprovalFile(
+    {
+      schemaVersion: "forward-dynatrace-approval/v1",
+      packageId: "dynatrace-forward-test",
+      expiresAt: "2026-01-02T00:00:00.000Z",
+      approvedChangedKeys: [reconciliation.changed[0].key],
+      approvedStaleKeys: [reconciliation.stale[0].key],
+    },
+    {
+      packageId: "dynatrace-forward-test",
+      now: new Date("2026-01-01T00:00:00.000Z"),
+    },
+  );
+
+  const mutations = planApprovedMutations(reconciliation, approval, {
+    applyUpdates: true,
+    deactivateStale: true,
+    maxUpdates: 1,
+    maxDeactivations: 1,
+  });
+
+  assert.equal(mutations.update.length, 1);
+  assert.equal(mutations.deactivate.length, 1);
+  assert.throws(
+    () =>
+      planApprovedMutations(reconciliation, approval, {
+        applyUpdates: true,
+        deactivateStale: true,
+        maxUpdates: 0,
+        maxDeactivations: 1,
+      }),
+    /exceeds --max-updates 0/,
+  );
+  assert.throws(
+    () =>
+      planApprovedMutations(
+        reconciliation,
+        { ...approval, approvedChangedKeys: ["dynatrace-key:dt:not-current"] },
+        {
+          applyUpdates: true,
+          maxUpdates: 1,
+        },
+      ),
+    /not present in current reconciliation/,
+  );
 });
 
 test("accepts a valid generated intent package", () => {

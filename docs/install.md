@@ -73,8 +73,9 @@ the package.
      --apply
    ```
 
-The apply policy is intentionally `create-missing-only`. Changed and stale Dynatrace-managed checks remain report-only
-until a Forward-approved update or retirement policy is explicitly adopted.
+The default apply policy is intentionally `create-missing-only`. Changed and stale Dynatrace-managed checks remain
+report-only unless the optional approval-gated update/stale workflow is enabled from the Forward-side runtime with a
+verified signed package, exact approval file, and explicit mutation budgets.
 
 ## Forward Connector Pull
 
