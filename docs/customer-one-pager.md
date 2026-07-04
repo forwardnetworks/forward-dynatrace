@@ -61,8 +61,9 @@ gh attestation verify forward-dynatrace-importer-v1.0.0.tgz --repo forwardnetwor
 gh attestation verify oci://ghcr.io/forwardnetworks/forward-dynatrace-importer:v1.0.0 --owner forwardnetworks
 ```
 
-The verified importer image digest for `v1.0.0` is:
+The verified importer image digest for `v1.0.0` is published in the GitHub release notes. Pin production runtime
+manifests to that digest after verification:
 
 ```text
-ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:b2243c8cd17cc61da8d52e6843cb156023c49bdb878bbd0d58d5fe5d565f078b
+ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:<digest-from-release-notes>
 ```

@@ -1,6 +1,6 @@
 services:
   forward-dynatrace-importer:
-    image: ${FORWARD_DYNATRACE_IMPORTER_IMAGE:-ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:b2243c8cd17cc61da8d52e6843cb156023c49bdb878bbd0d58d5fe5d565f078b}
+    image: ${FORWARD_DYNATRACE_IMPORTER_IMAGE:-ghcr.io/forwardnetworks/forward-dynatrace-importer:v1.0.0}
     build:
       context: ../..
       dockerfile: Dockerfile.forward-importer

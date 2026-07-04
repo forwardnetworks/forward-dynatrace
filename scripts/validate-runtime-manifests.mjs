@@ -6,11 +6,11 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const failures = [];
-const verifiedImporterImage =
-  "ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:b2243c8cd17cc61da8d52e6843cb156023c49bdb878bbd0d58d5fe5d565f078b";
-
 const readText = (relativePath) => readFile(path.join(root, relativePath), "utf8");
 const fail = (message) => failures.push(message);
+
+const packageJson = JSON.parse(await readText("package.json"));
+const importerImageTag = `ghcr.io/forwardnetworks/forward-dynatrace-importer:v${packageJson.version}`;
 
 const cronJob = await readText("deploy/kubernetes/forward-dynatrace-connector-cronjob.yaml");
 const kubernetesConfigMap = await readText(
@@ -50,8 +50,8 @@ for (const snippet of requiredCronJobSnippets) {
   }
 }
 
-if (!cronJob.includes(verifiedImporterImage)) {
-  fail("Kubernetes CronJob must default to the verified digest-pinned GHCR importer image.");
+if (!cronJob.includes(importerImageTag)) {
+  fail(`Kubernetes CronJob image tag must match package version v${packageJson.version}.`);
 }
 
 for (const forbidden of [
@@ -143,8 +143,8 @@ for (const snippet of [
     fail(`Docker Compose example missing ${snippet}.`);
   }
 }
-if (!dockerCompose.includes(verifiedImporterImage)) {
-  fail("Docker Compose must default to the verified digest-pinned GHCR importer image.");
+if (!dockerCompose.includes(importerImageTag)) {
+  fail(`Docker Compose importer image tag must match package version v${packageJson.version}.`);
 }
 if (!dockerComposeEnv.includes("FORWARD_USER=<user>")) {
   fail("Docker Compose env example must contain a placeholder Forward user.");
