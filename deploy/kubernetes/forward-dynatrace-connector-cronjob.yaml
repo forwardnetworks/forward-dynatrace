@@ -29,7 +29,7 @@ spec:
               type: RuntimeDefault
           containers:
             - name: importer
-              image: ghcr.io/forwardnetworks/forward-dynatrace-importer:v1.0.0
+              image: ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:7f884e44a2b54303d7da708bc805f0e16c1d19b192f95a90e94a63aad66bb7c6
               imagePullPolicy: IfNotPresent
               args:
                 - "--config"
