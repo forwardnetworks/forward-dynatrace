@@ -1,4 +1,4 @@
-// Forward Dynatrace status dashboard: latest Forward-side ingest runs.
+// Forward Integration for Dynatrace status dashboard: latest Forward-side ingest runs.
 // Reads aggregate status events published by scripts/publish-dynatrace-status-event.mjs.
 
 fetch events, from: now() - 7d

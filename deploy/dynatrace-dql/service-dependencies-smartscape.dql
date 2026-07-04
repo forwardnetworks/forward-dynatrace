@@ -1,4 +1,4 @@
-// Forward Dynatrace Field Integration starter query for Smartscape service calls.
+// Forward Integration for Dynatrace Field Integration starter query for Smartscape service calls.
 // Use this against a live Dynatrace demo tenant, then review/enrich endpoint mappings
 // before creating Forward intent checks.
 

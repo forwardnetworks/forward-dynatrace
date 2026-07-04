@@ -158,7 +158,7 @@ export const toOpenPipelineEventRecord = (event, publisherRunId) => {
   return {
     "event.provider": "forward-dynatrace",
     "event.type": validated.eventType,
-    "event.name": validated.title || "Forward Dynatrace ingest status",
+    "event.name": validated.title || "Forward Integration for Dynatrace ingest status",
     "event.category": "forward-dynatrace",
     "event.status": validated.severity,
     "forward.dynatrace.publisher_run_id": publisherRunId,

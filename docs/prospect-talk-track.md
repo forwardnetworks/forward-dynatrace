@@ -4,7 +4,7 @@ Use this to explain what the integration does, why it matters, and what each sid
 
 ## One-Liner
 
-Forward Dynatrace turns application dependency evidence from Dynatrace into reviewable Forward intent checks, so network
+Forward Integration for Dynatrace turns application dependency evidence from Dynatrace into reviewable Forward intent checks, so network
 policy can be continuously aligned to how applications actually communicate.
 
 ## What It Does
@@ -12,10 +12,11 @@ policy can be continuously aligned to how applications actually communicate.
 1. Dynatrace supplies application dependency rows from observed service/application mapping.
 2. The app normalizes those rows into dependency candidates and classifies each row as ready, review, or needs-map.
 3. Only rows with Forward-resolved source and destination endpoints are eligible for Forward intent checks.
-4. The app exports a signed or checksum-verified package containing Forward-native intent-check JSON and a manifest.
-5. A Forward operator or Forward-side connector validates and reconciles that package.
-6. Forward creates missing checks only when the Forward-side operator or approved Forward-side automation applies it.
-7. Dynatrace can display aggregate ingest status back from Forward without receiving Forward credentials or topology.
+4. Forward-side tooling can run read-only path evidence from the same resolved endpoints before approval.
+5. The app exports a signed or checksum-verified package containing Forward-native intent-check JSON and a manifest.
+6. A Forward operator or Forward-side connector validates and reconciles that package.
+7. Forward creates missing checks only when the Forward-side operator or approved Forward-side automation applies it.
+8. Dynatrace can display aggregate ingest status back from Forward without receiving Forward credentials or topology.
 
 ## Forward Value
 
@@ -25,6 +26,7 @@ policy can be continuously aligned to how applications actually communicate.
 - Reconciles iteratively as Dynatrace dependency evidence changes.
 - Shows create, unchanged, changed, and stale state before any write.
 - Blocks unresolved endpoint mappings before they become bad intent checks.
+- Uses the same resolved dependency file for optional path evidence and eventual intent-check creation.
 - Supports optional read-only NQE preview or query-ID based artifacts when the customer approves that workflow.
 
 ## Dynatrace Value
@@ -52,10 +54,11 @@ Dynatrace is not just a source feed. The app gives Dynatrace users a useful oper
 1. Dynatrace observes or updates dependencies.
 2. The app exports a new package with stable integration keys.
 3. Forward-side readiness runs validation and dry-run reconciliation.
-4. Operators review unresolved mappings, changed checks, and stale checks.
-5. Forward applies missing checks when approved.
-6. Forward publishes aggregate ingest status.
-7. Dynatrace shows the latest status and remaining mapping work.
+4. Optional Forward path evidence shows whether resolved dependencies are currently reachable or blocked.
+5. Operators review unresolved mappings, changed checks, stale checks, and evidence state.
+6. Forward applies missing checks when approved.
+7. Forward publishes aggregate ingest status.
+8. Dynatrace shows the latest status and remaining mapping work.
 
 This makes changes repeatable: the same dependency key produces the same intended check, and Forward reconciliation
 shows what changed since the last package.
@@ -73,10 +76,11 @@ shows what changed since the last package.
 1. Show the Dynatrace app dependency readiness view.
 2. Point out ready, review, and needs-map classifications.
 3. Export the Forward package.
-4. Run Forward-side deployment readiness in dry-run mode.
-5. Show create/unchanged/changed/stale counts.
-6. Apply only missing checks if the test network and operator approval are in place.
-7. Publish or load the sanitized Forward ingest status back into Dynatrace.
+4. Resolve endpoints against the Forward snapshot and optionally run path evidence.
+5. Run Forward-side deployment readiness in dry-run mode.
+6. Show create/unchanged/changed/stale counts.
+7. Apply only missing checks if the test network and operator approval are in place.
+8. Publish or load the sanitized Forward ingest status back into Dynatrace.
 
 ## Common Questions
 

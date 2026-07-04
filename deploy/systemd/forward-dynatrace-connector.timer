@@ -1,5 +1,5 @@
 [Unit]
-Description=Run Forward Dynatrace connector import every 15 minutes
+Description=Run Forward Integration for Dynatrace connector import every 15 minutes
 
 [Timer]
 OnBootSec=5min

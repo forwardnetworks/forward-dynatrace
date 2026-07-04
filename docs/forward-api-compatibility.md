@@ -10,6 +10,8 @@ The base workflow requires these Forward API capabilities:
 | Capability | Endpoint or schema | Use |
 | --- | --- | --- |
 | Latest processed snapshot | `GET /api/networks/{networkId}/snapshots/latestProcessed` | Pick a snapshot that can accept new checks. |
+| Host resolution | `GET /api/networks/{networkId}/hosts/{hostSpecifier}?snapshotId={snapshotId}` | Resolve Dynatrace names, cloud host IDs, IPs, or MACs through Forward snapshot host inventory before package generation. |
+| Optional path evidence | `POST /api/networks/{networkId}/paths-bulk?snapshotId={snapshotId}` | Evaluate resolved dependencies with read-only Forward path search before approval. |
 | Existing check inventory | `GET /api/snapshots/{snapshotId}/checks?type=Existential` | Reconcile by name and `dynatrace-key:*` tag before writing. |
 | Persistent check create | `POST /api/snapshots/{snapshotId}/checks?bulk` | Create missing `NewNetworkCheck[]` entries after validation. |
 | Optional deactivation | `DELETE /api/snapshots/{snapshotId}/checks/{checkId}` | Replace changed checks or retire stale checks only behind approval gates. |
@@ -25,6 +27,38 @@ Forward schema references used by the package builder:
 
 The importer validates `NewNetworkCheck[]` locally before any Forward API request. It rejects unresolved or unsupported
 generated data rather than relying on Forward to clean it up after the fact.
+
+## Host Resolution Compatibility
+
+The host-resolution preflight uses Forward's inventory-backed host lookup:
+
+```text
+GET /api/networks/{networkId}/hosts/{hostSpecifier}?snapshotId={snapshotId}
+```
+
+The Forward implementation describes `hostSpecifier` as a host name, cloud host ID, IP address, or MAC address. The
+response contains a `hosts` array with host details such as `subnets`, `deviceName`, and endpoint metadata. This
+integration treats exactly one usable host subnet as `ready`, multiple candidates as `review`, and no candidates as
+`needs-map`.
+
+The package builder keeps original Dynatrace source/destination values for deterministic `dynatrace-key:*` tags and
+uses `sourceResolvedValue` and `destinationResolvedValue` for the generated Forward check filters when the resolver
+provides them.
+
+## Optional Path Evidence Compatibility
+
+Read-only path evidence uses Forward's bulk path-search endpoint:
+
+```text
+POST /api/networks/{networkId}/paths-bulk?snapshotId={snapshotId}
+```
+
+The request body uses Forward's `PathSearchBulkRequest` contract: `queries`, `intent`, `maxCandidates`, `maxResults`,
+`maxReturnPathResults`, `maxSeconds`, `maxOverallSeconds`, `includeTags`, and `includeNetworkFunctions`. Each query uses
+Forward `FlowSpec` fields such as `srcIp`, `from`, `dstIp`, `ipProto`, and `dstPort`.
+
+This is evidence only. It does not create or update Forward checks. The same resolved dependency file can then be used
+for package generation so path evidence and intent checks are based on the same Forward-resolved endpoint values.
 
 ## Bulk Create Compatibility
 

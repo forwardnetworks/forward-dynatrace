@@ -34,6 +34,10 @@
     "forward:nqe-preview:test": "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/forward-nqe-preview.test.mjs",
     "forward:nqe-live-smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/forward-nqe-live-smoke.mjs",
     "forward:nqe-live-smoke:test": "node --test scripts/forward-nqe-live-smoke.test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/forward-nqe-live-smoke.mjs --forward-base-url https://forward.example.com --forward-network-id network-1 --output /tmp/forward-nqe-live-smoke-plan.json",
+    "forward:resolve-hosts": "node scripts/forward-resolve-hosts.mjs",
+    "forward:resolve-hosts:test": "node --test scripts/forward-resolve-hosts.test.mjs",
+    "forward:path-evidence": "node scripts/forward-path-evidence.mjs",
+    "forward:path-evidence:test": "node --test scripts/forward-path-evidence.test.mjs",
     "forward:package": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/build-forward-package.mjs",
     "forward:package:test": "node --test scripts/forward-package.test.mjs",
     "forward:import": "node scripts/forward-import-package.mjs",
@@ -61,7 +65,7 @@
     "whitespace:check": "git diff --check",
     "test": "npm run forward:import:test && npm run release:checksums:test",
     "lint": "eslint .",
-    "ci": "npm run repo:validate && npm run whitespace:check && npm run schemas:validate && npm run schemas:validate:test && npm run acceptance:bundle:test && npm run forward:import:test && npm run forward:nqe-artifacts:test && npm run forward:nqe-preview:test && npm run forward:nqe-live-smoke:test && npm run forward:package:test && npm run forward:readiness:test && npm run forward:status:test && npm run forward:status:publish:test && npm run dynatrace:status:publish:test && npm run dynatrace:normalize:test && npm run dynatrace:replay-demo:test && npm run dynatrace:deploy:test && npm run release:checksums:test && npm run release:sign:test && npm run release:signing-key:test && npm run workflow:smoke && npm run load:scale && npm run runtime:validate && npm run runtime:slo:test && npm run dynatrace:workflow:validate && npm run demo:rehearsal && npm run security:audit && npm run sbom:check && npm run lint && npm run build && npm run release:package:smoke"
+    "ci": "npm run repo:validate && npm run whitespace:check && npm run schemas:validate && npm run schemas:validate:test && npm run acceptance:bundle:test && npm run forward:import:test && npm run forward:nqe-artifacts:test && npm run forward:nqe-preview:test && npm run forward:nqe-live-smoke:test && npm run forward:resolve-hosts:test && npm run forward:path-evidence:test && npm run forward:package:test && npm run forward:readiness:test && npm run forward:status:test && npm run forward:status:publish:test && npm run dynatrace:status:publish:test && npm run dynatrace:normalize:test && npm run dynatrace:replay-demo:test && npm run dynatrace:deploy:test && npm run release:checksums:test && npm run release:sign:test && npm run release:signing-key:test && npm run workflow:smoke && npm run load:scale && npm run runtime:validate && npm run runtime:slo:test && npm run dynatrace:workflow:validate && npm run demo:rehearsal && npm run security:audit && npm run sbom:check && npm run lint && npm run build && npm run release:package:smoke"
   },
   "engines": {
     "node": ">=24.0.0 <25.0.0"

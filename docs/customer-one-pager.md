@@ -1,4 +1,4 @@
-# Forward Dynatrace Integration
+# Forward Integration for Dynatrace
 
 This Forward Field Integration turns Dynatrace-discovered application dependencies into Forward-reviewed network intent
 checks. It is designed for a customer-controlled workflow: Dynatrace exports desired state, and Forward-side tooling
@@ -9,7 +9,9 @@ validates, reconciles, and applies approved changes.
 - Reads Dynatrace service dependency evidence: application, environment, source, destination, protocol, port, owner,
   criticality, confidence, and mapping state.
 - Builds deterministic Forward `NewNetworkCheck[]` intent-check packages with `dynatrace-key:*` reconciliation tags.
-- Produces an eligibility report so unresolved Dynatrace endpoints are held before Forward writes.
+- Runs a Forward-side host-resolution preflight so unresolved or ambiguous Dynatrace endpoints are held before Forward writes.
+- Optionally runs read-only Forward path evidence from the same resolved dependencies before import approval.
+- Produces an eligibility report from the resolved dependency file.
 - Supports bulk check creation through the Forward-side importer or scheduled connector.
 - Runs create-missing-only by default; changed and stale generated checks are report-only unless an explicit approval
   artifact, package signature, and mutation budgets are supplied.
@@ -29,11 +31,13 @@ validates, reconciles, and applies approved changes.
 ## Standard Customer Workflow
 
 1. Dynatrace exports dependency candidates and package artifacts.
-2. Forward-side tooling validates schemas, checksums, signatures, age, dedupe rules, and optional NQE allowlists.
-3. The importer resolves the latest Forward snapshot and compares desired checks to existing generated checks.
-4. The Forward operator reviews create, unchanged, changed, and stale counts.
-5. The importer applies missing checks only after approval.
-6. The importer publishes sanitized status for Dynatrace dashboards and customer evidence retention.
+2. Forward-side tooling resolves dependency source/destination names through Forward host inventory.
+3. Forward-side tooling optionally runs read-only path evidence against the resolved dependencies.
+4. Forward-side tooling validates schemas, checksums, signatures, age, dedupe rules, and optional NQE allowlists.
+5. The importer resolves the latest Forward snapshot and compares desired checks to existing generated checks.
+6. The Forward operator reviews create, unchanged, changed, stale, unmapped, and evidence counts.
+7. The importer applies missing checks only after approval.
+8. The importer publishes sanitized status for Dynatrace dashboards and customer evidence retention.
 
 ## Acceptance Evidence
 

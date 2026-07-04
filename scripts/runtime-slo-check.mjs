@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 const usage = `
-Forward Dynatrace runtime SLO check
+Forward Integration for Dynatrace runtime SLO check
 
 Usage:
   node scripts/runtime-slo-check.mjs --report forward-import-report.json

@@ -19,6 +19,8 @@ const requiredFiles = [
   "docs/workflow.md",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
+  "docs/forward-host-resolution.md",
+  "docs/forward-path-evidence.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
   "docs/forward-api-compatibility.md",
@@ -84,6 +86,10 @@ const requiredFiles = [
   "scripts/query-dynatrace-dependencies.mjs",
   "scripts/forward-deployment-readiness.mjs",
   "scripts/forward-deployment-readiness.test.mjs",
+  "scripts/forward-resolve-hosts.mjs",
+  "scripts/forward-resolve-hosts.test.mjs",
+  "scripts/forward-path-evidence.mjs",
+  "scripts/forward-path-evidence.test.mjs",
   "scripts/forward-nqe-live-smoke.mjs",
   "scripts/forward-nqe-live-smoke.test.mjs",
   "scripts/forward-nqe-artifacts.mjs",
@@ -420,6 +426,8 @@ for (const target of [
   "docs/live-demo-runbook.md",
   "docs/prospect-talk-track.md",
   "docs/execution-roadmap.md",
+  "docs/forward-host-resolution.md",
+  "docs/forward-path-evidence.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
   "docs/forward-api-compatibility.md",
@@ -496,6 +504,8 @@ for (const scriptName of [
   "acceptance:bundle:test",
   "forward:nqe-preview:test",
   "forward:nqe-live-smoke:test",
+  "forward:resolve-hosts:test",
+  "forward:path-evidence:test",
   "forward:readiness:test",
   "dynatrace:status:publish:test",
   "dynatrace:normalize:test",
@@ -558,6 +568,12 @@ if (!packageJson.scripts?.["forward:package"]) {
 if (!packageJson.scripts?.["forward:nqe-live-smoke"]) {
   fail("package.json must define npm script forward:nqe-live-smoke.");
 }
+if (!packageJson.scripts?.["forward:resolve-hosts"]) {
+  fail("package.json must define npm script forward:resolve-hosts.");
+}
+if (!packageJson.scripts?.["forward:path-evidence"]) {
+  fail("package.json must define npm script forward:path-evidence.");
+}
 if (!packageJson.scripts?.["forward:status:publish"]) {
   fail("package.json must define npm script forward:status:publish.");
 }
@@ -605,6 +621,8 @@ for (const requiredPackagerText of [
   "docs/assets/screenshots",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
+  "docs/forward-host-resolution.md",
+  "docs/forward-path-evidence.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
   "docs/forward-api-compatibility.md",
@@ -630,6 +648,8 @@ for (const requiredPackagerText of [
   "scripts/query-dynatrace-dependencies.mjs",
   "scripts/deploy-dynatrace-app.mjs",
   "scripts/forward-deployment-readiness.mjs",
+  "scripts/forward-resolve-hosts.mjs",
+  "scripts/forward-path-evidence.mjs",
   "scripts/replay-dynatrace-demo-data.mjs",
   "scripts/build-forward-package.mjs",
   "scripts/normalize-dynatrace-dependencies.mjs",
@@ -647,6 +667,8 @@ for (const requiredPackagerText of [
 const importerDockerfile = await readText("Dockerfile.forward-importer");
 for (const requiredDockerfileText of [
   "scripts/forward-import-package.mjs",
+  "scripts/forward-resolve-hosts.mjs",
+  "scripts/forward-path-evidence.mjs",
   "scripts/publish-forward-status.mjs",
   "scripts/publish-dynatrace-status-event.mjs",
 ]) {

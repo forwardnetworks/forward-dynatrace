@@ -265,11 +265,11 @@ const main = async () => {
 
     await page.getByRole("button", { name: "Check endpoint mapping" }).click();
     await page.getByText("Forward resolved both dependency endpoints.").first().waitFor();
-    await scrollToPanel(page, "Forward Endpoint Resolution");
+    await scrollToPanel(page, "Forward Host Resolution And Path Evidence");
     await capture(page, "02-export-package-readiness.jpg");
 
     await scrollRootTo(page, 0);
-    await page.getByRole("button", { name: "Build export package" }).click();
+    await page.getByRole("button", { name: "Build resolved package" }).click();
     await page.getByText("Forward bulk intent package is ready.").waitFor();
     await scrollToPanel(page, "Forward-Centric Ingest Package");
     await capture(page, "03-forward-side-api.jpg");

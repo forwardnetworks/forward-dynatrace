@@ -16,8 +16,14 @@ export interface DependencyCandidate {
   serviceName: string;
   source: string;
   sourceFilterType?: ForwardLocationFilterType;
+  sourceResolvedValue?: string;
+  sourceResolvedFilterType?: ForwardLocationFilterType;
+  sourceResolutionStatus?: string;
   destination: string;
   destinationFilterType?: ForwardLocationFilterType;
+  destinationResolvedValue?: string;
+  destinationResolvedFilterType?: ForwardLocationFilterType;
+  destinationResolutionStatus?: string;
   protocol: "tcp" | "udp";
   port: string;
   owner: string;

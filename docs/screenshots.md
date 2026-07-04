@@ -1,8 +1,8 @@
 # Workflow Screenshots
 
-These screenshots show the Forward Field Integration workflow: Dynatrace application mapping becomes Forward intent
-package JSON for Forward-side reconciliation. Optional read-only NQE preview and optional query-ID artifacts are shown
-as optional paths; the base workflow remains intent-check package export plus Forward-side import.
+These screenshots show the Forward Field Integration workflow: Dynatrace application mapping becomes Forward-resolved
+intent package JSON for Forward-side reconciliation. Forward-side host resolution happens before package generation,
+optional read-only path evidence can run before approval, and optional NQE evidence remains a customer-approved add-on.
 
 Regenerate them with:
 
@@ -16,14 +16,14 @@ or Forward tenant.
 
 ## Overview
 
-![Forward Dynatrace overview](assets/screenshots/01-overview.jpg)
+![Forward Integration for Dynatrace overview](assets/screenshots/01-overview.jpg)
 
-## Read-Only NQE Preview
+## Host Resolution And Path Evidence
 
-![Forward read-only NQE preview](assets/screenshots/02-export-package-readiness.jpg)
+![Forward host resolution and path evidence](assets/screenshots/02-export-package-readiness.jpg)
 
-This screen demonstrates the optional read-only NQE planning path. It should not be presented as a required step for
-bulk intent-check import.
+This screen demonstrates the production preflight shape: resolve endpoint names through Forward host inventory, then
+optionally run read-only path evidence from the same resolved values before intent-check import.
 
 ## Forward Package And Bulk Check API Sequence
 

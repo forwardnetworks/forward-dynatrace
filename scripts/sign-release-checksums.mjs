@@ -5,7 +5,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 const usage = `
-Forward Dynatrace release checksum signer
+Forward Integration for Dynatrace release checksum signer
 
 Sign:
   node scripts/sign-release-checksums.mjs \\

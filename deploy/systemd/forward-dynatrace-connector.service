@@ -1,5 +1,5 @@
 [Unit]
-Description=Forward Dynatrace connector import
+Description=Forward Integration for Dynatrace connector import
 Documentation=https://github.com/forwardnetworks/forward-dynatrace
 Wants=network-online.target
 After=network-online.target

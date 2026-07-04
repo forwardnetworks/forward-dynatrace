@@ -3,8 +3,8 @@
 Goal: use Dynatrace application mapping to create and maintain Forward intent checks without letting the Dynatrace app
 write to Forward.
 
-The Dynatrace app exports artifacts. Forward manual import or a Forward-side connector performs all Forward API
-writes.
+The Dynatrace app exports dependency candidates and optional draft artifacts. Forward manual import or a Forward-side
+connector resolves those candidates, builds the final Forward package, and performs all Forward API writes.
 
 A Forward-side connector is a pull/import process that runs outside Dynatrace with Forward-scoped credentials. It can
 be implemented as a customer-operated service or a Forward-provided connector, but it must keep writes out of the
@@ -20,10 +20,14 @@ Each dependency row needs:
 | `environment` | yes | Tag and check name |
 | `service_entity_id` | yes | Integration key and audit note |
 | `service_name` | yes | Audit note |
-| `source` | yes | Forward `from.location.value` |
-| `sourceFilterType` | optional | Forward `from.location.type`; defaults to `HostFilter` |
-| `destination` | yes | Forward `to.location.value` |
-| `destinationFilterType` | optional | Forward `to.location.type`; defaults to `HostFilter` |
+| `source` | yes | Original Dynatrace source identity; also a fallback `from.location.value` when already Forward-resolvable |
+| `sourceFilterType` | optional | Fallback Forward `from.location.type`; defaults to `HostFilter` |
+| `sourceResolvedValue` | optional | Forward-resolved value used for `from.location.value` after host-resolution preflight |
+| `sourceResolvedFilterType` | optional | Forward-resolved filter type used for `from.location.type` |
+| `destination` | yes | Original Dynatrace destination identity; also a fallback `to.location.value` when already Forward-resolvable |
+| `destinationFilterType` | optional | Fallback Forward `to.location.type`; defaults to `HostFilter` |
+| `destinationResolvedValue` | optional | Forward-resolved value used for `to.location.value` after host-resolution preflight |
+| `destinationResolvedFilterType` | optional | Forward-resolved filter type used for `to.location.type` |
 | `protocol` | yes | PacketFilter `ip_proto` |
 | `port` | yes | PacketFilter `tp_dst` |
 | `owner` | recommended | Tag and priority review |
@@ -33,7 +37,7 @@ Each dependency row needs:
 
 ## Export Artifacts
 
-The base workflow exports two required artifacts:
+After host resolution, the Forward-side package builder emits two required artifacts:
 
 - `forward-intent-checks.json`: JSON array of Forward `NewNetworkCheck` objects.
 - `forward-dynatrace-manifest.json`: schema, package metadata, counts, artifact names, integrity checksum, and ingest
@@ -46,7 +50,7 @@ Optional NQE artifacts can be added only when the customer has approved Forward-
 
 The base integration must work without the optional NQE artifacts.
 
-Before any Forward API write, the importer or connector must reject the package if:
+Before any Forward API write, the importer or connector must reject the generated package if:
 
 - the intent-check artifact is not a JSON array
 - any check is missing a name, definition, or exactly one `dynatrace-key:*` tag
@@ -59,7 +63,27 @@ Before any Forward API write, the importer or connector must reject the package 
 
 ## Forward Bulk Ingest
 
-Forward receives the package through manual import or Forward-side connector pull. Forward-side ingest uses:
+Forward receives the dependency export through manual import or Forward-side connector pull. Before package generation,
+the Forward-side workflow should resolve dependency endpoints with:
+
+```text
+GET /api/networks/{networkId}/hosts/{hostSpecifier}?snapshotId={snapshotId}
+```
+
+This host lookup accepts host name, cloud host ID, IP address, or MAC address and is backed by Forward snapshot host
+inventory. Rows that resolve to exactly one usable host subnet can become `ready`. Rows with multiple candidates stay
+`review`; rows with no candidates become `needs-map`.
+
+Optional read-only path evidence uses the same resolved dependency file before approval:
+
+```text
+POST /api/networks/{networkId}/paths-bulk?snapshotId={snapshotId}
+```
+
+Path evidence is not part of the write transaction. It is an operator confidence signal and should not publish
+hostnames or IPs back into Dynatrace unless the customer explicitly accepts that disclosure.
+
+Forward-side ingest then uses:
 
 ```text
 GET /api/networks/{networkId}/snapshots/latestProcessed
@@ -103,15 +127,17 @@ unless the Forward-side runtime enables the optional approval-gated update/stale
 exact approval file, and mutation budgets.
 
 Endpoint mapping must be Forward-resolvable before apply. `HostFilter` works for known hostnames, IP prefixes, or MAC
-addresses. Use `SubnetLocationFilter` for subnet/IP mappings and `DeviceFilter` only when the dependency has been
-intentionally mapped to a Forward device. A live Forward apply rejects unresolved locations before creating checks.
+addresses. The resolver preserves original Dynatrace `source` and `destination` values for reconciliation identity and
+writes `sourceResolvedValue` and `destinationResolvedValue` for the generated Forward filters. Use
+`SubnetLocationFilter` for subnet/IP mappings and `DeviceFilter` only when the dependency has been intentionally mapped
+to a Forward device. A live Forward apply rejects unresolved locations before creating checks.
 
 The app maps:
 
 | Dynatrace field | Forward check field |
 | --- | --- |
-| `sourceFilterType` + `source` | `definition.filters.from.location.type/value` |
-| `destinationFilterType` + `destination` | `definition.filters.to.location.type/value` |
+| `sourceResolvedFilterType` + `sourceResolvedValue`, otherwise `sourceFilterType` + `source` | `definition.filters.from.location.type/value` |
+| `destinationResolvedFilterType` + `destinationResolvedValue`, otherwise `destinationFilterType` + `destination` | `definition.filters.to.location.type/value` |
 | `protocol` | `definition.filters.from.headers[].values.ip_proto` (`tcp` -> `6`, `udp` -> `17`) |
 | `port` | `definition.filters.from.headers[].values.tp_dst` |
 | `criticality` | `priority` |

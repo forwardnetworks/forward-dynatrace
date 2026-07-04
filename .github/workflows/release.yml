@@ -151,4 +151,4 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" out/release/* \
             --verify-tag \
             --title "${GITHUB_REF_NAME}" \
-            --notes "Forward Dynatrace field integration release. Verify downloaded artifacts with SHA256SUMS. If SHA256SUMS.sig and SHA256SUMS.pub are present, verify the self-managed release signature before trusting the checksum file. The Forward-side importer image is published to ${IMAGE_NAME}:${GITHUB_REF_NAME}."
+            --notes "Forward Integration for Dynatrace field integration release. Verify downloaded artifacts with SHA256SUMS. If SHA256SUMS.sig and SHA256SUMS.pub are present, verify the self-managed release signature before trusting the checksum file. The Forward-side importer image is published to ${IMAGE_NAME}:${GITHUB_REF_NAME}."

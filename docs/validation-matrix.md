@@ -14,6 +14,9 @@ This document tracks what is validated today and what still needs a live Forward
 | Optional NQE package workflow | `npm run forward:package:test` builds optional `forward-nqe-checks.json` and `forward-nqe-diff-requests.json`, validates manifest metadata, and runs importer validate-only with a query-ID allowlist. |
 | Dependency eligibility report | `npm run forward:package:test` verifies `--eligibility-report` output for ready, review, needs-map, and missing-field rows. |
 | Read-only NQE live smoke harness | `npm run forward:nqe-live-smoke:test` validates approval-file rules and plan-mode report generation; `npm run forward:nqe-live-smoke -- --help` exposes a customer-approved live smoke command that calls only `POST /api/nqe` when `--execute` is supplied. |
+| Forward host-resolution preflight | `npm run forward:resolve-hosts:test` verifies IP/subnet classification, Forward `GET /api/networks/{networkId}/hosts/{hostSpecifier}` resolution, ambiguous and missing-host handling, latest processed snapshot lookup, and resolved dependency output. |
+| Host-resolved intent package generation | `npm run forward:resolve-hosts:test` feeds resolved dependencies into `npm run forward:package` and verifies generated intent checks use `sourceResolvedValue` and `destinationResolvedValue` in Forward filters while preserving original Dynatrace names in the `dynatrace-key:*` tag. |
+| Read-only Forward path evidence | `npm run forward:path-evidence:test` verifies query construction from resolved endpoints, explicit device-source handling, unmapped name rejection, path-result classification, latest processed snapshot lookup, JSON POST body handling, and `POST /api/networks/{networkId}/paths-bulk` execution against a fake Forward API. |
 | Deployment readiness gate | `npm run forward:readiness:test` verifies validate-only readiness, dry-run failure reporting, mutation-policy refusal, and report output. |
 | Package validation | Importer rejects malformed packages and checksum mismatches before Forward environment variables or API calls are required. |
 | Package signature validation | Importer verifies valid detached Ed25519 signatures and rejects signatures for changed package bytes. |
@@ -87,6 +90,8 @@ This document tracks what is validated today and what still needs a live Forward
 | Optional NQE artifact tests | `npm run forward:nqe-artifacts:test` |
 | Read-only NQE preview tests | `npm run forward:nqe-preview:test` |
 | Read-only NQE live smoke shape | `npm run forward:nqe-live-smoke:test` |
+| Forward host-resolution preflight | `npm run forward:resolve-hosts:test` |
+| Read-only path evidence preflight | `npm run forward:path-evidence:test` |
 | Optional NQE package workflow | `npm run forward:package:test` |
 | Deployment readiness | `npm run forward:readiness:test` |
 | Forward status display | `npm run forward:status:test` |

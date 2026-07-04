@@ -3,9 +3,26 @@
 Use `scripts/forward-import-package.mjs` when the package is imported manually from a Forward-controlled environment or
 pulled by a Forward-side connector. The script is intentionally dry-run by default.
 
+For production Dynatrace dependency exports, produce the package first with the Forward-side resolver and package
+builder:
+
+```bash
+npm run forward:resolve-hosts -- \
+  --dependencies dependencies.json \
+  --forward-base-url https://forward.example.com \
+  --forward-network-id <network-id> \
+  --authorization-file /secure/path/read-only-forward-auth-header \
+  --execute \
+  --output resolved-dependencies.json
+
+npm run forward:package -- \
+  --dependencies resolved-dependencies.json \
+  --output-dir out/forward-package
+```
+
 ## Required Inputs
 
-- `forward-intent-checks.json`: required `NewNetworkCheck[]` payload from the Dynatrace app.
+- `forward-intent-checks.json`: required `NewNetworkCheck[]` payload from the Forward-side package builder.
 - `forward-dynatrace-manifest.json`: recommended for manual import and required for production automation.
 
 Optional inputs:

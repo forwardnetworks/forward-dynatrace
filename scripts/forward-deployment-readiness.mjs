@@ -10,7 +10,7 @@ import { loadConnectorConfig } from "./forward-import-package.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const usage = `
-Forward Dynatrace deployment readiness
+Forward Integration for Dynatrace deployment readiness
 
 Usage:
   node scripts/forward-deployment-readiness.mjs --config /secure/path/forward-connector.config.json

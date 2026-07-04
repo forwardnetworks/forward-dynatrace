@@ -13,6 +13,8 @@ docs and executable checks.
 - [docs/workflow.md](docs/workflow.md): Forward-centric workflow and screenshots.
 - [docs/dynatrace-workflow-trigger.md](docs/dynatrace-workflow-trigger.md): schedule/problem trigger payload contract.
 - [docs/forward-ingest-contract.md](docs/forward-ingest-contract.md): package and API contract.
+- [docs/forward-host-resolution.md](docs/forward-host-resolution.md): Forward host resolver used before package generation.
+- [docs/forward-path-evidence.md](docs/forward-path-evidence.md): optional read-only Forward path evidence from resolved Dynatrace dependencies.
 - [docs/forward-nqe-preview.md](docs/forward-nqe-preview.md): optional read-only Forward NQE preview workflow.
 - [docs/forward-nqe-artifacts.md](docs/forward-nqe-artifacts.md): optional NQE check and diff artifact workflow.
 - [docs/forward-api-compatibility.md](docs/forward-api-compatibility.md): Forward API version and optional NQE gates.
@@ -73,6 +75,10 @@ npm run forward:nqe-artifacts:test
 npm run forward:nqe-live-smoke -- --help
 npm run forward:nqe-live-smoke:test
 npm run forward:nqe-preview:test
+npm run forward:resolve-hosts -- --help
+npm run forward:resolve-hosts:test
+npm run forward:path-evidence -- --help
+npm run forward:path-evidence:test
 npm run forward:package:test
 npm run forward:readiness:test
 npm run dynatrace:query -- --help

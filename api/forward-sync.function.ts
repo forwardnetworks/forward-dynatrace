@@ -15,8 +15,14 @@ interface DependencyCandidate {
   serviceName: string;
   source: string;
   sourceFilterType?: ForwardLocationFilterType;
+  sourceResolvedValue?: string;
+  sourceResolvedFilterType?: ForwardLocationFilterType;
+  sourceResolutionStatus?: string;
   destination: string;
   destinationFilterType?: ForwardLocationFilterType;
+  destinationResolvedValue?: string;
+  destinationResolvedFilterType?: ForwardLocationFilterType;
+  destinationResolutionStatus?: string;
   protocol: "tcp" | "udp";
   port: string;
   owner: string;
@@ -228,6 +234,33 @@ const toLocation = (
   type: ForwardLocationFilterType = "HostFilter",
 ): ForwardEndpoint["location"] => ({ type, value });
 
+const resolvedLocationValue = (
+  dependency: DependencyCandidate,
+  role: "source" | "destination",
+): string =>
+  role === "source"
+    ? dependency.sourceResolvedValue?.trim() || dependency.source
+    : dependency.destinationResolvedValue?.trim() || dependency.destination;
+
+const resolvedLocationType = (
+  dependency: DependencyCandidate,
+  role: "source" | "destination",
+): ForwardLocationFilterType =>
+  role === "source"
+    ? dependency.sourceResolvedFilterType || dependency.sourceFilterType || "HostFilter"
+    : dependency.destinationResolvedFilterType ||
+      dependency.destinationFilterType ||
+      "HostFilter";
+
+const resolutionNoteFields = (dependency: DependencyCandidate): string[] => [
+  ...(dependency.sourceResolvedValue
+    ? [`sourceResolvedValue=${dependency.sourceResolvedValue}`]
+    : []),
+  ...(dependency.destinationResolvedValue
+    ? [`destinationResolvedValue=${dependency.destinationResolvedValue}`]
+    : []),
+];
+
 const toIntentCheck = (
   dependency: DependencyCandidate,
   duplicateBaseNames: Set<string>,
@@ -236,7 +269,10 @@ const toIntentCheck = (
     checkType: "Existential",
     filters: {
       from: {
-        location: toLocation(dependency.source, dependency.sourceFilterType),
+        location: toLocation(
+          resolvedLocationValue(dependency, "source"),
+          resolvedLocationType(dependency, "source"),
+        ),
         headers: [
           {
             type: "PacketFilter",
@@ -254,8 +290,8 @@ const toIntentCheck = (
       },
       to: {
         location: toLocation(
-          dependency.destination,
-          dependency.destinationFilterType,
+          resolvedLocationValue(dependency, "destination"),
+          resolvedLocationType(dependency, "destination"),
         ),
       },
       flowTypes: ["VALID"],
@@ -272,6 +308,7 @@ const toIntentCheck = (
     `integrationKey=${toIntegrationKey(dependency)}`,
     `owner=${dependency.owner}`,
     `confidence=${dependency.confidence}`,
+    ...resolutionNoteFields(dependency),
   ].join("; "),
   priority: toPriority(dependency.criticality),
   tags: [
@@ -499,6 +536,19 @@ const buildActions = (
 ): ForwardAction[] => {
   const actions: ForwardAction[] = [];
 
+  actions.push({
+    method: "GET",
+    path: `/api/networks/${payload.forwardNetworkId || "{networkId}"}/hosts/{hostSpecifier}?snapshotId={snapshotId}`,
+    purpose:
+      "Forward-side preflight resolves Dynatrace endpoint names through Forward host inventory before package generation.",
+  });
+  actions.push({
+    method: "POST",
+    path: `/api/networks/${payload.forwardNetworkId || "{networkId}"}/paths-bulk?snapshotId={snapshotId}`,
+    purpose:
+      "Optional read-only path evidence evaluates the same resolved dependencies before import approval.",
+    bodyPreview: "PathSearchBulkRequest built from sourceResolvedValue and destinationResolvedValue",
+  });
   actions.push({
     method: "GET",
     path: `/api/networks/${payload.forwardNetworkId || "{networkId}"}/snapshots/latestProcessed`,

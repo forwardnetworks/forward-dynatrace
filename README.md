@@ -1,6 +1,6 @@
-# Forward Dynatrace
+# Forward Integration for Dynatrace
 
-Forward Dynatrace is a Forward Field Integration that turns Dynatrace application dependency evidence into
+Forward Integration for Dynatrace is a Forward Field Integration that turns Dynatrace application dependency evidence into
 Forward-reviewed network intent-check packages.
 
 The integration keeps the write boundary explicit: the Dynatrace app exports desired state, and Forward-side tooling
@@ -21,6 +21,9 @@ Forward credentials.
   criticality, confidence, and mapping state.
 - Builds deterministic Forward `NewNetworkCheck[]` intent-check packages with `dynatrace-key:*` reconciliation tags.
 - Holds unresolved or ambiguous dependencies before Forward writes.
+- Runs an optional Forward-side host-resolution preflight using Forward snapshot inventory so intent checks use
+  resolved Forward host/subnet values.
+- Optionally runs read-only Forward path evidence from the same resolved dependencies before import approval.
 - Supports bulk create-missing-only imports through a Forward-side importer or scheduled connector.
 - Optionally emits Forward NQE check and diff artifacts using Forward-controlled query IDs and allowlists.
 - Publishes sanitized aggregate status back to Dynatrace for import state, counts, drift, signature state, and failures.
@@ -92,22 +95,53 @@ For an enterprise install with the default `com.forwardnetworks.dynatrace.field.
 Manual import is the first production-safe workflow because Forward writes happen only after a Forward operator reviews
 the package.
 
-1. Export or publish these artifacts from Dynatrace:
-   - `forward-dynatrace-manifest.json`
-   - `forward-intent-checks.json`
-   - optional `forward-nqe-checks.json`
-   - optional `forward-nqe-diff-requests.json`
-2. Move or expose the package to a Forward-controlled runtime.
-3. Validate without Forward credentials:
+1. Export dependency candidates from Dynatrace:
+   - `dependencies.json`
+   - optional NQE query metadata when the customer enables that path
+2. Move or expose the dependency export to a Forward-controlled runtime.
+3. Resolve Dynatrace host names against the target Forward snapshot:
+
+   ```bash
+   npm run forward:resolve-hosts -- \
+     --dependencies dependencies.json \
+     --forward-base-url https://forward.example.com \
+     --forward-network-id <network-id> \
+     --authorization-file /secure/path/read-only-forward-auth-header \
+     --execute \
+     --output resolved-dependencies.json \
+     --report forward-host-resolution-report.json
+   ```
+
+4. Build the Forward package from the resolved dependency file:
+
+   ```bash
+   npm run forward:package -- \
+     --dependencies resolved-dependencies.json \
+     --output-dir out/forward-package
+   ```
+
+5. Validate the generated package without Forward credentials:
 
    ```bash
    npm run forward:import -- \
-     --checks forward-intent-checks.json \
-     --manifest forward-dynatrace-manifest.json \
+     --checks out/forward-package/forward-intent-checks.json \
+     --manifest out/forward-package/forward-dynatrace-manifest.json \
      --validate-only
    ```
 
-4. Dry-run against Forward:
+6. Optionally run read-only Forward path evidence before approval:
+
+   ```bash
+   npm run forward:path-evidence -- \
+     --dependencies resolved-dependencies.json \
+     --forward-base-url https://forward.example.com \
+     --forward-network-id <network-id> \
+     --authorization-file /secure/path/read-only-forward-auth-header \
+     --execute \
+     --output forward-path-evidence.json
+   ```
+
+7. Dry-run the resolved package against Forward:
 
    ```bash
    export FORWARD_BASE_URL=https://forward.example.com
@@ -116,18 +150,18 @@ the package.
    export FORWARD_NETWORK_ID=<network-id>
 
    npm run forward:import -- \
-     --checks forward-intent-checks.json \
-     --manifest forward-dynatrace-manifest.json \
+     --checks out/forward-package/forward-intent-checks.json \
+     --manifest out/forward-package/forward-dynatrace-manifest.json \
      --report forward-import-report.json
    ```
 
-5. Review create, unchanged, changed, stale, blocked, and failed rows.
-6. Apply missing checks only after approval:
+8. Review create, unchanged, changed, stale, blocked, and failed rows.
+9. Apply missing checks only after approval:
 
    ```bash
    npm run forward:import -- \
-     --checks forward-intent-checks.json \
-     --manifest forward-dynatrace-manifest.json \
+     --checks out/forward-package/forward-intent-checks.json \
+     --manifest out/forward-package/forward-dynatrace-manifest.json \
      --apply
    ```
 
@@ -164,7 +198,7 @@ Release provenance, SBOM, Trivy scan evidence, and digest pinning guidance are i
 
 ## Screenshots
 
-![Forward Dynatrace overview](docs/assets/screenshots/01-overview.jpg)
+![Forward Integration for Dynatrace overview](docs/assets/screenshots/01-overview.jpg)
 
 ![Forward read-only NQE preview](docs/assets/screenshots/02-export-package-readiness.jpg)
 
@@ -203,6 +237,8 @@ Start here:
 - [docs/workflow.md](docs/workflow.md): end-to-end Dynatrace-to-Forward workflow
 - [docs/install.md](docs/install.md): install and release model
 - [docs/forward-ingest-contract.md](docs/forward-ingest-contract.md): package contract consumed by Forward-side tooling
+- [docs/forward-host-resolution.md](docs/forward-host-resolution.md): Forward-side host resolver used before package generation
+- [docs/forward-path-evidence.md](docs/forward-path-evidence.md): optional read-only Forward path evidence from resolved dependencies
 - [docs/forward-importer.md](docs/forward-importer.md): importer behavior, reconciliation, and approval gates
 - [docs/forward-nqe-preview.md](docs/forward-nqe-preview.md): optional read-only NQE preview path
 - [docs/connector-runtime.md](docs/connector-runtime.md): scheduled connector deployment templates

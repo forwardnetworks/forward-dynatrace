@@ -184,7 +184,7 @@ export const Home = () => {
     {
       icon: <NetworkIcon />,
       label: "Resolve",
-      title: "Forward endpoint match",
+      title: "Forward host resolution",
       value: `${mappingCounts.ready}`,
       detail: `${mappingCounts.review} review / ${mappingCounts["needs-map"]} unmapped`,
       tone:
@@ -193,8 +193,16 @@ export const Home = () => {
           : "needs-work",
     },
     {
+      icon: <PathIcon />,
+      label: "Evidence",
+      title: "Path evidence",
+      value: "optional",
+      detail: "Forward /paths-bulk preflight",
+      tone: "controlled",
+    },
+    {
       icon: <UploadIcon />,
-      label: "Export",
+      label: "Package",
       title: "Intent package",
       value: `${selectedForSync.length}`,
       detail: "bulk NewNetworkCheck JSON",
@@ -326,7 +334,7 @@ export const Home = () => {
           <Heading level={1}>Fill Forward intent checks from app dependencies</Heading>
           <Paragraph>
             Forward Field Integration reference for turning Dynatrace dependency
-            maps into Forward bulk intent-check JSON.
+            maps into Forward-resolved bulk intent-check JSON.
           </Paragraph>
           <div className="workflow-strip" aria-label="Forward ingestion workflow">
             <div>
@@ -334,12 +342,12 @@ export const Home = () => {
               <span>Service dependencies</span>
             </div>
             <div>
-              <Strong>Export package</Strong>
-              <span>Bulk intent JSON</span>
+              <Strong>Forward resolves</Strong>
+              <span>Host inventory and path evidence</span>
             </div>
             <div>
               <Strong>Forward imports</Strong>
-              <span>Manual import or connector pull</span>
+              <span>Reviewed bulk checks</span>
             </div>
           </div>
         </div>
@@ -381,8 +389,8 @@ export const Home = () => {
             <Heading level={2}>Dependency evidence to Forward intent checks</Heading>
           </div>
           <span>
-            Dynatrace supplies dependency evidence and package status. Forward owns
-            validation, dry-run, apply, and reconciliation.
+            Dynatrace supplies dependency evidence. Forward owns host resolution,
+            optional path evidence, validation, dry-run, apply, and reconciliation.
           </span>
         </div>
         <div className="workflow-stage-grid">
@@ -401,11 +409,11 @@ export const Home = () => {
         <div className="workflow-rule">
           <div>
             <Strong>Dynatrace side</Strong>
-            <span>Discover, normalize, resolve endpoint fit, and export signed artifacts.</span>
+            <span>Discover, normalize, and export dependency candidates.</span>
           </div>
           <div>
             <Strong>Forward side</Strong>
-            <span>Run API validation and dry-run first; apply only under Forward operator policy.</span>
+            <span>Resolve hosts, run optional path evidence, dry-run, then apply under policy.</span>
           </div>
         </div>
       </section>
@@ -533,8 +541,8 @@ export const Home = () => {
         <section className="panel">
           <PanelHeader
             icon={<UploadIcon />}
-            title="Forward Export Package"
-            detail="Bulk checks JSON and manifest"
+            title="Forward Package Inputs"
+            detail="Dependency candidates and package metadata"
           />
           <div className="field-grid">
             <label>
@@ -606,7 +614,7 @@ export const Home = () => {
             <Button.Prefix>
               <SyncIcon />
             </Button.Prefix>
-            Build export package
+            Build resolved package
           </Button>
           <Button color="primary" variant="accent" onClick={() => checkEndpointMapping()}>
             <Button.Prefix>
@@ -640,8 +648,8 @@ export const Home = () => {
       <section className="panel">
         <PanelHeader
           icon={<PathIcon />}
-          title="Forward Endpoint Resolution"
-          detail="Read-only NQE preflight"
+          title="Forward Host Resolution And Path Evidence"
+          detail="Read-only preflight before intent creation"
         />
         {nqePreview.isLoading && <ProgressCircle aria-label="Loading NQE preview" />}
         {nqePreview.data ? (
@@ -654,14 +662,30 @@ export const Home = () => {
             />
             <div className="sync-grid">
               <div>
-                <Heading level={5}>Forward NQE request</Heading>
+                <Heading level={5}>Production preflight sequence</Heading>
                 <ol className="action-list">
+                  <li>
+                    <code>GET</code>{" "}
+                    <span>/api/networks/{forwardNetworkId || "{networkId}"}/hosts/{`{hostSpecifier}`}?snapshotId={`{snapshotId}`}</span>
+                    <p>
+                      Resolve Dynatrace names, aliases, host IDs, IPs, and MACs
+                      through Forward snapshot inventory.
+                    </p>
+                  </li>
+                  <li>
+                    <code>POST</code>{" "}
+                    <span>/api/networks/{forwardNetworkId || "{networkId}"}/paths-bulk?snapshotId={`{snapshotId}`}</span>
+                    <p>
+                      Optional read-only path evidence uses the same resolved
+                      endpoint values before intent-check import.
+                    </p>
+                  </li>
                   <li>
                     <code>{nqePreview.data.requestPreview.method}</code>{" "}
                     <span>{nqePreview.data.requestPreview.path}</span>
                     <p>
-                      Read-only NQE execution. This app does not create, update,
-                      or delete Forward checks.
+                      Optional NQE evidence can add confidence. Persistent
+                      Forward writes still happen only in Forward-side ingest.
                     </p>
                   </li>
                 </ol>
@@ -749,7 +773,7 @@ export const Home = () => {
         <PanelHeader
           icon={<AutomationEngineIcon />}
           title="Forward-Centric Ingest Package"
-          detail="Forward imports or pulls the package"
+          detail="Built after Forward host resolution"
         />
         {sync.isLoading && <ProgressCircle aria-label="Loading export package" />}
         {sync.data ? (() => {
@@ -845,6 +869,8 @@ export const Home = () => {
           <div className="automation-flow">
             <FlowStep icon={<FlowIcon />} title="Discover" text="Services and dependencies" />
             <FlowStep icon={<DatabaseIcon />} title="Normalize" text="App, endpoint, protocol, owner" />
+            <FlowStep icon={<NetworkIcon />} title="Resolve" text="Forward host inventory" />
+            <FlowStep icon={<PathIcon />} title="Evidence" text="Optional /paths-bulk" />
             <FlowStep icon={<UploadIcon />} title="Package" text="NewNetworkCheck[] JSON" />
             <FlowStep icon={<CheckmarkIcon />} title="Import" text="Forward /checks?bulk" />
           </div>

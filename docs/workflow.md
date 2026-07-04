@@ -1,4 +1,4 @@
-# Forward Dynatrace Workflow
+# Forward Integration for Dynatrace Workflow
 
 This app uses Dynatrace application dependency mapping to fill Forward intent checks. Dynatrace is the source of
 application dependency evidence; Forward is the system that stores, evaluates, reconciles, and reports the network
@@ -14,9 +14,9 @@ Forward-side manual import or a Forward-side connector owns all intent-check wri
 - A path preview action that turns a Dynatrace service/problem context into a Forward path query.
 - An optional read-only NQE preview action that plans or executes approved `POST /api/nqe` requests without Forward
   writes.
-- An export action that stages Forward-ready artifacts:
-  - `forward-intent-checks.json` as Forward-native `NewNetworkCheck[]` for bulk intent import.
-  - `forward-dynatrace-manifest.json` with schema version, counts, dedupe policy, artifact names, and checksum.
+- An export action that stages Forward-side ingest input:
+  - dependency candidates with source, destination, protocol, port, ownership, confidence, and mapping state.
+  - optional NQE metadata when the customer enables the query-ID artifact path.
 - A Workflow-compatible app function that can run without a human clicking the UI.
 
 ## Recommended Production Flow
@@ -24,16 +24,15 @@ Forward-side manual import or a Forward-side connector owns all intent-check wri
 ```mermaid
 flowchart LR
     A["Dynatrace problem or schedule"] --> B["Dynatrace Workflow"]
-    B --> C["Forward Dynatrace app function"]
-    C --> D["Export desired-state package"]
-    D --> E["Manifest JSON"]
-    D --> F["NewNetworkCheck[] JSON"]
-    E --> G["Manual import script or Forward connector"]
-    F --> G
+    B --> C["Forward Integration for Dynatrace app function"]
+    C --> D["Export dependency candidates"]
+    D --> E["Manual import script or Forward connector"]
+    E --> F["Forward host resolution"]
+    F --> G["Build manifest + NewNetworkCheck[]"]
     G --> H["Validate package"]
     H --> I["Forward reconcile"]
     I --> J["Forward /checks?bulk"]
-    J --> K["Forward Verify results"]
+    J --> K["Forward verify results"]
 ```
 
 ## Screenshots
@@ -42,7 +41,7 @@ flowchart LR
 
 The app starts from Dynatrace application dependencies, not generic infra telemetry.
 
-![Forward Dynatrace overview](assets/screenshots/01-overview.jpg)
+![Forward Integration for Dynatrace overview](assets/screenshots/01-overview.jpg)
 
 ### 2. Plan Read-Only NQE Evidence
 
@@ -51,10 +50,10 @@ Dynatrace.
 
 ![Forward read-only NQE preview](assets/screenshots/02-export-package-readiness.jpg)
 
-### 3. Build A Forward Export Package
+### 3. Build A Forward Package
 
-Eligible rows become Forward-native `NewNetworkCheck[]` JSON. Forward manual import or a Forward-side connector
-executes the API calls.
+Forward-side tooling resolves eligible rows into Forward-native `NewNetworkCheck[]` JSON. Forward manual import or a
+Forward-side connector executes the API calls.
 
 ![Forward-side API sequence](assets/screenshots/03-forward-side-api.jpg)
 
@@ -68,36 +67,45 @@ Forward-side ingest.
 ## Standard Forward-Centric Ingest Sequence
 
 1. Dynatrace app exports dependency rows from Dynatrace services, spans, tags, or ownership metadata.
-2. Dynatrace app exports:
-   - `forward-intent-checks.json`
-   - `forward-dynatrace-manifest.json`
-   - deterministic `integration_key` values in each check tag and note.
-3. Forward operator imports the package, or Forward-side connector pulls it from a read-only package URL.
-4. Forward-side ingest validates package shape, required fields, supported check type, and unique names/tags.
+2. Forward operator imports the dependency export, or a Forward-side connector pulls it from a read-only package URL.
+3. Forward-side host resolution validates candidate source and destination names against the target snapshot:
+
+   `GET /api/networks/{networkId}/hosts/{hostSpecifier}?snapshotId={snapshotId}`
+
+   Rows become `ready` only when both sides resolve to a single usable Forward host/subnet. Ambiguous rows stay
+   `review`; unresolved rows become `needs-map`.
+
+4. Forward-side tooling builds `forward-intent-checks.json`, `forward-dynatrace-manifest.json`, and deterministic
+   `dynatrace-key:*` values from the resolved dependency file.
+5. Optional path evidence evaluates the same resolved rows before approval:
+
+   `POST /api/networks/{networkId}/paths-bulk?snapshotId={snapshotId}`
+
+6. Forward-side ingest validates package shape, required fields, supported check type, and unique names/tags.
    It also verifies the manifest checksum against the exact intent-check package bytes.
-5. Forward-side ingest resolves the snapshot where checks should be created:
+7. Forward-side ingest resolves the snapshot where checks should be created:
 
    `GET /api/networks/{networkId}/snapshots/latestProcessed`
 
-6. Forward-side ingest reads existing Dynatrace-managed checks:
+8. Forward-side ingest reads existing Dynatrace-managed checks:
 
    `GET /api/snapshots/{snapshotId}/checks?type=Existential`
 
    Match by deterministic check name or `dynatrace-key:*` tag.
 
-7. Forward-side ingest fingerprints generated fields and produces a reconciliation report:
+9. Forward-side ingest fingerprints generated fields and produces a reconciliation report:
    - `create`
    - `unchanged`
    - `changed`
    - `stale`
 
-8. Forward-side ingest creates missing persistent intent checks in bulk:
+10. Forward-side ingest creates missing persistent intent checks in bulk:
 
    `POST /api/snapshots/{snapshotId}/checks?bulk`
 
    Body is `NewNetworkCheck[]`. Persistence defaults to true in Forward's API.
 
-9. Forward-side ingest reads back status:
+11. Forward-side ingest reads back status:
 
    `GET /api/snapshots/{snapshotId}/checks?type=Existential`
 
@@ -136,9 +144,11 @@ status, IDs, creators, and timestamps do not create false drift.
 ## Intent Check Mapping
 
 The first useful mapping is one Forward `Existential` check per eligible Dynatrace dependency. A dependency is eligible
-only after the selected Forward network resolves the Dynatrace source and destination to valid Forward locations.
-Review rows are exported as evidence and held out of check creation unless a Forward operator deliberately enables the
-review-row override.
+only after the selected Forward network resolves the Dynatrace source and destination through Forward host inventory.
+The production preflight is `npm run forward:resolve-hosts`, which calls Forward's host resolver and writes
+`sourceResolvedValue` and `destinationResolvedValue` for package generation. Optional read-only path evidence uses the
+same resolved fields before approval. Review rows are exported as evidence and held out of check creation unless a
+Forward operator deliberately enables the review-row override.
 
 ```json
 {
@@ -157,7 +167,7 @@ review-row override.
     "checkType": "Existential",
     "filters": {
       "from": {
-        "location": {"type": "HostFilter", "value": "checkout-vip"},
+        "location": {"type": "HostFilter", "value": "10.10.10.10"},
         "headers": [
           {
             "type": "PacketFilter",
@@ -169,7 +179,7 @@ review-row override.
           }
         ]
       },
-      "to": {"location": {"type": "HostFilter", "value": "orders-db"}},
+      "to": {"location": {"type": "HostFilter", "value": "10.20.20.20/32"}},
       "flowTypes": ["VALID"]
     },
     "headerFieldsWithDefaults": ["url"],
@@ -179,6 +189,9 @@ review-row override.
 }
 ```
 
+The original Dynatrace endpoint names remain in `name`, `note`, and `dynatrace-key:*`. The resolved Forward endpoint
+values are what make the check eligible for bulk creation.
+
 Use `Reachability` checks when the dependency must be delivered to the destination host or prefix. Use optional `NQE`
 checks when the question is broader than one path, such as snapshot-wide compliance or segmentation drift. NQE checks
 must reference Forward-owned query IDs and are packaged separately in `forward-nqe-checks.json`.
@@ -187,8 +200,10 @@ Rows with `needs-map` status should not create Forward checks. Reject them from 
 source/destination mapping is complete.
 
 Forward endpoint mappings must resolve in the target snapshot. `HostFilter` is the default for application host/IP
-dependencies, but packages can use `SubnetLocationFilter` or `DeviceFilter` when the mapping process has resolved a
-dependency to those Forward location types.
+dependencies. When host resolution finds a single host subnet, the generated check keeps the original Dynatrace source
+and destination in the reconciliation key but uses the resolved Forward value in the check filter. Packages can also
+use `SubnetLocationFilter` or `DeviceFilter` when the mapping process has explicitly resolved a dependency to those
+Forward location types.
 
 ## Workflow Option A: Manual Export And Import
 
