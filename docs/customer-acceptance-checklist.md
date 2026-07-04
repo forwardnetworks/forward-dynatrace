@@ -19,6 +19,8 @@ Forward-centric: Dynatrace exports desired state, while Forward-controlled tooli
 - Review `forward-dynatrace-sbom-<tag>.cdx.json`.
 - Pull the GHCR importer image and record the image digest.
 - Use the digest-pinned image in the runtime manifest.
+- Run `npm run acceptance:bundle -- --dependencies shared/demo-dependencies.json --output-dir out/acceptance` for a
+  local evidence bundle, or replace the dependency input with the customer-approved export.
 
 ## 3. Dynatrace App
 
@@ -43,6 +45,8 @@ Forward-centric: Dynatrace exports desired state, while Forward-controlled tooli
 - Confirm Forward connectivity and reconciliation pass.
 - Review create, unchanged, changed, and stale counts.
 - Confirm changed or stale Dynatrace-managed checks remain report-only unless an approval workflow is enabled.
+- Archive the acceptance bundle, import report, status artifact, checksum evidence, and runtime logs with the change
+  ticket.
 
 ## 6. Apply Gate
 
@@ -73,6 +77,7 @@ Forward-centric: Dynatrace exports desired state, while Forward-controlled tooli
 ## Exit Criteria
 
 - Release artifacts and image digest are verified.
+- Acceptance evidence bundle is generated and retained.
 - Dependency eligibility is reviewed.
 - Forward dry-run passes against the intended network.
 - Optional Dynatrace status event is visible in Dynatrace.

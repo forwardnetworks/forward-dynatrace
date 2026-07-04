@@ -22,9 +22,10 @@ Steps:
 ```bash
 git clone https://github.com/forwardnetworks/forward-dynatrace.git
 cd forward-dynatrace
-git checkout v1.0.13
+git checkout v1.0.14
 npm ci
 npm run ci
+npm run acceptance:bundle -- --dependencies shared/demo-dependencies.json --output-dir out/acceptance
 ```
 
 For an unsigned trial or development install, use a `my.*` app ID:
@@ -144,6 +145,10 @@ npm run forward:import -- --config /secure/path/forward-connector.config.json
 Do not store Forward user, password, or token values in the config file.
 Use `config/forward-connector.signed.config.example.json` when the package handoff requires detached signature
 verification.
+
+Before a scheduled connector is enabled, generate an acceptance evidence bundle with the same dependency input and
+retain `ACCEPTANCE.md`, `acceptance-summary.json`, the eligibility report, and the sanitized status event with the
+change record.
 
 For scheduled operation, use the systemd or Kubernetes templates in `deploy/` and follow
 `docs/connector-runtime.md`. Run `docs/deployment-readiness.md` checks before enabling a schedule or apply.

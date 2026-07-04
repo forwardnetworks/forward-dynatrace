@@ -39,6 +39,7 @@ const requiredFiles = [
   "docs/admin-operations.md",
   "docs/release.md",
   "docs/release-provenance.md",
+  "docs/governance.md",
   "docs/customer-acceptance-checklist.md",
   "docs/validation-matrix.md",
   "docs/harness-engineering.md",
@@ -54,6 +55,7 @@ const requiredFiles = [
   "shared/demo-forward-ingest-status.json",
   "config/forward-connector.config.example.json",
   "config/forward-connector.signed.config.example.json",
+  "config/forward-import.approval.example.json",
   "config/forward-nqe-live-smoke.approval.example.json",
   "api/forward-status.function.ts",
   "api/forward-nqe-preview.function.ts",
@@ -64,6 +66,10 @@ const requiredFiles = [
   "scripts/sign-release-checksums.test.mjs",
   "scripts/generate-release-signing-keypair.mjs",
   "scripts/generate-release-signing-keypair.test.mjs",
+  "scripts/schema-validate.mjs",
+  "scripts/schema-validate.test.mjs",
+  "scripts/acceptance-bundle.mjs",
+  "scripts/acceptance-bundle.test.mjs",
   "scripts/package-release-artifacts.mjs",
   "scripts/publish-forward-status.mjs",
   "scripts/publish-forward-status.test.mjs",
@@ -99,6 +105,7 @@ const requiredFiles = [
   "deploy/dynatrace-dql/service-dependencies-smartscape.dql",
   "deploy/dynatrace-dql/forward-ingest-status-latest.dql",
   "deploy/dynatrace-dql/forward-ingest-status-attention.dql",
+  "deploy/dynatrace-dashboard/forward-ingest-status-dashboard.template.json",
   "deploy/dynatrace-workflows/forward-sync-schedule.payload.example.json",
   "deploy/dynatrace-workflows/forward-sync-problem.payload.example.json",
   "deploy/dynatrace-workflows/forward-sync-on-demand.payload.example.json",
@@ -117,6 +124,13 @@ const requiredFiles = [
   ".github/CODEOWNERS",
   ".github/dependabot.yml",
   ".github/pull_request_template.md",
+  "schemas/connector-config.schema.json",
+  "schemas/forward-package-manifest.schema.json",
+  "schemas/forward-intent-checks.schema.json",
+  "schemas/forward-ingest-status.schema.json",
+  "schemas/forward-ingest-status-event.schema.json",
+  "schemas/forward-approval.schema.json",
+  "schemas/README.md",
 ];
 
 const requiredScreenshots = [
@@ -260,12 +274,14 @@ const publicBrandingFiles = [
   "docs/admin-operations.md",
   "docs/release.md",
   "docs/release-provenance.md",
+  "docs/governance.md",
   "docs/customer-acceptance-checklist.md",
   "docs/screenshots.md",
   "docs/validation-matrix.md",
   "docs/workflow.md",
   "docs/dynatrace-workflow-trigger.md",
   "ui/app/pages/Home.tsx",
+  "schemas/README.md",
 ];
 
 const retiredBrandingPatterns = [
@@ -393,6 +409,7 @@ for (const target of [
   "docs/admin-operations.md",
   "docs/release.md",
   "docs/release-provenance.md",
+  "docs/governance.md",
   "docs/customer-acceptance-checklist.md",
   "docs/demo-data.md",
   "docs/client-trial-plan.md",
@@ -404,6 +421,7 @@ for (const target of [
   "docs/forward-api-compatibility.md",
   "docs/harness-engineering.md",
   "docs/agent-guides/dynatrace-app.md",
+  "schemas/README.md",
 ]) {
   if (!agentMap.includes(target)) {
     fail(`AGENTS.md does not point to ${target}.`);
@@ -469,6 +487,9 @@ for (const scriptName of [
   "release:checksums:test",
   "release:sign:test",
   "release:signing-key:test",
+  "schemas:validate",
+  "schemas:validate:test",
+  "acceptance:bundle:test",
   "forward:nqe-preview:test",
   "forward:nqe-live-smoke:test",
   "forward:readiness:test",
@@ -502,6 +523,12 @@ if (!packageJson.scripts?.["release:sign"]) {
 }
 if (!packageJson.scripts?.["release:package"]) {
   fail("package.json must define npm script release:package.");
+}
+if (!packageJson.scripts?.["schemas:validate"]) {
+  fail("package.json must define npm script schemas:validate.");
+}
+if (!packageJson.scripts?.["acceptance:bundle"]) {
+  fail("package.json must define npm script acceptance:bundle.");
 }
 if (!packageJson.scripts?.["dynatrace:normalize"]) {
   fail("package.json must define npm script dynatrace:normalize.");
@@ -543,6 +570,9 @@ for (const requiredReleaseWorkflowText of [
   "npm run release:sign",
   "SHA256SUMS",
   "actions/attest@v4",
+  "aquasecurity/trivy-action@v0.36.0",
+  "github/codeql-action/upload-sarif@v4",
+  "security-events: write",
   "actions/upload-artifact",
   "docker/build-push-action",
   "ghcr.io/${{ github.repository_owner }}/forward-dynatrace-importer",
@@ -559,10 +589,12 @@ for (const requiredPackagerText of [
   "forward-dynatrace-importer-",
   "deploy/dynatrace-workflows",
   "deploy/dynatrace-dql",
+  "deploy/dynatrace-dashboard",
   "service-dependency-candidates-openpipeline-events.dql",
   "service-dependencies-smartscape.dql",
   "forward-ingest-status-latest.dql",
   "forward-ingest-status-attention.dql",
+  "forward-ingest-status-dashboard.template.json",
   "forward-sync-on-demand.payload.example.json",
   "docs/assets/screenshots",
   "docs/dynatrace-workflow-trigger.md",
@@ -574,8 +606,10 @@ for (const requiredPackagerText of [
   "docs/prospect-talk-track.md",
   "docs/execution-roadmap.md",
   "docs/release-provenance.md",
+  "docs/governance.md",
   "docs/customer-acceptance-checklist.md",
   "docs/dynatrace-status-dashboard.md",
+  "schemas",
   "docs/connector-runtime.md",
   "docs/deployment-readiness.md",
   "deploy/systemd/forward-dynatrace-connector.service",
@@ -584,6 +618,8 @@ for (const requiredPackagerText of [
   "scripts/write-release-checksums.mjs",
   "scripts/sign-release-checksums.mjs",
   "scripts/generate-release-signing-keypair.mjs",
+  "scripts/schema-validate.mjs",
+  "scripts/acceptance-bundle.mjs",
   "scripts/query-dynatrace-dependencies.mjs",
   "scripts/deploy-dynatrace-app.mjs",
   "scripts/forward-deployment-readiness.mjs",
@@ -652,6 +688,29 @@ for (const connectorConfigPath of [
   ]) {
     if (Object.hasOwn(connectorConfig, forbiddenKey)) {
       fail(`${connectorConfigPath} must not contain ${forbiddenKey}.`);
+    }
+  }
+}
+
+const dashboardTemplatePath =
+  "deploy/dynatrace-dashboard/forward-ingest-status-dashboard.template.json";
+const dashboardTemplate = await readJson(dashboardTemplatePath);
+if (dashboardTemplate.schemaVersion !== "forward-dynatrace-dashboard-template/v1") {
+  fail(`${dashboardTemplatePath} must use schemaVersion forward-dynatrace-dashboard-template/v1.`);
+}
+if (!Array.isArray(dashboardTemplate.queries) || dashboardTemplate.queries.length === 0) {
+  fail(`${dashboardTemplatePath} must define dashboard queries.`);
+} else {
+  for (const query of dashboardTemplate.queries) {
+    if (!query.queryFile) {
+      fail(`${dashboardTemplatePath} query ${query.id || "<unknown>"} must define queryFile.`);
+      continue;
+    }
+    const queryPath = path.normalize(
+      path.join(path.dirname(dashboardTemplatePath), query.queryFile),
+    );
+    if (!queryPath.startsWith("deploy/dynatrace-dql/") || !(await exists(queryPath))) {
+      fail(`${dashboardTemplatePath} queryFile must point at an existing DQL file: ${query.queryFile}.`);
     }
   }
 }

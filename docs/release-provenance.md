@@ -35,7 +35,15 @@ match the release signature to the public key used for that release.
 
 ## Verify A Release
 
-Verify checksums:
+Download the release into an empty verification directory:
+
+```bash
+mkdir -p forward-dynatrace-release
+cd forward-dynatrace-release
+gh release download <tag> --repo forwardnetworks/forward-dynatrace
+```
+
+Verify checksums before inspecting or installing any archive:
 
 ```bash
 sha256sum -c SHA256SUMS
@@ -49,6 +57,34 @@ npm run release:sign -- \
   --checksums SHA256SUMS \
   --public-key SHA256SUMS.pub \
   --signature SHA256SUMS.sig
+```
+
+Verify artifact attestations with GitHub CLI:
+
+```bash
+gh attestation verify forward-dynatrace-app-<tag>.tgz \
+  --repo forwardnetworks/forward-dynatrace
+
+gh attestation verify forward-dynatrace-importer-<tag>.tgz \
+  --repo forwardnetworks/forward-dynatrace
+
+gh attestation verify forward-dynatrace-sbom-<tag>.cdx.json \
+  --repo forwardnetworks/forward-dynatrace
+```
+
+Validate that the package schemas and acceptance workflow still pass from an unpacked importer archive or source
+checkout:
+
+```bash
+mkdir -p importer
+tar -xzf forward-dynatrace-importer-<tag>.tgz -C importer
+cd importer
+npm ci
+npm run schemas:validate
+npm run acceptance:bundle -- \
+  --dependencies shared/demo-dependencies.json \
+  --output-dir out/acceptance \
+  --release-dir ..
 ```
 
 ## GHCR Importer Image
@@ -73,11 +109,30 @@ Use the digest form in Kubernetes or other scheduled runtimes after acceptance:
 ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:<digest>
 ```
 
+Verify the image attestation and inspect the BuildKit metadata:
+
+```bash
+gh attestation verify oci://ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag> \
+  --owner forwardnetworks
+
+docker buildx imagetools inspect ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag>
+```
+
+Run a customer-side vulnerability scan when policy requires local evidence:
+
+```bash
+trivy image --severity HIGH,CRITICAL --ignore-unfixed \
+  ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag>
+```
+
 ## Attestations
 
 The release workflow emits GitHub artifact attestations for release files and the GHCR importer image. These
 attestations are release provenance signals; they do not replace customer change approval, package signature
 verification, or the Forward-side dry-run gate.
+
+The release workflow also uploads Trivy SARIF for the importer image. Treat the SARIF as vulnerability evidence for the
+published image, not as proof that a customer runtime is patched after deployment.
 
 ## Verification Order
 
@@ -85,5 +140,7 @@ verification, or the Forward-side dry-run gate.
 2. Verify `SHA256SUMS`.
 3. Verify `SHA256SUMS.sig` when present.
 4. Review the SBOM.
-5. Pull the GHCR image by tag, record its digest, and deploy by digest.
-6. Run the Forward-side dry-run before enabling `--apply`.
+5. Verify GitHub artifact attestations.
+6. Pull the GHCR image by tag, verify its image attestation, record its digest, and deploy by digest.
+7. Generate an acceptance evidence bundle.
+8. Run the Forward-side dry-run before enabling `--apply`.

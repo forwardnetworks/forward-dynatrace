@@ -1,6 +1,6 @@
 {
   "name": "forward-dynatrace",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Forward Field Integration reference for exporting intent-check packages from Dynatrace service dependency evidence",
   "scripts": {
     "build": "dt-app build",
@@ -51,13 +51,17 @@
     "release:sign:test": "node --test scripts/sign-release-checksums.test.mjs",
     "release:signing-key:generate": "node scripts/generate-release-signing-keypair.mjs",
     "release:signing-key:test": "node --test scripts/generate-release-signing-keypair.test.mjs",
+    "schemas:validate": "node scripts/schema-validate.mjs",
+    "schemas:validate:test": "node --test scripts/schema-validate.test.mjs",
+    "acceptance:bundle": "node scripts/acceptance-bundle.mjs",
+    "acceptance:bundle:test": "node --test scripts/acceptance-bundle.test.mjs",
     "forward:status:publish:test": "node --test scripts/publish-forward-status.test.mjs",
     "security:audit": "npm audit --omit=dev --audit-level=high",
     "sbom:check": "npm sbom --omit=dev --sbom-format=cyclonedx > /tmp/forward-dynatrace-sbom.cdx.json",
     "whitespace:check": "git diff --check",
     "test": "npm run forward:import:test && npm run release:checksums:test",
     "lint": "eslint .",
-    "ci": "npm run repo:validate && npm run whitespace:check && npm run forward:import:test && npm run forward:nqe-artifacts:test && npm run forward:nqe-preview:test && npm run forward:nqe-live-smoke:test && npm run forward:package:test && npm run forward:readiness:test && npm run forward:status:test && npm run forward:status:publish:test && npm run dynatrace:status:publish:test && npm run dynatrace:normalize:test && npm run dynatrace:replay-demo:test && npm run dynatrace:deploy:test && npm run release:checksums:test && npm run release:sign:test && npm run release:signing-key:test && npm run workflow:smoke && npm run load:scale && npm run runtime:validate && npm run runtime:slo:test && npm run dynatrace:workflow:validate && npm run demo:rehearsal && npm run security:audit && npm run sbom:check && npm run lint && npm run build && npm run release:package:smoke"
+    "ci": "npm run repo:validate && npm run whitespace:check && npm run schemas:validate && npm run schemas:validate:test && npm run acceptance:bundle:test && npm run forward:import:test && npm run forward:nqe-artifacts:test && npm run forward:nqe-preview:test && npm run forward:nqe-live-smoke:test && npm run forward:package:test && npm run forward:readiness:test && npm run forward:status:test && npm run forward:status:publish:test && npm run dynatrace:status:publish:test && npm run dynatrace:normalize:test && npm run dynatrace:replay-demo:test && npm run dynatrace:deploy:test && npm run release:checksums:test && npm run release:sign:test && npm run release:signing-key:test && npm run workflow:smoke && npm run load:scale && npm run runtime:validate && npm run runtime:slo:test && npm run dynatrace:workflow:validate && npm run demo:rehearsal && npm run security:audit && npm run sbom:check && npm run lint && npm run build && npm run release:package:smoke"
   },
   "engines": {
     "node": ">=24.0.0 <25.0.0"
@@ -89,6 +93,8 @@
     "@types/node": "^24.7.0",
     "@types/react": "^18.3.20",
     "@types/react-dom": "^18.3.5",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "dt-app": "1.11.2",
     "eslint": "^9.37.0",
     "eslint-plugin-n": "17.24.0",

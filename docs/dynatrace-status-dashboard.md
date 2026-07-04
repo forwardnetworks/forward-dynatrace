@@ -7,6 +7,12 @@ the workflow during a trial and to monitor scheduled connector health.
 The status event is telemetry only. It is not a command channel and does not contain Forward credentials, check names,
 hostnames, dependency rows, or Forward API response bodies.
 
+## Dashboard Template
+
+Use `deploy/dynatrace-dashboard/forward-ingest-status-dashboard.template.json` as the tenant build artifact. It points to
+the DQL files in `deploy/dynatrace-dql/` and documents the required event fields. Treat it as a construction template
+because final dashboard JSON is tenant-specific.
+
 ## Latest Runs
 
 Use `deploy/dynatrace-dql/forward-ingest-status-latest.dql`.

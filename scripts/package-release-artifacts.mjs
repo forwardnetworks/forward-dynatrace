@@ -26,6 +26,7 @@ const appArchiveEntries = [
   "README.md",
   "dist",
   "deploy/dynatrace-dql",
+  "deploy/dynatrace-dashboard",
   "deploy/dynatrace-workflows",
   "scripts/deploy-dynatrace-app.mjs",
   "docs/assets/screenshots",
@@ -42,8 +43,10 @@ const appArchiveEntries = [
   "docs/execution-roadmap.md",
   "docs/deployment-readiness.md",
   "docs/release-provenance.md",
+  "docs/governance.md",
   "docs/customer-acceptance-checklist.md",
   "docs/dynatrace-status-dashboard.md",
+  "schemas",
 ];
 
 const importerArchiveEntries = [
@@ -75,6 +78,10 @@ const importerArchiveEntries = [
   "scripts/publish-forward-status.mjs",
   "scripts/publish-dynatrace-status-event.mjs",
   "scripts/publish-dynatrace-status-event.test.mjs",
+  "scripts/schema-validate.mjs",
+  "scripts/schema-validate.test.mjs",
+  "scripts/acceptance-bundle.mjs",
+  "scripts/acceptance-bundle.test.mjs",
   "scripts/sign-forward-package.mjs",
   "scripts/sign-release-checksums.mjs",
   "scripts/sign-release-checksums.test.mjs",
@@ -98,8 +105,10 @@ const importerArchiveEntries = [
   "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
   "docs/release-provenance.md",
+  "docs/governance.md",
   "docs/customer-acceptance-checklist.md",
   "docs/dynatrace-status-dashboard.md",
+  "schemas",
 ];
 
 const requiredAppMembers = [
@@ -115,6 +124,7 @@ const requiredAppMembers = [
   "deploy/dynatrace-dql/service-dependencies-smartscape.dql",
   "deploy/dynatrace-dql/forward-ingest-status-latest.dql",
   "deploy/dynatrace-dql/forward-ingest-status-attention.dql",
+  "deploy/dynatrace-dashboard/forward-ingest-status-dashboard.template.json",
   "scripts/deploy-dynatrace-app.mjs",
   "docs/assets/screenshots",
   "docs/install.md",
@@ -129,8 +139,16 @@ const requiredAppMembers = [
   "docs/execution-roadmap.md",
   "docs/deployment-readiness.md",
   "docs/release-provenance.md",
+  "docs/governance.md",
   "docs/customer-acceptance-checklist.md",
   "docs/dynatrace-status-dashboard.md",
+  "schemas/connector-config.schema.json",
+  "schemas/forward-package-manifest.schema.json",
+  "schemas/forward-intent-checks.schema.json",
+  "schemas/forward-ingest-status.schema.json",
+  "schemas/forward-ingest-status-event.schema.json",
+  "schemas/forward-approval.schema.json",
+  "schemas/README.md",
 ];
 
 const requiredImporterMembers = [
@@ -138,6 +156,7 @@ const requiredImporterMembers = [
   "api/forward-sync.function.ts",
   "config/forward-connector.config.example.json",
   "config/forward-connector.signed.config.example.json",
+  "config/forward-import.approval.example.json",
   "config/forward-nqe-live-smoke.approval.example.json",
   "deploy/systemd/forward-dynatrace-connector.service",
   "deploy/docker-compose/compose.yaml",
@@ -162,6 +181,10 @@ const requiredImporterMembers = [
   "scripts/publish-forward-status.mjs",
   "scripts/publish-dynatrace-status-event.mjs",
   "scripts/publish-dynatrace-status-event.test.mjs",
+  "scripts/schema-validate.mjs",
+  "scripts/schema-validate.test.mjs",
+  "scripts/acceptance-bundle.mjs",
+  "scripts/acceptance-bundle.test.mjs",
   "shared/demo-dynatrace-query-rows.json",
   "shared/demo-dependencies.json",
   "scripts/sign-forward-package.mjs",
@@ -185,8 +208,16 @@ const requiredImporterMembers = [
   "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
   "docs/release-provenance.md",
+  "docs/governance.md",
   "docs/customer-acceptance-checklist.md",
   "docs/dynatrace-status-dashboard.md",
+  "schemas/connector-config.schema.json",
+  "schemas/forward-package-manifest.schema.json",
+  "schemas/forward-intent-checks.schema.json",
+  "schemas/forward-ingest-status.schema.json",
+  "schemas/forward-ingest-status-event.schema.json",
+  "schemas/forward-approval.schema.json",
+  "schemas/README.md",
 ];
 
 const parseArgs = (argv) => {

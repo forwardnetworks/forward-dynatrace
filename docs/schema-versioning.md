@@ -2,6 +2,11 @@
 
 The current package schema is `forward-dynatrace/v1`.
 
+Formal JSON Schemas live in `schemas/` and are validated by `npm run schemas:validate`. They define the package-boundary
+contract for manifests, generated checks, connector configs, approval artifacts, and status telemetry. The Forward-side
+importer remains the enforcement point for runtime controls such as age limits, checksums, signatures, query ID
+allowlists, and mutation budgets.
+
 ## Compatibility Rules
 
 - `forward-dynatrace/v1` remains backward compatible for additive optional fields.

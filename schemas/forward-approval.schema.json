@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/forward-approval.schema.json",
+  "title": "Forward Dynatrace approval artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "packageId", "expiresAt"],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace-approval/v1" },
+    "packageId": { "$ref": "#/definitions/nonEmptyString" },
+    "changeWindowId": { "$ref": "#/definitions/nonEmptyString" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "approvedBy": { "$ref": "#/definitions/nonEmptyString" },
+    "reason": { "$ref": "#/definitions/nonEmptyString" },
+    "approvedChangedKeys": { "$ref": "#/definitions/dynatraceKeys" },
+    "approvedStaleKeys": { "$ref": "#/definitions/dynatraceKeys" }
+  },
+  "definitions": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "dynatraceKeys": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^dynatrace-key:[^\\s]+$" }
+    }
+  }
+}

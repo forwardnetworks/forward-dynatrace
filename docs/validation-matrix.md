@@ -18,6 +18,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Package validation | Importer rejects malformed packages and checksum mismatches before Forward environment variables or API calls are required. |
 | Package signature validation | Importer verifies valid detached Ed25519 signatures and rejects signatures for changed package bytes. |
 | Schema versioning policy | `docs/schema-versioning.md` defines the current `forward-dynatrace/v1` contract and migration checklist. |
+| Formal artifact schemas | `npm run schemas:validate` compiles the JSON Schemas in `schemas/`, validates connector and approval examples, builds a demo package, and validates generated manifest, intent checks, status artifact, and status event. `npm run schemas:validate:test` covers success and rejection paths. |
 | Connector config validation | Importer supports `--config`, rejects secrets in config files, and accepts non-secret runtime settings. |
 | Connector metrics | `npm run workflow:smoke` verifies Prometheus-style metrics output from config import. |
 | Runtime SLO gate | `npm run runtime:slo:test` verifies report/metrics SLO checks for duration, unresolved drift, signature requirements, and metric/report mismatch. |
@@ -26,13 +27,14 @@ This document tracks what is validated today and what still needs a live Forward
 | Forward status publication | `npm run forward:status:publish:test` verifies sanitized status publication, checksum output, publish-safe Dynatrace status event output, unknown-field rejection, and credential-like content rejection. |
 | Dynatrace status event publication | `npm run dynatrace:status:publish:test` verifies Apps-to-live ingest URL mapping, event schema validation, credential-like content rejection, OpenPipeline record shaping, and dry-run behavior without requiring a token. |
 | Dynatrace status dashboard query pack | `deploy/dynatrace-dql/forward-ingest-status-latest.dql` and `deploy/dynatrace-dql/forward-ingest-status-attention.dql` provide read-only status-event views for latest runs and operator attention. |
+| Dynatrace status dashboard artifact | `deploy/dynatrace-dashboard/forward-ingest-status-dashboard.template.json` provides a tenant dashboard construction artifact and `npm run repo:validate` verifies that referenced DQL files exist. |
 | Live demo runbook | `docs/live-demo-runbook.md` keeps customer-owned Dynatrace data as the production path and documents standard demo replay for trial sandboxes. `npm run repo:validate` requires the doc and release packaging includes it. |
 | Forward API compatibility notes | `docs/forward-api-compatibility.md` documents required Forward endpoints, the no-fallback bulk create gate, and optional NQE/query-ID paths. `npm run repo:validate` requires the doc and release packaging includes it. |
 | Synthetic Forward workflow | `npm run workflow:smoke` exercises validate-only, signed package validation, config import, metrics output, dry-run, 1001-check chunked apply, transient retry, unchanged, changed, stale, approved changed replacement, and approved stale deactivation flows against a fake Forward API. |
 | Load and scale smoke | `npm run load:scale` generates 2500 synthetic Dynatrace dependency rows, normalizes them, builds a `data-connector` package, validates it, applies exportable checks to a fake Forward API in 400-check batches, and reruns the same package to confirm unchanged reconciliation. |
 | Live Forward workflow | Real non-production Forward test network validated on 2026-06-30: dry-run create=3, apply create=3, rerun unchanged=3, changed drift=1, stale drift=1, and `--fail-on-drift` exit code 2. Validation checks were deleted after the run and confirmed remaining=0. |
 | UI workflow screenshots | `npm run demo:capture` captures `docs/assets/screenshots/*.jpg` from the built app with local app-function shims and placeholder data. |
-| Dynatrace app build package | Version `1.0.13` builds locally. |
+| Dynatrace app build package | Version `1.0.14` builds locally. |
 | Dynatrace install policy | A live unsigned deploy of the default `com.forwardnetworks.*` app ID was correctly rejected by Dynatrace AppEngine because unsigned non-`my.*` app IDs must be signed. `npm run dynatrace:deploy:test` now enforces the signed enterprise path or explicit `my.*` trial app ID before invoking `dt-app`. |
 | Dynatrace trial app install | Version `1.0.10` installed successfully into a non-production Dynatrace Apps tenant on 2026-07-03 with the explicit unsigned trial app ID `my.forwardnetworks.dynatrace.field.integration`. The deploy wrapper restored the public `app.config.json` after install. |
 | Dynatrace App Toolkit pin | `dt-app` is pinned to `1.11.2` and enforced by `npm run repo:validate`; a newer toolkit was not adopted during this pass because tenant deploy did not complete reliably in local validation. |
@@ -41,6 +43,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Dynatrace saved demo replay | `npm run dynatrace:replay-demo` dry-runs a checked 100-row standard demo fixture. With `--apply`, it replays those rows into a trial tenant through OpenPipeline using a local Platform Token. Live replay/query on 2026-07-03 returned 100 records, 100 ready rows, and 0 review/needs-map rows. |
 | Dynatrace ingest status feedback | A real Forward-side dry-run produced a sanitized status artifact on 2026-07-03. `npm run dynatrace:status:publish -- --apply` published the derived aggregate event to a non-production Dynatrace tenant, and a read-only DQL query returned `forward.dynatrace.ingest.status`, `import_state=reconciled`, and `planned_checks=100`. |
 | Standard demo Forward reconciliation | The standard demo replay was queried from Dynatrace, packaged without `--include-review`, and dry-run reconciled against a non-production Forward demo network on 2026-07-03: planned=100, create=0, unchanged=100, changed=0, stale=0. |
+| Acceptance evidence bundle | `npm run acceptance:bundle:test` builds the standard demo package, validates optional NQE artifacts, emits a sanitized status event, validates schemas, and writes `ACCEPTANCE.md` without contacting Forward. |
 | Live deployment readiness gate | `npm run forward:readiness -- --dry-run` passed against the non-production Forward standard demo network on 2026-07-03: 100 eligible dependencies, 100 planned checks, 100 existing Dynatrace-managed checks, create=0, unchanged=100, changed=0, stale=0. |
 | Legacy export path removal | `npm run repo:validate` blocks legacy secondary-artifact terms. |
 | Secret hygiene | `npm run repo:validate` blocks committed Dynatrace token-shaped secrets, concrete tenant URLs, OAuth callbacks, private token filenames, personal references, and non-placeholder Forward credentials. |
@@ -64,6 +67,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Release archive download verification | The `v1.0.9`, `v1.0.10`, `v1.0.11`, and `v1.0.13` GitHub release archives were downloaded and `SHA256SUMS` verified locally. The `v1.0.13` SBOM checksum and `SHA256SUMS.sig` were verified locally; app/importer archives were checked for release provenance docs, customer acceptance checklist, status dashboard docs, and status DQL files. |
 | GitHub release workflow | `.github/workflows/release.yml` runs CI, calls `npm run release:package`, uploads artifacts, and publishes tag releases with `SHA256SUMS`. |
 | GHCR importer image workflow | `.github/workflows/release.yml` publishes `ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag>` on tag releases and requests image/artifact attestations. The `v1.0.13` image was inspected locally at digest `sha256:066ed4cfd4c63051995249cf89c52c7faea2a293055654a5dac1c8e7579af4ce`. |
+| Container vulnerability scan workflow | `.github/workflows/release.yml` scans the published GHCR importer image with `aquasecurity/trivy-action@v0.36.0`, uploads SARIF through CodeQL, and publishes the SARIF as a workflow artifact. |
 | Data handling rules | `docs/data-handling.md` defines publish-safe artifact rules and `npm run repo:validate` blocks known tenant, token, local path, and personal-reference patterns. |
 | RBAC model | `docs/rbac.md` defines least-privilege roles and separation rules for package publishing, review, apply, signing, and runtime administration. |
 | Package handoff controls | `docs/package-handoff.md` defines retention, immutability, access logging, publish order, and storage requirements. |
@@ -76,6 +80,9 @@ This document tracks what is validated today and what still needs a live Forward
 | Check | Command |
 | --- | --- |
 | Repository invariants | `npm run repo:validate` |
+| Formal schemas | `npm run schemas:validate` |
+| Schema validator tests | `npm run schemas:validate:test` |
+| Acceptance evidence bundle | `npm run acceptance:bundle:test` |
 | Importer tests | `npm run forward:import:test` |
 | Optional NQE artifact tests | `npm run forward:nqe-artifacts:test` |
 | Read-only NQE preview tests | `npm run forward:nqe-preview:test` |

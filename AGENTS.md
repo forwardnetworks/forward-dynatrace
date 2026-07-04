@@ -34,6 +34,7 @@ docs and executable checks.
 - [docs/admin-operations.md](docs/admin-operations.md): audit export, config restore, disaster recovery, and access review.
 - [docs/release.md](docs/release.md): release workflow, artifacts, and checksum verification.
 - [docs/release-provenance.md](docs/release-provenance.md): SBOM, self-managed signatures, GHCR image, and attestations.
+- [docs/governance.md](docs/governance.md): PR-only governance and branch-rule checklist.
 - [docs/customer-acceptance-checklist.md](docs/customer-acceptance-checklist.md): customer trial and production acceptance gates.
 - [docs/validation-matrix.md](docs/validation-matrix.md): tested, automated, and remaining validation.
 - [docs/demo-data.md](docs/demo-data.md): standard demo fixtures and Dynatrace replay data.
@@ -43,6 +44,7 @@ docs and executable checks.
 - [docs/execution-roadmap.md](docs/execution-roadmap.md): phased plan, optional NQE path, and ownership boundaries.
 - [docs/harness-engineering.md](docs/harness-engineering.md): agent-first operating model for this repo.
 - [docs/agent-guides/dynatrace-app.md](docs/agent-guides/dynatrace-app.md): detailed Dynatrace AppEngine, Strato, and SDK guidance.
+- [schemas/README.md](schemas/README.md): JSON Schema contracts and validation command.
 
 ## Non-Negotiables
 
@@ -83,6 +85,9 @@ npm run forward:package -- --help
 npm run forward:status:test
 npm run forward:status:publish -- --help
 npm run forward:status:publish:test
+npm run schemas:validate
+npm run schemas:validate:test
+npm run acceptance:bundle:test
 npm run release:checksums:test
 npm run release:signing-key:test
 npm run demo:rehearsal

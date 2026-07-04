@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "forward-dynatrace-approval/v1",
+  "packageId": "dynatrace-forward-demo",
+  "changeWindowId": "CHG-DEMO-0001",
+  "expiresAt": "2099-01-01T00:00:00.000Z",
+  "approvedBy": "forward-operator",
+  "reason": "Example approval artifact for changed or stale generated checks.",
+  "approvedChangedKeys": [
+    "dynatrace-key:dt:demo:changed"
+  ],
+  "approvedStaleKeys": [
+    "dynatrace-key:dt:demo:stale"
+  ]
+}

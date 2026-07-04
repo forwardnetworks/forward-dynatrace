@@ -7,6 +7,9 @@ commands locally that GitHub Actions runs on pull requests.
 
 ```bash
 npm run repo:validate
+npm run schemas:validate
+npm run schemas:validate:test
+npm run acceptance:bundle:test
 npm run forward:import:test
 npm run workflow:smoke
 npm run runtime:validate
@@ -26,11 +29,15 @@ git diff --check
 Recommended repository settings:
 
 - Require pull requests before merging to `main`.
+- Require Code Owner review.
 - Require the `gitops` GitHub Actions workflow.
 - Require branches to be up to date before merge.
 - Dismiss stale approvals when new commits are pushed.
 - Restrict direct pushes to release/admin maintainers.
+- Disable force pushes and branch deletion.
 - Keep deployment separate from CI. CI builds; humans or release automation deploy.
+
+Use `docs/governance.md` as the detailed branch-rule checklist.
 
 ## Release Discipline
 

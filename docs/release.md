@@ -10,19 +10,20 @@ Actions. It is not published to PyPI.
 
    ```bash
    npm run ci
+   npm run acceptance:bundle -- --dependencies shared/demo-dependencies.json --output-dir out/acceptance
    git diff --check
    ```
 
 3. Tag the release:
 
    ```bash
-   git tag v1.0.13
-   git push origin v1.0.13
+   git tag v1.0.14
+   git push origin v1.0.14
    ```
 
 4. The `release` workflow builds with Node 24, runs `npm run ci`, runs `npm run release:package`, optionally
-   self-signs `SHA256SUMS`, uploads workflow artifacts, publishes the GHCR importer image, emits attestations, and
-   publishes a GitHub release for tag pushes.
+   self-signs `SHA256SUMS`, uploads workflow artifacts, publishes the GHCR importer image, emits attestations, scans
+   the image with Trivy SARIF output, and publishes a GitHub release for tag pushes.
 
 For a local archive smoke test after `npm run build`:
 
@@ -42,6 +43,7 @@ npm run release:package:smoke
   public key for self-managed verification. The release signing key must be separate from Forward intent-package
   signing keys.
 - `ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag>`: Forward-side importer image for scheduled runtimes.
+- Trivy SARIF workflow artifact: vulnerability scan evidence for the published importer image.
 
 See [release-provenance.md](release-provenance.md) for the full verification path, GHCR digest pinning, and
 self-managed signing key setup.

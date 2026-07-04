@@ -32,6 +32,8 @@ imports or pulls that package.
 - Forward importer workflow: `docs/forward-importer.md`
 - Forward importer script: `scripts/forward-import-package.mjs`
 - Forward deployment readiness: `scripts/forward-deployment-readiness.mjs`, `docs/deployment-readiness.md`
+- Acceptance evidence bundle: `scripts/acceptance-bundle.mjs`
+- Artifact schemas: `schemas/`, `scripts/schema-validate.mjs`
 - Dynatrace deploy wrapper: `scripts/deploy-dynatrace-app.mjs`
 - Forward status publisher: `scripts/publish-forward-status.mjs`
 - Dynatrace status event publisher: `scripts/publish-dynatrace-status-event.mjs`
@@ -44,6 +46,7 @@ imports or pulls that package.
 - Demo/test data: `docs/demo-data.md`
 - Live demo runbook: `docs/live-demo-runbook.md`
 - Dynatrace DQL starter/status queries: `deploy/dynatrace-dql/`
+- Dynatrace status dashboard template: `deploy/dynatrace-dashboard/`
 - Production checklist: `docs/production-readiness.md`
 - Customer acceptance checklist: `docs/customer-acceptance-checklist.md`
 - Enterprise hardening backlog: `docs/enterprise-hardening.md`
@@ -59,6 +62,7 @@ imports or pulls that package.
 - Admin operations: `docs/admin-operations.md`
 - Release workflow: `docs/release.md`
 - Release provenance: `docs/release-provenance.md`
+- PR-only governance: `docs/governance.md`
 - Validation matrix: `docs/validation-matrix.md`
 - Harness engineering notes: `docs/harness-engineering.md`
 - GitOps checks: `docs/gitops.md`
@@ -153,6 +157,26 @@ replacement and stale-check deactivation are optional Forward-side paths describ
 For package provenance, sign the exact manifest/check package with `npm run forward:sign` and run the importer with
 `--require-signature`.
 
+## Acceptance Evidence
+
+Generate a read-only evidence bundle for a trial, release intake, or customer acceptance packet:
+
+```bash
+npm run acceptance:bundle -- \
+  --dependencies shared/demo-dependencies.json \
+  --output-dir out/acceptance \
+  --sync-mode data-connector
+```
+
+The bundle builds a package, validates it, emits sanitized Forward ingest status and Dynatrace status-event artifacts,
+and runs schema validation. It does not contact Forward and does not apply checks.
+
+Validate public artifact contracts directly with:
+
+```bash
+npm run schemas:validate
+```
+
 ## Configure
 
 The dev environment is configured in `app.config.json`:
@@ -200,6 +224,9 @@ npm run forward:package -- --help
 npm run forward:status:test
 npm run forward:status:publish -- --help
 npm run forward:status:publish:test
+npm run schemas:validate
+npm run schemas:validate:test
+npm run acceptance:bundle:test
 npm run demo:rehearsal
 npm run security:audit
 npm run sbom:check

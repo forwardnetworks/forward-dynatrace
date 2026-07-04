@@ -1,7 +1,7 @@
 {
   "schemaVersion": "forward-dynatrace-status/v1",
   "runId": "forward-dynatrace-demo-status",
-  "finishedAt": "2026-07-03T12:49:00.000Z",
+  "generatedAt": "2026-07-03T12:49:00.000Z",
   "durationMs": 2400,
   "packageId": "dynatrace-forward-demo",
   "mode": "dry-run",

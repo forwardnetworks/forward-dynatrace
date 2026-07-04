@@ -12,6 +12,7 @@ permissions:
   contents: write
   id-token: write
   packages: write
+  security-events: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -114,6 +115,33 @@ jobs:
           subject-name: ${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build-push.outputs.digest }}
           push-to-registry: true
+
+      - name: Scan GHCR importer image
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          vuln-type: os,library
+          ignore-unfixed: true
+          exit-code: "0"
+
+      - name: Upload Trivy SARIF
+        if: startsWith(github.ref, 'refs/tags/')
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Upload Trivy workflow artifact
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v6
+        with:
+          name: forward-dynatrace-trivy-sarif
+          path: trivy-results.sarif
+          if-no-files-found: error
 
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/')
