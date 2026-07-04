@@ -3,6 +3,9 @@
 `Dockerfile.forward-importer` packages only the Forward-side importer and connector config example. It does not include
 the Dynatrace app dev/build runtime.
 
+The image removes `npm` and `npx` after copying runtime files. The importer uses Node built-ins and local scripts at
+runtime, so package-manager tooling is not required in the shipped image.
+
 ## Build
 
 ```bash

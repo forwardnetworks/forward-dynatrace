@@ -1,6 +1,6 @@
 services:
   forward-dynatrace-importer:
-    image: ${FORWARD_DYNATRACE_IMPORTER_IMAGE:-registry.example.com/forward-dynatrace-importer:1.0.14}
+    image: ${FORWARD_DYNATRACE_IMPORTER_IMAGE:-registry.example.com/forward-dynatrace-importer:1.0.15}
     build:
       context: ../..
       dockerfile: Dockerfile.forward-importer

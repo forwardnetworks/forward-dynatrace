@@ -34,7 +34,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Load and scale smoke | `npm run load:scale` generates 2500 synthetic Dynatrace dependency rows, normalizes them, builds a `data-connector` package, validates it, applies exportable checks to a fake Forward API in 400-check batches, and reruns the same package to confirm unchanged reconciliation. |
 | Live Forward workflow | Real non-production Forward test network validated on 2026-06-30: dry-run create=3, apply create=3, rerun unchanged=3, changed drift=1, stale drift=1, and `--fail-on-drift` exit code 2. Validation checks were deleted after the run and confirmed remaining=0. |
 | UI workflow screenshots | `npm run demo:capture` captures `docs/assets/screenshots/*.jpg` from the built app with local app-function shims and placeholder data. |
-| Dynatrace app build package | Version `1.0.14` builds locally. |
+| Dynatrace app build package | Version `1.0.15` builds locally. |
 | Dynatrace install policy | A live unsigned deploy of the default `com.forwardnetworks.*` app ID was correctly rejected by Dynatrace AppEngine because unsigned non-`my.*` app IDs must be signed. `npm run dynatrace:deploy:test` now enforces the signed enterprise path or explicit `my.*` trial app ID before invoking `dt-app`. |
 | Dynatrace trial app install | Version `1.0.10` installed successfully into a non-production Dynatrace Apps tenant on 2026-07-03 with the explicit unsigned trial app ID `my.forwardnetworks.dynatrace.field.integration`. The deploy wrapper restored the public `app.config.json` after install. |
 | Dynatrace App Toolkit pin | `dt-app` is pinned to `1.11.2` and enforced by `npm run repo:validate`; a newer toolkit was not adopted during this pass because tenant deploy did not complete reliably in local validation. |
@@ -58,7 +58,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Forward ingest status display | `api/forward-status.function.ts` and `shared/demo-forward-ingest-status.json` validate/display aggregate Forward-side ingest status only. |
 | Dependency audit | `npm run security:audit` passes for production dependencies. |
 | SBOM generation | `npm run sbom:check` generates a CycloneDX SBOM from production dependencies. |
-| Importer container | `docker build -f Dockerfile.forward-importer -t forward-dynatrace-importer:local .`, `docker run --rm forward-dynatrace-importer:local --help`, and `docker run --rm --entrypoint node forward-dynatrace-importer:local scripts/forward-deployment-readiness.mjs --help` passed locally for the release line. |
+| Importer container | `docker build -f Dockerfile.forward-importer -t forward-dynatrace-importer:local-hardening .`, `docker run --rm forward-dynatrace-importer:local-hardening --help`, and a runtime check confirming `npm`/`npx` are absent passed locally for the release line. |
 | Release checksums | `npm run release:checksums:test` verifies SHA-256 checksum file generation for release artifacts. |
 | Release checksum signing | `npm run release:sign:test` verifies detached Ed25519 signing and tamper-detection for `SHA256SUMS`. |
 | Self-managed release signing key generation | `npm run release:signing-key:test` verifies local Ed25519 key generation, private-key file mode, public-key export, and signature verification. |
@@ -67,7 +67,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Release archive download verification | The `v1.0.9`, `v1.0.10`, `v1.0.11`, and `v1.0.13` GitHub release archives were downloaded and `SHA256SUMS` verified locally. The `v1.0.13` SBOM checksum and `SHA256SUMS.sig` were verified locally; app/importer archives were checked for release provenance docs, customer acceptance checklist, status dashboard docs, and status DQL files. |
 | GitHub release workflow | `.github/workflows/release.yml` runs CI, calls `npm run release:package`, uploads artifacts, and publishes tag releases with `SHA256SUMS`. |
 | GHCR importer image workflow | `.github/workflows/release.yml` publishes `ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag>` on tag releases and requests image/artifact attestations. The `v1.0.13` image was inspected locally at digest `sha256:066ed4cfd4c63051995249cf89c52c7faea2a293055654a5dac1c8e7579af4ce`. |
-| Container vulnerability scan workflow | `.github/workflows/release.yml` scans the published GHCR importer image with `aquasecurity/trivy-action@v0.36.0`, uploads SARIF through CodeQL, and publishes the SARIF as a workflow artifact. |
+| Container vulnerability scan workflow | `.github/workflows/release.yml` scans the published GHCR importer image with `aquasecurity/trivy-action@v0.36.0`, uploads SARIF through CodeQL, and publishes the SARIF as a workflow artifact. Local Trivy validation of the npm-stripped importer image found no HIGH/CRITICAL vulnerabilities. |
 | Data handling rules | `docs/data-handling.md` defines publish-safe artifact rules and `npm run repo:validate` blocks known tenant, token, local path, and personal-reference patterns. |
 | RBAC model | `docs/rbac.md` defines least-privilege roles and separation rules for package publishing, review, apply, signing, and runtime administration. |
 | Package handoff controls | `docs/package-handoff.md` defines retention, immutability, access logging, publish order, and storage requirements. |
