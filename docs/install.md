@@ -22,7 +22,7 @@ Steps:
 ```bash
 git clone https://github.com/forwardnetworks/forward-dynatrace.git
 cd forward-dynatrace
-git checkout v1.0.15
+git checkout v1.0.0
 npm ci
 npm run ci
 npm run acceptance:bundle -- --dependencies shared/demo-dependencies.json --output-dir out/acceptance

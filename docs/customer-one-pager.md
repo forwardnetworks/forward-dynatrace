@@ -51,17 +51,17 @@ records schema-validation evidence without contacting Forward.
 
 ## Release Verification
 
-Use `v1.0.15` or newer. Verify release artifacts before install:
+Use `v1.0.0` or newer. Verify release artifacts before install:
 
 ```bash
-gh release download v1.0.15 --repo forwardnetworks/forward-dynatrace
+gh release download v1.0.0 --repo forwardnetworks/forward-dynatrace
 sha256sum -c SHA256SUMS
 npm run release:sign -- --verify --checksums SHA256SUMS --public-key SHA256SUMS.pub --signature SHA256SUMS.sig
-gh attestation verify forward-dynatrace-importer-v1.0.15.tgz --repo forwardnetworks/forward-dynatrace
-gh attestation verify oci://ghcr.io/forwardnetworks/forward-dynatrace-importer:v1.0.15 --owner forwardnetworks
+gh attestation verify forward-dynatrace-importer-v1.0.0.tgz --repo forwardnetworks/forward-dynatrace
+gh attestation verify oci://ghcr.io/forwardnetworks/forward-dynatrace-importer:v1.0.0 --owner forwardnetworks
 ```
 
-The verified importer image digest for `v1.0.15` is:
+The verified importer image digest for `v1.0.0` is:
 
 ```text
 ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:b2243c8cd17cc61da8d52e6843cb156023c49bdb878bbd0d58d5fe5d565f078b
