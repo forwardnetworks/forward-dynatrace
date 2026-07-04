@@ -126,7 +126,7 @@ jobs:
           severity: HIGH,CRITICAL
           vuln-type: os,library
           ignore-unfixed: true
-          exit-code: "0"
+          exit-code: "1"
 
       - name: Upload Trivy SARIF
         if: startsWith(github.ref, 'refs/tags/')

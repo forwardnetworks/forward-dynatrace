@@ -131,8 +131,8 @@ The release workflow emits GitHub artifact attestations for release files and th
 attestations are release provenance signals; they do not replace customer change approval, package signature
 verification, or the Forward-side dry-run gate.
 
-The release workflow also uploads Trivy SARIF for the importer image. Treat the SARIF as vulnerability evidence for the
-published image, not as proof that a customer runtime is patched after deployment.
+The release workflow uploads Trivy SARIF for the importer image and fails on HIGH/CRITICAL findings. Treat the SARIF as
+vulnerability evidence for the published image, not as proof that a customer runtime is patched after deployment.
 
 ## Verification Order
 

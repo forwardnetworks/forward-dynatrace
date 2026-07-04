@@ -45,6 +45,7 @@ const appArchiveEntries = [
   "docs/release-provenance.md",
   "docs/governance.md",
   "docs/customer-acceptance-checklist.md",
+  "docs/customer-one-pager.md",
   "docs/dynatrace-status-dashboard.md",
   "schemas",
 ];
@@ -107,6 +108,7 @@ const importerArchiveEntries = [
   "docs/release-provenance.md",
   "docs/governance.md",
   "docs/customer-acceptance-checklist.md",
+  "docs/customer-one-pager.md",
   "docs/dynatrace-status-dashboard.md",
   "schemas",
 ];
@@ -141,6 +143,7 @@ const requiredAppMembers = [
   "docs/release-provenance.md",
   "docs/governance.md",
   "docs/customer-acceptance-checklist.md",
+  "docs/customer-one-pager.md",
   "docs/dynatrace-status-dashboard.md",
   "schemas/connector-config.schema.json",
   "schemas/forward-package-manifest.schema.json",
@@ -210,6 +213,7 @@ const requiredImporterMembers = [
   "docs/release-provenance.md",
   "docs/governance.md",
   "docs/customer-acceptance-checklist.md",
+  "docs/customer-one-pager.md",
   "docs/dynatrace-status-dashboard.md",
   "schemas/connector-config.schema.json",
   "schemas/forward-package-manifest.schema.json",

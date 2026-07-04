@@ -36,6 +36,7 @@ docs and executable checks.
 - [docs/release-provenance.md](docs/release-provenance.md): SBOM, self-managed signatures, GHCR image, and attestations.
 - [docs/governance.md](docs/governance.md): PR-only governance and branch-rule checklist.
 - [docs/customer-acceptance-checklist.md](docs/customer-acceptance-checklist.md): customer trial and production acceptance gates.
+- [docs/customer-one-pager.md](docs/customer-one-pager.md): customer handout for integration scope and verification.
 - [docs/validation-matrix.md](docs/validation-matrix.md): tested, automated, and remaining validation.
 - [docs/demo-data.md](docs/demo-data.md): standard demo fixtures and Dynatrace replay data.
 - [docs/client-trial-plan.md](docs/client-trial-plan.md): meeting/demo rehearsal, trial tenant, and live Forward workflow.

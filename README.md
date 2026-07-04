@@ -49,6 +49,7 @@ imports or pulls that package.
 - Dynatrace status dashboard template: `deploy/dynatrace-dashboard/`
 - Production checklist: `docs/production-readiness.md`
 - Customer acceptance checklist: `docs/customer-acceptance-checklist.md`
+- Customer one-page handout: `docs/customer-one-pager.md`
 - Enterprise hardening backlog: `docs/enterprise-hardening.md`
 - Operations runbook: `docs/operations-runbook.md`
 - Incident response runbook: `docs/incident-response.md`

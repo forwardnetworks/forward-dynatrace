@@ -23,7 +23,7 @@ Actions. It is not published to PyPI.
 
 4. The `release` workflow builds with Node 24, runs `npm run ci`, runs `npm run release:package`, optionally
    self-signs `SHA256SUMS`, uploads workflow artifacts, publishes the GHCR importer image, emits attestations, scans
-   the image with Trivy SARIF output, and publishes a GitHub release for tag pushes.
+   the image with Trivy SARIF output, fails on HIGH/CRITICAL findings, and publishes a GitHub release for tag pushes.
 
 For a local archive smoke test after `npm run build`:
 
@@ -43,7 +43,8 @@ npm run release:package:smoke
   public key for self-managed verification. The release signing key must be separate from Forward intent-package
   signing keys.
 - `ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag>`: Forward-side importer image for scheduled runtimes.
-- Trivy SARIF workflow artifact: vulnerability scan evidence for the published importer image.
+- Trivy SARIF workflow artifact: vulnerability scan evidence for the published importer image. HIGH/CRITICAL findings
+  fail the release.
 
 See [release-provenance.md](release-provenance.md) for the full verification path, GHCR digest pinning, and
 self-managed signing key setup.

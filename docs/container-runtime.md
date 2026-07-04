@@ -25,8 +25,11 @@ docker image inspect ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag> \
 For production or customer pilots, deploy the digest-pinned image rather than `latest`:
 
 ```text
-ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:<digest>
+ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:b2243c8cd17cc61da8d52e6843cb156023c49bdb878bbd0d58d5fe5d565f078b
 ```
+
+The checked Docker Compose and Kubernetes examples default to this verified `v1.0.15` digest. Override it only after
+verifying the replacement release checksums, attestations, SBOM, and Trivy SARIF.
 
 Release provenance, SBOM, and signature verification details are in
 [release-provenance.md](release-provenance.md).
