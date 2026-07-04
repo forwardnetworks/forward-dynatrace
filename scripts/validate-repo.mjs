@@ -35,8 +35,11 @@ const requiredFiles = [
   "docs/rbac.md",
   "docs/package-handoff.md",
   "docs/observability.md",
+  "docs/dynatrace-status-dashboard.md",
   "docs/admin-operations.md",
   "docs/release.md",
+  "docs/release-provenance.md",
+  "docs/customer-acceptance-checklist.md",
   "docs/validation-matrix.md",
   "docs/harness-engineering.md",
   "docs/gitops.md",
@@ -59,6 +62,8 @@ const requiredFiles = [
   "scripts/sign-forward-package.mjs",
   "scripts/sign-release-checksums.mjs",
   "scripts/sign-release-checksums.test.mjs",
+  "scripts/generate-release-signing-keypair.mjs",
+  "scripts/generate-release-signing-keypair.test.mjs",
   "scripts/package-release-artifacts.mjs",
   "scripts/publish-forward-status.mjs",
   "scripts/publish-forward-status.test.mjs",
@@ -92,6 +97,8 @@ const requiredFiles = [
   "scripts/replay-dynatrace-demo-data.test.mjs",
   "deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql",
   "deploy/dynatrace-dql/service-dependencies-smartscape.dql",
+  "deploy/dynatrace-dql/forward-ingest-status-latest.dql",
+  "deploy/dynatrace-dql/forward-ingest-status-attention.dql",
   "deploy/dynatrace-workflows/forward-sync-schedule.payload.example.json",
   "deploy/dynatrace-workflows/forward-sync-problem.payload.example.json",
   "deploy/dynatrace-workflows/forward-sync-on-demand.payload.example.json",
@@ -249,8 +256,11 @@ const publicBrandingFiles = [
   "docs/rbac.md",
   "docs/package-handoff.md",
   "docs/observability.md",
+  "docs/dynatrace-status-dashboard.md",
   "docs/admin-operations.md",
   "docs/release.md",
+  "docs/release-provenance.md",
+  "docs/customer-acceptance-checklist.md",
   "docs/screenshots.md",
   "docs/validation-matrix.md",
   "docs/workflow.md",
@@ -379,8 +389,11 @@ for (const target of [
   "docs/rbac.md",
   "docs/package-handoff.md",
   "docs/observability.md",
+  "docs/dynatrace-status-dashboard.md",
   "docs/admin-operations.md",
   "docs/release.md",
+  "docs/release-provenance.md",
+  "docs/customer-acceptance-checklist.md",
   "docs/demo-data.md",
   "docs/client-trial-plan.md",
   "docs/live-demo-runbook.md",
@@ -455,6 +468,7 @@ for (const nodeVersionFile of [".nvmrc", ".node-version"]) {
 for (const scriptName of [
   "release:checksums:test",
   "release:sign:test",
+  "release:signing-key:test",
   "forward:nqe-preview:test",
   "forward:nqe-live-smoke:test",
   "forward:readiness:test",
@@ -524,8 +538,13 @@ const releaseWorkflow = await readText(".github/workflows/release.yml");
 for (const requiredReleaseWorkflowText of [
   "npm run ci",
   "npm run release:package",
+  "RELEASE_SIGNING_PRIVATE_KEY_PEM",
+  "npm run release:sign",
   "SHA256SUMS",
+  "actions/attest@v4",
   "actions/upload-artifact",
+  "docker/build-push-action",
+  "ghcr.io/${{ github.repository_owner }}/forward-dynatrace-importer",
   "gh release create",
 ]) {
   if (!releaseWorkflow.includes(requiredReleaseWorkflowText)) {
@@ -541,6 +560,8 @@ for (const requiredPackagerText of [
   "deploy/dynatrace-dql",
   "service-dependency-candidates-openpipeline-events.dql",
   "service-dependencies-smartscape.dql",
+  "forward-ingest-status-latest.dql",
+  "forward-ingest-status-attention.dql",
   "forward-sync-on-demand.payload.example.json",
   "docs/assets/screenshots",
   "docs/dynatrace-workflow-trigger.md",
@@ -551,6 +572,9 @@ for (const requiredPackagerText of [
   "docs/live-demo-runbook.md",
   "docs/prospect-talk-track.md",
   "docs/execution-roadmap.md",
+  "docs/release-provenance.md",
+  "docs/customer-acceptance-checklist.md",
+  "docs/dynatrace-status-dashboard.md",
   "docs/connector-runtime.md",
   "docs/deployment-readiness.md",
   "deploy/systemd/forward-dynatrace-connector.service",
@@ -558,6 +582,7 @@ for (const requiredPackagerText of [
   "deploy/kubernetes/forward-dynatrace-connector-cronjob.yaml",
   "scripts/write-release-checksums.mjs",
   "scripts/sign-release-checksums.mjs",
+  "scripts/generate-release-signing-keypair.mjs",
   "scripts/query-dynatrace-dependencies.mjs",
   "scripts/deploy-dynatrace-app.mjs",
   "scripts/forward-deployment-readiness.mjs",
@@ -567,10 +592,22 @@ for (const requiredPackagerText of [
   "scripts/demo-rehearsal.mjs",
   "scripts/load-scale-smoke.mjs",
   "scripts/runtime-slo-check.mjs",
+  "forward-dynatrace-sbom-",
   "SHA256SUMS",
 ]) {
   if (!releasePackager.includes(requiredPackagerText)) {
     fail(`release packager must contain ${requiredPackagerText}.`);
+  }
+}
+
+const importerDockerfile = await readText("Dockerfile.forward-importer");
+for (const requiredDockerfileText of [
+  "scripts/forward-import-package.mjs",
+  "scripts/publish-forward-status.mjs",
+  "scripts/publish-dynatrace-status-event.mjs",
+]) {
+  if (!importerDockerfile.includes(requiredDockerfileText)) {
+    fail(`Dockerfile.forward-importer must contain ${requiredDockerfileText}.`);
   }
 }
 

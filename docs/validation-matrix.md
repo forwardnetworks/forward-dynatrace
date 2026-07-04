@@ -25,13 +25,14 @@ This document tracks what is validated today and what still needs a live Forward
 | Forward status display and URL fetch | `npm run forward:status:test` verifies supplied artifact display, read-only localhost URL fetch, and non-local HTTP rejection. |
 | Forward status publication | `npm run forward:status:publish:test` verifies sanitized status publication, checksum output, publish-safe Dynatrace status event output, unknown-field rejection, and credential-like content rejection. |
 | Dynatrace status event publication | `npm run dynatrace:status:publish:test` verifies Apps-to-live ingest URL mapping, event schema validation, credential-like content rejection, OpenPipeline record shaping, and dry-run behavior without requiring a token. |
+| Dynatrace status dashboard query pack | `deploy/dynatrace-dql/forward-ingest-status-latest.dql` and `deploy/dynatrace-dql/forward-ingest-status-attention.dql` provide read-only status-event views for latest runs and operator attention. |
 | Live demo runbook | `docs/live-demo-runbook.md` keeps customer-owned Dynatrace data as the production path and documents standard demo replay for trial sandboxes. `npm run repo:validate` requires the doc and release packaging includes it. |
 | Forward API compatibility notes | `docs/forward-api-compatibility.md` documents required Forward endpoints, the no-fallback bulk create gate, and optional NQE/query-ID paths. `npm run repo:validate` requires the doc and release packaging includes it. |
 | Synthetic Forward workflow | `npm run workflow:smoke` exercises validate-only, signed package validation, config import, metrics output, dry-run, 1001-check chunked apply, transient retry, unchanged, changed, stale, approved changed replacement, and approved stale deactivation flows against a fake Forward API. |
 | Load and scale smoke | `npm run load:scale` generates 2500 synthetic Dynatrace dependency rows, normalizes them, builds a `data-connector` package, validates it, applies exportable checks to a fake Forward API in 400-check batches, and reruns the same package to confirm unchanged reconciliation. |
 | Live Forward workflow | Real non-production Forward test network validated on 2026-06-30: dry-run create=3, apply create=3, rerun unchanged=3, changed drift=1, stale drift=1, and `--fail-on-drift` exit code 2. Validation checks were deleted after the run and confirmed remaining=0. |
 | UI workflow screenshots | `npm run demo:capture` captures `docs/assets/screenshots/*.jpg` from the built app with local app-function shims and placeholder data. |
-| Dynatrace app build package | Version `1.0.11` builds locally. |
+| Dynatrace app build package | Version `1.0.12` builds locally. |
 | Dynatrace install policy | A live unsigned deploy of the default `com.forwardnetworks.*` app ID was correctly rejected by Dynatrace AppEngine because unsigned non-`my.*` app IDs must be signed. `npm run dynatrace:deploy:test` now enforces the signed enterprise path or explicit `my.*` trial app ID before invoking `dt-app`. |
 | Dynatrace trial app install | Version `1.0.10` installed successfully into a non-production Dynatrace Apps tenant on 2026-07-03 with the explicit unsigned trial app ID `my.forwardnetworks.dynatrace.field.integration`. The deploy wrapper restored the public `app.config.json` after install. |
 | Dynatrace App Toolkit pin | `dt-app` is pinned to `1.11.2` and enforced by `npm run repo:validate`; a newer toolkit was not adopted during this pass because tenant deploy did not complete reliably in local validation. |
@@ -57,9 +58,12 @@ This document tracks what is validated today and what still needs a live Forward
 | Importer container | `docker build -f Dockerfile.forward-importer -t forward-dynatrace-importer:local .`, `docker run --rm forward-dynatrace-importer:local --help`, and `docker run --rm --entrypoint node forward-dynatrace-importer:local scripts/forward-deployment-readiness.mjs --help` passed locally for the release line. |
 | Release checksums | `npm run release:checksums:test` verifies SHA-256 checksum file generation for release artifacts. |
 | Release checksum signing | `npm run release:sign:test` verifies detached Ed25519 signing and tamper-detection for `SHA256SUMS`. |
+| Self-managed release signing key generation | `npm run release:signing-key:test` verifies local Ed25519 key generation, private-key file mode, public-key export, and signature verification. |
 | Release archive packaging | `npm run release:package:smoke` builds the app/importer archives in a temporary directory and verifies required archive members plus `SHA256SUMS`. |
+| Release SBOM publication | `npm run release:package:smoke` writes a CycloneDX release SBOM and includes it in `SHA256SUMS`. |
 | Release archive download verification | The `v1.0.9`, `v1.0.10`, and `v1.0.11` GitHub release archives were downloaded and `SHA256SUMS` verified locally. The `v1.0.11` importer archive was checked for the Dynatrace status event publisher and test; the app archive was checked for updated workflow docs. |
 | GitHub release workflow | `.github/workflows/release.yml` runs CI, calls `npm run release:package`, uploads artifacts, and publishes tag releases with `SHA256SUMS`. |
+| GHCR importer image workflow | `.github/workflows/release.yml` publishes `ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag>` on tag releases and requests image/artifact attestations. |
 | Data handling rules | `docs/data-handling.md` defines publish-safe artifact rules and `npm run repo:validate` blocks known tenant, token, local path, and personal-reference patterns. |
 | RBAC model | `docs/rbac.md` defines least-privilege roles and separation rules for package publishing, review, apply, signing, and runtime administration. |
 | Package handoff controls | `docs/package-handoff.md` defines retention, immutability, access logging, publish order, and storage requirements. |
@@ -93,6 +97,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Dynatrace workflow payload validation | `npm run dynatrace:workflow:validate` |
 | Release checksum script | `npm run release:checksums:test` |
 | Release checksum signing | `npm run release:sign:test` |
+| Release signing key generation | `npm run release:signing-key:test` |
 | Release archive packaging | `npm run release:package:smoke` |
 | Dependency audit | `npm run security:audit` |
 | SBOM generation | `npm run sbom:check` |

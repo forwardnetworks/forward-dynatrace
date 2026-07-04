@@ -30,8 +30,11 @@ docs and executable checks.
 - [docs/rbac.md](docs/rbac.md): least-privilege roles and separation rules.
 - [docs/package-handoff.md](docs/package-handoff.md): package storage, retention, immutability, and access-log controls.
 - [docs/observability.md](docs/observability.md): reports, metrics, suggested alerts, and evidence retention.
+- [docs/dynatrace-status-dashboard.md](docs/dynatrace-status-dashboard.md): status-event dashboard and DQL views.
 - [docs/admin-operations.md](docs/admin-operations.md): audit export, config restore, disaster recovery, and access review.
 - [docs/release.md](docs/release.md): release workflow, artifacts, and checksum verification.
+- [docs/release-provenance.md](docs/release-provenance.md): SBOM, self-managed signatures, GHCR image, and attestations.
+- [docs/customer-acceptance-checklist.md](docs/customer-acceptance-checklist.md): customer trial and production acceptance gates.
 - [docs/validation-matrix.md](docs/validation-matrix.md): tested, automated, and remaining validation.
 - [docs/demo-data.md](docs/demo-data.md): standard demo fixtures and Dynatrace replay data.
 - [docs/client-trial-plan.md](docs/client-trial-plan.md): meeting/demo rehearsal, trial tenant, and live Forward workflow.
@@ -81,6 +84,7 @@ npm run forward:status:test
 npm run forward:status:publish -- --help
 npm run forward:status:publish:test
 npm run release:checksums:test
+npm run release:signing-key:test
 npm run demo:rehearsal
 npm run workflow:smoke
 npm run lint

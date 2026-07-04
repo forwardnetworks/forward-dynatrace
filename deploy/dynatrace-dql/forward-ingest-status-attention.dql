@@ -1,0 +1,30 @@
+// Forward Dynatrace status dashboard: runs that need operator attention.
+// Use this panel for failed, warning, changed, stale, or drifted Forward-side ingest runs.
+
+fetch events, from: now() - 7d
+| filter event.type == "forward.dynatrace.ingest.status"
+| filter
+    severity == "ERROR" or
+    severity == "WARN" or
+    forward.dynatrace.import_state == "failed" or
+    forward.dynatrace.count.changed > 0 or
+    forward.dynatrace.count.stale > 0 or
+    forward.dynatrace.unresolved.changed > 0 or
+    forward.dynatrace.unresolved.stale > 0
+| fields
+    timestamp,
+    severity,
+    forward.dynatrace.publisher_run_id,
+    forward.dynatrace.run_id,
+    forward.dynatrace.package_id,
+    forward.dynatrace.import_state,
+    forward.dynatrace.signature_status,
+    forward.dynatrace.planned_checks,
+    forward.dynatrace.count.create,
+    forward.dynatrace.count.unchanged,
+    forward.dynatrace.count.changed,
+    forward.dynatrace.count.stale,
+    forward.dynatrace.unresolved.changed,
+    forward.dynatrace.unresolved.stale
+| sort timestamp desc
+| limit 100

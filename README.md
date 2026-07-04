@@ -43,8 +43,9 @@ imports or pulls that package.
   `docs/connector-runtime.md`
 - Demo/test data: `docs/demo-data.md`
 - Live demo runbook: `docs/live-demo-runbook.md`
-- Dynatrace DQL starter query: `deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql`
+- Dynatrace DQL starter/status queries: `deploy/dynatrace-dql/`
 - Production checklist: `docs/production-readiness.md`
+- Customer acceptance checklist: `docs/customer-acceptance-checklist.md`
 - Enterprise hardening backlog: `docs/enterprise-hardening.md`
 - Operations runbook: `docs/operations-runbook.md`
 - Incident response runbook: `docs/incident-response.md`
@@ -54,8 +55,10 @@ imports or pulls that package.
 - RBAC model: `docs/rbac.md`
 - Package handoff: `docs/package-handoff.md`
 - Observability: `docs/observability.md`
+- Dynatrace status dashboard: `docs/dynatrace-status-dashboard.md`
 - Admin operations: `docs/admin-operations.md`
 - Release workflow: `docs/release.md`
+- Release provenance: `docs/release-provenance.md`
 - Validation matrix: `docs/validation-matrix.md`
 - Harness engineering notes: `docs/harness-engineering.md`
 - GitOps checks: `docs/gitops.md`

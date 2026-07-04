@@ -8,6 +8,7 @@ COPY scripts/forward-deployment-readiness.mjs ./scripts/forward-deployment-readi
 COPY scripts/forward-nqe-artifacts.mjs ./scripts/forward-nqe-artifacts.mjs
 COPY scripts/forward-nqe-live-smoke.mjs ./scripts/forward-nqe-live-smoke.mjs
 COPY scripts/publish-forward-status.mjs ./scripts/publish-forward-status.mjs
+COPY scripts/publish-dynatrace-status-event.mjs ./scripts/publish-dynatrace-status-event.mjs
 COPY api/forward-nqe-preview.function.ts ./api/forward-nqe-preview.function.ts
 COPY config ./config
 

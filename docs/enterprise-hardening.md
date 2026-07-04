@@ -10,7 +10,7 @@ It remains a field-built reference, not an officially supported Forward product 
 - Done in repo: optional detached Ed25519 package signing and verification.
 - Done in repo: connector config schema for non-secret runtime settings.
 - Done in repo: operations runbook, incident response runbook, and threat model.
-- Done in repo: dependency audit and SBOM generation in `npm run ci`.
+- Done in repo: dependency audit, CI SBOM generation, and release SBOM publication.
 - Done in repo: CODEOWNERS template for app, importer, docs, screenshots, and release workflow.
 - Done in repo: structured importer report metadata with run ID, package ID, checksum, sources, timing, and counts.
 - Done in repo: Prometheus-style metrics file output for connector runs.
@@ -24,14 +24,15 @@ It remains a field-built reference, not an officially supported Forward product 
 - Done in repo: admin operations guide for audit export, config restore, disaster recovery, and access review.
 - Done in repo: observability guide with report fields, metrics, alert thresholds, and evidence retention.
 - Done in repo: sanitized read-only Forward ingest status artifact for Dynatrace display.
+- Done in repo: Dynatrace status dashboard DQL pack for aggregate Forward-side ingest status.
 - Done in repo: Dynatrace deploy wrapper that separates unsigned `my.*` trial installs from signed enterprise namespace
   installs and tests the policy locally.
 - Done in repo: release checksum generation for published artifacts.
 - Done in repo: optional detached Ed25519 signing and verification for `SHA256SUMS`; external before signed releases:
   provision and protect the release signing key.
 - Done in repo: release archive packager smoke-tested in CI.
-- Done in repo: GitHub release workflow that builds app/importer archives, uploads artifacts, and publishes tag releases
-  with `SHA256SUMS`.
+- Done in repo: GitHub release workflow that builds app/importer archives, publishes release SBOM, optionally
+  self-signs `SHA256SUMS`, emits artifact attestations, publishes the GHCR importer image, and publishes tag releases.
 - Done in repo: weekly Dependabot checks for npm and GitHub Actions.
 - Done in repo: synthetic 1001-check bulk import, chunk sizing, and transient retry coverage.
 - Done in repo: load and scale smoke for 2500 synthetic Dynatrace dependency rows through normalization, package build,
@@ -50,8 +51,8 @@ It remains a field-built reference, not an officially supported Forward product 
 - Done in repo: pin package schema contract and migration rules for future `schemaVersion` changes.
 - Done in repo: default apply policy is `create-missing-only`; optional update/stale automation requires signed package
   verification, exact approval artifact, and mutation budgets.
-- Done in repo: customer-safe runbook for install, generate package, validate-only, dry-run, apply, rollback, drift
-  review, and evidence collection.
+- Done in repo: customer-safe runbook and acceptance checklist for release intake, install, generate package,
+  validate-only, dry-run, apply, rollback, drift review, status feedback, and evidence collection.
 - Done in repo: incident runbook for importer failure, partial bulk create, stale package, auth failure, rate limit, bad
   mapping, and Forward API 4xx/5xx.
 - Done in repo: threat model for Dynatrace export, package storage, connector pull, Forward credentials, Forward write
@@ -62,7 +63,7 @@ It remains a field-built reference, not an officially supported Forward product 
 - External before wider use: provision the durable package handoff location described in `docs/package-handoff.md`.
 - Done in repo: release checksum signing utility and CI tamper-detection tests; external before signed releases:
   provision the actual release signing key outside GitHub source.
-- Done in repo: generate a CycloneDX SBOM and run production dependency audit in CI.
+- Done in repo: generate a CycloneDX SBOM, publish it in release assets, and run production dependency audit in CI.
 - Done in repo: branch protection requiring the `gitops` workflow, one approving review, linear history, conversation
   resolution, and no force-push/delete.
 - External before release: replace CODEOWNERS placeholder with real owning teams before enforcing review rules.
@@ -80,7 +81,7 @@ It remains a field-built reference, not an officially supported Forward product 
   integration.
 - External product decision: if it graduates, replace the script runner with an owned service/connector package and
   formal support policy.
-- Future productization: add signed image or binary publication if this graduates beyond source-based delivery.
+- Done in repo: publish the Forward-side importer image to GHCR on tag releases with image provenance enabled.
 - Future schema work: add upgrade tests when a second schema version exists.
 - Future compatibility work: add compatibility tests against multiple real Forward API versions and Dynatrace App
   Toolkit versions.

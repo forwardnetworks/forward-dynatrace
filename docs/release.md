@@ -16,12 +16,13 @@ Actions. It is not published to PyPI.
 3. Tag the release:
 
    ```bash
-   git tag v1.0.11
-   git push origin v1.0.11
+   git tag v1.0.12
+   git push origin v1.0.12
    ```
 
-4. The `release` workflow builds with Node 24, runs `npm run ci`, runs `npm run release:package`, uploads workflow
-   artifacts, and publishes a GitHub release for tag pushes.
+4. The `release` workflow builds with Node 24, runs `npm run ci`, runs `npm run release:package`, optionally
+   self-signs `SHA256SUMS`, uploads workflow artifacts, publishes the GHCR importer image, emits attestations, and
+   publishes a GitHub release for tag pushes.
 
 For a local archive smoke test after `npm run build`:
 
@@ -35,9 +36,15 @@ npm run release:package:smoke
   contract docs.
 - `forward-dynatrace-importer-<tag>.tgz`: Forward-side importer, signer, container file, config examples, and
   runtime templates and operations docs.
+- `forward-dynatrace-sbom-<tag>.cdx.json`: CycloneDX SBOM for production dependencies.
 - `SHA256SUMS`: SHA-256 digests for release archives.
-- Optional `SHA256SUMS.sig`: detached Ed25519 signature over the checksum file. The release signing key must be
-  separate from Forward intent-package signing keys.
+- Optional `SHA256SUMS.sig` and `SHA256SUMS.pub`: detached Ed25519 signature over the checksum file and the matching
+  public key for self-managed verification. The release signing key must be separate from Forward intent-package
+  signing keys.
+- `ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag>`: Forward-side importer image for scheduled runtimes.
+
+See [release-provenance.md](release-provenance.md) for the full verification path, GHCR digest pinning, and
+self-managed signing key setup.
 
 ## Verification
 
@@ -63,7 +70,8 @@ To sign a release checksum file:
 npm run release:sign -- \
   --checksums SHA256SUMS \
   --private-key /secure/path/release-ed25519-private.pem \
-  --signature SHA256SUMS.sig
+  --signature SHA256SUMS.sig \
+  --public-key-output SHA256SUMS.pub
 ```
 
 Keep release signing keys outside the repo and separate from exported Forward intent-package signing keys.

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, readFile, readdir, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,6 +41,9 @@ const appArchiveEntries = [
   "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
   "docs/deployment-readiness.md",
+  "docs/release-provenance.md",
+  "docs/customer-acceptance-checklist.md",
+  "docs/dynatrace-status-dashboard.md",
 ];
 
 const importerArchiveEntries = [
@@ -75,6 +78,8 @@ const importerArchiveEntries = [
   "scripts/sign-forward-package.mjs",
   "scripts/sign-release-checksums.mjs",
   "scripts/sign-release-checksums.test.mjs",
+  "scripts/generate-release-signing-keypair.mjs",
+  "scripts/generate-release-signing-keypair.test.mjs",
   "scripts/write-release-checksums.mjs",
   "docs/forward-importer.md",
   "docs/prospect-talk-track.md",
@@ -92,6 +97,9 @@ const importerArchiveEntries = [
   "docs/client-trial-plan.md",
   "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
+  "docs/release-provenance.md",
+  "docs/customer-acceptance-checklist.md",
+  "docs/dynatrace-status-dashboard.md",
 ];
 
 const requiredAppMembers = [
@@ -105,6 +113,8 @@ const requiredAppMembers = [
   "deploy/dynatrace-workflows/forward-sync-on-demand.payload.example.json",
   "deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql",
   "deploy/dynatrace-dql/service-dependencies-smartscape.dql",
+  "deploy/dynatrace-dql/forward-ingest-status-latest.dql",
+  "deploy/dynatrace-dql/forward-ingest-status-attention.dql",
   "scripts/deploy-dynatrace-app.mjs",
   "docs/assets/screenshots",
   "docs/install.md",
@@ -118,6 +128,9 @@ const requiredAppMembers = [
   "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
   "docs/deployment-readiness.md",
+  "docs/release-provenance.md",
+  "docs/customer-acceptance-checklist.md",
+  "docs/dynatrace-status-dashboard.md",
 ];
 
 const requiredImporterMembers = [
@@ -153,6 +166,7 @@ const requiredImporterMembers = [
   "shared/demo-dependencies.json",
   "scripts/sign-forward-package.mjs",
   "scripts/sign-release-checksums.mjs",
+  "scripts/generate-release-signing-keypair.mjs",
   "scripts/write-release-checksums.mjs",
   "docs/forward-importer.md",
   "docs/prospect-talk-track.md",
@@ -170,6 +184,9 @@ const requiredImporterMembers = [
   "docs/client-trial-plan.md",
   "docs/live-demo-runbook.md",
   "docs/execution-roadmap.md",
+  "docs/release-provenance.md",
+  "docs/customer-acceptance-checklist.md",
+  "docs/dynatrace-status-dashboard.md",
 ];
 
 const parseArgs = (argv) => {
@@ -292,16 +309,21 @@ const main = async () => {
     outputDir,
     `forward-dynatrace-importer-${releaseName}.tgz`,
   );
+  const sbom = path.join(outputDir, `forward-dynatrace-sbom-${releaseName}.cdx.json`);
   const checksums = path.join(outputDir, "SHA256SUMS");
 
   await run("tar", ["-czf", appArchive, ...appArchiveEntries]);
   await run("tar", ["-czf", importerArchive, ...importerArchiveEntries]);
+  await run("npm", ["sbom", "--omit=dev", "--sbom-format=cyclonedx"], {
+    stdio: ["ignore", "pipe", "pipe"],
+  }).then((stdout) => writeFile(sbom, stdout));
   await run(process.execPath, [
     "scripts/write-release-checksums.mjs",
     "--output",
     checksums,
     appArchive,
     importerArchive,
+    sbom,
   ]);
 
   assertArchiveMembers(
@@ -316,8 +338,8 @@ const main = async () => {
   );
 
   const checksumLines = (await readFile(checksums, "utf8")).trim().split(/\r?\n/);
-  if (checksumLines.length !== 2) {
-    throw new Error(`SHA256SUMS must contain exactly two archive entries; found ${checksumLines.length}.`);
+  if (checksumLines.length !== 3) {
+    throw new Error(`SHA256SUMS must contain exactly three entries; found ${checksumLines.length}.`);
   }
 
   process.stdout.write(
@@ -328,6 +350,7 @@ const main = async () => {
         artifacts: [
           path.basename(appArchive),
           path.basename(importerArchive),
+          path.basename(sbom),
           path.basename(checksums),
         ],
       },

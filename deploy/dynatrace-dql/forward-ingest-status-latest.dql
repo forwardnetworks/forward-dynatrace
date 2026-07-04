@@ -1,0 +1,31 @@
+// Forward Dynatrace status dashboard: latest Forward-side ingest runs.
+// Reads aggregate status events published by scripts/publish-dynatrace-status-event.mjs.
+
+fetch events, from: now() - 7d
+| filter event.type == "forward.dynatrace.ingest.status"
+| fields
+    timestamp,
+    severity,
+    event.status,
+    event.provider,
+    forward.dynatrace.publisher_run_id,
+    forward.dynatrace.run_id,
+    forward.dynatrace.package_id,
+    forward.dynatrace.import_state,
+    forward.dynatrace.apply_policy,
+    forward.dynatrace.signature_status,
+    forward.dynatrace.target.network_id,
+    forward.dynatrace.target.snapshot_id,
+    forward.dynatrace.planned_checks,
+    forward.dynatrace.planned_nqe_checks,
+    forward.dynatrace.count.create,
+    forward.dynatrace.count.unchanged,
+    forward.dynatrace.count.changed,
+    forward.dynatrace.count.stale,
+    forward.dynatrace.unresolved.changed,
+    forward.dynatrace.unresolved.stale,
+    forward.dynatrace.mutation.created,
+    forward.dynatrace.mutation.updated,
+    forward.dynatrace.mutation.deactivated
+| sort timestamp desc
+| limit 100

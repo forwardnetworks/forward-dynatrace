@@ -12,6 +12,8 @@ Use this checklist before enabling Forward-side ingest.
 - Keep tenant URLs, private token filenames, OAuth callback URLs, and customer-specific references out of GitHub.
 - Restrict Forward credential scope to the needed tenant/network/API capabilities.
 - Log correlation IDs, not secrets.
+- Verify release checksums, SBOM, and self-managed release signature when present.
+- Pin the Forward-side importer image by GHCR digest after acceptance.
 
 ## Data Quality
 
@@ -66,9 +68,12 @@ Use this checklist before enabling Forward-side ingest.
 - Include Forward snapshot ID and network ID in results.
 - Include app/environment/owner tags in generated checks.
 - Record run ID for audit correlation.
+- Publish sanitized Forward-side ingest status when Dynatrace-side visibility is required.
+- Use the Dynatrace status dashboard queries for aggregate health, not for write approval.
 
 ## Tests Before Live Write
 
+- Complete [customer-acceptance-checklist.md](customer-acceptance-checklist.md).
 - Unit test deterministic integration keys.
 - Unit test `needs-map` rejection.
 - Unit test intent check JSON shape.

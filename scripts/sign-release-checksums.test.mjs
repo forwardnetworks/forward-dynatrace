@@ -40,6 +40,7 @@ test("signs and verifies release checksums", async () => {
   const workdir = await mkdtemp(path.join(tmpdir(), "forward-dynatrace-release-sign-"));
   const checksumsPath = path.join(workdir, "SHA256SUMS");
   const signaturePath = path.join(workdir, "SHA256SUMS.sig");
+  const publicKeyOutputPath = path.join(workdir, "SHA256SUMS.pub");
   const { privateKeyPath, publicKeyPath } = await writeKeys(workdir);
   await writeFile(checksumsPath, "abc123  forward-dynatrace-app-v1.0.6.tgz\n");
 
@@ -50,10 +51,15 @@ test("signs and verifies release checksums", async () => {
     privateKeyPath,
     "--signature",
     signaturePath,
+    "--public-key-output",
+    publicKeyOutputPath,
   ]);
   assert.equal(signResult.code, 0, signResult.stderr);
-  assert.equal(JSON.parse(signResult.stdout).status, "signed");
+  const signSummary = JSON.parse(signResult.stdout);
+  assert.equal(signSummary.status, "signed");
+  assert.equal(signSummary.publicKeyOutput, publicKeyOutputPath);
   assert.match(await readFile(signaturePath, "utf8"), /^[A-Za-z0-9+/=]+\n$/);
+  assert.equal(await readFile(publicKeyOutputPath, "utf8"), await readFile(publicKeyPath, "utf8"));
 
   const verifyResult = await runScript([
     "--verify",

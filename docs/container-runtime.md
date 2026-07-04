@@ -9,6 +9,25 @@ the Dynatrace app dev/build runtime.
 docker build -f Dockerfile.forward-importer -t forward-dynatrace-importer:local .
 ```
 
+## Release Image
+
+Tag releases publish the importer image to GHCR:
+
+```bash
+docker pull ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag>
+docker image inspect ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag> \
+  --format '{{index .RepoDigests 0}}'
+```
+
+For production or customer pilots, deploy the digest-pinned image rather than `latest`:
+
+```text
+ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:<digest>
+```
+
+Release provenance, SBOM, and signature verification details are in
+[release-provenance.md](release-provenance.md).
+
 ## Validate Package
 
 Mount a package directory and run validation without Forward credentials:

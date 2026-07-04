@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { createHash, sign, verify } from "node:crypto";
+import { createHash, createPublicKey, sign, verify } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
@@ -11,7 +11,8 @@ Sign:
   node scripts/sign-release-checksums.mjs \\
     --checksums SHA256SUMS \\
     --private-key /secure/path/release-ed25519-private.pem \\
-    --signature SHA256SUMS.sig
+    --signature SHA256SUMS.sig \\
+    --public-key-output SHA256SUMS.pub
 
 Verify:
   node scripts/sign-release-checksums.mjs \\
@@ -40,7 +41,8 @@ const parseArgs = (argv) => {
       value === "--checksums" ||
       value === "--private-key" ||
       value === "--public-key" ||
-      value === "--signature"
+      value === "--signature" ||
+      value === "--public-key-output"
     ) {
       const next = argv[index + 1];
       if (!next || next.startsWith("--")) {
@@ -111,12 +113,20 @@ const main = async () => {
   const privateKeyText = await readFile(required(args, "private-key"), "utf8");
   const signature = sign(null, payload, privateKeyText).toString("base64");
   await writeFile(signaturePath, `${signature}\n`);
+  if (args["public-key-output"]) {
+    const publicKeyPem = createPublicKey(privateKeyText).export({
+      format: "pem",
+      type: "spki",
+    });
+    await writeFile(args["public-key-output"], publicKeyPem);
+  }
   process.stdout.write(
     JSON.stringify(
       {
         status: "signed",
         checksums: args.checksums,
         signature: signaturePath,
+        publicKeyOutput: args["public-key-output"] || null,
       },
       null,
       2,

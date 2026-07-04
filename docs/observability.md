@@ -78,6 +78,11 @@ npm run dynatrace:status:publish -- \
 This is the only Forward-to-Dynatrace write path in the reference workflow. It sends aggregate ingest health back to
 Dynatrace and does not expose Forward credentials, check names, endpoint names, or dependency rows.
 
+For dashboard-ready views, use [dynatrace-status-dashboard.md](dynatrace-status-dashboard.md) with:
+
+- `deploy/dynatrace-dql/forward-ingest-status-latest.dql`
+- `deploy/dynatrace-dql/forward-ingest-status-attention.dql`
+
 ## Metrics
 
 The metrics file currently includes:
