@@ -536,6 +536,7 @@ if (!packageJson.scripts?.["forward:readiness"]) {
 
 const releaseWorkflow = await readText(".github/workflows/release.yml");
 for (const requiredReleaseWorkflowText of [
+  "artifact-metadata: write",
   "npm run ci",
   "npm run release:package",
   "RELEASE_SIGNING_PRIVATE_KEY_PEM",
