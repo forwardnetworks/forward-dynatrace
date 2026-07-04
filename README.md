@@ -1,188 +1,79 @@
 # Forward Dynatrace
 
-Forward Field Integration reference for turning Dynatrace application dependency mapping into Forward bulk
-intent-check import packages.
+Forward Dynatrace is a Forward Field Integration that turns Dynatrace application dependency evidence into
+Forward-reviewed network intent-check packages.
 
-This is a field-built integration reference and is not an officially supported Forward product integration. The
-Dynatrace app never mutates Forward. It exports a desired-state package; a Forward operator or Forward-side connector
-imports or pulls that package.
+The integration keeps the write boundary explicit: the Dynatrace app exports desired state, and Forward-side tooling
+validates, reconciles, and applies approved changes. The Dynatrace app does not write to Forward and does not store
+Forward credentials.
 
-## Shape
+## Status
 
-- UI: `ui/app/pages/Home.tsx`
-- Path preview app function: `api/network-proof.function.ts`
-- Read-only NQE preview app function: `api/forward-nqe-preview.function.ts`
-- Forward export app function: `api/forward-sync.function.ts`
-- Forward ingest status app function: `api/forward-status.function.ts`
-- UI request/response types: `ui/app/types/network-proof.ts`
-- Dynatrace live DQL exporter: `scripts/query-dynatrace-dependencies.mjs`
-- Dynatrace dependency normalizer: `scripts/normalize-dynatrace-dependencies.mjs`
-- Forward package builder: `scripts/build-forward-package.mjs`
-- Optional NQE artifact helper: `scripts/forward-nqe-artifacts.mjs`
-- Client trial plan: `docs/client-trial-plan.md`
-- Execution roadmap: `docs/execution-roadmap.md`
-- Install and release model: `docs/install.md`
-- Workflow notes: `docs/workflow.md`
-- Dynatrace workflow trigger examples: `docs/dynatrace-workflow-trigger.md`,
-  `deploy/dynatrace-workflows/`
-- Forward ingest contract: `docs/forward-ingest-contract.md`
-- Read-only NQE preview: `docs/forward-nqe-preview.md`
-- Optional NQE artifacts: `docs/forward-nqe-artifacts.md`
-- Forward API compatibility gates: `docs/forward-api-compatibility.md`
-- Forward importer workflow: `docs/forward-importer.md`
-- Forward importer script: `scripts/forward-import-package.mjs`
-- Forward deployment readiness: `scripts/forward-deployment-readiness.mjs`, `docs/deployment-readiness.md`
-- Acceptance evidence bundle: `scripts/acceptance-bundle.mjs`
-- Artifact schemas: `schemas/`, `scripts/schema-validate.mjs`
-- Dynatrace deploy wrapper: `scripts/deploy-dynatrace-app.mjs`
-- Forward status publisher: `scripts/publish-forward-status.mjs`
-- Dynatrace status event publisher: `scripts/publish-dynatrace-status-event.mjs`
-- Forward package signer: `scripts/sign-forward-package.mjs`
-- Forward connector config examples: `config/forward-connector.config.example.json`,
-  `config/forward-connector.signed.config.example.json`
-- Forward importer container: `Dockerfile.forward-importer`, `docs/container-runtime.md`
-- Forward connector runtime templates: `deploy/docker-compose/`, `deploy/systemd/`, `deploy/kubernetes/`,
-  `docs/connector-runtime.md`
-- Demo/test data: `docs/demo-data.md`
-- Live demo runbook: `docs/live-demo-runbook.md`
-- Dynatrace DQL starter/status queries: `deploy/dynatrace-dql/`
-- Dynatrace status dashboard template: `deploy/dynatrace-dashboard/`
-- Production checklist: `docs/production-readiness.md`
-- Customer acceptance checklist: `docs/customer-acceptance-checklist.md`
-- Customer one-page handout: `docs/customer-one-pager.md`
-- Enterprise hardening backlog: `docs/enterprise-hardening.md`
-- Operations runbook: `docs/operations-runbook.md`
-- Incident response runbook: `docs/incident-response.md`
-- Threat model: `docs/threat-model.md`
-- Schema versioning: `docs/schema-versioning.md`
-- Data handling: `docs/data-handling.md`
-- RBAC model: `docs/rbac.md`
-- Package handoff: `docs/package-handoff.md`
-- Observability: `docs/observability.md`
-- Dynatrace status dashboard: `docs/dynatrace-status-dashboard.md`
-- Admin operations: `docs/admin-operations.md`
-- Release workflow: `docs/release.md`
-- Release provenance: `docs/release-provenance.md`
-- PR-only governance: `docs/governance.md`
-- Validation matrix: `docs/validation-matrix.md`
-- Harness engineering notes: `docs/harness-engineering.md`
-- GitOps checks: `docs/gitops.md`
-- Prospect talk track: `docs/prospect-talk-track.md`
+- Release: `v1.0.0`
+- Runtime: Node.js 24.x
+- Distribution: GitHub release artifacts and GHCR importer image
+- Support model: field integration reference, not an officially supported Forward product integration
+- License: ISC
 
-## Flow
+## What It Does
 
-1. Dynatrace application mapping supplies dependency rows: app, environment, source, destination, protocol, port,
-   owner, criticality, and confidence.
-2. The query exporter can pull those rows from a live Dynatrace tenant with a Platform Token.
-3. The app or package builder generates a deterministic `integration_key` for each dependency.
-4. The app or package builder stages one Forward-native `NewNetworkCheck` JSON object per eligible dependency.
-   Eligible means the source and destination have been resolved in the target Forward network. Review rows are held
-   unless an operator deliberately uses the review-row override.
-5. A Dynatrace Workflow can call the same function on a problem trigger or schedule.
-6. Forward-side ingest performs latest snapshot lookup, existing-check readback, name/tag dedupe, bulk persistent
-   check creation, and status reporting.
-7. Dynatrace displays the sanitized Forward ingest status artifact, or receives the aggregate status event through
-   OpenPipeline, without Forward credentials or topology details.
+- Reads Dynatrace service dependency evidence: application, environment, source, destination, protocol, port, owner,
+  criticality, confidence, and mapping state.
+- Builds deterministic Forward `NewNetworkCheck[]` intent-check packages with `dynatrace-key:*` reconciliation tags.
+- Holds unresolved or ambiguous dependencies before Forward writes.
+- Supports bulk create-missing-only imports through a Forward-side importer or scheduled connector.
+- Optionally emits Forward NQE check and diff artifacts using Forward-controlled query IDs and allowlists.
+- Publishes sanitized aggregate status back to Dynatrace for import state, counts, drift, signature state, and failures.
 
-## Screenshots
+## What It Does Not Do
 
-Workflow overview:
+- The Dynatrace app does not mutate Forward.
+- Dynatrace does not store Forward credentials.
+- The importer does not auto-approve changed or stale Forward checks.
+- Status events do not include Forward credentials, hostnames, check names, dependency rows, or Forward API response
+  bodies.
 
-![Forward Dynatrace overview](docs/assets/screenshots/01-overview.jpg)
+## Architecture
 
-Read-only NQE preview and request plan:
-
-![Forward read-only NQE preview](docs/assets/screenshots/02-export-package-readiness.jpg)
-
-Forward-side package and bulk check API sequence:
-
-![Forward-side API sequence](docs/assets/screenshots/03-forward-side-api.jpg)
-
-Persistent intent-check payload:
-
-![Forward intent check payload](docs/assets/screenshots/04-intent-check-payload.jpg)
-
-## Forward-centric ingest path
-
-The production-grade route is an export package that Forward imports or pulls. The intent-check JSON is the primary
-artifact.
-
-A Forward-side connector means a process outside Dynatrace that pulls the export package, validates the manifest and
-checks, dedupes them, and then writes to Forward with Forward-scoped credentials. It is a pull/import path, not a
-Dynatrace push into Forward.
-
-1. Generate `forward-intent-checks.json` as Forward-native `NewNetworkCheck[]`.
-2. Generate `forward-dynatrace-manifest.json` with schema version, counts, dedupe policy, and optional Forward target
-   metadata. The manifest includes a SHA-256 checksum for `forward-intent-checks.json`.
-3. Forward operator imports the package manually with the included script, or a Forward-side connector pulls it from a
-   read-only package URL.
-4. Forward-side ingest validates package shape, unique names, unique `dynatrace-key:*` tags, and allowed check type.
-5. Forward-side ingest resolves the latest processed snapshot with
-   `GET /api/networks/{networkId}/snapshots/latestProcessed`.
-6. Forward-side ingest reads existing intent checks with
-   `GET /api/snapshots/{snapshotId}/checks?type=Existential`.
-7. Forward-side ingest produces a create/unchanged/changed/stale reconciliation report.
-8. Forward-side ingest creates missing persistent Forward intent checks with
-   `POST /api/snapshots/{snapshotId}/checks?bulk`.
-9. Optional approved update/stale automation can replace or deactivate generated checks only from the Forward-side
-   runtime with a verified signed package, exact approval file, and explicit mutation budgets.
-10. Optional NQE check and diff artifacts can be included only with Forward-owned query IDs and a Forward-side
-    allowlist; the intent-check workflow remains the default path.
-
-For fully automatic package generation, create a Dynatrace Workflow with either:
-
-- Problem trigger: export only impacted service dependencies.
-- Schedule trigger: refresh export package for all critical app dependencies.
-
-Forward-side automation should reconcile each package against existing Forward checks before writing.
-
-## Manual Import Dry Run
-
-The included importer runs in dry-run mode unless `--apply` is supplied:
-
-```bash
-export FORWARD_BASE_URL=https://forward.example.com
-export FORWARD_USER=<user>
-export FORWARD_PASSWORD=<password-or-token>
-export FORWARD_NETWORK_ID=<network-id>
-
-npm run forward:import -- --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json
-npm run forward:import -- --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json --apply
-npm run forward:import -- --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json --report forward-import-report.json
-npm run forward:import -- --package-url https://package.example.com/dynatrace-forward/latest/ --fail-on-drift
+```text
+Dynatrace topology evidence
+        |
+        v
+Dynatrace app export package
+        |
+        v
+Forward-side validation and reconciliation
+        |
+        v
+Forward intent checks, after operator approval
+        |
+        v
+Sanitized status returned to Dynatrace
 ```
 
-The importer is dry-run by default, rejects malformed packages before Forward API calls, retries transient Forward API
-responses, verifies package checksums, and applies a create-missing-only policy by default. Approved changed-check
-replacement and stale-check deactivation are optional Forward-side paths described in `docs/forward-importer.md`.
-For package provenance, sign the exact manifest/check package with `npm run forward:sign` and run the importer with
-`--require-signature`.
+The production path is intentionally Forward-centric. Dynatrace provides dependency intent; Forward validates that the
+dependencies match the target network snapshot before any persistent checks are created.
 
-## Acceptance Evidence
-
-Generate a read-only evidence bundle for a trial, release intake, or customer acceptance packet:
+## Quick Start
 
 ```bash
+git clone https://github.com/forwardnetworks/forward-dynatrace.git
+cd forward-dynatrace
+git checkout v1.0.0
+npm ci
+npm run ci
 npm run acceptance:bundle -- \
   --dependencies shared/demo-dependencies.json \
   --output-dir out/acceptance \
   --sync-mode data-connector
 ```
 
-The bundle builds a package, validates it, emits sanitized Forward ingest status and Dynatrace status-event artifacts,
-and runs schema validation. It does not contact Forward and does not apply checks.
+The acceptance bundle is read-only. It builds a demo package, validates schemas and package integrity, writes
+`ACCEPTANCE.md`, and does not contact Forward.
 
-Validate public artifact contracts directly with:
+## Dynatrace App Install
 
-```bash
-npm run schemas:validate
-```
-
-## Configure
-
-The dev environment is configured in `app.config.json`:
-
-Keep `app.config.json` on the public placeholder and pass the tenant URL at deploy time:
+For an unsigned trial or development install, use a `my.*` app ID:
 
 ```bash
 npm run dynatrace:deploy -- \
@@ -192,54 +83,159 @@ npm run dynatrace:deploy -- \
   --non-interactive
 ```
 
-Use `my.*` app IDs for unsigned trial or development installs. For the default enterprise `com.forwardnetworks.*` app
-ID, use `--sign-archive` and provide the Dynatrace signing OAuth client environment variables required by the
-Dynatrace App Toolkit.
+For an enterprise install with the default `com.forwardnetworks.dynatrace.field.integration` app ID, use
+`--sign-archive` and provide Dynatrace App Toolkit signing OAuth credentials. Full install details are in
+[docs/install.md](docs/install.md).
 
-The Dynatrace app should not store Forward write credentials. Forward credentials belong in Forward-side manual import
-or the Forward-side connector.
+## Forward Import Workflow
 
-For local Dynatrace API smoke checks, keep any platform token outside the repo and pass it with `DYNATRACE_TOKEN`,
-`DYNATRACE_TOKEN_FILE`, or `--token-file`.
+Manual import is the first production-safe workflow because Forward writes happen only after a Forward operator reviews
+the package.
 
-## Commands
+1. Export or publish these artifacts from Dynatrace:
+   - `forward-dynatrace-manifest.json`
+   - `forward-intent-checks.json`
+   - optional `forward-nqe-checks.json`
+   - optional `forward-nqe-diff-requests.json`
+2. Move or expose the package to a Forward-controlled runtime.
+3. Validate without Forward credentials:
+
+   ```bash
+   npm run forward:import -- \
+     --checks forward-intent-checks.json \
+     --manifest forward-dynatrace-manifest.json \
+     --validate-only
+   ```
+
+4. Dry-run against Forward:
+
+   ```bash
+   export FORWARD_BASE_URL=https://forward.example.com
+   export FORWARD_USER=<user>
+   export FORWARD_PASSWORD=<password-or-token>
+   export FORWARD_NETWORK_ID=<network-id>
+
+   npm run forward:import -- \
+     --checks forward-intent-checks.json \
+     --manifest forward-dynatrace-manifest.json \
+     --report forward-import-report.json
+   ```
+
+5. Review create, unchanged, changed, stale, blocked, and failed rows.
+6. Apply missing checks only after approval:
+
+   ```bash
+   npm run forward:import -- \
+     --checks forward-intent-checks.json \
+     --manifest forward-dynatrace-manifest.json \
+     --apply
+   ```
+
+Scheduled automation uses the same importer from a Forward-side runtime with Forward credentials stored outside
+Dynatrace. See [docs/forward-importer.md](docs/forward-importer.md) and
+[docs/connector-runtime.md](docs/connector-runtime.md).
+
+## Release Verification
+
+Before installing or running release artifacts, verify the release:
 
 ```bash
-npm install
+gh release download v1.0.0 --repo forwardnetworks/forward-dynatrace
+sha256sum -c SHA256SUMS
+npm run release:sign -- \
+  --verify \
+  --checksums SHA256SUMS \
+  --public-key SHA256SUMS.pub \
+  --signature SHA256SUMS.sig
+gh attestation verify forward-dynatrace-importer-v1.0.0.tgz \
+  --repo forwardnetworks/forward-dynatrace
+gh attestation verify oci://ghcr.io/forwardnetworks/forward-dynatrace-importer:v1.0.0 \
+  --owner forwardnetworks
+```
+
+Verified importer image:
+
+```text
+ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:7f884e44a2b54303d7da708bc805f0e16c1d19b192f95a90e94a63aad66bb7c6
+```
+
+Release provenance, SBOM, Trivy scan evidence, and digest pinning guidance are in
+[docs/release-provenance.md](docs/release-provenance.md) and [docs/container-runtime.md](docs/container-runtime.md).
+
+## Screenshots
+
+![Forward Dynatrace overview](docs/assets/screenshots/01-overview.jpg)
+
+![Forward read-only NQE preview](docs/assets/screenshots/02-export-package-readiness.jpg)
+
+![Forward-side API sequence](docs/assets/screenshots/03-forward-side-api.jpg)
+
+![Forward intent check payload](docs/assets/screenshots/04-intent-check-payload.jpg)
+
+## Development
+
+Common commands:
+
+```bash
 npm run repo:validate
-npm run forward:import:test
-npm run forward:nqe-artifacts:test
-npm run forward:nqe-live-smoke -- --help
-npm run forward:nqe-live-smoke:test
-npm run forward:nqe-preview:test
-npm run forward:package:test
-npm run forward:sign -- --help
-npm run workflow:smoke
-npm run runtime:validate
-npm run dynatrace:workflow:validate
-npm run dynatrace:query -- --help
-npm run dynatrace:deploy -- --help
-npm run dynatrace:deploy:test
-npm run dynatrace:normalize:test
-npm run forward:package -- --help
-npm run forward:status:test
-npm run forward:status:publish -- --help
-npm run forward:status:publish:test
 npm run schemas:validate
-npm run schemas:validate:test
-npm run acceptance:bundle:test
+npm run forward:import:test
+npm run forward:package:test
+npm run runtime:validate
 npm run demo:rehearsal
 npm run security:audit
-npm run sbom:check
-npm run dynatrace:replay-demo
 npm run lint
 npm run build
 npm run ci
-npm run start
-npm run deploy
 ```
 
 `npm run ci` is the local equivalent of the GitHub Actions `gitops` workflow.
-`npm run dynatrace:replay-demo -- --apply` posts the checked standard demo fixture to a trial sandbox using a
-local Platform Token; it is dry-run by default. Production integrations should query the customer's own Dynatrace
-topology.
+
+For Dynatrace API smoke checks, keep platform tokens outside the repository and pass them with `DYNATRACE_TOKEN`,
+`DYNATRACE_TOKEN_FILE`, or `--token-file`. Do not commit tenant URLs, access tokens, OAuth callback URLs, Forward
+credentials, customer hostnames, or customer-specific references.
+
+## Documentation
+
+Start here:
+
+- [docs/customer-one-pager.md](docs/customer-one-pager.md): customer-facing summary and verification commands
+- [docs/workflow.md](docs/workflow.md): end-to-end Dynatrace-to-Forward workflow
+- [docs/install.md](docs/install.md): install and release model
+- [docs/forward-ingest-contract.md](docs/forward-ingest-contract.md): package contract consumed by Forward-side tooling
+- [docs/forward-importer.md](docs/forward-importer.md): importer behavior, reconciliation, and approval gates
+- [docs/forward-nqe-preview.md](docs/forward-nqe-preview.md): optional read-only NQE preview path
+- [docs/connector-runtime.md](docs/connector-runtime.md): scheduled connector deployment templates
+- [docs/production-readiness.md](docs/production-readiness.md): production readiness checklist
+- [docs/validation-matrix.md](docs/validation-matrix.md): tested evidence and remaining validation notes
+- [docs/prospect-talk-track.md](docs/prospect-talk-track.md): prospect and customer talk track
+
+Repository layout:
+
+```text
+api/       Dynatrace app functions
+config/    importer and connector config examples
+deploy/    Docker Compose, Kubernetes, systemd, DQL, dashboard, and workflow templates
+docs/      implementation, operation, security, release, and customer-facing docs
+schemas/   JSON Schema contracts
+scripts/   package builder, importer, validators, release tools, and test helpers
+shared/    demo dependencies and sanitized status fixtures
+ui/        Dynatrace app UI
+```
+
+## Security
+
+The repository includes guardrails for tenant/customer data hygiene, schema validation, package signatures, release
+checksums, attestations, SBOM generation, Trivy image scanning, and Forward-side create-missing-only defaults.
+
+Relevant documents:
+
+- [docs/data-handling.md](docs/data-handling.md)
+- [docs/rbac.md](docs/rbac.md)
+- [docs/package-handoff.md](docs/package-handoff.md)
+- [docs/threat-model.md](docs/threat-model.md)
+- [docs/governance.md](docs/governance.md)
+
+## License
+
+This project is licensed under the ISC License. See [LICENSE](LICENSE).

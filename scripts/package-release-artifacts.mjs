@@ -24,6 +24,7 @@ const appArchiveEntries = [
   "package.json",
   "package-lock.json",
   "README.md",
+  "LICENSE",
   "dist",
   "deploy/dynatrace-dql",
   "deploy/dynatrace-dashboard",
@@ -57,6 +58,8 @@ const importerArchiveEntries = [
   "deploy",
   "package.json",
   "package-lock.json",
+  "README.md",
+  "LICENSE",
   "shared/demo-dynatrace-query-rows.json",
   "shared/demo-dependencies.json",
   "scripts/query-dynatrace-dependencies.mjs",
@@ -118,6 +121,7 @@ const requiredAppMembers = [
   "package.json",
   "package-lock.json",
   "README.md",
+  "LICENSE",
   "dist",
   "deploy/dynatrace-workflows/forward-sync-schedule.payload.example.json",
   "deploy/dynatrace-workflows/forward-sync-problem.payload.example.json",
@@ -156,6 +160,8 @@ const requiredAppMembers = [
 
 const requiredImporterMembers = [
   "Dockerfile.forward-importer",
+  "README.md",
+  "LICENSE",
   "api/forward-sync.function.ts",
   "config/forward-connector.config.example.json",
   "config/forward-connector.signed.config.example.json",

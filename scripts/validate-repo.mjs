@@ -10,6 +10,7 @@ const failures = [];
 const requiredFiles = [
   "AGENTS.md",
   "README.md",
+  "LICENSE",
   ".node-version",
   ".nvmrc",
   ".dockerignore",
@@ -591,6 +592,7 @@ const releasePackager = await readText("scripts/package-release-artifacts.mjs");
 for (const requiredPackagerText of [
   "forward-dynatrace-app-",
   "forward-dynatrace-importer-",
+  "LICENSE",
   "deploy/dynatrace-workflows",
   "deploy/dynatrace-dql",
   "deploy/dynatrace-dashboard",
