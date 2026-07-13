@@ -71,6 +71,8 @@ This is the single active execution plan for `forward-dynatrace` and its compani
   lint, and exact release-package smoke passed with exit `0`. A fresh acceptance bundle run
   `forward-dynatrace-20260713175331` also passed validate-only for 100 dependencies and 100 intent checks with no
   Forward contact.
+- [x] Commit and publish the verifier tranche as `e0f7a13`; GitHub Actions run `29272387657` / job `86893027638`
+  passed the complete `gitops` gate for that exact commit.
 - [x] Close the checked handoff read path: the Forward importer loads a dedicated token from a protected file, scopes
   Bearer forwarding to the exact HTTPS package origin/path, rejects inline tokens, and the systemd/Compose/Kubernetes
   templates mount the read identity separately from Forward credentials.
