@@ -98,6 +98,8 @@ const requiredFiles = [
   "scripts/generate-release-signing-keypair.test.mjs",
   "scripts/validate-release-ref.mjs",
   "scripts/validate-release-ref.test.mjs",
+  "scripts/verify-published-release.mjs",
+  "scripts/verify-published-release.test.mjs",
   "scripts/schema-validate.mjs",
   "scripts/schema-validate.test.mjs",
   "scripts/acceptance-bundle.mjs",
@@ -221,6 +223,7 @@ const requiredFiles = [
   "deploy/servicenow-flow/README.md",
   ".github/workflows/ci.yml",
   ".github/workflows/release.yml",
+  ".github/workflows/verify-release.yml",
   ".github/CODEOWNERS",
   ".github/dependabot.yml",
   ".github/pull_request_template.md",
@@ -618,6 +621,39 @@ for (const requiredReleaseGate of [
   }
 }
 
+const releaseVerificationWorkflow = await readText(".github/workflows/verify-release.yml");
+for (const requiredVerificationText of [
+  "workflow_run:",
+  "workflows: [release]",
+  "attestations: read",
+  "packages: read",
+  "npm run release:published:verify",
+  "published-release-verification.json",
+]) {
+  if (!releaseVerificationWorkflow.includes(requiredVerificationText)) {
+    fail(`Release verification workflow must preserve ${requiredVerificationText}.`);
+  }
+}
+
+const publishedReleaseVerifier = await readText("scripts/verify-published-release.mjs");
+for (const requiredVerifierBoundary of [
+  "--signer-workflow",
+  "--source-digest",
+  "--source-ref",
+  "--deny-self-hosted-runners",
+  "validateAttestationResults",
+  "runInvocationURI",
+  "runnerEnvironment",
+  "tool?.driver?.name",
+  "tag immutability is violated",
+  "withRetries",
+  "--clobber",
+]) {
+  if (!publishedReleaseVerifier.includes(requiredVerifierBoundary)) {
+    fail(`Published release verifier must preserve ${requiredVerifierBoundary}.`);
+  }
+}
+
 const customerAcceptanceChecklist = await readText("docs/customer-acceptance-checklist.md");
 for (const requiredAcceptanceLane of [
   "## 8. ServiceNow Change Assurance",
@@ -748,6 +784,7 @@ for (const scriptName of [
   "release:sign:test",
   "release:signing-key:test",
   "release:ref:test",
+  "release:published:test",
   "schemas:validate",
   "schemas:validate:test",
   "acceptance:bundle:test",
@@ -930,6 +967,8 @@ for (const requiredPackagerText of [
   "scripts/write-release-checksums.mjs",
   "scripts/sign-release-checksums.mjs",
   "scripts/generate-release-signing-keypair.mjs",
+  "scripts/verify-published-release.mjs",
+  "scripts/verify-published-release.test.mjs",
   "scripts/schema-validate.mjs",
   "scripts/acceptance-bundle.mjs",
   "scripts/query-dynatrace-dependencies.mjs",

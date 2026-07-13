@@ -112,7 +112,8 @@ Forward-centric: Dynatrace exports desired state, while Forward-controlled tooli
 
 ## Exit Criteria
 
-- Release artifacts and image digest are verified.
+- `published-release-verification.json` records the exact successful release run, commit, artifacts, checksums,
+  signature status, attestations, SBOM identity, zero-result Trivy SARIF, and digest-pinned image reference.
 - Acceptance evidence bundle is generated and retained.
 - Dependency eligibility is reviewed.
 - Forward dry-run passes against the intended network.

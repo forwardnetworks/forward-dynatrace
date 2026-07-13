@@ -27,14 +27,17 @@ docker image inspect ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag> \
   --format '{{index .RepoDigests 0}}'
 ```
 
-For production or customer pilots, deploy the digest-pinned image rather than `latest`:
+For production or customer pilots, deploy a digest-pinned image rather than `latest`. The following digest is retained
+only as the reproducible legacy base-workflow image from release run `28696863169`:
 
 ```text
 ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:7f884e44a2b54303d7da708bc805f0e16c1d19b192f95a90e94a63aad66bb7c6
 ```
 
-The checked Docker Compose and Kubernetes examples default to this verified `v1.0.0` digest. Override it only after
-verifying the replacement release checksums, attestations, SBOM, and Trivy SARIF.
+The checked Docker Compose and Kubernetes examples default to this legacy digest until `v2.0.0` is published. The
+historical `v1.0.0` tag was reused across three commits, so this digest does not constitute immutable release proof.
+Override it only with the output of the checked verifier for a new immutable release after verifying checksums,
+attestations, SBOM, and Trivy SARIF.
 
 The new handoff/check-health/security/Flow commands require the next release image; the `v1.0.0` digest predates them.
 Check-health templates therefore require an explicitly replaced digest placeholder until that release exists.

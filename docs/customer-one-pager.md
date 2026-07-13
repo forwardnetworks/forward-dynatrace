@@ -74,13 +74,13 @@ read back the attachment/work-note marker, retry without duplicates, and query t
 
 ## Release Verification
 
-`v1.0.0` is the verified base package/import release. The ServiceNow assurance worker, check-health poller, security
-correlator, cross-domain portal, and their runtime commands are not included in `v1.0.0`; they remain a release
-candidate in PR #11. For a controlled demo, use an exact reviewed release-candidate commit. For customer installation,
-wait for a newer matching tag and verify that release's artifacts instead of combining current templates with the
-`v1.0.0` image.
+`v1.0.0` is the legacy published base package/import line. The ServiceNow assurance worker, check-health poller,
+security correlator, cross-domain portal, and their runtime commands are not included in `v1.0.0`; the complete
+`v2.0.0` candidate is in PR #13. Historical Actions evidence shows `v1.0.0` on three commits, so it is not immutable
+release proof. For a controlled demo, use an exact reviewed release-candidate commit. For customer installation, wait
+for a newer matching tag and run the checked verifier instead of combining current templates with the legacy image.
 
-The commands below verify the published base release:
+The commands below inspect the legacy published artifacts; they do not resolve the tag-history violation:
 
 ```bash
 gh release download v1.0.0 --repo forwardnetworks/forward-dynatrace
@@ -90,8 +90,11 @@ gh attestation verify forward-dynatrace-importer-v1.0.0.tgz --repo forwardnetwor
 gh attestation verify oci://ghcr.io/forwardnetworks/forward-dynatrace-importer:v1.0.0 --owner forwardnetworks
 ```
 
-The verified importer image digest for `v1.0.0` is:
+The legacy base-workflow importer image from release run `28696863169` is pinned as:
 
 ```text
 ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:7f884e44a2b54303d7da708bc805f0e16c1d19b192f95a90e94a63aad66bb7c6
 ```
+
+The historical `v1.0.0` tag was reused across three commits and therefore is not acceptable as immutable release
+proof for a customer trial. Publish and verify the new `v2.0.0` release before installing the post-merge integration.

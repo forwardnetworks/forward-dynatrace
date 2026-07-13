@@ -61,6 +61,16 @@ This is the single active execution plan for `forward-dynatrace` and its compani
 - [x] Commit and publish the integrated release-candidate tranche as immutable commit `b2acfce` and open
   [`forward-dynatrace` PR #13](https://github.com/forwardnetworks/forward-dynatrace/pull/13), explicitly linked to the
   companion ServiceNow PR. Review, merge, and the `v2.0.0` tag/release remain required.
+- [x] Replace the manual post-tag proof sequence with a checked, read-only published-release verifier and follow-up
+  workflow. The verifier correlates the exact tag, commit, successful release run, release assets, checksums, optional
+  signature, SBOM, source/ref/signer/run/subject-bound artifact and image attestations, GHCR digest, and Trivy-authored
+  zero-result SARIF into one bounded report, and fails closed when release-workflow history shows tag reuse. Live
+  negative proof found that `v1.0.0` was used across three commits, so the new `v2.0.0` tag must remain immutable.
+- [x] Run a clean `npm ci && npm run ci` on Node `v24.18.0` after the published-release verifier tranche. All tests,
+  the 2,500-row scale smoke, runtime validation, zero-vulnerability production audit, Dynatrace app build, SBOM,
+  lint, and exact release-package smoke passed with exit `0`. A fresh acceptance bundle run
+  `forward-dynatrace-20260713175331` also passed validate-only for 100 dependencies and 100 intent checks with no
+  Forward contact.
 - [x] Close the checked handoff read path: the Forward importer loads a dedicated token from a protected file, scopes
   Bearer forwarding to the exact HTTPS package origin/path, rejects inline tokens, and the systemd/Compose/Kubernetes
   templates mount the read identity separately from Forward credentials.

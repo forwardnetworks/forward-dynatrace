@@ -35,6 +35,30 @@ match the release signature to the public key used for that release.
 
 ## Verify A Release
 
+Use the checked end-to-end verifier from the matching release source:
+
+```bash
+npm run release:published:verify -- \
+  --release-name <tag> \
+  --repository forwardnetworks/forward-dynatrace \
+  --output-dir /secure/evidence/forward-dynatrace-<tag>
+```
+
+It resolves the tag to an exact commit and successful `release.yml` run, rejects any release-workflow history that
+shows the tag on another commit, downloads only the expected assets into a
+new or empty directory, verifies `SHA256SUMS`, verifies the optional Ed25519 signature when present, validates the
+CycloneDX component/version, and verifies every artifact and GHCR attestation against the exact tag source digest,
+`release.yml` signer, GitHub-hosted runner, subject digest, and successful workflow run. It records the registry digest,
+downloads the Trivy-authored SARIF from that exact run, requires zero HIGH/CRITICAL results, and writes
+`published-release-verification.json`. Use `--require-signature` when absence of the optional signature must fail.
+
+The historical `v1.0.0` tag is a known negative case: successful release runs `28696639370`, `28696863169`, and
+`28709783362` used three different commits. Its individual artifacts remain inspectable, but the checked verifier
+correctly refuses to issue an immutable-release report for that tag. Do not move or reuse `v2.0.0` or later tags.
+
+The `verify-release` workflow runs the same command automatically after a successful tag workflow and retains the
+bounded report as a workflow artifact. The manual commands below remain useful for independent investigation.
+
 Download the release into an empty verification directory:
 
 ```bash

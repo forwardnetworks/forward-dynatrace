@@ -28,6 +28,10 @@ Actions. It is not published to PyPI.
 4. The `release` workflow builds with Node 24, runs `npm run ci`, runs `npm run release:package`, optionally
    self-signs `SHA256SUMS`, uploads workflow artifacts, publishes the GHCR importer image, emits attestations, scans
    the image with Trivy SARIF output, fails on HIGH/CRITICAL findings, and publishes a GitHub release for tag pushes.
+5. After a successful tag workflow, `verify-release` checks out the immutable release source and runs the checked
+   published-release verifier. It uploads `published-release-verification.json` only after release asset membership,
+   checksums, optional signature, SBOM identity, artifact and image attestations, GHCR digest, exact release workflow
+   run, and zero-result Trivy SARIF all verify.
 
 For a local archive smoke test after `npm run build`:
 
@@ -55,7 +59,23 @@ self-managed signing key setup.
 
 ## Verification
 
-Before installing release artifacts, verify checksums:
+Run the checked verifier from the matching release source before installing artifacts:
+
+```bash
+npm run release:published:verify -- \
+  --release-name v<package-version> \
+  --repository forwardnetworks/forward-dynatrace \
+  --output-dir /secure/evidence/forward-dynatrace-v<package-version>
+```
+
+Add `--require-signature` when customer policy requires the optional self-managed checksum signature. The output
+directory must be new or empty so stale files cannot satisfy the gate. The verifier performs no GitHub or registry
+writes and emits a bounded JSON report with the exact release run ID, commit SHA, checksums, image digest, attestation
+workflow invocations, SBOM component count, and Trivy result count. Attestations must bind the exact tag source,
+`release.yml` signer, GitHub-hosted runner, workflow run, and subject digest. Any workflow history showing the same tag
+on a different commit fails the immutable-release gate.
+
+For an independent manual checksum check inside the downloaded directory:
 
 ```bash
 sha256sum -c SHA256SUMS

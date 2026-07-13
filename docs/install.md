@@ -22,17 +22,18 @@ Steps:
 ```bash
 git clone https://github.com/forwardnetworks/forward-dynatrace.git
 cd forward-dynatrace
-# For the ServiceNow assurance release candidate, use the exact reviewed PR #11 commit.
-git checkout <reviewed-release-candidate-commit>
+# For a controlled pre-release rehearsal, use the exact reviewed PR #13 head commit.
+git checkout <reviewed-v2.0.0-release-candidate-commit>
 npm ci
 npm run ci
 npm run acceptance:bundle -- --dependencies shared/demo-dependencies.json --output-dir out/acceptance
 ```
 
 The ServiceNow assurance worker, check-health poller, security correlator, cross-domain portal, and their runtime
-commands are not included in `v1.0.0`. That tag remains the verified base package/import release. Do not run current
-templates with the `v1.0.0` importer image; use a reviewed exact release-candidate commit for a controlled demo, or a
-newer matching tag after this tranche lands and is released.
+commands are not included in `v1.0.0`. That tag remains the legacy published base package/import line. Do not run current
+templates with the `v1.0.0` importer image. Historical Actions evidence shows that tag on three commits, so it is not
+immutable release proof. Use a reviewed exact release-candidate commit only for a controlled rehearsal, or a newer
+matching tag after this tranche lands and passes the checked published-release verifier.
 
 For an unsigned trial or development install, use a `my.*` app ID:
 

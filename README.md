@@ -277,11 +277,13 @@ Dynatrace. See [docs/forward-importer.md](docs/forward-importer.md) and
 
 ## Release Verification
 
-The commands below verify the published `v1.0.0` base-workflow release. That tag predates the ServiceNow assurance,
-check-health, security-correlation, handoff, scope-mapping, and new runtime-command tranche. The repository version is
-now the unpublished `2.0.0` release candidate because the handoff-backed Workflow action is intentionally a breaking
-contract. Before installing it, first land the candidate, publish matching tag `v2.0.0`, and substitute that verified
-tag and image digest in every command below.
+The commands below inspect the published `v1.0.0` base-workflow artifacts. Historical Actions evidence now proves that
+the tag was reused across three commits, so it does not satisfy the immutable-release gate and the checked verifier
+fails closed on it. The pinned digest below is retained only as a reproducible legacy base-workflow reference from run
+`28696863169`; it is not release proof for the post-merge integration. The repository version is now the unpublished
+`2.0.0` release candidate because the handoff-backed Workflow action is intentionally a breaking contract. Before
+installing the integration, land the candidate, publish a new immutable `v2.0.0` tag, run the checked verifier, and
+substitute that verified tag and image digest in every command below.
 
 Before installing or running any tagged release artifacts, verify the release:
 
@@ -299,7 +301,7 @@ gh attestation verify oci://ghcr.io/forwardnetworks/forward-dynatrace-importer:v
   --owner forwardnetworks
 ```
 
-Verified importer image:
+Legacy run-pinned importer image:
 
 ```text
 ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:7f884e44a2b54303d7da708bc805f0e16c1d19b192f95a90e94a63aad66bb7c6
