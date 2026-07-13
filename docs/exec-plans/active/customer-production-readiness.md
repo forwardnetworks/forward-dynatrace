@@ -43,6 +43,9 @@ acceptance deployment without changing the system-of-record or credential bounda
   or primary assurance action is missing.
 - [x] Add an explicit live ServiceNow retry-verification gate that requires the second publication receipt to reuse
   the original work-note and attachment sys_ids and retains the retry receipt for acceptance evidence.
+- [x] Authoritatively read an approved/scheduled and a requested/authorize change from a ServiceNow personal developer
+  instance with zero writes; verify eligible versus fail-closed preflight decisions at times inside their recorded
+  windows and retain checksummed sanitized artifacts.
 - [x] Repeat base-import live acceptance on Forward network `235937`, snapshot `1322821`: verify zero-check preflight,
   create 24 checks, read back IDs and 12 PASS / 12 FAIL state, rerun 24 unchanged, report one changed and one stale
   item without mutation, fail closed on an invalid checksum, recover, and query the matching status event back once
@@ -97,7 +100,9 @@ Base import:
 
 ServiceNow:
 
-- [ ] Exercise one approved and one blocked non-production change.
+- [x] Read one approved/scheduled and one requested/authorize non-production change and verify eligible versus blocked
+  preflight decisions without writing to ServiceNow.
+- [ ] Exercise one approved and one blocked non-production change end to end in a current change window.
 - [ ] Capture customer-approved before/after Forward and matching Dynatrace evidence.
 - [ ] Read back the exact ServiceNow marker, attachment checksum, and decision.
 - [ ] Retry the bundle and verify no duplicate ledger entry, attachment, or work note.
