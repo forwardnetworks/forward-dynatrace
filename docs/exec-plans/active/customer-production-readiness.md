@@ -57,6 +57,9 @@ This is the single active execution plan for `forward-dynatrace` and its compani
 - [x] Select `v2.0.0` for the post-merge release candidate and synchronize the package, lockfile, and Dynatrace app
   versions. Requiring a package-handoff connection changes the published Workflow action input contract, so a major
   version is required rather than a `v1.x` compatibility claim.
+- [x] Commit and publish the integrated release-candidate tranche as immutable commit `b2acfce` and open
+  [`forward-dynatrace` PR #13](https://github.com/forwardnetworks/forward-dynatrace/pull/13), explicitly linked to the
+  companion ServiceNow PR. Review, merge, and the `v2.0.0` tag/release remain required.
 - [x] Close the checked handoff read path: the Forward importer loads a dedicated token from a protected file, scopes
   Bearer forwarding to the exact HTTPS package origin/path, rejects inline tokens, and the systemd/Compose/Kubernetes
   templates mount the read identity separately from Forward credentials.
