@@ -163,7 +163,32 @@ export const fetchServiceNowChange = async ({
   if (!response.ok) {
     throw new Error(`ServiceNow change read failed with ${response.status}: ${text.slice(0, 300)}`);
   }
-  const rows = JSON.parse(text).result;
+  let payload;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    const mediaType = response.headers.get("content-type")
+      ?.split(";", 1)[0]
+      .trim()
+      .toLowerCase() || "unknown";
+    const looksLikeHtml = /^\s*(?:<!doctype html|<html\b)/iu.test(text);
+    if (looksLikeHtml && /hibernat|developer instance/iu.test(text)) {
+      throw new Error(
+        `ServiceNow change read returned HTML instead of API JSON (${mediaType}). ` +
+        "The developer instance appears to be hibernating; wake it in the ServiceNow Developer Portal, then retry.",
+      );
+    }
+    if (looksLikeHtml) {
+      throw new Error(
+        `ServiceNow change read returned HTML instead of API JSON (${mediaType}). ` +
+        "Verify the instance is awake and that API authentication was not redirected to a sign-in page.",
+      );
+    }
+    throw new Error(
+      `ServiceNow change read returned invalid API JSON (${mediaType}); verify the Table API endpoint and response policy.`,
+    );
+  }
+  const rows = payload.result;
   if (!Array.isArray(rows)) throw new Error("ServiceNow change response must contain result array.");
   if (rows.length !== 1) {
     throw new Error(`ServiceNow change lookup returned ${rows.length} records for ${number}; expected exactly one.`);

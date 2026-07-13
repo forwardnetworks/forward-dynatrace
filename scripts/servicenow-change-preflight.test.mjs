@@ -129,6 +129,38 @@ test("rejects ambiguous ServiceNow change lookup", async () => {
   );
 });
 
+test("diagnoses a hibernating developer instance that returns HTTP 200 HTML", async () => {
+  await assert.rejects(
+    fetchServiceNowChange({
+      baseUrl: "https://servicenow.example.com",
+      user: "reader",
+      password: "runtime-only",
+      changeNumber: "CHG0042187",
+      fetchImpl: async () => new Response(
+        "<!doctype html><html><title>Instance Hibernating page</title><body>Developer Instance Hibernating</body></html>",
+        { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } },
+      ),
+    }),
+    /returned HTML instead of API JSON \(text\/html\).*appears to be hibernating.*Developer Portal/,
+  );
+});
+
+test("diagnoses a ServiceNow login redirect returned as HTTP 200 HTML", async () => {
+  await assert.rejects(
+    fetchServiceNowChange({
+      baseUrl: "https://servicenow.example.com",
+      user: "reader",
+      password: "runtime-only",
+      changeNumber: "CHG0042187",
+      fetchImpl: async () => new Response(
+        "<!doctype html><html><title>Sign in</title></html>",
+        { status: 200, headers: { "Content-Type": "text/html" } },
+      ),
+    }),
+    /returned HTML instead of API JSON \(text\/html\).*authentication was not redirected to a sign-in page/,
+  );
+});
+
 test("refuses to send Basic credentials to a non-TLS ServiceNow origin", async () => {
   await assert.rejects(
     fetchServiceNowChange({

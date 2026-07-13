@@ -63,6 +63,9 @@ acceptance deployment without changing the system-of-record or credential bounda
   instance with zero writes; verify eligible versus fail-closed preflight decisions at times inside their recorded
   windows and retain checksummed sanitized artifacts. Verify the active companion POST operation, ledger table, and
   unique idempotency field; the ledger remains empty until a current-window acceptance run is approved.
+- [x] Harden the authoritative ServiceNow reader after the PDI returned HTTP 200 hibernation HTML: diagnose
+  hibernation/sign-in responses explicitly, exit 1, and write no false acceptance artifact; cover both paths with
+  deterministic tests and a live hibernating-PDI proof.
 - [x] Repeat base-import live acceptance on Forward network `235937`, snapshot `1322821`: verify zero-check preflight,
   create 24 checks, read back IDs and 12 PASS / 12 FAIL state, rerun 24 unchanged, report one changed and one stale
   item without mutation, fail closed on an invalid checksum, recover, and query the matching status event back once

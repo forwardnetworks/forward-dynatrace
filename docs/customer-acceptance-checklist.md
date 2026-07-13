@@ -68,6 +68,8 @@ Forward-centric: Dynatrace exports desired state, while Forward-controlled tooli
 
 - Install the checked Flow Designer Script-step assets or the authenticated asynchronous worker in a non-production
   ServiceNow instance.
+- Run the read-only preflight before the change window. If it reports a hibernating instance or HTML sign-in redirect,
+  wake the instance or restore API authentication and retry; do not proceed without authoritative Table API JSON.
 - Read one approved/scheduled change and one blocked change through `servicenow:change-preflight`; retain both
   sanitized artifacts and confirm the blocked case exits `2` without writes.
 - For the approved change, run `servicenow:change-workflow -- --phase start` inside its authoritative window before

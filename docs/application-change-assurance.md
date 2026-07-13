@@ -91,6 +91,11 @@ npm run servicenow:change-preflight -- \
 Required ServiceNow permissions should be limited to reading the required `change_request` fields. Writing work notes
 or attachments is a separate role and credential path enabled only after the read-only flow is accepted.
 
+Run this preflight before the change window, especially with a personal developer instance. If ServiceNow returns an
+HTTP 200 hibernation or sign-in page instead of Table API JSON, the command now fails with an explicit wake/authentication
+diagnosis and writes no acceptance artifact. Wake the instance in the ServiceNow Developer Portal or restore the API
+credential, then retry; never treat a browser page as authoritative change evidence.
+
 ## Final Assurance Conductor
 
 The production operator path is a resumable two-phase conductor. Start captures the exact authoritative ServiceNow
