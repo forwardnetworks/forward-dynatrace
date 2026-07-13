@@ -53,6 +53,10 @@ acceptance deployment without changing the system-of-record or credential bounda
   Forward call, and now produces a tested blocked summary with exact counts and `forward.attempted=false` that keeps
   customer-owned live evidence primary and limits replay to approved non-production tenants with visible synthetic
   provenance.
+- [x] Exercise that recovery path in the approved Trial tenant: replay run `fd-demo-showcase-20260713T104555Z` was
+  accepted with 100 explicitly synthetic events and queried back as 100 normalized dependencies; dry-run conductor
+  `forward-dynatrace-20260713104722` resolved all 12 showcase flows, observed 12 blocked paths, planned 10 creates plus
+  24 stale reports, and performed zero Forward mutations or Dynatrace status writes.
 - [x] Add an explicit live ServiceNow retry-verification gate that requires the second publication receipt to reuse
   the original work-note and attachment sys_ids and retains the retry receipt for acceptance evidence.
 - [x] Authoritatively read an approved/scheduled and a requested/authorize change from a ServiceNow personal developer
@@ -65,6 +69,8 @@ acceptance deployment without changing the system-of-record or credential bounda
   from Dynatrace.
 - [x] Review and commit the coherent implementation tranche as `2f1ce92` on
   `codex/servicenow-forward-dynatrace-demo` after the supported Node 24 gate passed.
+- [x] Push the blocked-evidence polish as `6775c24`, pass local Node `v24.18.0` CI and GitHub Actions run
+  `29243622719`, and promote PR `#11` from draft to ready for external review.
 - [ ] Obtain external review and land the current implementation tranche.
 - [ ] Install customer-owned Forward-side and Dynatrace runtimes.
 - [ ] Complete base import, ServiceNow, check-health, and security live acceptance.
