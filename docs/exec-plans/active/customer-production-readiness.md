@@ -91,6 +91,13 @@ acceptance deployment without changing the system-of-record or credential bounda
   reject tag/package/app version mismatches before release publication, and cover the gate deterministically. A clean
   mutable-copy run of `npm ci && npm run ci` passed on Node `v24.18.0`, including the 2,500-row scale smoke,
   zero-vulnerability production audit, app/action build, and exact importer-archive membership for the validator.
+- [x] Add a single credential-free two-act presenter showcase that builds and validates Dynatrace-derived Forward
+  intent, then renders checksum-bound ServiceNow safe/regression assurance through production builders with explicit
+  synthetic provenance and zero external I/O. The final provenance-tagged showcase tree passed the complete clean
+  Node `v24.18.0` CI gate on 2026-07-13, including the 2,500-row scale smoke, zero-vulnerability production audit,
+  Dynatrace app build, and exact release-archive membership smoke. The same showcase then passed with Docker networking
+  disabled and bogus Forward, Dynatrace, and ServiceNow runtime configuration present, proving the rehearsal has no
+  hidden tenant or credential dependency.
 - [ ] Obtain external review and land the current implementation tranche.
 - [ ] Install customer-owned Forward-side and Dynatrace runtimes.
 - [ ] Complete base import, ServiceNow, check-health, and security live acceptance.

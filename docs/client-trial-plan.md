@@ -33,24 +33,26 @@ can govern an actual change without moving approval or deployment authority into
 
 ## Local Rehearsal
 
-Run:
+Run the complete two-act rehearsal:
+
+```bash
+npm run demo:showcase -- --output-dir /tmp/servicenow-forward-dynatrace-showcase
+```
+
+Open `SHOWCASE.md` in that directory. The command uses `shared/demo-dynatrace-query-rows.json`, normalizes dependency
+rows, builds and validates the Forward package, then creates the ServiceNow safe/regression assurance artifacts. It
+uses the production builders, contacts no external system, and keeps synthetic provenance explicit across both acts.
+
+Use the component commands only when rehearsing one act in isolation:
 
 ```bash
 npm run demo:rehearsal
-```
-
-This uses `shared/demo-dynatrace-query-rows.json`, normalizes dependency rows, builds the Forward package, and runs
-validate-only import without Forward credentials.
-
-Rehearse the ServiceNow safe/regression act with:
-
-```bash
 npm run demo:servicenow
 ```
 
-The command emits a presenter-ready `DEMO.md`, exact safe/regression gates, dry-run ServiceNow receipts, checksummed
-evidence attachments, and schema-valid Dynatrace events. It is deliberately synthetic and contacts no external
-system; use it to rehearse the story, not as customer acceptance evidence.
+The assurance component emits a focused `DEMO.md`, exact safe/regression gates, dry-run ServiceNow receipts,
+checksummed evidence attachments, and schema-valid Dynatrace events. These commands are deliberately synthetic; use
+them to rehearse the story, not as customer acceptance evidence.
 
 ## Dynatrace Trial
 

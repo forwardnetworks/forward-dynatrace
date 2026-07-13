@@ -56,22 +56,22 @@ conductor never replays automatically, and replay provenance must remain visibly
 replay-only and therefore requires `--synthetic`. Customer evidence requires an explicit `--dynatrace-query-file` and
 truthful `--evidence-source`; the conductor rejects replay/seeded rows labeled live before contacting Forward.
 
-## Offline ServiceNow Story Rehearsal
+## Credential-Free Two-Act Rehearsal
 
-Before a customer session, exercise the complete safe/regression narrative without credentials:
+Before a customer session, exercise intent creation and safe/regression change assurance in one presenter bundle:
 
 ```bash
-npm run demo:servicenow
+npm run demo:showcase -- --output-dir /tmp/servicenow-forward-dynatrace-showcase
 ```
 
-The command writes a temporary `DEMO.md` plus two artifact sets. The safe change remains 24/24 reachable with healthy
-Dynatrace context and passes. The regressed change falls from 24 to 12 reachable paths, reports 12 blocked modeled
-paths plus unhealthy Dynatrace context, and fails with explicit reason codes. In both cases, the ServiceNow attachment
-SHA-256 exactly matches the Dynatrace event field.
+Open `SHOWCASE.md`. Act 1 builds and validate-only checks the 100-row Dynatrace-to-Forward intent package. Act 2 keeps
+the safe change 24/24 reachable with healthy Dynatrace context and passes; the regressed change falls from 24 to 12,
+reports 12 blocked modeled paths plus unhealthy Dynatrace context, and fails with explicit reason codes. In both
+cases, the ServiceNow attachment SHA-256 exactly matches the Dynatrace event field.
 
-This rehearsal performs no external reads or writes. Keep its `SYNTHETIC DEMO` provenance visible; replace it with
-authoritative ServiceNow readback, customer-approved Forward snapshots, and Dynatrace query-back before making a live
-customer claim.
+This rehearsal performs no external reads or writes. Keep its `SYNTHETIC DEMO SHOWCASE` provenance visible; replace
+it with authoritative ServiceNow readback, customer-approved Forward snapshots, and Dynatrace query-back before
+making a live customer claim. Use `npm run demo:servicenow` only for a focused Act 2 rehearsal.
 
 ## Compelling ServiceNow → Forward → Dynatrace Story
 

@@ -87,6 +87,24 @@ npm run acceptance:bundle -- \
 The acceptance bundle is read-only. It builds a demo package, validates schemas and package integrity, writes
 `ACCEPTANCE.md`, and does not contact Forward.
 
+## One-Command Two-Act Rehearsal
+
+Build the complete credential-free presenter bundle before a meeting:
+
+```bash
+npm run demo:showcase -- --output-dir /tmp/servicenow-forward-dynatrace-showcase
+```
+
+Open `/tmp/servicenow-forward-dynatrace-showcase/SHOWCASE.md`. Act 1 turns 100 checked Dynatrace-shaped dependencies
+into a checksum-bound Forward `NewNetworkCheck[]` package and validates it without a Forward call. Act 2 compares a
+safe ServiceNow change with a regressed change through the production Forward gate, ServiceNow evidence/receipt, and
+Dynatrace event builders. The bundle records exact package/check checksums, change IDs, snapshot deltas, decision
+reasons, and ServiceNow evidence SHA-256 values.
+
+This path performs zero external reads or writes and labels the entire bundle `SYNTHETIC DEMO SHOWCASE`. Replace its
+records with authoritative current-window ServiceNow, customer-approved Forward, and fresh Dynatrace query-back
+evidence before making a live claim.
+
 ## Live Demo
 
 The live-demo conductor runs the complete operator-controlled story against a Dynatrace trial tenant and a Forward
@@ -314,6 +332,7 @@ npm run forward:package:test
 npm run runtime:validate
 npm run demo:rehearsal
 npm run demo:servicenow
+npm run demo:showcase
 npm run security:audit
 npm run lint
 npm run build
@@ -325,6 +344,9 @@ npm run ci
 `npm run demo:servicenow` creates a synthetic, read-only safe/regression rehearsal using the production ServiceNow
 evidence, Forward gate, receipt, and Dynatrace event builders. Its `DEMO.md` includes the exact change IDs, snapshot
 deltas, reason codes, and shared evidence checksums. It contacts no external system and never represents live proof.
+
+`npm run demo:showcase` is the preferred presenter rehearsal: it combines that assurance proof with the checked
+Dynatrace-to-Forward package act and writes one `SHOWCASE.md` plus a machine-readable bundle index.
 
 For Dynatrace API smoke checks, keep platform tokens outside the repository and pass them with `DYNATRACE_TOKEN`,
 `DYNATRACE_TOKEN_FILE`, or `--token-file`. Do not commit tenant URLs, access tokens, OAuth callback URLs, Forward

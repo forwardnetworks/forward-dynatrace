@@ -28,6 +28,7 @@ interface DependencyCandidate {
   owner: string;
   criticality: "critical" | "high" | "medium";
   confidence: number;
+  synthetic?: boolean;
   mappingState: "ready" | "needs-map" | "review";
 }
 
@@ -328,6 +329,7 @@ const toIntentCheck = (
     `app:${toTagValue(dependency.appName)}`,
     `environment:${toTagValue(dependency.environment)}`,
     `owner:${toTagValue(dependency.owner)}`,
+    ...(dependency.synthetic === true ? ["provenance:synthetic"] : []),
     `dynatrace-key:${toIntegrationKey(dependency)}`,
   ],
 });

@@ -43,16 +43,17 @@ npm run demo:rehearsal
 This normalizes DQL-shaped rows, builds the Forward package shape, and validates it without Forward credentials. The
 saved demo fixture normalizes to 100 ready rows.
 
-For the change-assurance act, run:
+For the complete presenter flow, run:
 
 ```bash
-npm run demo:servicenow
+npm run demo:showcase -- --output-dir /tmp/servicenow-forward-dynatrace-showcase
 ```
 
-This creates one safe and one regressed synthetic ServiceNow scenario in a new temporary directory. It uses the same
-gate, checksummed ServiceNow evidence attachment, retry receipt, and Dynatrace event builders as the live workflow,
-but performs zero external reads or writes. The generated `DEMO.md` and every change event keep `SYNTHETIC DEMO`
-provenance explicit.
+This creates the checked Dynatrace-to-Forward package act plus one safe and one regressed synthetic ServiceNow
+scenario. It uses the same package, gate, checksummed ServiceNow evidence attachment, retry receipt, and Dynatrace
+event builders as the live workflow, but performs zero external reads or writes. The generated `SHOWCASE.md`, bundle
+index, and every change event keep `SYNTHETIC DEMO SHOWCASE` provenance explicit. Use `npm run demo:servicenow` when
+only the assurance act is needed.
 
 ## Local Workflow Smoke
 

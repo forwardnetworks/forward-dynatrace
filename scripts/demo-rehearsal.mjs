@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import forwardSync from "../api/forward-sync.function.ts";
 import { normalizeDynatraceRows } from "./normalize-dynatrace-dependencies.mjs";
@@ -41,7 +42,7 @@ const parseArgs = (argv) => {
   return args;
 };
 
-const run = (command, args) =>
+const runCommand = (command, args) =>
   new Promise((resolve, reject) => {
     const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
@@ -62,17 +63,12 @@ const run = (command, args) =>
     });
   });
 
-const main = async () => {
-  const args = parseArgs(process.argv.slice(2));
-  if (args.help) {
-    process.stdout.write(usage);
-    return;
-  }
-
-  const outputDir = args.outputDir || await mkdtemp(path.join(tmpdir(), "forward-dynatrace-demo-"));
+export const buildDemoPackageRehearsal = async (outputDir) => {
   await mkdir(outputDir, { recursive: true });
   const rows = JSON.parse(await readFile("shared/demo-dynatrace-query-rows.json", "utf8"));
-  const dependencies = normalizeDynatraceRows(rows);
+  const dependencies = normalizeDynatraceRows(
+    rows.map((row) => ({ ...row, "demo.synthetic": true })),
+  );
   const result = forwardSync({
     syncMode: "data-connector",
     dependencies: dependencies.filter((dependency) => dependency.mappingState !== "needs-map"),
@@ -83,12 +79,13 @@ const main = async () => {
   const checksPath = path.join(outputDir, "forward-intent-checks.json");
   const reportPath = path.join(outputDir, "validate-report.json");
   const statusPath = path.join(outputDir, "forward-ingest-status.json");
+  const manifest = JSON.parse(result.exportManifestPreview);
 
   await writeFile(dependenciesPath, JSON.stringify(dependencies, null, 2) + "\n");
   await writeFile(manifestPath, result.exportManifestPreview);
   await writeFile(checksPath, result.intentChecksPreview);
 
-  await run(process.execPath, [
+  await runCommand(process.execPath, [
     "scripts/forward-import-package.mjs",
     "--checks",
     checksPath,
@@ -100,34 +97,71 @@ const main = async () => {
     "--status-artifact",
     statusPath,
   ]);
+  const [report, status] = await Promise.all([
+    readFile(reportPath, "utf8").then(JSON.parse),
+    readFile(statusPath, "utf8").then(JSON.parse),
+  ]);
+  if (report.status !== "valid" || status.importState !== "valid") {
+    throw new Error("Forward validate-only rehearsal did not produce valid package evidence.");
+  }
 
-  process.stdout.write(
-    JSON.stringify(
-      {
-        status: "ok",
-        packageStatus: result.status,
-        outputDir,
-        rows: dependencies.length,
-        exportableRows: dependencies.filter((dependency) => dependency.mappingState === "ready").length,
-        readyRows: dependencies.filter((dependency) => dependency.mappingState === "ready").length,
-        reviewRows: dependencies.filter((dependency) => dependency.mappingState === "review").length,
-        needsMapRows: dependencies.filter((dependency) => dependency.mappingState === "needs-map").length,
-        intentChecks: result.intentCheckCount,
-        artifacts: [
-          path.basename(dependenciesPath),
-          path.basename(manifestPath),
-          path.basename(checksPath),
-          path.basename(reportPath),
-          path.basename(statusPath),
-        ],
-      },
-      null,
-      2,
-    ) + "\n",
-  );
+  return {
+    schemaVersion: "forward-dynatrace-demo-package-rehearsal/v1",
+    status: "ok",
+    packageStatus: result.status,
+    outputDir,
+    provenance: {
+      evidenceSource: "checked-dynatrace-demo-rehearsal",
+      synthetic: true,
+    },
+    externalReads: 0,
+    externalWrites: 0,
+    packageId: manifest.packageId,
+    generatedAt: manifest.generatedAt,
+    intentChecksSha256: manifest.integrity.intentChecksSha256,
+    rows: dependencies.length,
+    syntheticRows: dependencies.filter((dependency) => dependency.synthetic === true).length,
+    exportableRows: dependencies.filter((dependency) => dependency.mappingState === "ready").length,
+    readyRows: dependencies.filter((dependency) => dependency.mappingState === "ready").length,
+    reviewRows: dependencies.filter((dependency) => dependency.mappingState === "review").length,
+    needsMapRows: dependencies.filter((dependency) => dependency.mappingState === "needs-map").length,
+    intentChecks: result.intentCheckCount,
+    validation: {
+      mode: report.mode,
+      status: report.status,
+      plannedChecks: status.plannedChecks,
+      mutationCounts: status.mutationCounts,
+    },
+    artifacts: [
+      path.basename(dependenciesPath),
+      path.basename(manifestPath),
+      path.basename(checksPath),
+      path.basename(reportPath),
+      path.basename(statusPath),
+    ],
+  };
 };
 
-main().catch((error) => {
-  process.stderr.write(`${error.message}\n`);
-  process.exit(1);
-});
+export const run = async (argv = process.argv.slice(2)) => {
+  const args = parseArgs(argv);
+  if (args.help) {
+    process.stdout.write(usage);
+    return 0;
+  }
+
+  const outputDir = args.outputDir
+    ? path.resolve(args.outputDir)
+    : await mkdtemp(path.join(tmpdir(), "forward-dynatrace-demo-"));
+  const summary = await buildDemoPackageRehearsal(outputDir);
+  process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
+  return 0;
+};
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  run().then((code) => {
+    process.exitCode = code;
+  }).catch((error) => {
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = 1;
+  });
+}
