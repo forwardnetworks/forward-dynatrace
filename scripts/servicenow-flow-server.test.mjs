@@ -40,10 +40,13 @@ const context = {
 
 const valueAfter = (values, target) => values[values.indexOf(target) + 1];
 
-const waitForStatus = async (service, runId, expected) => {
+const waitForStatus = async (service, runId, expected, expectedStatusCode) => {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const result = await service.status(runId);
-    if (result.run.status === expected) return result;
+    if (
+      result.run.status === expected &&
+      (expectedStatusCode === undefined || result.statusCode === expectedStatusCode)
+    ) return result;
     await new Promise((resolve) => setTimeout(resolve, 2));
   }
   throw new Error(`run ${runId} did not reach ${expected}`);
@@ -277,7 +280,9 @@ test("rejects excess work without poisoning a later valid start", async () => {
   await assert.rejects(service.start(secondRequest), /active-run limit/);
 
   releaseFirst();
-  await waitForStatus(service, first.run.runId, "baseline-captured");
+  // The terminal record is persisted just before the active slot is released.
+  // HTTP 200 is the worker's authoritative signal that both are complete.
+  await waitForStatus(service, first.run.runId, "baseline-captured", 200);
   const second = await service.start(secondRequest);
   assert.equal(second.statusCode, 202);
   const secondBaseline = await waitForStatus(service, second.run.runId, "baseline-captured");
