@@ -79,6 +79,8 @@ This is the single active execution plan for `forward-dynatrace` and its compani
   read-only probe found `v2.0.0` has 0 workflow runs, 0 releases, and no GHCR tag, while `v1.0.0` was rejected with
   exact prior run IDs `28696863169` and `28696639370`. The complete Node `v24.18.0` `npm run ci` gate passed after
   this guard was added, including its five tests and exact importer-archive membership.
+- [x] Commit and publish the pre-publish guard as `6431075`; GitHub Actions run `29273484791` / job `86896698615`
+  passed the complete `gitops` gate for that exact commit.
 - [x] Close the checked handoff read path: the Forward importer loads a dedicated token from a protected file, scopes
   Bearer forwarding to the exact HTTPS package origin/path, rejects inline tokens, and the systemd/Compose/Kubernetes
   templates mount the read identity separately from Forward credentials.
