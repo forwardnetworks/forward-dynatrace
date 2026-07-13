@@ -10,11 +10,17 @@ does not write to Forward and does not store Forward credentials.
 
 ## Status
 
-- Release: `v1.0.0`
+- Latest published base-workflow release: `v1.0.0`
+- ServiceNow → Forward → Dynatrace assurance: release candidate in [PR #11](https://github.com/forwardnetworks/forward-dynatrace/pull/11), not included in `v1.0.0`
 - Runtime: Node.js 24.x
 - Distribution: GitHub release artifacts and GHCR importer image
 - Support model: field integration reference, not an officially supported Forward product integration
 - License: ISC
+
+The current release-candidate source adds the ServiceNow assurance worker, check-health poller, security correlator,
+cross-domain portal, and associated runtime commands. Do not combine those docs or templates with the published
+`v1.0.0` importer image; use a reviewed exact release-candidate commit for a controlled demo, or wait for the next
+tagged release and verify its artifacts.
 
 ## What It Does
 
@@ -63,12 +69,13 @@ Both production paths remain Forward-centric at the write boundary. Dynatrace su
 evidence; Forward validates the target network snapshot before persistent checks are created and supplies the modeled
 pre/post evidence used by the change gate. The integration reports the decision but never deploys or rolls back.
 
-## Quick Start
+## Release-Candidate Quick Start
 
 ```bash
 git clone https://github.com/forwardnetworks/forward-dynatrace.git
 cd forward-dynatrace
-git checkout v1.0.0
+# Check out the exact reviewed commit from PR #11; do not use v1.0.0 for the ServiceNow assurance flow.
+git checkout <reviewed-release-candidate-commit>
 npm ci
 npm run ci
 npm run acceptance:bundle -- \
@@ -250,7 +257,11 @@ Dynatrace. See [docs/forward-importer.md](docs/forward-importer.md) and
 
 ## Release Verification
 
-Before installing or running release artifacts, verify the release:
+The commands below verify the published `v1.0.0` base-workflow release. That tag predates the ServiceNow assurance,
+check-health, security-correlation, and new runtime-command tranche. Before installing the release candidate, first
+land it, assign a new version, publish a matching tag, and substitute that tag in every command below.
+
+Before installing or running any tagged release artifacts, verify the release:
 
 ```bash
 gh release download v1.0.0 --repo forwardnetworks/forward-dynatrace

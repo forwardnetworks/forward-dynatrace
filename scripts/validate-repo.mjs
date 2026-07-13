@@ -93,6 +93,8 @@ const requiredFiles = [
   "scripts/sign-release-checksums.test.mjs",
   "scripts/generate-release-signing-keypair.mjs",
   "scripts/generate-release-signing-keypair.test.mjs",
+  "scripts/validate-release-ref.mjs",
+  "scripts/validate-release-ref.test.mjs",
   "scripts/schema-validate.mjs",
   "scripts/schema-validate.test.mjs",
   "scripts/acceptance-bundle.mjs",
@@ -580,6 +582,27 @@ for (const requiredPlanContent of [
   }
 }
 
+for (const [file, requiredReleaseBoundary] of [
+  ["README.md", "not included in `v1.0.0`"],
+  ["docs/install.md", "not included in `v1.0.0`"],
+  ["docs/customer-one-pager.md", "not included in `v1.0.0`"],
+  ["docs/container-runtime.md", "`v1.0.0` digest predates them"],
+]) {
+  if (!(await readText(file)).includes(requiredReleaseBoundary)) {
+    fail(`${file} must preserve the published-release versus release-candidate boundary.`);
+  }
+}
+
+const releaseWorkflowSource = await readText(".github/workflows/release.yml");
+for (const requiredReleaseGate of [
+  "Validate release tag and repository version",
+  "npm run release:ref:validate",
+]) {
+  if (!releaseWorkflowSource.includes(requiredReleaseGate)) {
+    fail(`Release workflow must preserve ${requiredReleaseGate}.`);
+  }
+}
+
 const customerAcceptanceChecklist = await readText("docs/customer-acceptance-checklist.md");
 for (const requiredAcceptanceLane of [
   "## 8. ServiceNow Change Assurance",
@@ -709,6 +732,7 @@ for (const scriptName of [
   "release:checksums:test",
   "release:sign:test",
   "release:signing-key:test",
+  "release:ref:test",
   "schemas:validate",
   "schemas:validate:test",
   "acceptance:bundle:test",

@@ -101,6 +101,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Release checksum signing | `npm run release:sign:test` verifies detached Ed25519 signing and tamper-detection for `SHA256SUMS`. |
 | Self-managed release signing key generation | `npm run release:signing-key:test` verifies local Ed25519 key generation, private-key file mode, public-key export, and signature verification. |
 | Release archive packaging | `npm run release:package:smoke` builds the app/importer archives and `SHA256SUMS`, then verifies runtime commands, ServiceNow worker assets, cross-domain DQL, schemas, examples, and documentation by exact archive member. |
+| Release tag/version boundary | `npm run release:ref:test` proves that release refs must exactly match `v<package version>`, accepts the GitHub ref environment path, and rejects missing or mismatched refs. The tag workflow runs the validator before packaging or publishing. Customer docs explicitly distinguish the published `v1.0.0` base workflow from the unreleased ServiceNow assurance tranche. The final guard tree passed clean `npm ci && npm run ci` on Node `v24.18.0`, including exact importer-archive membership for the validator. |
 | Release SBOM publication | `npm run release:package:smoke` writes a CycloneDX release SBOM and includes it in `SHA256SUMS`. |
 | Release archive download verification | The `v1.0.0` GitHub release archives were downloaded locally. `SHA256SUMS`, `SHA256SUMS.sig`, importer archive attestation, and GHCR image attestation all verified successfully. Earlier pre-1.0 archives were retained as `v0.9.x` prereleases. |
 | GitHub release workflow | `.github/workflows/release.yml` runs CI, calls `npm run release:package`, uploads artifacts, and publishes tag releases with `SHA256SUMS`. |
@@ -161,6 +162,7 @@ This document tracks what is validated today and what still needs a live Forward
 | Release checksum script | `npm run release:checksums:test` |
 | Release checksum signing | `npm run release:sign:test` |
 | Release signing key generation | `npm run release:signing-key:test` |
+| Release ref and repository version | `npm run release:ref:test` |
 | Release archive packaging | `npm run release:package:smoke` |
 | Dependency audit | `npm run security:audit` |
 | SBOM generation | `npm run sbom:check` |

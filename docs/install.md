@@ -22,11 +22,17 @@ Steps:
 ```bash
 git clone https://github.com/forwardnetworks/forward-dynatrace.git
 cd forward-dynatrace
-git checkout v1.0.0
+# For the ServiceNow assurance release candidate, use the exact reviewed PR #11 commit.
+git checkout <reviewed-release-candidate-commit>
 npm ci
 npm run ci
 npm run acceptance:bundle -- --dependencies shared/demo-dependencies.json --output-dir out/acceptance
 ```
+
+The ServiceNow assurance worker, check-health poller, security correlator, cross-domain portal, and their runtime
+commands are not included in `v1.0.0`. That tag remains the verified base package/import release. Do not run current
+templates with the `v1.0.0` importer image; use a reviewed exact release-candidate commit for a controlled demo, or a
+newer matching tag after this tranche lands and is released.
 
 For an unsigned trial or development install, use a `my.*` app ID:
 

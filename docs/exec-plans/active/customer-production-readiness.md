@@ -87,6 +87,10 @@ acceptance deployment without changing the system-of-record or credential bounda
   `codex/servicenow-forward-dynatrace-demo` after the supported Node 24 gate passed.
 - [x] Push the blocked-evidence polish as `6775c24`, pass local Node `v24.18.0` CI and GitHub Actions run
   `29243622719`, and promote PR `#11` from draft to ready for external review.
+- [x] Make the release boundary explicit: document that `v1.0.0` predates the ServiceNow/check-health/security tranche,
+  reject tag/package/app version mismatches before release publication, and cover the gate deterministically. A clean
+  mutable-copy run of `npm ci && npm run ci` passed on Node `v24.18.0`, including the 2,500-row scale smoke,
+  zero-vulnerability production audit, app/action build, and exact importer-archive membership for the validator.
 - [ ] Obtain external review and land the current implementation tranche.
 - [ ] Install customer-owned Forward-side and Dynatrace runtimes.
 - [ ] Complete base import, ServiceNow, check-health, and security live acceptance.

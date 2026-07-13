@@ -74,7 +74,13 @@ read back the attachment/work-note marker, retry without duplicates, and query t
 
 ## Release Verification
 
-Use `v1.0.0` or newer. Verify release artifacts before install:
+`v1.0.0` is the verified base package/import release. The ServiceNow assurance worker, check-health poller, security
+correlator, cross-domain portal, and their runtime commands are not included in `v1.0.0`; they remain a release
+candidate in PR #11. For a controlled demo, use an exact reviewed release-candidate commit. For customer installation,
+wait for a newer matching tag and verify that release's artifacts instead of combining current templates with the
+`v1.0.0` image.
+
+The commands below verify the published base release:
 
 ```bash
 gh release download v1.0.0 --repo forwardnetworks/forward-dynatrace
