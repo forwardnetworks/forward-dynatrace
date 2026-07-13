@@ -4,9 +4,9 @@
   "title": "ServiceNow-first change-assurance conductor summary",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "generatedAt", "runId", "change", "decision", "reasonCodes", "publications", "artifacts"],
+  "required": ["schemaVersion", "generatedAt", "runId", "change", "provenance", "decision", "reasonCodes", "publications", "artifacts"],
   "properties": {
-    "schemaVersion": { "const": "forward-dynatrace-servicenow-change-assurance/v1" },
+    "schemaVersion": { "const": "forward-dynatrace-servicenow-change-assurance/v2" },
     "generatedAt": { "type": "string", "format": "date-time" },
     "runId": { "type": "string", "pattern": "^servicenow-change-assurance-[a-f0-9]{16}$" },
     "change": {
@@ -16,6 +16,15 @@
       "properties": {
         "number": { "type": "string", "pattern": "^CHG[0-9]+$" },
         "deploymentId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceSource", "synthetic"],
+      "properties": {
+        "evidenceSource": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+        "synthetic": { "type": "boolean" }
       }
     },
     "decision": { "enum": ["pass", "warn", "fail"] },

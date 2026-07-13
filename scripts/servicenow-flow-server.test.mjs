@@ -38,6 +38,11 @@ const context = {
   },
 };
 
+const liveProvenanceEnv = {
+  SERVICENOW_FLOW_EVIDENCE_SOURCE: "live-test-dependencies",
+  SERVICENOW_FLOW_SYNTHETIC: "0",
+};
+
 const valueAfter = (values, target) => values[values.indexOf(target) + 1];
 
 const waitForStatus = async (service, runId, expected, expectedStatusCode) => {
@@ -75,6 +80,27 @@ test("validates bounded start and completion contracts", () => {
     () => validateCompleteRequest({ context: { ...context, deploymentId: "other" } }, run),
     /identity does not match/,
   );
+  assert.throws(
+    () => createFlowService({ env: {}, runDir: path.join(tmpdir(), "unused-flow-service") }),
+    /SERVICENOW_FLOW_EVIDENCE_SOURCE is required/,
+  );
+  assert.throws(
+    () => createFlowService({
+      env: { SERVICENOW_FLOW_EVIDENCE_SOURCE: "live-test-dependencies" },
+      runDir: path.join(tmpdir(), "unused-flow-service"),
+    }),
+    /SERVICENOW_FLOW_SYNTHETIC must be explicitly set to 0 or 1/,
+  );
+  assert.throws(
+    () => createFlowService({
+      env: {
+        SERVICENOW_FLOW_EVIDENCE_SOURCE: "not publish safe",
+        SERVICENOW_FLOW_SYNTHETIC: "0",
+      },
+      runDir: path.join(tmpdir(), "unused-flow-service"),
+    }),
+    /must be a publish-safe label/,
+  );
 });
 
 test("runs an idempotent asynchronous start and complete lifecycle without exposing paths", async () => {
@@ -86,7 +112,7 @@ test("runs an idempotent asynchronous start and complete lifecycle without expos
     if (phase === "start") {
       const outputDir = valueAfter(argv, "--output-dir");
       await writeFile(path.join(outputDir, "servicenow-change-workflow.json"), JSON.stringify({
-        schemaVersion: "forward-dynatrace-servicenow-change-workflow/v1",
+        schemaVersion: "forward-dynatrace-servicenow-change-workflow/v2",
         status: "baseline-captured",
         change: {
           number: "CHG0042187",
@@ -99,6 +125,7 @@ test("runs an idempotent asynchronous start and complete lifecycle without expos
           afterSnapshotId: null,
         },
         decision: null,
+        provenance: { evidenceSource: "trial-replay", synthetic: true },
       }));
       return { code: 0, stdout: "", stderr: "" };
     }
@@ -117,6 +144,9 @@ test("runs an idempotent asynchronous start and complete lifecycle without expos
     runDir,
     workflowRunner,
     env: {
+      ...liveProvenanceEnv,
+      SERVICENOW_FLOW_EVIDENCE_SOURCE: "trial-replay",
+      SERVICENOW_FLOW_SYNTHETIC: "1",
       SERVICENOW_FLOW_PUBLISH_SERVICENOW: "1",
       SERVICENOW_FLOW_VERIFY_RETRY: "1",
     },
@@ -146,6 +176,8 @@ test("runs an idempotent asynchronous start and complete lifecycle without expos
   assert.equal(completed.run.decision, "pass");
   assert.equal(completed.run.forward.afterSnapshotId, "snapshot-after");
   assert.equal(calls.length, 2);
+  assert.equal(valueAfter(calls[0], "--evidence-source"), "trial-replay");
+  assert.equal(calls[0].includes("--synthetic"), true);
   assert.equal(valueAfter(calls[1], "--phase"), "complete");
   assert.equal(calls[1].includes("--publish-servicenow"), true);
   assert.equal(calls[1].includes("--verify-servicenow-retry"), true);
@@ -215,7 +247,7 @@ test("retries an investigated failed Start phase without changing run identity",
     if (attempts === 1) throw new Error("temporary Bearer do-not-leak");
     const outputDir = valueAfter(argv, "--output-dir");
     await writeFile(path.join(outputDir, "servicenow-change-workflow.json"), JSON.stringify({
-      schemaVersion: "forward-dynatrace-servicenow-change-workflow/v1",
+      schemaVersion: "forward-dynatrace-servicenow-change-workflow/v2",
       status: "baseline-captured",
       change: {
         number: "CHG0042187",
@@ -231,7 +263,7 @@ test("retries an investigated failed Start phase without changing run identity",
     }));
     return { code: 0, stdout: "", stderr: "" };
   };
-  const service = createFlowService({ runDir, workflowRunner });
+  const service = createFlowService({ runDir, workflowRunner, env: liveProvenanceEnv });
   const started = await service.start(startRequest);
   const failed = await waitForStatus(service, started.run.runId, "failed");
   assert.equal(failed.run.error.includes("do-not-leak"), false);
@@ -254,7 +286,7 @@ test("rejects excess work without poisoning a later valid start", async () => {
     if (deploymentId === "deployment-1") await firstMayFinish;
     const outputDir = valueAfter(argv, "--output-dir");
     await writeFile(path.join(outputDir, "servicenow-change-workflow.json"), JSON.stringify({
-      schemaVersion: "forward-dynatrace-servicenow-change-workflow/v1",
+      schemaVersion: "forward-dynatrace-servicenow-change-workflow/v2",
       status: "baseline-captured",
       change: {
         number: "CHG0042187",
@@ -273,7 +305,7 @@ test("rejects excess work without poisoning a later valid start", async () => {
   const service = createFlowService({
     runDir,
     workflowRunner,
-    env: { SERVICENOW_FLOW_MAX_ACTIVE_RUNS: "1" },
+    env: { ...liveProvenanceEnv, SERVICENOW_FLOW_MAX_ACTIVE_RUNS: "1" },
   });
   const first = await service.start(startRequest);
   const secondRequest = { ...startRequest, deploymentId: "deployment-2" };
@@ -296,7 +328,7 @@ test("marks an orphaned phase failed after restart and permits an authoritative 
     runDir,
     workflowRunner: async () => neverFinishes,
     now: () => "2020-01-01T00:00:00.000Z",
-    env: { SERVICENOW_FLOW_STALE_RUN_MS: "60000" },
+    env: { ...liveProvenanceEnv, SERVICENOW_FLOW_STALE_RUN_MS: "60000" },
   });
   const first = await firstService.start(startRequest);
   await waitForStatus(firstService, first.run.runId, "start-running");
@@ -306,7 +338,7 @@ test("marks an orphaned phase failed after restart and permits an authoritative 
     workflowRunner: async ({ argv }) => {
       const outputDir = valueAfter(argv, "--output-dir");
       await writeFile(path.join(outputDir, "servicenow-change-workflow.json"), JSON.stringify({
-        schemaVersion: "forward-dynatrace-servicenow-change-workflow/v1",
+        schemaVersion: "forward-dynatrace-servicenow-change-workflow/v2",
         status: "baseline-captured",
         change: {
           number: "CHG0042187",
@@ -322,7 +354,7 @@ test("marks an orphaned phase failed after restart and permits an authoritative 
       }));
       return { code: 0, stdout: "", stderr: "" };
     },
-    env: { SERVICENOW_FLOW_STALE_RUN_MS: "60000" },
+    env: { ...liveProvenanceEnv, SERVICENOW_FLOW_STALE_RUN_MS: "60000" },
   });
   const stale = await recoveredService.status(first.run.runId);
   assert.equal(stale.run.status, "failed");

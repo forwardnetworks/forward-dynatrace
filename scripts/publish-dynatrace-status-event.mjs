@@ -137,6 +137,16 @@ export const validateStatusEvent = (event) => {
   if (!event.properties || typeof event.properties !== "object" || Array.isArray(event.properties)) {
     throw new Error("Status event properties must be a JSON object.");
   }
+  const evidenceSource = event.properties["forward.dynatrace.evidence_source"];
+  const synthetic = event.properties["forward.dynatrace.synthetic"];
+  if (
+    (evidenceSource === undefined) !== (synthetic === undefined) ||
+    (evidenceSource !== undefined &&
+      (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(evidenceSource) ||
+        typeof synthetic !== "boolean"))
+  ) {
+    throw new Error("Status event provenance requires paired publish-safe source and synthetic boolean.");
+  }
 
   const text = JSON.stringify(event);
   for (const pattern of forbiddenTextPatterns) {

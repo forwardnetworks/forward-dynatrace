@@ -9,7 +9,9 @@ import {
   parseArgs,
   run,
   selectScopedDependencies,
+  validateDependencyProvenance,
   validateStabilizedContext,
+  validateWorkflowProvenance,
   validateWorkflowState,
   waitForNewProcessedSnapshot,
   withExclusiveWorkflowLock,
@@ -20,10 +22,14 @@ test("parses two-phase workflow and repeated affected services", () => {
     "--phase", "start",
     "--service-entity-id", "SERVICE-1",
     "--service-entity-id", "SERVICE-2",
+    "--evidence-source", "live-customer-evidence",
+    "--synthetic",
     "--publish-servicenow",
   ]), {
     phase: "start",
     "service-entity-id": ["SERVICE-1", "SERVICE-2"],
+    "evidence-source": "live-customer-evidence",
+    synthetic: true,
     "publish-servicenow": true,
   });
   assert.deepEqual(parseArgs([
@@ -113,6 +119,7 @@ test("start phase captures an authoritative scoped before-snapshot baseline", as
       "--network-id", "network-1",
       "--service-entity-id", "SERVICE-CHECKOUT",
       "--dependencies", dependenciesPath,
+      "--evidence-source", "live-customer-evidence",
       "--output-dir", directory,
       "--evaluation-time", "2026-07-15T18:30:00.000Z",
     ]);
@@ -127,6 +134,7 @@ test("start phase captures an authoritative scoped before-snapshot baseline", as
   const state = JSON.parse(await readFile(path.join(directory, "servicenow-change-workflow.json"), "utf8"));
   const evidence = JSON.parse(await readFile(state.artifacts.beforeEvidence, "utf8"));
   assert.equal(state.status, "baseline-captured");
+  assert.deepEqual(state.provenance, { evidenceSource: "live-customer-evidence", synthetic: false });
   assert.equal(state.forward.beforeSnapshotId, "snapshot-before");
   assert.equal(evidence.counts.reachable, 1);
   assert.equal(evidence.mode, "execute");
@@ -146,6 +154,28 @@ test("captures only exact affected-service dependencies and fails on missing sco
   assert.throws(
     () => selectScopedDependencies(dependencies, ["SERVICE-1", "SERVICE-MISSING"]),
     /missing affected services: SERVICE-MISSING/,
+  );
+});
+
+test("requires explicit synthetic provenance for replay-shaped dependencies", () => {
+  const replay = [
+    { id: "dynatrace-demo-flow-1", owner: "dynatrace-demo" },
+    { id: "seeded-flow-2", "forward.dynatrace.seeded": true },
+  ];
+  assert.throws(
+    () => validateDependencyProvenance(replay, {
+      evidenceSource: "live-customer-evidence",
+      synthetic: false,
+    }),
+    /contain replay\/demo evidence/,
+  );
+  assert.deepEqual(
+    validateDependencyProvenance(replay, { evidenceSource: "trial-replay", synthetic: true }),
+    { evidenceSource: "trial-replay", synthetic: true },
+  );
+  assert.throws(
+    () => validateWorkflowProvenance({ evidenceSource: "not publish safe", synthetic: true }),
+    /publish-safe evidence source/,
   );
 });
 
@@ -204,13 +234,22 @@ test("rejects Dynatrace context captured before baseline or stabilization", () =
 
 test("validates resumable workflow state identity and status", () => {
   const state = {
-    schemaVersion: "forward-dynatrace-servicenow-change-workflow/v1",
+    schemaVersion: "forward-dynatrace-servicenow-change-workflow/v2",
     status: "baseline-captured",
+    provenance: { evidenceSource: "live-customer-evidence", synthetic: false },
   };
   assert.equal(validateWorkflowState(state), state);
   assert.throws(
     () => validateWorkflowState({ ...state, status: "unknown" }),
     /status is invalid/,
+  );
+  assert.throws(
+    () => validateWorkflowState({ ...state, provenance: undefined }),
+    /requires a publish-safe evidence source/,
+  );
+  assert.throws(
+    () => validateWorkflowState({ ...state, schemaVersion: "forward-dynatrace-servicenow-change-workflow/v1" }),
+    /schemaVersion must be forward-dynatrace-servicenow-change-workflow\/v2/,
   );
 });
 

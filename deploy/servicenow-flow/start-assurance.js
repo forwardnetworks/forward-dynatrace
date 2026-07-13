@@ -23,7 +23,6 @@
   if (!Array.isArray(serviceEntityIds) || serviceEntityIds.length === 0) {
     throw new Error("service_entity_ids_json must contain at least one service entity ID.");
   }
-
   var body = {
     changeNumber: required(inputs.change_number, "change_number"),
     deploymentId: required(inputs.deployment_id, "deployment_id"),
@@ -51,4 +50,3 @@
   outputs.phase = required(result.phase, "worker phase");
   outputs.before_snapshot_id = result.forward && result.forward.beforeSnapshotId || "";
 })(inputs, outputs);
-

@@ -29,4 +29,3 @@ collection and the deterministic gate.
 
 Scripts return only bounded run state, decision, exit code, and snapshot IDs. They do not return credentials,
 dependencies, local paths, or Forward topology.
-

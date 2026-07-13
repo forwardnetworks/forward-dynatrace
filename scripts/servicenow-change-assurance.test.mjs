@@ -151,6 +151,10 @@ test("rejects blocked, mismatched, or cross-change input before building a gate"
     () => build({ provenance: undefined }),
     /requires explicit evidence source and synthetic provenance/,
   );
+  assert.throws(
+    () => build({ provenance: { evidenceSource: "not publish safe", synthetic: true } }),
+    /requires explicit evidence source and synthetic provenance/,
+  );
 });
 
 test("CLI writes the complete dry-run handoff and enforces non-pass exit 2", async () => {

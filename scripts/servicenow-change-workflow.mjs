@@ -19,7 +19,7 @@ import {
 } from "./servicenow-change-preflight.mjs";
 import { sha256 } from "./servicenow-change-feedback.mjs";
 
-const WORKFLOW_SCHEMA = "forward-dynatrace-servicenow-change-workflow/v1";
+const WORKFLOW_SCHEMA = "forward-dynatrace-servicenow-change-workflow/v2";
 const DEFAULT_SNAPSHOT_TIMEOUT_MS = 15 * 60 * 1000;
 const DEFAULT_SNAPSHOT_POLL_INTERVAL_MS = 15 * 1000;
 const DEFAULT_DYNATRACE_STABILIZATION_SECONDS = 120;
@@ -35,6 +35,7 @@ Capture the approved pre-deployment baseline:
     --network-id network-production \\
     --service-entity-id SERVICE-CHECKOUT-API \\
     --dependencies /secure/evidence/dynatrace-dependencies.json \\
+    --evidence-source live-customer-dependencies \\
     --output-dir /secure/evidence/change-assurance
 
 Resume after the customer-owned deployment and Dynatrace stabilization:
@@ -50,6 +51,8 @@ Options:
   --network-id value            Forward network ID for start.
   --service-entity-id value     Affected Dynatrace service; repeat for start.
   --dependencies path           Normalized live Dynatrace dependencies for start.
+  --evidence-source value       Publish-safe cross-domain evidence source (required for start).
+  --synthetic                   Mark the workflow synthetic when any input is replay/demo evidence.
   --output-dir path             Evidence directory for start.
   --instance-alias value        Publish-safe ServiceNow label.
   --evaluation-time value       Start preflight evaluation time; default current time.
@@ -81,6 +84,7 @@ const flagArgs = new Set([
   "verify-servicenow-retry",
   "publish-dynatrace",
   "report-only",
+  "synthetic",
 ]);
 
 export const parseArgs = (argv) => {
@@ -119,6 +123,49 @@ const nonNegativeInteger = (value, fallback, label) => {
 };
 
 const canonicalJson = (value) => `${JSON.stringify(value, null, 2)}\n`;
+const EVIDENCE_SOURCE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+
+export const validateWorkflowProvenance = (provenance) => {
+  if (
+    !provenance ||
+    typeof provenance.evidenceSource !== "string" ||
+    !EVIDENCE_SOURCE_PATTERN.test(provenance.evidenceSource) ||
+    typeof provenance.synthetic !== "boolean"
+  ) {
+    throw new Error(
+      "Workflow provenance requires a publish-safe evidence source and explicit synthetic boolean.",
+    );
+  }
+  return provenance;
+};
+
+export const validateDependencyProvenance = (dependencies, provenance) => {
+  validateWorkflowProvenance(provenance);
+  if (!Array.isArray(dependencies)) throw new Error("Dynatrace dependencies must be an array.");
+  const containsSyntheticEvidence = dependencies.some((dependency) =>
+    dependency?.synthetic === true ||
+    dependency?.["demo.synthetic"] === true ||
+    dependency?.["demo.replay"] === true ||
+    dependency?.["forward.dynatrace.seeded"] === true ||
+    dependency?.provenance?.synthetic === true ||
+    dependency?.["event.provider"] === "forward-dynatrace-demo" ||
+    dependency?.["event.type"] === "com.forward.demo.dependency" ||
+    dependency?.owner === "dynatrace-demo" ||
+    /^dynatrace-demo-/iu.test(String(dependency?.id || "")),
+  );
+  if (containsSyntheticEvidence && !provenance.synthetic) {
+    throw new Error(
+      "Dynatrace dependencies contain replay/demo evidence; rerun with --synthetic and an explicit evidence source.",
+    );
+  }
+  return provenance;
+};
+
+const workflowProvenanceFromArgs = (args) => validateWorkflowProvenance({
+  evidenceSource: required(args["evidence-source"], "option: --evidence-source"),
+  synthetic: Boolean(args.synthetic),
+});
+
 const readJsonText = async (filePath) => {
   const text = await readFile(path.resolve(filePath), "utf8");
   return { text, value: JSON.parse(text) };
@@ -222,6 +269,7 @@ export const validateWorkflowState = (state) => {
   if (!new Set(["blocked", "baseline-captured", "completed"]).has(state.status)) {
     throw new Error("Workflow state status is invalid.");
   }
+  validateWorkflowProvenance(state.provenance);
   return state;
 };
 
@@ -292,6 +340,7 @@ const startWorkflow = async (args) => {
   const deploymentId = required(args["deployment-id"], "option: --deployment-id");
   const networkId = required(args["network-id"], "option: --network-id");
   const serviceEntityIds = args["service-entity-id"];
+  const provenance = workflowProvenanceFromArgs(args);
   const observedAt = args["evaluation-time"] || new Date().toISOString();
   const preflightPath = path.join(outputDir, "servicenow-change-preflight-start.json");
   const statePath = path.join(outputDir, "servicenow-change-workflow.json");
@@ -318,6 +367,7 @@ const startWorkflow = async (args) => {
       updatedAt: preflight.observedAt,
       change: { number: changeNumber, sysId: preflight.change.sysId, deploymentId, serviceEntityIds: preflight.scope.serviceEntityIds },
       forward: { networkId, beforeSnapshotId: null, afterSnapshotId: null },
+      provenance,
       decision: null,
       policy: {
         dynatraceStabilizationSeconds: DEFAULT_DYNATRACE_STABILIZATION_SECONDS,
@@ -333,6 +383,7 @@ const startWorkflow = async (args) => {
   }
 
   const dependencyInput = await readJsonText(required(args.dependencies, "option: --dependencies"));
+  validateDependencyProvenance(dependencyInput.value, provenance);
   const scopedDependencies = selectScopedDependencies(dependencyInput.value, preflight.scope.serviceEntityIds);
   const scopedDependenciesPath = path.join(outputDir, "dynatrace-dependencies-scoped.json");
   const scopedOutput = await writeJson(scopedDependenciesPath, scopedDependencies);
@@ -374,6 +425,7 @@ const startWorkflow = async (args) => {
     updatedAt: beforeEvidence.generatedAt,
     change: { number: changeNumber, sysId: preflight.change.sysId, deploymentId, serviceEntityIds: preflight.scope.serviceEntityIds },
     forward: { networkId, beforeSnapshotId, afterSnapshotId: null },
+    provenance,
     decision: null,
     policy: {
       dynatraceStabilizationSeconds: DEFAULT_DYNATRACE_STABILIZATION_SECONDS,
@@ -494,6 +546,8 @@ const completeWorkflow = async (args) => {
     "--after-evidence", afterEvidencePath,
     "--reconciliation-status", reconciliationStatusPath,
     "--output-dir", outputDir,
+    "--evidence-source", state.provenance.evidenceSource,
+    ...(state.provenance.synthetic ? ["--synthetic"] : []),
     ...(args["publish-servicenow"] ? ["--publish-servicenow"] : []),
     ...(args["verify-servicenow-retry"] ? ["--verify-servicenow-retry"] : []),
     ...(args["publish-dynatrace"] ? ["--publish-dynatrace"] : []),

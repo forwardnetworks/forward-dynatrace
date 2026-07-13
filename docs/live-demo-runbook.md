@@ -20,6 +20,8 @@ export FORWARD_READONLY_AUTHORIZATION='Bearer <read-only-token>'
 npm run demo:live -- \
   --dynatrace-environment-url https://<trial-sandbox-id>.apps.dynatrace.com/ \
   --dynatrace-token-file /secure/path/platform-token \
+  --evidence-source approved-trial-replay \
+  --synthetic \
   --output-dir /tmp/forward-dynatrace-live-demo
 ```
 
@@ -50,7 +52,9 @@ If the live Dynatrace query returns zero rows or no clean unique flows, the cond
 records a blocked `demo-summary.json` with the observed row/dependency counts, live provenance, and
 `forward.attempted=false`. Populate customer-owned live dependency evidence for production proof. For an approved
 non-production demo tenant only, inspect `npm run dynatrace:replay-demo -- --help` and use the checked replay path; the
-conductor never replays automatically, and replay provenance must remain visibly synthetic.
+conductor never replays automatically, and replay provenance must remain visibly synthetic. The checked default DQL is
+replay-only and therefore requires `--synthetic`. Customer evidence requires an explicit `--dynatrace-query-file` and
+truthful `--evidence-source`; the conductor rejects replay/seeded rows labeled live before contacting Forward.
 
 ## Offline ServiceNow Story Rehearsal
 
@@ -87,7 +91,8 @@ Use the same customer-owned workflow twice: one safe change and one regression. 
    `--verify-servicenow-retry`; retain the second `existing` receipt with the same attachment/work-note sys_ids.
 8. Open the Dynatrace cross-domain assurance portal. Query back the same run/change/deployment IDs and compare the safe
    and regression records. Match the portal's ServiceNow evidence SHA-256 to the attachment/work-note marker on the
-   change record.
+   change record. Internal diagnostic evidence retains source provenance; keep the visible walkthrough on the
+   customer change, snapshots, decision, and checksum rather than demo mechanics.
 
 Flow assets: `deploy/servicenow-flow/`. Worker: `npm run servicenow:flow-server`. Customer rehearsal must preserve exact
 run ID, change number/sys_id, deployment ID, Forward network/snapshot IDs, decision, checksum, and Dynatrace query-back
@@ -103,7 +108,7 @@ count. If using replay data, keep `SYNTHETIC DEMO` visible in all three systems.
    npm run dynatrace:query -- \
      --environment-url https://<environment-id>.apps.dynatrace.com/ \
      --token-file /secure/path/platform-token \
-     --query-file deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql \
+     --query-file /secure/queries/customer-dependencies.dql \
      --output /tmp/forward-dynatrace-rows.json \
      --dependencies-output /tmp/forward-dynatrace-dependencies.json
    ```

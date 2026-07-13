@@ -46,6 +46,16 @@ test("validates status event schema and rejects credential-like content", () => 
       }),
     /forbidden credential-like content/,
   );
+  assert.throws(
+    () => validateStatusEvent({
+      ...baseEvent,
+      properties: {
+        ...baseEvent.properties,
+        "forward.dynatrace.evidence_source": "trial-replay",
+      },
+    }),
+    /requires paired publish-safe source and synthetic boolean/,
+  );
 });
 
 test("converts status event to OpenPipeline event record", () => {

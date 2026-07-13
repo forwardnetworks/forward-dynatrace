@@ -111,7 +111,8 @@ docker run --rm \
   servicenow-change-workflow --phase start \
   --change-number CHG0042187 --deployment-id deployment-1 \
   --network-id network-production --service-entity-id SERVICE-CHECKOUT-API \
-  --dependencies /evidence/dynatrace-dependencies.json --output-dir /evidence/change
+  --dependencies /evidence/dynatrace-dependencies.json \
+  --evidence-source live-customer-dependencies --output-dir /evidence/change
 ```
 
 The `complete` phase uses the same named command with `--state` and `--context` and also requires the existing
@@ -121,6 +122,8 @@ use a separate feedback credential with only the companion package's `x_fwd_demo
 targets its authenticated assurance-ledger endpoint rather than generic table APIs. Add
 `--verify-servicenow-retry` only for a non-production acceptance run that must confirm the second request reuses the
 same work-note and attachment sys_ids. Run only one active conductor for a given change/evidence directory.
+Add `--synthetic` when any input is replay/demo evidence; the persisted state and final Dynatrace event retain the
+explicit source and synthetic flag.
 
 For scheduled operation, use Docker Compose, systemd, or Kubernetes templates in
 [connector-runtime.md](connector-runtime.md). Deployment gate details are in

@@ -116,8 +116,16 @@ npm run servicenow:change-workflow -- \
   --service-entity-id SERVICE-CHECKOUT-API \
   --service-entity-id SERVICE-PAYMENTS-API \
   --dependencies /secure/evidence/dynatrace-dependencies.json \
+  --evidence-source live-customer-dependencies \
   --output-dir /secure/evidence/change-assurance
 ```
+
+The start phase requires an explicit publish-safe evidence source. Add `--synthetic` whenever any dependency,
+Dynatrace context, or other gate input is replay/demo evidence. The workflow persists that pair in its immutable state
+and carries it into the Dynatrace event; known checked replay rows fail closed if `--synthetic` is omitted.
+This is workflow-state schema `forward-dynatrace-servicenow-change-workflow/v2`; v1 resume states lack trustworthy
+cross-domain provenance and must be restarted from the authoritative baseline rather than migrated by inference.
+The final assurance summary is likewise `forward-dynatrace-servicenow-change-assurance/v2`.
 
 After deployment and the bounded Dynatrace stabilization period, complete verifies every saved artifact hash, waits up
 to 15 minutes for the latest processed Forward snapshot to differ from the baseline, executes the after evidence,
@@ -146,6 +154,7 @@ npm run servicenow:change-assurance -- \
   --before-evidence /secure/evidence/forward-before-path-evidence.json \
   --after-evidence /secure/evidence/forward-after-path-evidence.json \
   --reconciliation-status /secure/evidence/forward-ingest-status.json \
+  --evidence-source live-customer-dependencies \
   --output-dir /secure/evidence/change-assurance
 ```
 
@@ -219,7 +228,8 @@ row. That checksum is derived from the exact bounded evidence attachment and is 
 the same `forward-dynatrace:<sha256>` idempotency marker, proving both systems reference the same decision artifact.
 
 The demo may replay a safe change and a regression when a real change is unavailable, but every replay must remain
-visibly synthetic and must exercise the same production contracts.
+visibly synthetic and must exercise the same production contracts. Use an explicit replay label plus `--synthetic`;
+never infer live provenance from an authoritative ServiceNow read alone.
 
 `npm run demo:servicenow` provides that checked rehearsal: it produces schema-valid safe and regression gates,
 checksummed ServiceNow attachment/work-note previews, idempotency receipts, and Dynatrace events while explicitly

@@ -6,6 +6,7 @@ import path from "node:path";
 
 const DEFAULT_OUTPUT_DIR = "/tmp/forward-dynatrace-live-demo";
 const DEFAULT_SHOWCASE_LIMIT = 12;
+const EVIDENCE_SOURCE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 const usage = `
 Forward Integration for Dynatrace live demo conductor
@@ -14,16 +15,21 @@ Usage:
   npm run demo:live -- \\
     --dynatrace-environment-url https://your-environment-id.apps.dynatrace.com/ \\
     --dynatrace-token-file /secure/path/platform-token \\
+    --evidence-source approved-trial-replay \\
+    --synthetic \\
     --output-dir /tmp/forward-dynatrace-live-demo
 
 Options:
   --apply                       Apply missing Forward checks after reconciliation.
   --dynatrace-environment-url   Dynatrace Apps environment URL.
+  --dynatrace-query-file        Customer-owned DQL file. Omit only for the checked replay query.
   --dynatrace-token-file        Platform Token file outside the repo.
+  --evidence-source             Publish-safe source label; required.
   --output-dir                  Evidence directory. Default: ${DEFAULT_OUTPUT_DIR}
   --publish-dynatrace-status    Publish sanitized aggregate reconciliation status to Dynatrace.
   --showcase-limit              Clean unique rows retained for the demo. Default: ${DEFAULT_SHOWCASE_LIMIT}
   --skip-path-evidence          Skip the default read-only Forward bulk path analysis stage.
+  --synthetic                   Required when the query or any dependency is replay/seeded evidence.
   --help                        Show this help.
 
 Required Forward environment:
@@ -44,6 +50,7 @@ export const parseArgs = (argv) => {
       value === "--help" ||
       value === "--publish-dynatrace-status" ||
       value === "--skip-path-evidence" ||
+      value === "--synthetic" ||
       value === "--with-path-evidence"
     ) {
       args[value.slice(2)] = true;
@@ -63,6 +70,51 @@ export const parseArgs = (argv) => {
 };
 
 export const shouldRunPathEvidence = (args) => !args["skip-path-evidence"];
+
+const containsSyntheticDependency = (dependencies) => dependencies.some((dependency) =>
+  dependency?.synthetic === true ||
+  dependency?.["demo.synthetic"] === true ||
+  dependency?.["demo.replay"] === true ||
+  dependency?.["forward.dynatrace.seeded"] === true ||
+  dependency?.provenance?.synthetic === true ||
+  dependency?.["event.provider"] === "forward-dynatrace-demo" ||
+  dependency?.["event.type"] === "com.forward.demo.dependency" ||
+  dependency?.owner === "dynatrace-demo" ||
+  /^dynatrace-demo-/iu.test(String(dependency?.id || "")),
+);
+
+export const validateConductorProvenance = ({ dependencies = [], provenance, queryFile }) => {
+  if (
+    !provenance ||
+    typeof provenance.evidenceSource !== "string" ||
+    !EVIDENCE_SOURCE_PATTERN.test(provenance.evidenceSource) ||
+    typeof provenance.synthetic !== "boolean"
+  ) {
+    throw new Error(
+      "Demo provenance requires a publish-safe --evidence-source and explicit synthetic boolean.",
+    );
+  }
+  if (!queryFile && !provenance.synthetic) {
+    throw new Error(
+      "The checked default DQL reads replay evidence; add --synthetic or supply --dynatrace-query-file.",
+    );
+  }
+  if (containsSyntheticDependency(dependencies) && !provenance.synthetic) {
+    throw new Error(
+      "Dynatrace query returned replay/seeded evidence; rerun with --synthetic and an explicit evidence source.",
+    );
+  }
+  return provenance;
+};
+
+const conductorProvenanceFromArgs = (args) => validateConductorProvenance({
+  dependencies: [],
+  provenance: {
+    evidenceSource: String(args["evidence-source"] || "").trim(),
+    synthetic: Boolean(args.synthetic),
+  },
+  queryFile: args["dynatrace-query-file"],
+});
 
 export const forwardReadOnlyAuthorization = (env) =>
   env.FORWARD_PATH_SEARCH_AUTHORIZATION?.trim() ||
@@ -119,6 +171,7 @@ export const buildNoShowcaseSummary = ({
   dependencyCount,
   environmentUrl,
   outputDir,
+  provenance,
   publishDynatraceStatusRequested,
   rowCount,
   rowsPath,
@@ -126,10 +179,7 @@ export const buildNoShowcaseSummary = ({
   status: "blocked",
   reason: "NO_LIVE_SHOWCASE_DEPENDENCIES",
   message: noShowcaseDependenciesMessage({ rowCount, dependencyCount }),
-  provenance: {
-    evidenceSource: "live-dynatrace-query",
-    synthetic: false,
-  },
+  provenance,
   dynatrace: {
     environmentUrl,
     rawRows: rowCount,
@@ -195,6 +245,8 @@ const main = async () => {
     return;
   }
 
+  const provenance = conductorProvenanceFromArgs(args);
+
   requireForwardEnvironment();
   const environmentUrl =
     args["dynatrace-environment-url"] || process.env.DYNATRACE_ENVIRONMENT_URL;
@@ -237,6 +289,9 @@ const main = async () => {
     "--environment-url",
     environmentUrl,
     ...(tokenFile ? ["--token-file", tokenFile] : []),
+    ...(args["dynatrace-query-file"]
+      ? ["--query-file", path.resolve(args["dynatrace-query-file"])]
+      : []),
     "--output",
     rowsPath,
     "--dependencies-output",
@@ -245,6 +300,11 @@ const main = async () => {
 
   const rows = JSON.parse(await readFile(rowsPath, "utf8"));
   const dependencies = JSON.parse(await readFile(dependenciesPath, "utf8"));
+  validateConductorProvenance({
+    dependencies,
+    provenance,
+    queryFile: args["dynatrace-query-file"],
+  });
   const showcase = selectShowcaseDependencies(dependencies, showcaseLimit);
   if (showcase.length === 0) {
     const blockedSummary = buildNoShowcaseSummary({
@@ -253,6 +313,7 @@ const main = async () => {
       dependencyCount: dependencies.length,
       environmentUrl,
       outputDir,
+      provenance,
       publishDynatraceStatusRequested: Boolean(args["publish-dynatrace-status"]),
       rowCount: rows.length,
       rowsPath,
@@ -337,6 +398,10 @@ const main = async () => {
     statusPath,
     "--output-dir",
     statusHandoffDir,
+    "--evidence-source",
+    provenance.evidenceSource,
+    "--synthetic",
+    String(provenance.synthetic),
   ]);
 
   let dynatraceStatusPublished = false;
@@ -364,6 +429,7 @@ const main = async () => {
   const summary = {
     status: "ok",
     mode: args.apply ? "apply" : "dry-run",
+    provenance,
     dynatrace: {
       environmentUrl,
       liveRows: dependencies.length,

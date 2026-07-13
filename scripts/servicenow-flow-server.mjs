@@ -16,10 +16,18 @@ const DEFAULT_STALE_RUN_MS = 30 * 60 * 1000;
 const DEFAULT_MAX_ACTIVE_RUNS = 4;
 const MAX_SERVICES = 100;
 const MAX_DEPENDENCIES = 5000;
+const EVIDENCE_SOURCE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 const canonicalJson = (value) => `${JSON.stringify(value, null, 2)}\n`;
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const truthy = (value) => /^(1|true|yes|on)$/i.test(String(value || ""));
+
+const explicitBooleanEnv = (value, label) => {
+  const normalized = String(value ?? "").trim();
+  if (normalized === "1") return true;
+  if (normalized === "0") return false;
+  throw new Error(`${label} must be explicitly set to 0 or 1.`);
+};
 
 class HttpError extends Error {
   constructor(statusCode, message) {
@@ -129,6 +137,7 @@ const runIdentity = (request) => ({
   deploymentId: request.deploymentId,
   forwardNetworkId: request.forwardNetworkId,
   serviceEntityIds: request.serviceEntityIds,
+  provenance: request.provenance || null,
 });
 
 export const runIdForRequest = (request) =>
@@ -224,6 +233,20 @@ export const createFlowService = ({
   if (!Number.isInteger(maxActiveRuns) || maxActiveRuns < 1 || maxActiveRuns > 32) {
     throw new Error("SERVICENOW_FLOW_MAX_ACTIVE_RUNS must be between 1 and 32.");
   }
+  const workflowEvidenceSource = String(env.SERVICENOW_FLOW_EVIDENCE_SOURCE || "").trim();
+  if (!workflowEvidenceSource) {
+    throw new Error("SERVICENOW_FLOW_EVIDENCE_SOURCE is required.");
+  }
+  if (!EVIDENCE_SOURCE_PATTERN.test(workflowEvidenceSource)) {
+    throw new Error("SERVICENOW_FLOW_EVIDENCE_SOURCE must be a publish-safe label.");
+  }
+  const workflowProvenance = {
+    evidenceSource: workflowEvidenceSource,
+    synthetic: explicitBooleanEnv(
+      env.SERVICENOW_FLOW_SYNTHETIC,
+      "SERVICENOW_FLOW_SYNTHETIC",
+    ),
+  };
   const activeRuns = new Set();
   const initializingRuns = new Set();
   const runDirectory = (runId) => path.join(baseDir, safeRunId(runId));
@@ -304,6 +327,8 @@ export const createFlowService = ({
         "--network-id", request.forwardNetworkId,
         ...request.serviceEntityIds.flatMap((serviceId) => ["--service-entity-id", serviceId]),
         "--dependencies", dependenciesPath,
+        "--evidence-source", request.provenance.evidenceSource,
+        ...(request.provenance.synthetic ? ["--synthetic"] : []),
         "--output-dir", directory,
         ...(request.instanceAlias ? ["--instance-alias", request.instanceAlias] : []),
       ];
@@ -403,6 +428,7 @@ export const createFlowService = ({
   return {
     async start(value) {
       const request = validateStartRequest(value);
+      request.provenance = workflowProvenance;
       const runId = runIdForRequest(request);
       const requestForHash = { ...request };
       delete requestForHash.retry;
@@ -439,6 +465,9 @@ export const createFlowService = ({
             number: request.changeNumber,
             deploymentId: request.deploymentId,
             serviceEntityIds: request.serviceEntityIds,
+          },
+          provenance: {
+            ...request.provenance,
           },
           forward: {
             networkId: request.forwardNetworkId,

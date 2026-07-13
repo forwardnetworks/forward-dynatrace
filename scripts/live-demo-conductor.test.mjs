@@ -9,6 +9,7 @@ import {
   parseArgs,
   selectShowcaseDependencies,
   shouldRunPathEvidence,
+  validateConductorProvenance,
 } from "./live-demo-conductor.mjs";
 
 test("selects clean unique showcase flows while preserving governance states", async () => {
@@ -47,10 +48,43 @@ test("runs read-only path evidence by default and supports an explicit skip", ()
 });
 
 test("parses explicit mutation and Dynatrace status publication gates", () => {
-  assert.deepEqual(parseArgs(["--apply", "--publish-dynatrace-status"]), {
+  assert.deepEqual(parseArgs([
+    "--apply",
+    "--publish-dynatrace-status",
+    "--evidence-source", "trial-replay",
+    "--synthetic",
+  ]), {
     apply: true,
     "publish-dynatrace-status": true,
+    "evidence-source": "trial-replay",
+    synthetic: true,
   });
+});
+
+test("requires honest query and dependency provenance before any Forward work", () => {
+  assert.throws(
+    () => validateConductorProvenance({
+      dependencies: [],
+      provenance: { evidenceSource: "live-customer-query", synthetic: false },
+    }),
+    /default DQL reads replay evidence/,
+  );
+  assert.deepEqual(
+    validateConductorProvenance({
+      dependencies: [],
+      provenance: { evidenceSource: "live-customer-query", synthetic: false },
+      queryFile: "/secure/queries/customer-dependencies.dql",
+    }),
+    { evidenceSource: "live-customer-query", synthetic: false },
+  );
+  assert.throws(
+    () => validateConductorProvenance({
+      dependencies: [{ id: "seeded-1", synthetic: true }],
+      provenance: { evidenceSource: "live-customer-query", synthetic: false },
+      queryFile: "/secure/queries/customer-dependencies.dql",
+    }),
+    /returned replay\/seeded evidence/,
+  );
 });
 
 test("prefers dedicated read-only Forward authorization", () => {
@@ -88,6 +122,7 @@ test("fails empty live evidence with an honest no-write recovery path", () => {
     dependencyCount: 0,
     environmentUrl: "https://tenant.example.com/",
     outputDir: "/tmp/live",
+    provenance: { evidenceSource: "live-customer-query", synthetic: false },
     publishDynatraceStatusRequested: true,
     rowCount: 0,
     rowsPath: "/tmp/live/dynatrace-query-rows.json",
@@ -95,7 +130,7 @@ test("fails empty live evidence with an honest no-write recovery path", () => {
   assert.equal(summary.status, "blocked");
   assert.equal(summary.reason, "NO_LIVE_SHOWCASE_DEPENDENCIES");
   assert.deepEqual(summary.provenance, {
-    evidenceSource: "live-dynatrace-query",
+    evidenceSource: "live-customer-query",
     synthetic: false,
   });
   assert.equal(summary.dynatrace.rawRows, 0);

@@ -4,9 +4,9 @@
   "title": "ServiceNow two-phase change-assurance workflow state",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "status", "updatedAt", "change", "forward", "decision", "policy", "artifacts", "hashes"],
+  "required": ["schemaVersion", "status", "updatedAt", "change", "forward", "provenance", "decision", "policy", "artifacts", "hashes"],
   "properties": {
-    "schemaVersion": { "const": "forward-dynatrace-servicenow-change-workflow/v1" },
+    "schemaVersion": { "const": "forward-dynatrace-servicenow-change-workflow/v2" },
     "status": { "enum": ["blocked", "baseline-captured", "completed"] },
     "updatedAt": { "type": "string", "format": "date-time" },
     "change": {
@@ -28,6 +28,15 @@
         "networkId": { "type": "string", "minLength": 1 },
         "beforeSnapshotId": { "type": ["string", "null"] },
         "afterSnapshotId": { "type": ["string", "null"] }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceSource", "synthetic"],
+      "properties": {
+        "evidenceSource": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+        "synthetic": { "type": "boolean" }
       }
     },
     "decision": { "type": ["string", "null"], "enum": ["pass", "warn", "fail", null] },

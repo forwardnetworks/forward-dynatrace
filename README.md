@@ -96,10 +96,15 @@ export FORWARD_NETWORK_ID=<network-id>
 npm run demo:live -- \
   --dynatrace-environment-url https://<trial-sandbox-id>.apps.dynatrace.com/ \
   --dynatrace-token-file /secure/path/platform-token \
+  --evidence-source approved-trial-replay \
+  --synthetic \
   --output-dir /tmp/forward-dynatrace-live-demo
 ```
 
-The default is a Forward dry-run; no checks are created. Add `--apply` only after reviewing the report. Add
+The checked default DQL reads replay events, so `--synthetic` is mandatory for this path. For customer-owned evidence,
+supply `--dynatrace-query-file /secure/queries/customer-dependencies.dql`, set a truthful `--evidence-source`, and omit
+`--synthetic`; replay markers fail closed before any Forward call. The default is a Forward dry-run; no checks are
+created. Add `--apply` only after reviewing the report. Add
 `--publish-dynatrace-status` to send the aggregate reconciliation event back to Dynatrace. Path analysis is read-only
 and enabled by default for the demo; `--skip-path-evidence` is the explicit fallback when that permission is not
 available. See [docs/live-demo-runbook.md](docs/live-demo-runbook.md) for rehearsal and meeting steps.

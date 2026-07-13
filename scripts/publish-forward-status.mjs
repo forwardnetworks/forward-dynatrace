@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 const DEFAULT_STATUS_FILE = "forward-ingest-status.json";
 const DEFAULT_CHECKSUM_FILE = "forward-ingest-status.sha256";
 const DEFAULT_EVENT_FILE = "forward-ingest-status-event.json";
+const EVIDENCE_SOURCE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 const usage = `
 Forward ingest status publisher
@@ -23,6 +24,8 @@ Options:
   --output-dir path   Write forward-ingest-status.json into this directory.
   --checksum path     Write sha256 checksum to this path.
   --event-output path Write publish-safe Dynatrace event payload JSON.
+  --evidence-source   Optional publish-safe provenance label; requires --synthetic.
+  --synthetic         Explicit true/false paired with --evidence-source.
 
 This script does not contact Forward or Dynatrace. It validates and republishes
 aggregate status for a customer-controlled package handoff location.
@@ -88,6 +91,22 @@ const required = (args, key) => {
 };
 
 const sha256Hex = (text) => createHash("sha256").update(text, "utf8").digest("hex");
+
+const provenanceFromArgs = (args) => {
+  const evidenceSource = args["evidence-source"];
+  const synthetic = args.synthetic;
+  if (evidenceSource === undefined && synthetic === undefined) return null;
+  if (
+    typeof evidenceSource !== "string" ||
+    !EVIDENCE_SOURCE_PATTERN.test(evidenceSource) ||
+    !new Set(["true", "false"]).has(synthetic)
+  ) {
+    throw new Error(
+      "--evidence-source requires a publish-safe label and --synthetic true|false.",
+    );
+  }
+  return { evidenceSource, synthetic: synthetic === "true" };
+};
 
 const eventSeverity = (artifact) => {
   if (artifact.importState === "failed") {
@@ -160,7 +179,7 @@ export const sanitizeStatusArtifact = (artifact) => {
   };
 };
 
-export const toDynatraceStatusEvent = (artifact) => ({
+export const toDynatraceStatusEvent = (artifact, provenance = null) => ({
   schemaVersion: "forward-dynatrace-status-event/v1",
   timestamp: artifact.generatedAt || new Date().toISOString(),
   eventType: "forward.dynatrace.ingest.status",
@@ -187,6 +206,12 @@ export const toDynatraceStatusEvent = (artifact) => ({
     "forward.dynatrace.mutation.created": artifact.mutationCounts.created,
     "forward.dynatrace.mutation.updated": artifact.mutationCounts.updated,
     "forward.dynatrace.mutation.deactivated": artifact.mutationCounts.deactivated,
+    ...(provenance
+      ? {
+          "forward.dynatrace.evidence_source": provenance.evidenceSource,
+          "forward.dynatrace.synthetic": provenance.synthetic,
+        }
+      : {}),
   },
 });
 
@@ -201,6 +226,7 @@ const main = async () => {
   }
 
   const statusText = await readFile(required(args, "status"), "utf8");
+  const provenance = provenanceFromArgs(args);
   const sanitized = sanitizeStatusArtifact(JSON.parse(statusText));
   const outputPath = args.output || path.join(required(args, "output-dir"), DEFAULT_STATUS_FILE);
   const checksumPath = args.checksum || path.join(path.dirname(outputPath), DEFAULT_CHECKSUM_FILE);
@@ -216,7 +242,7 @@ const main = async () => {
     await mkdir(path.dirname(eventOutputPath), { recursive: true });
     await writeFile(
       eventOutputPath,
-      `${JSON.stringify(toDynatraceStatusEvent(sanitized), null, 2)}\n`,
+      `${JSON.stringify(toDynatraceStatusEvent(sanitized, provenance), null, 2)}\n`,
     );
   }
 

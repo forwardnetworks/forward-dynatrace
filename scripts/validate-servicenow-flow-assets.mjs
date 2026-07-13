@@ -48,4 +48,3 @@ if (failures.length > 0) {
   process.exit(1);
 }
 process.stdout.write("ServiceNow Flow assets validated.\n");
-

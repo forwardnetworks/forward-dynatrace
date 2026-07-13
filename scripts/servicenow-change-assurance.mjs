@@ -24,7 +24,7 @@ import {
   toOpenPipelineApiBaseUrl,
 } from "./publish-dynatrace-status-event.mjs";
 
-const SUMMARY_SCHEMA = "forward-dynatrace-servicenow-change-assurance/v1";
+const SUMMARY_SCHEMA = "forward-dynatrace-servicenow-change-assurance/v2";
 
 const usage = `
 Finalize ServiceNow-first Forward and Dynatrace change assurance
@@ -36,6 +36,7 @@ Usage:
     --before-evidence forward-before-path-evidence.json \\
     --after-evidence forward-after-path-evidence.json \\
     --reconciliation-status forward-ingest-status.json \\
+    --evidence-source live-customer-dependencies \\
     --output-dir /secure/evidence/change-assurance
 
 Options:
@@ -45,6 +46,8 @@ Options:
   --after-evidence path          Executed Forward evidence from the after snapshot.
   --reconciliation-status path   Read-only Forward reconciliation status.
   --output-dir path              Evidence output directory.
+  --evidence-source value        Publish-safe cross-domain evidence source for live finalization.
+  --synthetic                    Mark the result synthetic when any input is replay/demo evidence.
   --publish-servicenow           Submit to the ServiceNow assurance ledger ingress.
   --verify-servicenow-retry      With ServiceNow publication, submit the exact evidence
                                  twice and require duplicate-free existing receipts.
@@ -70,6 +73,7 @@ export const parseArgs = (argv) => {
     "fail-on-non-pass",
     "report-only",
     "use-saved-preflight",
+    "synthetic",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
@@ -94,6 +98,18 @@ const required = (args, key) => {
 
 const canonicalJson = (value) => `${JSON.stringify(value, null, 2)}\n`;
 const sortedUnique = (values) => [...new Set(values)].sort();
+const EVIDENCE_SOURCE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+
+const provenanceFromArgs = (args) => {
+  if (args["use-saved-preflight"]) {
+    return { evidenceSource: "servicenow-saved-offline-rehearsal", synthetic: true };
+  }
+  const evidenceSource = required(args, "evidence-source");
+  if (!EVIDENCE_SOURCE_PATTERN.test(evidenceSource)) {
+    throw new Error("--evidence-source must be a publish-safe label up to 128 characters.");
+  }
+  return { evidenceSource, synthetic: Boolean(args.synthetic) };
+};
 
 export const validatePreflightContextAlignment = (preflight, context) => {
   if (preflight.authorization?.status !== "eligible") {
@@ -127,6 +143,7 @@ export const buildAssuranceArtifacts = ({
   if (
     !provenance ||
     typeof provenance.evidenceSource !== "string" ||
+    !EVIDENCE_SOURCE_PATTERN.test(provenance.evidenceSource) ||
     typeof provenance.synthetic !== "boolean"
   ) {
     throw new Error("ServiceNow assurance requires explicit evidence source and synthetic provenance.");
@@ -175,6 +192,7 @@ export const run = async (argv = process.argv.slice(2)) => {
   if (args["verify-servicenow-retry"] && !args["publish-servicenow"]) {
     throw new Error("--verify-servicenow-retry requires --publish-servicenow.");
   }
+  const provenance = provenanceFromArgs(args);
   const [preflight, context, beforeEvidence, afterEvidence, reconciliationStatus] = await Promise.all([
     readInput(required(args, "preflight")),
     readInput(required(args, "context")),
@@ -225,9 +243,7 @@ export const run = async (argv = process.argv.slice(2)) => {
       afterEvidence: afterEvidence.text,
       reconciliationStatus: reconciliationStatus.text,
     },
-    provenance: args["use-saved-preflight"]
-      ? { evidenceSource: "servicenow-saved-offline-rehearsal", synthetic: true }
-      : { evidenceSource: "servicenow-authoritative-read", synthetic: false },
+    provenance,
   });
 
   const gatePath = path.join(outputDir, "forward-change-validation-gate.json");
@@ -304,6 +320,7 @@ export const run = async (argv = process.argv.slice(2)) => {
       number: effectivePreflight.change.number,
       deploymentId: effectivePreflight.change.deploymentId,
     },
+    provenance,
     decision: artifacts.gate.decision,
     reasonCodes: artifacts.gate.reasons.map((reason) => reason.code),
     publications: {

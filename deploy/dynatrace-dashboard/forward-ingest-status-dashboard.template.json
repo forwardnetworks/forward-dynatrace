@@ -11,7 +11,7 @@
       "title": "Latest Forward ingest runs",
       "queryFile": "../dynatrace-dql/forward-ingest-status-latest.dql",
       "visualization": "table",
-      "purpose": "Show recent package IDs, import state, signature state, planned checks, and reconciliation counts."
+      "purpose": "Show recent package IDs, provenance, import state, signature state, planned checks, and reconciliation counts."
     },
     {
       "id": "needs-forward-review",
@@ -27,6 +27,8 @@
     "event.status",
     "forward.dynatrace.run_id",
     "forward.dynatrace.package_id",
+    "forward.dynatrace.evidence_source",
+    "forward.dynatrace.synthetic",
     "forward.dynatrace.import_state",
     "forward.dynatrace.planned_checks",
     "forward.dynatrace.count.create",

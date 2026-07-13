@@ -35,6 +35,7 @@ const INGEST_QUERY = [
   "| dedup `forward.dynatrace.publisher_run_id`",
   "| fields timestamp, severity, `forward.dynatrace.publisher_run_id`,",
   "    `forward.dynatrace.run_id`, `forward.dynatrace.package_id`,",
+  "    `forward.dynatrace.evidence_source`, `forward.dynatrace.synthetic`,",
   "    `forward.dynatrace.mode`, `forward.dynatrace.import_state`,",
   "    `forward.dynatrace.target.network_id`, `forward.dynatrace.target.snapshot_id`,",
   "    `forward.dynatrace.planned_checks`, `forward.dynatrace.count.create`,",
@@ -430,7 +431,11 @@ export const CrossDomainEvidence = () => {
           icon={<AutomationEngineIcon />}
           label="Forward reconciliation"
           status={field(ingestLatest, "forward.dynatrace.import_state", "not loaded")}
-          detail={field(ingestLatest, "forward.dynatrace.run_id", "No live event")}
+          detail={detailWithProvenance(
+            ingestLatest,
+            "forward.dynatrace.run_id",
+            "No live event",
+          )}
           metrics={[
             { label: "Planned", value: field(ingestLatest, "forward.dynatrace.planned_checks", "0") },
             { label: "Create", value: field(ingestLatest, "forward.dynatrace.count.create", "0") },
@@ -512,7 +517,7 @@ export const CrossDomainEvidence = () => {
                 {ingestRows.slice(0, 10).map((row, index) => (
                   <tr key={`${field(row, "forward.dynatrace.publisher_run_id")}-${index}`}>
                     <td>{field(row, "timestamp")}</td>
-                    <td><Strong>{field(row, "forward.dynatrace.run_id")}</Strong><span className="evidence-subvalue">{field(row, "forward.dynatrace.package_id")}</span></td>
+                    <td><Strong>{field(row, "forward.dynatrace.run_id")}</Strong><span className="evidence-subvalue">{field(row, "forward.dynatrace.package_id")}</span><span className="evidence-subvalue">{provenanceLabel(row)}</span></td>
                     <td><span className={`evidence-status ${tone(field(row, "forward.dynatrace.import_state"))}`}>{field(row, "forward.dynatrace.import_state")}</span><span className="evidence-subvalue">{field(row, "forward.dynatrace.mode")}</span></td>
                     <td>{field(row, "forward.dynatrace.target.network_id")} / {field(row, "forward.dynatrace.target.snapshot_id")}</td>
                     <td>{field(row, "forward.dynatrace.planned_checks", "0")}</td>

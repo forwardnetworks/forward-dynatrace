@@ -39,6 +39,8 @@ export SERVICENOW_FLOW_HOST=0.0.0.0
 export SERVICENOW_FLOW_PORT=8080
 export SERVICENOW_FLOW_RUN_DIR=/var/lib/forward-dynatrace/servicenow-flow
 export SERVICENOW_FLOW_MAX_ACTIVE_RUNS=4
+export SERVICENOW_FLOW_EVIDENCE_SOURCE=live-customer-dependencies
+export SERVICENOW_FLOW_SYNTHETIC=0
 
 # Existing read-only workflow credentials
 export SERVICENOW_BASE_URL=https://your-instance.service-now.com
@@ -99,6 +101,12 @@ tenant query fail the run.
   "serviceEntityIds": ["SERVICE-CHECKOUT-API", "SERVICE-PAYMENTS-API"]
 }
 ```
+
+Provenance is protected runtime configuration, not a customer-facing Flow input. Set
+`SERVICENOW_FLOW_SYNTHETIC=1` only for an approved replay/demo runtime. The worker persists the internal source/flag
+and carries it into Dynatrace diagnostic evidence without adding demo mechanics to the ServiceNow happy path. Both
+provenance variables are mandatory; the worker refuses to start if the evidence source is missing or the synthetic
+flag is not explicitly `0` or `1`.
 
 The response is HTTP `202` with a deterministic `fdca-<24 hex>` run ID. Replaying identical input returns the same
 run. Reusing the same change/deployment/network/service identity with different input returns HTTP `409`.

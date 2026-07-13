@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "forward-dynatrace-servicenow-change-workflow/v1",
+  "schemaVersion": "forward-dynatrace-servicenow-change-workflow/v2",
   "status": "baseline-captured",
   "updatedAt": "2026-07-15T18:35:00.000Z",
   "change": {
@@ -12,6 +12,10 @@
     "networkId": "network-production",
     "beforeSnapshotId": "snapshot-before",
     "afterSnapshotId": null
+  },
+  "provenance": {
+    "evidenceSource": "live-customer-dependencies",
+    "synthetic": false
   },
   "decision": null,
   "policy": {
