@@ -14,7 +14,8 @@ npm run demo:capture
 The capture harness builds the Dynatrace app, serves the built UI locally, answers app-function calls through the built
 function modules, builds every assurance-portal row through the production event builders, and drives Chromium with
 placeholder Forward/Dynatrace metadata. It does not contact a live Dynatrace, Forward, or ServiceNow tenant. The
-capture fails if the overview contains a live-query error, omits a headline evidence domain, or clips the change table.
+capture fails if the overview contains a live-query error, omits a headline evidence domain, clips the change table,
+or lets a scrolled preflight/package/payload capture lose its synthetic-rehearsal label.
 
 ## Overview
 
@@ -22,28 +23,31 @@ capture fails if the overview contains a live-query error, omits a headline evid
 
 The overview is the explicitly labeled credential-free rehearsal: idempotent Forward reconciliation, safe/regressed
 path evidence, ServiceNow change decisions, failure/recovery check-health, and security correlation are all populated
-with checked synthetic records. Live Grail remains the production source.
+with checked synthetic records. The outcome strip makes the core contrast explicit: the same checksummed evidence
+contract supports the safe change and blocks the regressed change. Live Grail remains the production source.
 
 ## Host Resolution And Path Evidence
 
 ![Forward host resolution and path evidence](assets/screenshots/02-export-package-readiness.jpg)
 
-This screen demonstrates the production preflight shape: resolve endpoint names through Forward host inventory, then
-optionally run read-only path evidence from the same resolved values before intent-check import.
+This explicitly labeled checked synthetic capture demonstrates the production preflight shape: resolve endpoint names
+through Forward host inventory, then optionally run read-only path evidence from the same resolved values before
+intent-check import.
 
 ## Forward Package And Bulk Check API Sequence
 
 ![Forward-side API sequence](assets/screenshots/03-forward-side-api.jpg)
 
-This screen demonstrates the iterative Forward workflow: validate, dry-run, reconcile, create missing checks, report
-changed/stale drift, and publish sanitized status back to Dynatrace.
+This explicitly labeled checked synthetic capture demonstrates the iterative Forward workflow: validate, dry-run,
+reconcile, create missing checks, report changed/stale drift, and publish sanitized status back to Dynatrace.
 
 ## Persistent Intent Check Payload
 
 ![Forward intent check payload](assets/screenshots/04-intent-check-payload.jpg)
 
-The cropped preview makes the exact Forward `NewNetworkCheck[]` payload readable while the downloaded artifact retains
-all 24 checks. It is generated only after both dependency endpoints resolve against Forward inventory.
+The explicitly labeled checked synthetic cropped preview makes the exact Forward `NewNetworkCheck[]` payload readable
+while the downloaded artifact retains all 24 checks. It is generated only after both dependency endpoints resolve
+against Forward inventory.
 
 ## ServiceNow Change Assurance
 

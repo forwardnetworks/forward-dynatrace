@@ -30,10 +30,6 @@ import demoForwardStatus from "../../../shared/demo-forward-ingest-status.json";
 import customerTrialDependencies from "../../../shared/customer-trial-dependencies.json";
 import { CrossDomainEvidence } from "../components/CrossDomainEvidence";
 import type {
-  NetworkProofRequest,
-  NetworkProofResponse,
-} from "../types/network-proof";
-import type {
   ForwardNqePreviewRequest,
   ForwardNqePreviewResponse,
 } from "../types/forward-nqe-preview";
@@ -245,9 +241,6 @@ export const Home = () => {
   >({});
   const [nqePreviewDependencyId, setNqePreviewDependencyId] = useState<string>();
   const [syncMode, setSyncMode] = useState<ForwardSyncMode>("manual-import");
-  const [proofRequest, setProofRequest] = useState<
-    NetworkProofRequest | undefined
-  >();
   const [nqePreviewRequest, setNqePreviewRequest] = useState<
     ForwardNqePreviewRequest | undefined
   >();
@@ -280,10 +273,6 @@ export const Home = () => {
     "unknown run",
   );
 
-  const proof = useAppFunction<NetworkProofResponse>({
-    name: "network-proof",
-    data: proofRequest,
-  }, { autoFetch: false, autoFetchOnUpdate: true });
   const nqePreview = useAppFunction<ForwardNqePreviewResponse>({
     name: "forward-nqe-preview",
     data: nqePreviewRequest,
@@ -427,21 +416,7 @@ export const Home = () => {
     }
   }
 
-  function runPreview(dependency = activeDependency) {
-    setProofRequest({
-      serviceEntityId: dependency.serviceEntityId,
-      problemId,
-      source: dependency.source,
-      destination: dependency.destination,
-      port: dependency.port,
-      protocol: dependency.protocol,
-      forwardBaseUrl,
-      forwardNetworkId,
-      appName: dependency.appName,
-      environment: dependency.environment,
-      owner: dependency.owner,
-      criticality: dependency.criticality,
-    });
+  function planEvidence(dependency = activeDependency) {
     setNqePreviewRequest({
       forwardBaseUrl,
       forwardNetworkId,
@@ -763,13 +738,13 @@ export const Home = () => {
                           size="condensed"
                           onClick={() => {
                             setActiveDependencyId(dependency.id);
-                            runPreview(dependency);
+                            planEvidence(dependency);
                           }}
                         >
                           <Button.Prefix>
                             <PathIcon />
                           </Button.Prefix>
-                          Preview
+                          Plan
                         </Button>
                         <Button
                           color="primary"
@@ -911,29 +886,10 @@ export const Home = () => {
 
       <section className="panel">
         <PanelHeader
-          icon={<NetworkIcon />}
-          title="Path Context Plan"
-          detail={activeDependency.serviceName}
-        />
-        {proof.isLoading && <ProgressCircle aria-label="Loading preview" />}
-        {proof.data ? (
-          <ResultBody
-            status={proof.data.status}
-            summary={proof.data.summary}
-            rows={proof.data.evidence}
-            nextSteps={proof.data.nextSteps}
-          />
-        ) : (
-          <EmptyState text="No preview result yet." />
-        )}
-        {proof.error && <Paragraph>{proof.error.message}</Paragraph>}
-      </section>
-
-      <section className="panel">
-        <PanelHeader
           icon={<PathIcon />}
           title="Forward Host Resolution And Path Evidence"
           detail="Read-only preflight before intent creation"
+          badge={captureMode ? "SYNTHETIC DEMO REHEARSAL" : undefined}
         />
         {nqePreview.isLoading && <ProgressCircle aria-label="Loading NQE preview" />}
         {nqePreview.data ? (
@@ -1058,6 +1014,7 @@ export const Home = () => {
           icon={<AutomationEngineIcon />}
           title="Forward-Centric Ingest Package"
           detail="Built after Forward host resolution"
+          badge={captureMode ? "SYNTHETIC DEMO REHEARSAL" : undefined}
         />
         {sync.isLoading && <ProgressCircle aria-label="Loading export package" />}
         {sync.data ? (() => {
@@ -1146,7 +1103,12 @@ export const Home = () => {
                 </div>
               </div>
               <div className="intent-preview">
-                <Heading level={5}>Bulk intent check payload sample</Heading>
+                <div className="intent-preview-heading">
+                  <Heading level={5}>Bulk intent check payload sample</Heading>
+                  {captureMode && (
+                    <span className="evidence-status controlled">SYNTHETIC DEMO REHEARSAL</span>
+                  )}
+                </div>
                 <Paragraph>
                   Showing 3 of {syncData.intentCheckCount}; the downloaded artifact contains the full package.
                 </Paragraph>
@@ -1193,17 +1155,22 @@ const PanelHeader = ({
   icon,
   title,
   detail,
+  badge,
 }: {
   icon: React.ReactNode;
   title: string;
   detail: string;
+  badge?: string;
 }) => (
   <header className="panel-header">
     <div className="panel-title">
       <span className="panel-icon">{icon}</span>
       <Heading level={4}>{title}</Heading>
     </div>
-    <span>{detail}</span>
+    <div className="panel-header-meta">
+      <span>{detail}</span>
+      {badge && <span className="evidence-status controlled">{badge}</span>}
+    </div>
   </header>
 );
 

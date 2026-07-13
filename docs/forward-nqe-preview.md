@@ -11,6 +11,7 @@ Plan mode is the default:
 
 - builds the Forward NQE request body
 - shows the target `POST /api/nqe` path
+- can be staged before Forward URL and network metadata are supplied
 - uses allowlisted raw-query templates by default
 - includes dependency parameters when an approved optional query ID is used
 - performs no network call
@@ -18,6 +19,7 @@ Plan mode is the default:
 Execute mode is optional:
 
 - requires `execute: true`
+- requires Forward URL metadata and a network ID
 - requires a runtime-supplied read-only authorization header
 - requires query IDs to be allowlisted when `queryId` is used
 - returns sanitized aggregate evidence: row count, returned count, columns, and optionally a small row sample
@@ -121,8 +123,8 @@ Run:
 npm run forward:nqe-preview:test
 ```
 
-The test covers plan mode, missing authorization blocking, query-ID allowlisting, and the read-only `POST /api/nqe`
-execution path.
+The test covers target-free credential-free plan mode, target and authorization fail-closed execution, query-ID
+allowlisting, and the read-only `POST /api/nqe` execution path.
 
 For a customer-approved live credential smoke, run plan mode first:
 

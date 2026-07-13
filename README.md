@@ -272,6 +272,10 @@ Release provenance, SBOM, Trivy scan evidence, and digest pinning guidance are i
 
 ## Screenshots
 
+These checked, credential-free captures use synthetic rehearsal records and placeholder target metadata. Each
+standalone evidence view labels that provenance; live Grail and customer-owned Forward/ServiceNow readback remain the
+production proof sources.
+
 ![Forward Integration for Dynatrace overview](docs/assets/screenshots/01-overview.jpg)
 
 ![Forward read-only NQE preview](docs/assets/screenshots/02-export-package-readiness.jpg)

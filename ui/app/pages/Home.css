@@ -213,6 +213,108 @@
   font-size: 13px;
 }
 
+.change-outcome-summary {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: #f7fbfe;
+  border: 1px solid #c9dce8;
+  border-radius: 8px;
+}
+
+.change-outcome-summary-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.change-outcome-summary-heading h3,
+.change-outcome-summary-heading p,
+.change-outcome h4 {
+  margin: 0;
+}
+
+.change-outcome-summary-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.change-outcome-summary-heading > span {
+  max-width: 620px;
+  color: #60717d;
+  font-size: 12px;
+  text-align: right;
+}
+
+.change-outcome-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.change-outcome {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid #d9e4eb;
+  border-left: 5px solid #167d68;
+  border-radius: 8px;
+}
+
+.change-outcome.fail {
+  border-left-color: #c03720;
+}
+
+.change-outcome-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.change-outcome-heading > div {
+  display: grid;
+  min-width: 0;
+}
+
+.change-outcome-kicker,
+.change-outcome-metrics span {
+  color: #60717d;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.change-outcome-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.change-outcome-metrics > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px solid #e7edf1;
+}
+
+.change-outcome-metrics strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.change-outcome-provenance {
+  color: #60717d;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
 .evidence-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -644,7 +746,14 @@
   margin: 0;
 }
 
-.panel-header > span {
+.panel-header-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.panel-header-meta > span:first-child {
   color: #60717d;
   font-size: 13px;
 }
@@ -920,6 +1029,17 @@
   margin-top: 18px;
 }
 
+.intent-preview-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.intent-preview-heading h5 {
+  margin: 0;
+}
+
 .json-preview {
   max-height: 360px;
 }
@@ -1035,8 +1155,14 @@
   .sync-grid,
   .workflow-board-header,
   .source-banner,
-  .cross-domain-header {
+  .cross-domain-header,
+  .panel-header-meta {
     grid-template-columns: 1fr;
+  }
+
+  .panel-header-meta {
+    display: grid;
+    justify-items: end;
   }
 
   .metric-grid,
@@ -1066,6 +1192,16 @@
   }
 
   .workflow-board-header > span {
+    max-width: none;
+    text-align: left;
+  }
+
+  .change-outcome-summary-heading {
+    display: grid;
+    align-items: start;
+  }
+
+  .change-outcome-summary-heading > span {
     max-width: none;
     text-align: left;
   }
@@ -1105,6 +1241,8 @@
   .readiness-grid,
   .workflow-stage-grid,
   .workflow-rule,
+  .change-outcome-grid,
+  .change-outcome-metrics,
   .evidence-card-grid,
   .evidence-card-metrics {
     grid-template-columns: 1fr;

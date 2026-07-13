@@ -60,14 +60,12 @@ const sendJson = (response, statusCode, payload) => {
 };
 
 const loadFunctions = async () => {
-  const networkProof = await import(pathToFileURL(path.join(distDir, "api/network-proof.js")));
   const forwardSync = await import(pathToFileURL(path.join(distDir, "api/forward-sync.js")));
   const forwardStatus = await import(pathToFileURL(path.join(distDir, "api/forward-status.js")));
   const forwardNqePreview = await import(
     pathToFileURL(path.join(distDir, "api/forward-nqe-preview.js"))
   );
   return {
-    networkProof: networkProof.default,
     forwardSync: forwardSync.default,
     forwardStatus: forwardStatus.default,
     forwardNqePreview: forwardNqePreview.buildForwardNqePreview,
@@ -117,10 +115,6 @@ const startDemoServer = async () => {
       if (request.method === "POST" && url.pathname.startsWith("/api/")) {
         const rawBody = await parseBody(request);
         const payload = rawBody?.data ?? rawBody;
-        if (url.pathname === "/api/network-proof") {
-          sendJson(response, 200, await functions.networkProof(payload));
-          return;
-        }
         if (url.pathname === "/api/forward-sync") {
           sendJson(response, 200, await functions.forwardSync(payload));
           return;
@@ -297,14 +291,30 @@ const main = async () => {
       globalThis.__FORWARD_DYNATRACE_CAPTURE_EVIDENCE__ = evidence;
     }, captureEvidence);
     await page.goto(`${server.baseUrl}/ui/`, { waitUntil: "networkidle" });
+    await page.waitForFunction(() =>
+      Array.from(document.images).every(
+        (image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0,
+      ));
     await markScrollRoot(page);
+    await scrollRootTo(page, 0);
+    await page.locator(".app-shell-brand").waitFor({ state: "visible" });
     await page.getByText("Checked replay dependency data", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Review change assurance" }).waitFor();
     if (await page.getByText(/Live query failed:/u).count()) {
       throw new Error("Overview capture must not contain a failed live query.");
     }
+    if (await page.getByText("Path Context Plan", { exact: true }).count()) {
+      throw new Error("Overview capture must not expose the retired stub-only path context panel.");
+    }
     for (const expected of ["reconciled", "consistent-with-network-policy-block", "FAIL", "FAIL_TO_PASS", "critical"]) {
       await page.getByText(expected, { exact: true }).first().waitFor();
+    }
+    for (const expected of [
+      "One evidence contract: safe changes pass, regressions stop",
+      "Validation supports proceed",
+      "Validation blocks promotion",
+    ]) {
+      await page.getByText(expected, { exact: true }).waitFor();
     }
     await capture(page, "01-overview.jpg");
 
@@ -327,15 +337,22 @@ const main = async () => {
     await page.getByRole("button", { name: "Check endpoint mapping" }).click();
     await page.getByText("Forward resolved both dependency endpoints.").first().waitFor();
     await scrollToPanel(page, "Forward Host Resolution And Path Evidence");
+    await page.locator(".panel", { hasText: "Forward Host Resolution And Path Evidence" })
+      .getByText("SYNTHETIC DEMO REHEARSAL", { exact: true }).waitFor();
     await capture(page, "02-export-package-readiness.jpg");
 
     await scrollRootTo(page, 0);
     await page.getByRole("button", { name: "Build resolved package" }).click();
     await page.getByText("Forward bulk intent package is ready.").waitFor();
     await scrollToPanel(page, "Forward-Centric Ingest Package");
+    await page.locator(".panel", { hasText: "Forward-Centric Ingest Package" })
+      .locator(".panel-header")
+      .getByText("SYNTHETIC DEMO REHEARSAL", { exact: true }).waitFor();
     await capture(page, "03-forward-side-api.jpg");
 
     await scrollToText(page, "Bulk intent check payload sample", 80);
+    await page.locator(".intent-preview")
+      .getByText("SYNTHETIC DEMO REHEARSAL", { exact: true }).waitFor();
     await captureElement(page.locator(".intent-preview"), "04-intent-check-payload.jpg");
 
     await scrollToText(page, "ServiceNow → Forward → Dynatrace assurance history", 80);

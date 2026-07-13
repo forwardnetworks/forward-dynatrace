@@ -12,6 +12,8 @@ import {
 } from "@dynatrace/strato-icons";
 import { useDql } from "@dynatrace-sdk/react-hooks";
 
+import { selectBoundChangeOutcomes } from "../change-outcomes";
+
 type EvidenceRecord = Record<string, unknown>;
 
 type CaptureEvidence = {
@@ -271,6 +273,45 @@ const EvidenceHeading = ({ title, detail }: { title: string; detail: string }) =
   </div>
 );
 
+const ChangeOutcome = ({ record }: { record: EvidenceRecord }) => {
+  const decision = field(record, "forward.dynatrace.gate_decision").toLowerCase();
+  const passed = decision === "pass";
+  const checksum = field(record, "forward.dynatrace.servicenow_evidence_sha256");
+
+  return (
+    <article className={`change-outcome ${passed ? "pass" : "fail"}`}>
+      <div className="change-outcome-heading">
+        <div>
+          <span className="change-outcome-kicker">ServiceNow change</span>
+          <Strong>{field(record, "forward.dynatrace.change_id")}</Strong>
+        </div>
+        <span className={`evidence-status ${tone(decision)}`}>{decision}</span>
+      </div>
+      <Heading level={4}>
+        {passed ? "Validation supports proceed" : "Validation blocks promotion"}
+      </Heading>
+      <div className="change-outcome-metrics">
+        <div>
+          <span>Forward reachable</span>
+          <Strong>
+            {field(record, "forward.dynatrace.before_reachable", "0")} →{" "}
+            {field(record, "forward.dynatrace.after_reachable", "0")}
+          </Strong>
+        </div>
+        <div>
+          <span>Dynatrace health</span>
+          <Strong>{field(record, "forward.dynatrace.service_health")}</Strong>
+        </div>
+        <div>
+          <span>ServiceNow evidence</span>
+          <span title={checksum}><Strong>{shortHash(checksum)}</Strong></span>
+        </div>
+      </div>
+      <span className="change-outcome-provenance">{provenanceLabel(record)}</span>
+    </article>
+  );
+};
+
 export const CrossDomainEvidence = () => {
   const captureEvidence = globalThis.__FORWARD_DYNATRACE_CAPTURE_EVIDENCE__;
   const ingest = useDql<EvidenceRecord>(
@@ -299,6 +340,7 @@ export const CrossDomainEvidence = () => {
   const changeRows = captureEvidence?.changeRows || change.data?.records || [];
   const healthRows = captureEvidence?.healthRows || health.data?.records || [];
   const securityRows = captureEvidence?.securityRows || security.data?.records || [];
+  const changeOutcomeRows = selectBoundChangeOutcomes(changeRows);
   const ingestLatest = latest(ingestRows);
   const networkLatest = latest(networkRows);
   const changeLatest = latest(changeRows);
@@ -353,6 +395,35 @@ export const CrossDomainEvidence = () => {
           )}
         </div>
       </div>
+
+      {changeOutcomeRows.length > 0 && (
+        <section className="change-outcome-summary" aria-label="ServiceNow change assurance outcomes">
+          <div className="change-outcome-summary-heading">
+            <div>
+              <p className="eyebrow">ServiceNow-governed outcomes</p>
+              <Heading level={3}>One evidence contract: safe changes pass, regressions stop</Heading>
+            </div>
+            <span>
+              Each decision binds a ServiceNow attachment checksum to exact Forward snapshots and Dynatrace health.
+            </span>
+          </div>
+          <div className="change-outcome-grid">
+            {changeOutcomeRows.map((row) => (
+              <ChangeOutcome
+                key={field(row, "forward.dynatrace.gate_run_id")}
+                record={row}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+      {changeRows.length > 0 && changeOutcomeRows.length === 0 && (
+        <div className="evidence-empty change-outcome-unavailable">
+          The headline comparison requires a complete pass/fail pair with explicit provenance, a matching ServiceNow
+          attachment checksum and idempotency key, exact Forward snapshots and reachability, and Dynatrace health.
+          Partial or legacy events remain available in the assurance history below.
+        </div>
+      )}
 
       <div className="evidence-card-grid">
         <EvidenceCard

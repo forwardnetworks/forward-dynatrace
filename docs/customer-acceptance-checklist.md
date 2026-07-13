@@ -64,7 +64,41 @@ Forward-centric: Dynatrace exports desired state, while Forward-controlled tooli
 - Confirm status telemetry contains no Forward credentials, hostnames, check names, dependency rows, or API response
   bodies.
 
-## 8. Operations
+## 8. ServiceNow Change Assurance
+
+- Install the checked Flow Designer Script-step assets or the authenticated asynchronous worker in a non-production
+  ServiceNow instance.
+- Read one approved/scheduled change and one blocked change through `servicenow:change-preflight`; retain both
+  sanitized artifacts and confirm the blocked case exits `2` without writes.
+- For the approved change, run `servicenow:change-workflow -- --phase start` inside its authoritative window before
+  the customer-owned deployment. Record the change number/sys_id, deployment ID, affected service IDs, Forward
+  network ID, and before snapshot ID.
+- After deployment and Dynatrace stabilization, run the complete phase against a newly processed Forward snapshot.
+- Publish feedback only after the customer approves the non-production write. Use `--verify-servicenow-retry` once and
+  require the retry receipt to reuse the original work-note and attachment sys_ids.
+- Read back the exact ServiceNow attachment SHA-256 and idempotency marker, then query the matching aggregate event
+  from Dynatrace Grail. A successful POST without both readbacks is not acceptance.
+- Keep application deployment/rollback and all Forward check mutation outside this assurance workflow.
+
+## 9. Check-Health Feedback
+
+- Install one checked systemd or Kubernetes poller with a customer-owned runtime identity and durable mode-`0600`
+  state.
+- Baseline the managed `dynatrace` checks and confirm the first run publishes no transition.
+- Re-run from a fresh process and confirm an unchanged inventory publishes nothing and preserves the same state.
+- During a customer-approved non-production exercise, capture one real failure and recovery transition with stable
+  transition IDs.
+- Query both transition events back from Dynatrace and retain the protected state metadata plus sanitized batches.
+
+## 10. Security Correlation
+
+- Obtain security- and network-owner approval for the exact Dynatrace findings, Forward exposure evidence, identity
+  mappings, sharing boundary, retention, and response process.
+- Run the correlator read-only and confirm each ranked result traces to exact evidence IDs and timestamps.
+- Confirm observed execution, modeled reachability, and internet addressability remain separate facts.
+- Confirm low-confidence identity mappings cannot create automatic high severity or remediation.
+
+## 11. Operations
 
 - Store Forward credentials only in the Forward-side runtime secret store.
 - Store Dynatrace status-publish tokens only in the runtime that publishes status events.
@@ -82,4 +116,8 @@ Forward-centric: Dynatrace exports desired state, while Forward-controlled tooli
 - Forward dry-run passes against the intended network.
 - Optional Dynatrace status event is visible in Dynatrace.
 - Apply run, if approved, is followed by an unchanged rerun.
+- One approved and one blocked ServiceNow change are evaluated from authoritative records; an approved current-window
+  run has matching ServiceNow and Dynatrace query-back evidence.
+- A customer-owned check-health poller proves quiet restart behavior plus one approved failure/recovery pair.
+- Every enabled security-correlation lane has owner-approved evidence, retention, and response boundaries.
 - Evidence is retained in the customer-approved location.

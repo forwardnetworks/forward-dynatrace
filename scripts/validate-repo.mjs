@@ -86,6 +86,7 @@ const requiredFiles = [
   "assets/export-forward-package.sample-result.json",
   "ui/app/types/forward-status.ts",
   "ui/app/types/forward-nqe-preview.ts",
+  "ui/app/change-outcomes.ts",
   "ui/app/components/CrossDomainEvidence.tsx",
   "scripts/sign-forward-package.mjs",
   "scripts/sign-release-checksums.mjs",
@@ -154,6 +155,7 @@ const requiredFiles = [
   "scripts/demo-rehearsal.mjs",
   "scripts/servicenow-demo-rehearsal.mjs",
   "scripts/servicenow-demo-rehearsal.test.mjs",
+  "scripts/change-outcomes.test.mjs",
   "scripts/load-scale-smoke.mjs",
   "scripts/runtime-slo-check.mjs",
   "scripts/runtime-slo-check.test.mjs",
@@ -348,7 +350,6 @@ const publicBrandingFiles = [
   "app.config.json",
   "package.json",
   "api/forward-sync.function.ts",
-  "api/network-proof.function.ts",
   "api/forward-status.function.ts",
   "api/forward-nqe-preview.function.ts",
   "docs/harness-engineering.md",
@@ -576,6 +577,21 @@ for (const requiredPlanContent of [
 ]) {
   if (!activeExecutionPlan.includes(requiredPlanContent)) {
     fail(`Active execution plan must contain ${requiredPlanContent}.`);
+  }
+}
+
+const customerAcceptanceChecklist = await readText("docs/customer-acceptance-checklist.md");
+for (const requiredAcceptanceLane of [
+  "## 8. ServiceNow Change Assurance",
+  "--verify-servicenow-retry",
+  "query the matching aggregate event",
+  "## 9. Check-Health Feedback",
+  "failure and recovery transition",
+  "## 10. Security Correlation",
+  "low-confidence identity mappings cannot create automatic high severity",
+]) {
+  if (!customerAcceptanceChecklist.includes(requiredAcceptanceLane)) {
+    fail(`Customer acceptance checklist must preserve ${requiredAcceptanceLane}.`);
   }
 }
 
@@ -998,6 +1014,13 @@ for (const file of textFiles) {
     if (content.includes(term)) {
       fail(`Legacy export term "${term}" found in ${file}.`);
     }
+  }
+
+  if (
+    (file.startsWith("api/") || file.startsWith("ui/app/")) &&
+    /(?:implementation is intentionally stubbed|API call implementation is intentionally stubbed)/iu.test(content)
+  ) {
+    fail(`Customer-facing demo dead end found in ${file}.`);
   }
 
   for (const pattern of secretPatterns) {
