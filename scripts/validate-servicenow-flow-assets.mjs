@@ -35,6 +35,12 @@ for (const script of expectedScripts) {
 }
 const start = await read("start-assurance.js");
 if (!start.includes("/v1/servicenow/change-assurance/start")) fail("Start script route is invalid.");
+for (const required of ["affected_records_json", "affectedRecords", "record.sysId", "record.table"]) {
+  if (!start.includes(required)) fail(`Start script missing protected scope input ${required}.`);
+}
+for (const forbidden of ["forward_network_id", "service_entity_ids_json"]) {
+  if (start.includes(forbidden)) fail(`Start script must not request operator-supplied ${forbidden}.`);
+}
 const status = await read("get-assurance-status.js");
 if (!status.includes('"/v1/servicenow/change-assurance/runs/" + runId')) {
   fail("Status script route is invalid.");

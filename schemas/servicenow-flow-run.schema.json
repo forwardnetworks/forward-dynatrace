@@ -4,10 +4,10 @@
   "title": "Purchase-free ServiceNow Flow worker run",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "runId", "status", "phase", "createdAt", "updatedAt", "change", "forward", "decision", "exitCode", "error"],
+  "required": ["schemaVersion", "runId", "status", "phase", "createdAt", "updatedAt", "change", "scopeMapping", "forward", "decision", "exitCode", "error"],
   "properties": {
     "schemaVersion": { "const": "forward-dynatrace-servicenow-flow-run/v1" },
-    "runId": { "type": "string", "pattern": "^fdca-[a-f0-9]{24}$" },
+    "runId": { "type": "string", "maxLength": 29, "pattern": "^fdca-[a-f0-9]{24}$" },
     "status": {
       "enum": [
         "start-queued",
@@ -28,29 +28,70 @@
       "additionalProperties": false,
       "required": ["number", "deploymentId", "serviceEntityIds"],
       "properties": {
-        "number": { "type": "string", "pattern": "^CHG[0-9]+$" },
-        "deploymentId": { "type": "string", "minLength": 1 },
+        "number": { "type": "string", "maxLength": 32, "pattern": "^CHG[0-9]+$" },
+        "deploymentId": { "type": "string", "minLength": 1, "maxLength": 255 },
         "serviceEntityIds": {
           "type": "array",
           "minItems": 1,
           "maxItems": 100,
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": { "type": "string", "minLength": 1, "maxLength": 255 }
         }
       }
+    },
+    "scopeMapping": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/definitions/scopeMapping" }
+      ]
     },
     "forward": {
       "type": "object",
       "additionalProperties": false,
       "required": ["networkId", "beforeSnapshotId", "afterSnapshotId"],
       "properties": {
-        "networkId": { "type": "string", "minLength": 1 },
-        "beforeSnapshotId": { "type": ["string", "null"] },
-        "afterSnapshotId": { "type": ["string", "null"] }
+        "networkId": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "beforeSnapshotId": { "type": ["string", "null"], "maxLength": 255 },
+        "afterSnapshotId": { "type": ["string", "null"], "maxLength": 255 }
       }
     },
     "decision": { "enum": ["pass", "warn", "fail", null] },
     "exitCode": { "type": ["integer", "null"] },
     "error": { "type": ["string", "null"], "maxLength": 1000 }
+  },
+  "definitions": {
+    "scopeMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mappingId", "mappingSha256", "environmentId", "sourceRecords", "resolvedAt", "expiresAt"],
+      "properties": {
+        "mappingId": { "$ref": "#/definitions/identifier" },
+        "mappingSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "environmentId": { "$ref": "#/definitions/identifier" },
+        "sourceRecords": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": { "$ref": "#/definitions/sourceRecord" }
+        },
+        "resolvedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "sourceRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table", "sysId"],
+      "properties": {
+        "table": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,79}$" },
+        "sysId": { "type": "string", "pattern": "^[0-9a-f]{32}$" }
+      }
+    }
   }
 }

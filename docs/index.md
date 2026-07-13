@@ -42,6 +42,7 @@ listing every document.
 - [Change validation gate](change-validation-gate.md): deterministic before/after gate.
 - [Application change assurance](application-change-assurance.md): ServiceNow-first workflow.
 - [ServiceNow flow worker](servicenow-flow-worker.md): bounded Flow Designer worker API.
+- [ServiceNow scope mapping](servicenow-scope-mapping.md): reviewed affected-record identity and environment contract.
 - [Check-health transition feedback](check-health-transition-feedback.md): idempotent transition polling.
 - [Security exposure correlation](security-exposure-correlation.md): evidence-separated risk ranking.
 
@@ -80,4 +81,3 @@ listing every document.
 - [Active customer production-readiness plan](exec-plans/active/customer-production-readiness.md): current prioritized work.
 - [Completed non-production evidence tranche](exec-plans/completed/2026-07-12-non-production-evidence.md): completed proof record.
 - [Technical debt tracker](exec-plans/tech-debt-tracker.md): deferred structural work with triggers and exits.
-

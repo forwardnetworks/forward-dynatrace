@@ -11,6 +11,7 @@ import {
   selectScopedDependencies,
   validateDependencyProvenance,
   validateStabilizedContext,
+  validateScopedEndpointBindings,
   validateWorkflowProvenance,
   validateWorkflowState,
   waitForNewProcessedSnapshot,
@@ -53,6 +54,7 @@ test("requires ServiceNow publication for live retry verification", async () => 
 test("start phase captures an authoritative scoped before-snapshot baseline", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "servicenow-workflow-start-"));
   const dependenciesPath = path.join(directory, "dependencies.json");
+  const scopeResolutionPath = path.join(directory, "scope-resolution.json");
   await writeFile(dependenciesPath, `${JSON.stringify([{
     id: "checkout-orders",
     appName: "Checkout",
@@ -68,6 +70,30 @@ test("start phase captures an authoritative scoped before-snapshot baseline", as
     confidence: 98,
     mappingState: "ready",
   }], null, 2)}\n`);
+  await writeFile(scopeResolutionPath, `${JSON.stringify({
+    schemaVersion: "forward-dynatrace-servicenow-scope-resolution/v1",
+    mappingId: "workflow-scope-v1",
+    mappingSha256: "a".repeat(64),
+    environmentId: "test-nonproduction",
+    serviceNowInstanceAlias: "test-itsm",
+    dynatraceEnvironmentAlias: "test-observability",
+    resolvedAt: "2026-07-15T18:29:00.000Z",
+    sourceRecords: [{ table: "cmdb_ci_service", sysId: "1".repeat(32) }],
+    serviceEntityIds: ["SERVICE-CHECKOUT"],
+    forwardNetworkId: "network-1",
+    forwardEndpoints: [{
+      serviceEntityId: "SERVICE-CHECKOUT",
+      locationType: "HostFilter",
+      value: "10.10.10.10",
+    }],
+    owner: { team: "integration", contact: "integration@example.com" },
+    validity: {
+      mappingObservedAt: "2026-01-01T00:00:00.000Z",
+      mappingExpiresAt: "2027-01-01T00:00:00.000Z",
+      minimumConfidence: 0.95,
+      lowestConfidence: 1,
+    },
+  }, null, 2)}\n`);
   const server = createServer((request, response) => {
     const url = new URL(request.url, "http://127.0.0.1");
     response.setHeader("Content-Type", "application/json");
@@ -120,6 +146,7 @@ test("start phase captures an authoritative scoped before-snapshot baseline", as
       "--service-entity-id", "SERVICE-CHECKOUT",
       "--dependencies", dependenciesPath,
       "--evidence-source", "live-customer-evidence",
+      "--scope-resolution", scopeResolutionPath,
       "--output-dir", directory,
       "--evaluation-time", "2026-07-15T18:30:00.000Z",
     ]);
@@ -135,6 +162,9 @@ test("start phase captures an authoritative scoped before-snapshot baseline", as
   const evidence = JSON.parse(await readFile(state.artifacts.beforeEvidence, "utf8"));
   assert.equal(state.status, "baseline-captured");
   assert.deepEqual(state.provenance, { evidenceSource: "live-customer-evidence", synthetic: false });
+  assert.equal(state.scopeMapping.mappingId, "workflow-scope-v1");
+  assert.equal(state.artifacts.scopeResolution, scopeResolutionPath);
+  assert.equal(state.hashes.scopeResolutionSha256.length, 64);
   assert.equal(state.forward.beforeSnapshotId, "snapshot-before");
   assert.equal(evidence.counts.reachable, 1);
   assert.equal(evidence.mode, "execute");
@@ -154,6 +184,47 @@ test("captures only exact affected-service dependencies and fails on missing sco
   assert.throws(
     () => selectScopedDependencies(dependencies, ["SERVICE-1", "SERVICE-MISSING"]),
     /missing affected services: SERVICE-MISSING/,
+  );
+});
+
+test("fails closed when dependency endpoints drift from the reviewed scope mapping", () => {
+  const resolution = {
+    schemaVersion: "forward-dynatrace-servicenow-scope-resolution/v1",
+    mappingId: "scope-v1",
+    mappingSha256: "a".repeat(64),
+    environmentId: "test-nonproduction",
+    serviceNowInstanceAlias: "test-itsm",
+    dynatraceEnvironmentAlias: "test-observability",
+    resolvedAt: "2026-07-15T18:30:00.000Z",
+    sourceRecords: [{ table: "cmdb_ci_service", sysId: "1".repeat(32) }],
+    serviceEntityIds: ["SERVICE-1"],
+    forwardNetworkId: "network-1",
+    forwardEndpoints: [{
+      serviceEntityId: "SERVICE-1",
+      locationType: "HostFilter",
+      value: "checkout.nonprod.example.com",
+    }],
+    owner: { team: "integration", contact: "integration@example.com" },
+    validity: {
+      mappingObservedAt: "2026-01-01T00:00:00.000Z",
+      mappingExpiresAt: "2027-01-01T00:00:00.000Z",
+      minimumConfidence: 0.95,
+      lowestConfidence: 1,
+    },
+  };
+  const matching = [{
+    id: "dependency-1",
+    serviceEntityId: "SERVICE-1",
+    source: "checkout.nonprod.example.com",
+    destination: "payments.nonprod.example.com",
+  }];
+  assert.equal(validateScopedEndpointBindings(matching, resolution), matching);
+  assert.throws(
+    () => validateScopedEndpointBindings([{
+      ...matching[0],
+      source: "unexpected.nonprod.example.com",
+    }], resolution),
+    /does not match a reviewed Forward endpoint binding/,
   );
 });
 

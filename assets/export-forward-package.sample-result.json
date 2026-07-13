@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "forward-dynatrace-workflow-action/v1",
+  "schemaVersion": "forward-dynatrace-workflow-action/v2",
   "status": "ready",
   "packageId": "dynatrace-forward-20260713000000",
   "generatedAt": "2026-07-13T00:00:00.000Z",
@@ -11,6 +11,20 @@
     "intentChecksFileName": "forward-intent-checks.json",
     "intentChecks": "[]\n"
   },
+  "handoff": {
+    "schemaVersion": "forward-dynatrace-handoff-receipt/v1",
+    "status": "published",
+    "packageId": "dynatrace-forward-20260713000000",
+    "receivedAt": "2026-07-13T00:00:01.000Z",
+    "manifestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "files": [
+      "forward-intent-checks.json",
+      "forward-dynatrace-manifest.json"
+    ],
+    "immutableUrl": "https://handoff.example.com/v1/packages/dynatrace-forward-20260713000000/",
+    "latestUrl": "https://handoff.example.com/v1/packages/latest/",
+    "retentionClass": "nonproduction-30d",
+    "accessLogId": "sample-access-log"
+  },
   "boundary": "dynatrace-never-writes-forward"
 }
-

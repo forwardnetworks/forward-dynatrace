@@ -4,7 +4,43 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import forwardSync from "../api/forward-sync.function.ts";
-import exportForwardPackage from "../actions/export-forward-package.logic.mjs";
+import { createExportForwardPackageAction } from "../actions/export-forward-package.logic.mjs";
+
+const connection = {
+  schemaId: "forward-package-handoff-connection",
+  value: {
+    name: "validation-handoff",
+    url: "https://handoff.example.com/v1/packages",
+    token: "validation-write-token-1234",
+    retentionClass: "nonproduction-30d",
+  },
+};
+
+const exportForwardPackage = createExportForwardPackageAction({
+  loadConnection: async () => connection,
+  fetchImpl: async (_url, options) => {
+    const publication = JSON.parse(options.body);
+    const manifest = publication.files.find(
+      (file) => file.name === "forward-dynatrace-manifest.json",
+    );
+    return {
+      ok: true,
+      status: 201,
+      text: async () => JSON.stringify({
+        schemaVersion: "forward-dynatrace-handoff-receipt/v1",
+        status: "published",
+        packageId: publication.packageId,
+        receivedAt: "2026-07-15T18:30:00.000Z",
+        manifestSha256: manifest.sha256,
+        files: publication.files.map((file) => file.name),
+        immutableUrl: `https://handoff.example.com/v1/packages/${publication.packageId}/`,
+        latestUrl: "https://handoff.example.com/v1/packages/latest/",
+        retentionClass: publication.retentionClass,
+        accessLogId: "workflow-validation-access-log",
+      }),
+    };
+  },
+});
 
 const examples = [
   "deploy/dynatrace-workflows/forward-sync-schedule.payload.example.json",
@@ -36,7 +72,7 @@ for (const example of examples) {
     }
   }
 
-  const actionResult = await exportForwardPackage({ request: payload });
+  const actionResult = await exportForwardPackage({ connectionId: "validation-connection", request: payload });
   assert.equal(actionResult.status, "ready", `${example} should execute through the Workflow action`);
   assert.equal(actionResult.boundary, "dynatrace-never-writes-forward");
   assert.equal(actionResult.intentCheckCount, result.intentCheckCount);
@@ -50,7 +86,9 @@ assert.ok(
 const sampleResult = JSON.parse(
   await readFile("assets/export-forward-package.sample-result.json", "utf8"),
 );
-assert.equal(sampleResult.schemaVersion, "forward-dynatrace-workflow-action/v1");
+assert.equal(sampleResult.schemaVersion, "forward-dynatrace-workflow-action/v2");
 assert.equal(sampleResult.boundary, "dynatrace-never-writes-forward");
+assert.equal(sampleResult.handoff.schemaVersion, "forward-dynatrace-handoff-receipt/v1");
+assert.equal(sampleResult.handoff.manifestSha256.length, 64);
 
 process.stdout.write("Dynatrace workflow example validation passed.\n");

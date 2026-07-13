@@ -1,6 +1,7 @@
 {
   "schemaVersion": "forward-dynatrace-connector/v1",
   "packageUrl": "https://package.example.com/dynatrace-forward/latest/",
+  "packageTokenFile": "/secure/path/handoff-read-token",
   "forwardBaseUrl": "https://forward.example.com",
   "forwardNetworkId": "<network-id>",
   "batchSize": 500,

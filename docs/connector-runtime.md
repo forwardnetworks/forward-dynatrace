@@ -9,7 +9,9 @@ one-shot import. Use `deploy/systemd/forward-dynatrace-servicenow-flow.service` 
 `deploy/systemd/servicenow-flow.env.example`; bind it to localhost and place customer-owned TLS ingress in front of it.
 See [servicenow-flow-worker.md](servicenow-flow-worker.md).
 
-The repo includes four deployable runtime templates:
+The checked primary non-production topology is a single customer-controlled systemd host: handoff ingress,
+ServiceNow Flow worker, scheduled Forward importer, and optional check-health poller run as separate least-privilege
+units behind customer TLS. The repo also keeps three alternative connector templates:
 
 - `deploy/docker-compose/`: a small controlled runtime or trial environment.
 - `deploy/systemd/`: a VM or appliance-style scheduled import.
@@ -27,6 +29,7 @@ node scripts/forward-import-package.mjs --config /etc/forward-dynatrace/forward-
 The runtime needs:
 
 - a read-only package URL or mounted package files
+- a dedicated handoff read-token file referenced by `packageTokenFile` when the package URL uses the checked ingress
 - a non-secret connector config based on `config/forward-connector.config.example.json`
 - `FORWARD_USER` and `FORWARD_PASSWORD` from a runtime secret store
 - write access only to report, metrics, and status-artifact output paths
@@ -72,6 +75,13 @@ journalctl -u forward-dynatrace-connector.service
 The service is oneshot, uses `NoNewPrivileges`, writes only to `/var/lib/forward-dynatrace` and
 `/var/log/forward-dynatrace`, and relies on `UMask=0077` for generated artifacts.
 
+Install the handoff ingress before configuring the Dynatrace export action. Copy
+`deploy/systemd/forward-handoff.env.example`, install distinct mode-`0600` write/read token files, and enable
+`forward-dynatrace-handoff.service`. It binds to localhost by default; customer TLS ingress exposes the write endpoint
+to Dynatrace and the read endpoint to the Forward-side importer. Set `packageTokenFile` in the connector config to
+`/etc/forward-dynatrace/handoff-read-token`; the importer never stores or forwards that identity outside the exact
+handoff URL path. Full retention, backup, and identity rules are in [package-handoff.md](package-handoff.md).
+
 ## Cron Runtime
 
 Use [cron-runtime.md](cron-runtime.md) when the Forward-controlled host has cron but not systemd or Kubernetes. The
@@ -90,8 +100,9 @@ node scripts/publish-forward-status.mjs \
   --output-dir /handoff/dynatrace-forward/latest
 ```
 
-If the customer wants the Forward-side result visible as Dynatrace telemetry, the runtime can publish the derived
-aggregate status event after the sanitized handoff file is written:
+The primary non-production systemd path selects direct OpenPipeline publication as its status-feedback lane. After a
+successful import, `forward-dynatrace-connector.service` writes the sanitized status sidecar into the handoff and
+publishes the derived aggregate event:
 
 ```bash
 node scripts/publish-dynatrace-status-event.mjs \
@@ -100,8 +111,12 @@ node scripts/publish-dynatrace-status-event.mjs \
   --apply
 ```
 
-That step requires only a Dynatrace Platform Token with `openpipeline:events:ingest`. It still runs outside Dynatrace,
-does not use Forward credentials for the publish step, and sends only aggregate ingest health.
+Install the token at `/etc/forward-dynatrace/dynatrace-platform.token` with mode `0600`. It requires only
+`openpipeline:events:ingest`; the publish step still runs outside Dynatrace, does not use Forward credentials, and
+sends only aggregate ingest health. Query back the exact run ID with
+`deploy/dynatrace-dql/forward-ingest-status-latest.dql`; use
+`deploy/dynatrace-dql/forward-ingest-status-attention.dql` for failed or review-required runs. A successful POST without
+that query-back is not acceptance evidence.
 
 ## Kubernetes Runtime
 

@@ -3,7 +3,7 @@
   "environmentUrl": "https://your-environment-id.apps.dynatrace.com/",
   "app": {
     "name": "forward.dynatrace",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "description": "Application dependency and modeled network evidence for Dynatrace and Forward",
     "id": "com.forwardnetworks.dynatrace.field.integration",
     "scopes": [
@@ -18,13 +18,17 @@
       {
         "name": "environment-api:entities:read",
         "comment": "Read Dynatrace service/entity context before exporting Forward packages"
+      },
+      {
+        "name": "app-settings:objects:read",
+        "comment": "Read the selected write-only customer package-handoff connection"
       }
     ],
     "actions": [
       {
         "name": "export-forward-package",
         "title": "Export Forward intent package",
-        "description": "Generate checksummed Forward package artifacts from approved Dynatrace dependency evidence. Performs no Forward writes."
+        "description": "Generate checksummed Forward package artifacts and publish the exact bytes to a customer-owned handoff. Performs no Forward writes."
       }
     ]
   }

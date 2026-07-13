@@ -23,6 +23,9 @@ These JSON Schemas define the public handoff artifacts used by the Forward Dynat
   artifact hashes, and snapshot lineage.
 - `servicenow-change-assurance.schema.json`: v2 finalization summary with the same explicit source and synthetic flag.
 - `servicenow-flow-run.schema.json`: bounded start/status/complete response from the purchase-free Flow worker.
+- `servicenow-scope-mapping.schema.json`: versioned, owned, environment-bound mapping from ServiceNow affected records
+  to Dynatrace services and Forward-resolvable scope.
+- `servicenow-scope-resolution.schema.json`: deterministic protected resolution artifact retained by the Flow worker.
 - `forward-check-health-transitions.schema.json`: sanitized, bounded managed-check transition batch.
 - `forward-security-correlation.schema.json`: read-only ranked investigation queue with separate evidence facts and
   explicit source/synthetic provenance.

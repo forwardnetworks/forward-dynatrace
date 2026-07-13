@@ -13,6 +13,8 @@ services:
     volumes:
       - ./forward-connector.config.example.json:/config/forward-connector.config.json:ro
       - forward-dynatrace-state:/var/lib/forward-dynatrace
+    secrets:
+      - handoff-read-token
     read_only: true
     cap_drop:
       - ALL
@@ -23,3 +25,7 @@ services:
 
 volumes:
   forward-dynatrace-state:
+
+secrets:
+  handoff-read-token:
+    file: ${FORWARD_HANDOFF_READ_TOKEN_FILE:?set FORWARD_HANDOFF_READ_TOKEN_FILE}

@@ -295,6 +295,7 @@ A Forward-side connector can run the same importer against a read-only package U
 ```bash
 npm run forward:import -- \
   --package-url https://package.example.com/dynatrace-forward/latest/ \
+  --package-token-file /etc/forward-dynatrace/handoff-read-token \
   --report forward-import-report.json \
   --fail-on-drift
 ```
@@ -305,6 +306,11 @@ npm run forward:import -- \
 - `forward-intent-checks.json`
 - `forward-nqe-checks.json` when listed by the manifest
 - `forward-nqe-diff-requests.json` when listed by the manifest
+
+The checked handoff requires a distinct read identity. `--package-token-file` reads that dedicated Bearer token from a
+protected file and sends it only to HTTPS artifact URLs under the exact `--package-url` origin and path. It is never
+sent to an override on another origin or sibling path. Inline `packageToken` connector fields, URL credentials, query
+tokens, and fragments are rejected. The non-secret connector key is `packageTokenFile`.
 
 Non-local package URLs must use HTTPS. The importer validates the manifest schema, package type, generated timestamp,
 intent-check count, optional NQE counts, package checksum, credential policy, dedupe requirement, query ID allowlists,
@@ -317,9 +323,10 @@ cp config/forward-connector.config.example.json /secure/path/forward-connector.c
 npm run forward:import -- --config /secure/path/forward-connector.config.json
 ```
 
-The config may contain package URL, Forward base URL, network ID, batch size, retry count, package age, drift policy,
-optional update/stale settings, report path, metrics path, and status artifact path. It must not contain Forward user,
-password, token, or other secrets; the importer rejects those fields.
+The config may contain package URL, protected package-token file path, Forward base URL, network ID, batch size, retry
+count, package age, drift policy, optional update/stale settings, report path, metrics path, and status artifact path.
+It must not contain Forward user, password, token, a package token value, or other secrets; the importer rejects those
+fields.
 
 ## Detached Signature Mode
 

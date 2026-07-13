@@ -23,9 +23,14 @@ collection and the deterministic gate.
 
 - `worker_base_url`: exact customer TLS ingress origin.
 - `basic_auth_profile_sys_id`: ServiceNow credential profile sys_id.
-- `change_number`, `deployment_id`, `forward_network_id`.
-- `service_entity_ids_json`: non-empty JSON string array.
+- `change_number`, `deployment_id`.
+- `affected_records_json`: non-empty JSON array of `{ "table", "sysId" }` ServiceNow CI/service references.
 - `context_json`: fresh `forward-dynatrace-change-context/v1` JSON for completion.
+
+The worker resolves affected records through the protected, versioned mapping configured by
+`SERVICENOW_FLOW_SCOPE_MAPPING_FILE` and `SERVICENOW_FLOW_SCOPE_ENVIRONMENT`. ServiceNow does not supply Dynatrace
+entity IDs, a Forward network ID, endpoint mappings, or credentials. The checked example mapping is for review and
+showcase setup only; operators must install a customer-owned mapping outside the request path.
 
 Scripts return only bounded run state, decision, exit code, and snapshot IDs. They do not return credentials,
 dependencies, local paths, or Forward topology.

@@ -130,6 +130,7 @@ export const buildChangeGateEvent = (gate, {
   serviceNowIdempotencyKey,
   evidenceSource,
   synthetic,
+  scopeMapping,
 }) => {
   const validated = validateChangeGate(gate);
   const before = validated.forward.before;
@@ -140,6 +141,12 @@ export const buildChangeGateEvent = (gate, {
     serviceNowIdempotencyKey,
   });
   const provenance = provenanceProperties({ evidenceSource, synthetic });
+  const mapping = scopeMapping ? {
+    "forward.dynatrace.scope_mapping_id": scopeMapping.mappingId,
+    "forward.dynatrace.scope_mapping_sha256": scopeMapping.mappingSha256,
+    "forward.dynatrace.scope_environment_id": scopeMapping.environmentId,
+    "forward.dynatrace.scope_source_record_count": scopeMapping.sourceRecords?.length,
+  } : {};
   return {
     schemaVersion: EVENT_SCHEMA,
     timestamp: validated.generatedAt,
@@ -172,6 +179,7 @@ export const buildChangeGateEvent = (gate, {
       "forward.dynatrace.open_problem_count": integer(validated.dynatrace?.openProblemCount),
       ...serviceNow,
       ...provenance,
+      ...mapping,
     }),
   };
 };

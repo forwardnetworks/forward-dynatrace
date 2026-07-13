@@ -23,6 +23,7 @@ import {
   readToken,
   toOpenPipelineApiBaseUrl,
 } from "./publish-dynatrace-status-event.mjs";
+import { validateScopeResolution } from "./resolve-servicenow-scope.mjs";
 
 const SUMMARY_SCHEMA = "forward-dynatrace-servicenow-change-assurance/v2";
 
@@ -46,6 +47,7 @@ Options:
   --after-evidence path          Executed Forward evidence from the after snapshot.
   --reconciliation-status path   Read-only Forward reconciliation status.
   --output-dir path              Evidence output directory.
+  --scope-resolution path        Optional protected resolved-scope artifact.
   --evidence-source value        Publish-safe cross-domain evidence source for live finalization.
   --synthetic                    Mark the result synthetic when any input is replay/demo evidence.
   --publish-servicenow           Submit to the ServiceNow assurance ledger ingress.
@@ -138,6 +140,7 @@ export const buildAssuranceArtifacts = ({
   reconciliationStatus,
   inputTexts,
   provenance,
+  scopeMapping = null,
 }) => {
   validatePreflightContextAlignment(preflight, context);
   if (
@@ -171,6 +174,7 @@ export const buildAssuranceArtifacts = ({
     serviceNowIdempotencyKey: serviceNowPlan.idempotencyKey,
     evidenceSource: provenance?.evidenceSource,
     synthetic: provenance?.synthetic,
+    scopeMapping,
   });
   return { gate, gateText, runId, dynatraceEvent, serviceNowPlan };
 };
@@ -200,6 +204,9 @@ export const run = async (argv = process.argv.slice(2)) => {
     readInput(required(args, "after-evidence")),
     readInput(required(args, "reconciliation-status")),
   ]);
+  const scopeResolution = args["scope-resolution"]
+    ? await readInput(args["scope-resolution"])
+    : null;
   const outputDir = path.resolve(required(args, "output-dir"));
   await mkdir(outputDir, { recursive: true });
 
@@ -231,6 +238,23 @@ export const run = async (argv = process.argv.slice(2)) => {
   const effectivePreflightPath = path.join(outputDir, "servicenow-change-preflight-final.json");
   await writeFile(effectivePreflightPath, canonicalJson(effectivePreflight));
 
+  if (scopeResolution) {
+    validateScopeResolution(scopeResolution.value, {
+      asOf: new Date().toISOString(),
+      forwardNetworkId: effectivePreflight.scope.forwardNetworkId,
+      serviceEntityIds: effectivePreflight.scope.serviceEntityIds,
+      serviceNowInstanceAlias: effectivePreflight.source.instanceAlias,
+    });
+  }
+  const scopeMapping = scopeResolution ? {
+    mappingId: scopeResolution.value.mappingId,
+    mappingSha256: scopeResolution.value.mappingSha256,
+    environmentId: scopeResolution.value.environmentId,
+    sourceRecords: scopeResolution.value.sourceRecords,
+    resolvedAt: scopeResolution.value.resolvedAt,
+    expiresAt: scopeResolution.value.validity.mappingExpiresAt,
+  } : null;
+
   const artifacts = buildAssuranceArtifacts({
     preflight: effectivePreflight,
     context: context.value,
@@ -244,6 +268,7 @@ export const run = async (argv = process.argv.slice(2)) => {
       reconciliationStatus: reconciliationStatus.text,
     },
     provenance,
+    scopeMapping,
   });
 
   const gatePath = path.join(outputDir, "forward-change-validation-gate.json");
@@ -321,6 +346,7 @@ export const run = async (argv = process.argv.slice(2)) => {
       deploymentId: effectivePreflight.change.deploymentId,
     },
     provenance,
+    ...(scopeMapping ? { scopeMapping } : {}),
     decision: artifacts.gate.decision,
     reasonCodes: artifacts.gate.reasons.map((reason) => reason.code),
     publications: {

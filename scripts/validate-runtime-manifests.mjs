@@ -38,6 +38,8 @@ const timer = await readText("deploy/systemd/forward-dynatrace-connector.timer")
 const envExample = await readText("deploy/systemd/forward-dynatrace.env.example");
 const flowService = await readText("deploy/systemd/forward-dynatrace-servicenow-flow.service");
 const flowEnvExample = await readText("deploy/systemd/servicenow-flow.env.example");
+const handoffService = await readText("deploy/systemd/forward-dynatrace-handoff.service");
+const handoffEnvExample = await readText("deploy/systemd/forward-handoff.env.example");
 const checkHealthService = await readText(
   "deploy/systemd/forward-dynatrace-check-health.service",
 );
@@ -64,7 +66,9 @@ const requiredCronJobSnippets = [
   "secretKeyRef:",
   "forward-user",
   "forward-password",
+  "handoff-read-token",
   "forward-connector.config.json",
+  "/etc/forward-dynatrace-secrets",
 ];
 
 for (const snippet of requiredCronJobSnippets) {
@@ -90,6 +94,21 @@ for (const snippet of [
     fail(`Kubernetes check-health CronJob missing ${snippet}.`);
   }
 }
+
+for (const snippet of [
+  "Type=simple",
+  "EnvironmentFile=/etc/forward-dynatrace/forward-handoff.env",
+  "ExecStart=/usr/bin/node /opt/forward-dynatrace/scripts/forward-handoff-server.mjs",
+  "Restart=on-failure",
+  "NoNewPrivileges=true",
+  "ProtectSystem=strict",
+  "ReadWritePaths=/var/lib/forward-dynatrace /var/log/forward-dynatrace",
+  "UMask=0077",
+]) {
+  if (!handoffService.includes(snippet)) {
+    fail(`Handoff systemd service missing ${snippet}.`);
+  }
+}
 if (!checkHealthCronJob.includes("<forward-dynatrace-importer-image@sha256:digest>")) {
   fail("Kubernetes check-health CronJob must require a digest-pinned importer image.");
 }
@@ -102,6 +121,23 @@ for (const snippet of [
   if (!checkHealthConfigMap.includes(snippet)) {
     fail(`Kubernetes check-health ConfigMap missing ${snippet}.`);
   }
+}
+for (const snippet of [
+  "FORWARD_HANDOFF_ROOT=/var/lib/forward-dynatrace/handoff",
+  "FORWARD_HANDOFF_PUBLIC_BASE_URL=https://handoff.example.com",
+  "FORWARD_HANDOFF_RETENTION_CLASS=nonproduction-30d",
+  "FORWARD_HANDOFF_WRITE_TOKEN_FILE=/etc/forward-dynatrace/handoff-write-token",
+  "FORWARD_HANDOFF_READ_TOKEN_FILE=/etc/forward-dynatrace/handoff-read-token",
+  "FORWARD_HANDOFF_ALLOW_ENV_TOKENS=0",
+  "FORWARD_HANDOFF_HOST=127.0.0.1",
+  "FORWARD_HANDOFF_ACCESS_LOG=/var/log/forward-dynatrace/handoff-access.jsonl",
+]) {
+  if (!handoffEnvExample.includes(snippet)) {
+    fail(`Handoff systemd env example missing ${snippet}.`);
+  }
+}
+if (/^FORWARD_HANDOFF_(?:WRITE|READ)_TOKEN=/mu.test(handoffEnvExample)) {
+  fail("Handoff systemd env example must use protected token files, not inline tokens.");
 }
 for (const snippet of [
   "kind: PersistentVolumeClaim",
@@ -149,6 +185,7 @@ for (const snippet of [
   "name: forward-dynatrace-credentials",
   'forward-user: "<user>"',
   'forward-password: "<password-or-token>"',
+  'handoff-read-token: "<dedicated-handoff-read-token>"',
   'dynatrace-platform-token: "<platform-token>"',
 ]) {
   if (!kubernetesSecret.includes(snippet)) {
@@ -160,6 +197,10 @@ const requiredServiceSnippets = [
   "Type=oneshot",
   "EnvironmentFile=/etc/forward-dynatrace/forward-dynatrace.env",
   "ExecStart=/usr/bin/node /opt/forward-dynatrace/scripts/forward-import-package.mjs --config /etc/forward-dynatrace/forward-connector.config.json",
+  "ExecStartPost=/usr/bin/node /opt/forward-dynatrace/scripts/publish-forward-status.mjs",
+  "ExecStartPost=/usr/bin/node /opt/forward-dynatrace/scripts/publish-dynatrace-status-event.mjs",
+  "--token-file /etc/forward-dynatrace/dynatrace-platform.token --apply",
+  "ReadOnlyPaths=/etc/forward-dynatrace/handoff-read-token /etc/forward-dynatrace/dynatrace-platform.token",
   "NoNewPrivileges=true",
   "ProtectSystem=strict",
   "ReadWritePaths=/var/lib/forward-dynatrace /var/log/forward-dynatrace",
@@ -246,11 +287,17 @@ if (!envExample.includes("FORWARD_USER=<user>")) {
 if (!envExample.includes("FORWARD_PASSWORD=<password-or-token>")) {
   fail("systemd env example must contain a placeholder Forward password.");
 }
+if (!envExample.includes("DYNATRACE_ENVIRONMENT_URL=https://your-environment-id.apps.dynatrace.com/")) {
+  fail("systemd env example must contain the Dynatrace environment placeholder.");
+}
 if (systemdConfig.schemaVersion !== "forward-dynatrace-connector/v1") {
   fail("systemd connector config example must use the connector schema version.");
 }
 if (systemdConfig.reportPath !== "/var/lib/forward-dynatrace/forward-import-report.json") {
   fail("systemd connector config example must write the report under /var/lib/forward-dynatrace.");
+}
+if (systemdConfig.packageTokenFile !== "/etc/forward-dynatrace/handoff-read-token") {
+  fail("systemd connector config must use the protected handoff read-token file.");
 }
 if (systemdConfig.apply !== false || systemdConfig.failOnDrift !== true) {
   fail("systemd connector config example must default to dry-run and fail-on-drift.");
@@ -295,6 +342,9 @@ if (
 ) {
   fail("cron connector config must write report and status under the state directory.");
 }
+if (cronConfig.packageTokenFile !== "/etc/forward-dynatrace/handoff-read-token") {
+  fail("cron connector config must use the protected handoff read-token file.");
+}
 
 for (const snippet of [
   "services:",
@@ -306,6 +356,8 @@ for (const snippet of [
   "cap_drop:",
   "no-new-privileges:true",
   "/config/forward-connector.config.json:ro",
+  "handoff-read-token:",
+  "FORWARD_HANDOFF_READ_TOKEN_FILE",
   "forward-dynatrace-state:",
 ]) {
   if (!dockerCompose.includes(snippet)) {
@@ -321,6 +373,9 @@ if (!dockerComposeEnv.includes("FORWARD_USER=<user>")) {
 if (!dockerComposeEnv.includes("FORWARD_PASSWORD=<password-or-token>")) {
   fail("Docker Compose env example must contain a placeholder Forward password.");
 }
+if (!dockerComposeEnv.includes("FORWARD_HANDOFF_READ_TOKEN_FILE=/secure/path/handoff-read-token")) {
+  fail("Docker Compose env example must point to the protected handoff read-token file.");
+}
 if (dockerComposeConfig.schemaVersion !== "forward-dynatrace-connector/v1") {
   fail("Docker Compose connector config example must use the connector schema version.");
 }
@@ -329,6 +384,9 @@ if (
   "/var/lib/forward-dynatrace/forward-import-report.json"
 ) {
   fail("Docker Compose connector config example must write the report under /var/lib/forward-dynatrace.");
+}
+if (dockerComposeConfig.packageTokenFile !== "/run/secrets/handoff-read-token") {
+  fail("Docker Compose connector config must consume the handoff read token as a secret file.");
 }
 if (
   dockerComposeConfig.apply !== false ||
@@ -354,6 +412,8 @@ for (const content of [
   envExample,
   flowService,
   flowEnvExample,
+  handoffService,
+  handoffEnvExample,
   checkHealthService,
   checkHealthTimer,
   checkHealthEnv,

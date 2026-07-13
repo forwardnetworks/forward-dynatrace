@@ -1,11 +1,15 @@
 # Forward Importer Container
 
-`Dockerfile.forward-importer` packages the Forward-side importer, atomic handoff publisher, read-only evidence tools,
-check-health poller, security correlator, and ServiceNow change-assurance worker. It does not include the Dynatrace app
-dev/build runtime.
+`Dockerfile.forward-importer` packages the Forward-side importer, atomic handoff publisher and authenticated ingress,
+read-only evidence tools, check-health poller, security correlator, and ServiceNow change-assurance worker. It does not
+include the Dynatrace app dev/build runtime.
 
 The image removes `npm` and `npx` after copying runtime files. The importer uses Node built-ins and local scripts at
 runtime, so package-manager tooling is not required in the shipped image.
+
+For the authenticated handoff, mount the dedicated read token as a file and set connector key `packageTokenFile` to
+that in-container path. The checked Docker Compose example uses `/run/secrets/handoff-read-token`; the Kubernetes
+example projects only the `handoff-read-token` Secret key into `/etc/forward-dynatrace-secrets`.
 
 ## Build
 
@@ -87,6 +91,8 @@ For signed packages, mount the trusted public key and use a config based on
 The dispatcher exposes:
 
 - `forward-package-publish`: validate and atomically publish immutable package bytes;
+- `forward-handoff-server`: accept exact package bytes from the Dynatrace action and serve allowlisted bytes to a
+  separate read identity;
 - `forward-check-health`: poll managed Forward checks and publish bounded transitions;
 - `security-correlate`: build a ranked queue from approved evidence files;
 - `dynatrace-security-publish`: publish the bounded correlation event batch.

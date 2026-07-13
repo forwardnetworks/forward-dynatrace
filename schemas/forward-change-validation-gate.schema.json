@@ -13,13 +13,14 @@
       "additionalProperties": false,
       "required": ["changeId", "deploymentId", "serviceEntityIds"],
       "properties": {
-        "changeId": { "type": "string", "minLength": 1 },
-        "deploymentId": { "type": "string", "minLength": 1 },
+        "changeId": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "deploymentId": { "type": "string", "minLength": 1, "maxLength": 255 },
         "serviceEntityIds": {
           "type": "array",
           "minItems": 1,
+          "maxItems": 100,
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": { "type": "string", "minLength": 1, "maxLength": 255 }
         }
       }
     },
@@ -27,14 +28,15 @@
     "reasons": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 100,
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["severity", "code", "message"],
         "properties": {
           "severity": { "enum": ["info", "warn", "fail"] },
-          "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" },
-          "message": { "type": "string", "minLength": 1 }
+          "code": { "type": "string", "maxLength": 128, "pattern": "^[A-Z][A-Z0-9_]+$" },
+          "message": { "type": "string", "minLength": 1, "maxLength": 1000 }
         }
       }
     },
@@ -44,7 +46,7 @@
       "additionalProperties": false,
       "required": ["networkId", "before", "after", "delta", "reconciliation"],
       "properties": {
-        "networkId": { "type": ["string", "null"] },
+        "networkId": { "type": ["string", "null"], "maxLength": 255 },
         "before": { "$ref": "#/definitions/pathSummary" },
         "after": { "$ref": "#/definitions/pathSummary" },
         "delta": {
@@ -64,16 +66,16 @@
           "additionalProperties": false,
           "required": ["runId", "packageId", "importState", "target", "plannedChecks", "counts", "unresolvedCounts"],
           "properties": {
-            "runId": { "type": ["string", "null"] },
-            "packageId": { "type": ["string", "null"] },
-            "importState": { "type": ["string", "null"] },
+            "runId": { "type": ["string", "null"], "maxLength": 255 },
+            "packageId": { "type": ["string", "null"], "maxLength": 255 },
+            "importState": { "type": ["string", "null"], "maxLength": 64 },
             "target": {
               "type": "object",
               "additionalProperties": false,
               "required": ["networkId", "snapshotId"],
               "properties": {
-                "networkId": { "type": ["string", "null"] },
-                "snapshotId": { "type": ["string", "null"] }
+                "networkId": { "type": ["string", "null"], "maxLength": 255 },
+                "snapshotId": { "type": ["string", "null"], "maxLength": 255 }
               }
             },
             "plannedChecks": { "type": "integer", "minimum": 0 },
@@ -111,7 +113,7 @@
       "properties": {
         "deploymentState": { "enum": ["SUCCEEDED", "FAILED", "IN_PROGRESS", "UNKNOWN"] },
         "serviceHealth": { "enum": ["HEALTHY", "DEGRADED", "UNHEALTHY", "UNKNOWN"] },
-        "openProblemCount": { "type": "integer", "minimum": 0 }
+        "openProblemCount": { "type": "integer", "minimum": 0, "maximum": 2147483647 }
       }
     },
     "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
@@ -134,9 +136,9 @@
       "additionalProperties": false,
       "required": ["snapshotId", "status", "assessment", "counts"],
       "properties": {
-        "snapshotId": { "type": ["string", "null"] },
-        "status": { "type": ["string", "null"] },
-        "assessment": { "type": ["string", "null"] },
+        "snapshotId": { "type": ["string", "null"], "maxLength": 255 },
+        "status": { "type": ["string", "null"], "maxLength": 64 },
+        "assessment": { "type": ["string", "null"], "maxLength": 255 },
         "counts": { "$ref": "#/definitions/pathCounts" }
       }
     },

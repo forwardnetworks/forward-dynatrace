@@ -23,7 +23,7 @@
       "additionalProperties": false,
       "required": ["instanceAlias", "table", "authoritativeRead"],
       "properties": {
-        "instanceAlias": { "$ref": "#/definitions/nonEmptyString" },
+        "instanceAlias": { "type": "string", "minLength": 1, "maxLength": 128 },
         "table": { "const": "change_request" },
         "authoritativeRead": { "const": true }
       }
@@ -42,9 +42,9 @@
         "window"
       ],
       "properties": {
-        "number": { "type": "string", "pattern": "^CHG[0-9]+$" },
+        "number": { "type": "string", "maxLength": 32, "pattern": "^CHG[0-9]+$" },
         "sysId": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
-        "deploymentId": { "$ref": "#/definitions/nonEmptyString" },
+        "deploymentId": { "type": "string", "minLength": 1, "maxLength": 255 },
         "approval": { "$ref": "#/definitions/valueDisplay" },
         "state": { "$ref": "#/definitions/valueDisplay" },
         "risk": { "$ref": "#/definitions/valueDisplay" },
@@ -65,12 +65,13 @@
       "additionalProperties": false,
       "required": ["forwardNetworkId", "serviceEntityIds"],
       "properties": {
-        "forwardNetworkId": { "$ref": "#/definitions/nonEmptyString" },
+        "forwardNetworkId": { "type": "string", "minLength": 1, "maxLength": 255 },
         "serviceEntityIds": {
           "type": "array",
           "minItems": 1,
+          "maxItems": 100,
           "uniqueItems": true,
-          "items": { "$ref": "#/definitions/nonEmptyString" }
+          "items": { "type": "string", "minLength": 1, "maxLength": 255 }
         }
       }
     },
@@ -82,33 +83,37 @@
         "status": { "enum": ["eligible", "blocked"] },
         "reasons": {
           "type": "array",
+          "maxItems": 100,
           "items": {
             "type": "object",
             "additionalProperties": false,
             "required": ["code", "message"],
             "properties": {
-              "code": { "$ref": "#/definitions/nonEmptyString" },
-              "message": { "$ref": "#/definitions/nonEmptyString" }
+              "code": { "type": "string", "minLength": 1, "maxLength": 128 },
+              "message": { "type": "string", "minLength": 1, "maxLength": 1000 }
             }
           }
         },
         "eligibleStateValues": {
           "type": "array",
           "minItems": 1,
+          "maxItems": 100,
           "uniqueItems": true,
-          "items": { "$ref": "#/definitions/nonEmptyString" }
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
         },
         "approvedValues": {
           "type": "array",
           "minItems": 1,
+          "maxItems": 100,
           "uniqueItems": true,
-          "items": { "$ref": "#/definitions/nonEmptyString" }
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
         }
       }
     },
     "nextStages": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 8,
       "uniqueItems": true,
       "items": {
         "enum": [

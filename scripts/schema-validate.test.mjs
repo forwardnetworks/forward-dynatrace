@@ -38,6 +38,7 @@ test("validates committed examples and generated demo package", async () => {
   assert.ok(result.validated >= 10);
   assert.ok(result.artifacts.includes("shared/demo-forward-ingest-status.json"));
   assert.ok(result.artifacts.includes("config/servicenow-change-preflight.example.json"));
+  assert.ok(result.artifacts.includes("config/servicenow-scope-mapping.example.json"));
 });
 
 test("rejects connector configs that contain secret-shaped keys", async () => {

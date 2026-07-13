@@ -10,6 +10,23 @@
     "deploymentId": "checkout-api-2026.07.15.3",
     "serviceEntityIds": ["SERVICE-CHECKOUT-API", "SERVICE-PAYMENTS-API"]
   },
+  "scopeMapping": {
+    "mappingId": "showcase-fixed-scope-20260713-v1",
+    "mappingSha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "environmentId": "showcase-nonproduction",
+    "sourceRecords": [
+      {
+        "table": "cmdb_ci_service",
+        "sysId": "11111111111111111111111111111111"
+      },
+      {
+        "table": "cmdb_ci_service",
+        "sysId": "22222222222222222222222222222222"
+      }
+    ],
+    "resolvedAt": "2026-07-15T18:30:00.000Z",
+    "expiresAt": "2027-01-01T00:00:00.000Z"
+  },
   "forward": {
     "networkId": "network-production",
     "beforeSnapshotId": "snapshot-before",

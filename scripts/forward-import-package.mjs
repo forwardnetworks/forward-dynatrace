@@ -71,6 +71,9 @@ Options:
   --nqe-query-id-allowlist FQ_...,FQ_...
                        Approved Forward-owned query IDs for optional NQE artifacts.
   --package-url url     Pull manifest and checks from a base URL.
+  --package-token-file path
+                       Read a dedicated handoff Bearer token from a protected file. The token
+                       is sent only to HTTPS artifacts below --package-url.
   --public-key path     Verify detached Ed25519 package signature with PEM public key.
   --public-key-url url   Pull detached-signature public key from HTTPS URL.
   --require-approval-file path
@@ -115,6 +118,7 @@ const SUPPORTED_ARGS = new Set([
   "nqe-diff-requests-url",
   "nqe-query-id-allowlist",
   "package-url",
+  "package-token-file",
   "public-key",
   "public-key-url",
   "require-approval-file",
@@ -235,14 +239,14 @@ const readJsonWithText = async (path) => {
   return { value: JSON.parse(text), text };
 };
 
-const readTextFromLocator = async (locator, label) => {
+const readTextFromLocator = async (locator, label, requestHeaders = {}) => {
   if (!isUrlLocator(locator)) {
     return readFile(locator, "utf8");
   }
 
   validatePackageUrl(locator);
   const response = await fetch(locator, {
-    headers: { Accept: "text/plain,application/octet-stream" },
+    headers: { Accept: "text/plain,application/octet-stream", ...requestHeaders },
   });
   const text = await response.text();
   if (!response.ok) {
@@ -259,6 +263,9 @@ const joinUrl = (baseUrl, fileName) => `${baseUrl.replace(/\/+$/, "")}/${fileNam
 
 const validatePackageUrl = (locator) => {
   const url = new URL(locator);
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error(`Package URL must not contain credentials, query parameters, or fragments: ${locator}`);
+  }
   if (url.protocol === "https:") {
     return;
   }
@@ -268,14 +275,42 @@ const validatePackageUrl = (locator) => {
   throw new Error(`Package URL must use HTTPS unless it is localhost: ${locator}`);
 };
 
-const readJsonFromLocator = async (locator, label) => {
+export const loadPackageAccess = async ({ packageUrl, tokenFile }) => {
+  if (!tokenFile) return null;
+  if (!packageUrl) throw new Error("--package-token-file requires --package-url.");
+  validatePackageUrl(packageUrl);
+  const baseUrl = new URL(packageUrl);
+  if (baseUrl.protocol !== "https:") {
+    throw new Error("--package-token-file requires an HTTPS --package-url.");
+  }
+  let token;
+  try {
+    token = (await readFile(tokenFile, "utf8")).trim();
+  } catch {
+    throw new Error("Package handoff token file could not be read.");
+  }
+  if (token.length < 16 || token.length > 4096 || /\s/u.test(token)) {
+    throw new Error("Package handoff token must contain 16 to 4096 non-whitespace characters.");
+  }
+  const pathname = baseUrl.pathname.endsWith("/") ? baseUrl.pathname : `${baseUrl.pathname}/`;
+  return { origin: baseUrl.origin, pathname, authorization: `Bearer ${token}` };
+};
+
+export const packageRequestHeaders = (locator, access) => {
+  if (!access || !isUrlLocator(locator)) return {};
+  const url = new URL(locator);
+  if (url.origin !== access.origin || !url.pathname.startsWith(access.pathname)) return {};
+  return { Authorization: access.authorization };
+};
+
+const readJsonFromLocator = async (locator, label, requestHeaders = {}) => {
   if (!isUrlLocator(locator)) {
     return readJsonWithText(locator);
   }
 
   validatePackageUrl(locator);
   const response = await fetch(locator, {
-    headers: { Accept: "application/json" },
+    headers: { Accept: "application/json", ...requestHeaders },
   });
   const text = await response.text();
   if (!response.ok) {
@@ -314,6 +349,7 @@ const CONNECTOR_CONFIG_KEYS = new Set([
   "nqeDiffRequestsUrl",
   "nqeQueryIdAllowlist",
   "packageUrl",
+  "packageTokenFile",
   "publicKey",
   "publicKeyUrl",
   "requireSignature",
@@ -328,6 +364,7 @@ const FORBIDDEN_CONNECTOR_CONFIG_KEYS = new Set([
   "forwardPassword",
   "forwardToken",
   "forwardUser",
+  "packageToken",
   "password",
   "token",
   "user",
@@ -374,6 +411,7 @@ export const validateConnectorConfig = (config) => {
     nqeDiffRequests: config.nqeDiffRequests,
     nqeDiffRequestsUrl: config.nqeDiffRequestsUrl,
     nqeQueryIdAllowlist: config.nqeQueryIdAllowlist,
+    packageTokenFile: config.packageTokenFile,
     forwardNetworkId: config.forwardNetworkId,
     publicKey: config.publicKey,
     reportPath: config.reportPath,
@@ -452,6 +490,7 @@ const toArgsFromConnectorConfig = (config) => ({
     ? { "nqe-query-id-allowlist": config.nqeQueryIdAllowlist }
     : {}),
   ...(config.packageUrl ? { "package-url": config.packageUrl } : {}),
+  ...(config.packageTokenFile ? { "package-token-file": config.packageTokenFile } : {}),
   ...(config.publicKey ? { "public-key": config.publicKey } : {}),
   ...(config.publicKeyUrl ? { "public-key-url": config.publicKeyUrl } : {}),
   ...(config.requireSignature ? { "require-signature": true } : {}),
@@ -1475,9 +1514,17 @@ const main = async () => {
   const maxDeactivations = args["max-deactivations"]
     ? toNonNegativeInteger(args["max-deactivations"], "--max-deactivations")
     : 0;
+  const packageAccess = await loadPackageAccess({
+    packageUrl: args["package-url"],
+    tokenFile: args["package-token-file"],
+  });
 
   const locators = resolvePackageLocators(args);
-  const plannedPackage = await readJsonFromLocator(locators.checks, "Forward checks package");
+  const plannedPackage = await readJsonFromLocator(
+    locators.checks,
+    "Forward checks package",
+    packageRequestHeaders(locators.checks, packageAccess),
+  );
   const plannedChecks = plannedPackage.value;
   validatePlannedChecks(plannedChecks);
   let manifest = null;
@@ -1486,6 +1533,7 @@ const main = async () => {
     const manifestPackage = await readJsonFromLocator(
       locators.manifest,
       "Forward package manifest",
+      packageRequestHeaders(locators.manifest, packageAccess),
     );
     manifest = manifestPackage.value;
     manifestText = manifestPackage.text;
@@ -1499,6 +1547,7 @@ const main = async () => {
     const nqeChecksPackage = await readJsonFromLocator(
       optionalLocators.nqeChecks,
       "Forward NQE checks package",
+      packageRequestHeaders(optionalLocators.nqeChecks, packageAccess),
     );
     plannedNqeChecks = nqeChecksPackage.value;
     nqeChecksText = nqeChecksPackage.text;
@@ -1513,6 +1562,7 @@ const main = async () => {
     const nqeDiffRequestsPackage = await readJsonFromLocator(
       optionalLocators.nqeDiffRequests,
       "Forward NQE diff requests package",
+      packageRequestHeaders(optionalLocators.nqeDiffRequests, packageAccess),
     );
     plannedNqeDiffRequests = nqeDiffRequestsPackage.value;
     nqeDiffRequestsText = nqeDiffRequestsPackage.text;
@@ -1560,10 +1610,12 @@ const main = async () => {
     const signatureText = await readTextFromLocator(
       signatureLocators.signature,
       "Forward package signature",
+      packageRequestHeaders(signatureLocators.signature, packageAccess),
     );
     const publicKeyText = await readTextFromLocator(
       signatureLocators.publicKey,
       "Forward package signature public key",
+      packageRequestHeaders(signatureLocators.publicKey, packageAccess),
     );
     verifyPackageSignature({
       checksText: plannedPackage.text,

@@ -17,6 +17,23 @@
     "evidenceSource": "live-customer-dependencies",
     "synthetic": false
   },
+  "scopeMapping": {
+    "mappingId": "showcase-fixed-scope-20260713-v1",
+    "mappingSha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "environmentId": "showcase-nonproduction",
+    "sourceRecords": [
+      {
+        "table": "cmdb_ci_service",
+        "sysId": "11111111111111111111111111111111"
+      },
+      {
+        "table": "cmdb_ci_service",
+        "sysId": "22222222222222222222222222222222"
+      }
+    ],
+    "resolvedAt": "2026-07-15T18:30:00.000Z",
+    "expiresAt": "2027-01-01T00:00:00.000Z"
+  },
   "decision": null,
   "policy": {
     "dynatraceStabilizationSeconds": 120,
@@ -28,12 +45,14 @@
     "scopedDependencies": "/secure/evidence/change/dynatrace-dependencies-scoped.json",
     "resolvedDependencies": "/secure/evidence/change/forward-resolved-dependencies.json",
     "hostResolutionReport": "/secure/evidence/change/forward-host-resolution-report.json",
-    "beforeEvidence": "/secure/evidence/change/forward-before-path-evidence.json"
+    "beforeEvidence": "/secure/evidence/change/forward-before-path-evidence.json",
+    "scopeResolution": "/secure/evidence/change/servicenow-scope-resolution.json"
   },
   "hashes": {
     "preflightSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "scopedDependenciesSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     "resolvedDependenciesSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-    "beforeEvidenceSha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    "beforeEvidenceSha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "scopeResolutionSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
   }
 }

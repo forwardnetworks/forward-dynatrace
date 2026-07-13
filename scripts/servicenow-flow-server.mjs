@@ -7,6 +7,12 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import {
+  normalizeSourceRecord,
+  readScopeMapping,
+  resolveScopeMapping,
+} from "./resolve-servicenow-scope.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const RUN_SCHEMA = "forward-dynatrace-servicenow-flow-run/v1";
 const API_PREFIX = "/v1/servicenow/change-assurance";
@@ -54,6 +60,27 @@ const stringArray = (value, label, maxItems = MAX_SERVICES) => {
   return normalized.sort();
 };
 
+const sourceRecordArray = (value, label = "affectedRecords") => {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_SERVICES) {
+    throw new HttpError(400, `${label} must contain between 1 and ${MAX_SERVICES} records.`);
+  }
+  let normalized;
+  try {
+    normalized = value.map((record, index) => normalizeSourceRecord(record, `${label}[${index}]`));
+  } catch (error) {
+    throw new HttpError(400, error instanceof Error ? error.message : String(error));
+  }
+  const keys = normalized.map((record) => `${record.table}:${record.sysId}`);
+  if (new Set(keys).size !== keys.length) {
+    throw new HttpError(400, `${label} must contain unique table and sys_id pairs.`);
+  }
+  return normalized.sort((left, right) => {
+    const leftKey = `${left.table}:${left.sysId}`;
+    const rightKey = `${right.table}:${right.sysId}`;
+    return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+  });
+};
+
 const assertKnownKeys = (value, allowed, label) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new HttpError(400, `${label} must be a JSON object.`);
@@ -68,6 +95,7 @@ export const validateStartRequest = (value) => {
     "deploymentId",
     "forwardNetworkId",
     "serviceEntityIds",
+    "affectedRecords",
     "instanceAlias",
     "dependencies",
     "retry",
@@ -78,11 +106,27 @@ export const validateStartRequest = (value) => {
   if (dependencies !== undefined && (!Array.isArray(dependencies) || dependencies.length === 0 || dependencies.length > MAX_DEPENDENCIES)) {
     throw new HttpError(400, `dependencies must contain between 1 and ${MAX_DEPENDENCIES} rows when supplied.`);
   }
+  const hasAffectedRecords = value.affectedRecords !== undefined;
+  const hasExplicitScope = value.forwardNetworkId !== undefined || value.serviceEntityIds !== undefined;
+  if (hasAffectedRecords === hasExplicitScope) {
+    throw new HttpError(
+      400,
+      "Start requires exactly one scope source: affectedRecords or forwardNetworkId plus serviceEntityIds.",
+    );
+  }
+  if (hasExplicitScope && (value.forwardNetworkId === undefined || value.serviceEntityIds === undefined)) {
+    throw new HttpError(400, "Explicit scope requires both forwardNetworkId and serviceEntityIds.");
+  }
   return {
     changeNumber,
     deploymentId: requiredString(value.deploymentId, "deploymentId"),
-    forwardNetworkId: requiredString(value.forwardNetworkId, "forwardNetworkId"),
-    serviceEntityIds: stringArray(value.serviceEntityIds, "serviceEntityIds"),
+    forwardNetworkId: hasExplicitScope
+      ? requiredString(value.forwardNetworkId, "forwardNetworkId")
+      : null,
+    serviceEntityIds: hasExplicitScope
+      ? stringArray(value.serviceEntityIds, "serviceEntityIds")
+      : null,
+    affectedRecords: hasAffectedRecords ? sourceRecordArray(value.affectedRecords) : null,
     instanceAlias: value.instanceAlias ? requiredString(value.instanceAlias, "instanceAlias", 128) : null,
     dependencies: dependencies === undefined ? null : dependencies,
     retry: value.retry === true,
@@ -123,7 +167,9 @@ export const validateCompleteRequest = (value, run) => {
   if (!new Set(["HEALTHY", "DEGRADED", "UNHEALTHY", "UNKNOWN"]).has(context.dynatrace.serviceHealth)) {
     throw new HttpError(400, "context.dynatrace.serviceHealth is unsupported.");
   }
-  if (!Number.isInteger(context.dynatrace.openProblemCount) || context.dynatrace.openProblemCount < 0) {
+  if (!Number.isInteger(context.dynatrace.openProblemCount) ||
+      context.dynatrace.openProblemCount < 0 ||
+      context.dynatrace.openProblemCount > 2147483647) {
     throw new HttpError(400, "context.dynatrace.openProblemCount must be a non-negative integer.");
   }
   if (Number.isNaN(Date.parse(context.observedAt))) {
@@ -137,6 +183,8 @@ const runIdentity = (request) => ({
   deploymentId: request.deploymentId,
   forwardNetworkId: request.forwardNetworkId,
   serviceEntityIds: request.serviceEntityIds,
+  scopeMappingId: request.scopeResolution?.mappingId || null,
+  affectedRecords: request.scopeResolution?.sourceRecords || null,
   provenance: request.provenance || null,
 });
 
@@ -212,6 +260,7 @@ const publicRun = (run) => ({
   createdAt: run.createdAt,
   updatedAt: run.updatedAt,
   change: run.change,
+  scopeMapping: run.scopeMapping || null,
   forward: run.forward,
   decision: run.decision,
   exitCode: run.exitCode,
@@ -223,6 +272,7 @@ export const createFlowService = ({
   env = process.env,
   workflowRunner = defaultWorkflowRunner,
   now = () => new Date().toISOString(),
+  scopeMapping = null,
 } = {}) => {
   const baseDir = path.resolve(runDir || env.SERVICENOW_FLOW_RUN_DIR || "/var/lib/forward-dynatrace/servicenow-flow");
   const staleRunMs = Number.parseInt(env.SERVICENOW_FLOW_STALE_RUN_MS || String(DEFAULT_STALE_RUN_MS), 10);
@@ -247,11 +297,60 @@ export const createFlowService = ({
       "SERVICENOW_FLOW_SYNTHETIC",
     ),
   };
+  const allowExplicitScope = env.SERVICENOW_FLOW_ALLOW_EXPLICIT_SCOPE === "1";
+  if (
+    env.SERVICENOW_FLOW_ALLOW_EXPLICIT_SCOPE !== undefined &&
+    !new Set(["0", "1"]).has(String(env.SERVICENOW_FLOW_ALLOW_EXPLICIT_SCOPE))
+  ) {
+    throw new Error("SERVICENOW_FLOW_ALLOW_EXPLICIT_SCOPE must be 0 or 1 when set.");
+  }
+  const scopeMappingFile = String(env.SERVICENOW_FLOW_SCOPE_MAPPING_FILE || "").trim();
+  const scopeEnvironmentId = String(env.SERVICENOW_FLOW_SCOPE_ENVIRONMENT || "").trim();
   const activeRuns = new Set();
   const initializingRuns = new Set();
   const runDirectory = (runId) => path.join(baseDir, safeRunId(runId));
   const runRecordPath = (runId) => path.join(runDirectory(runId), "flow-run.json");
   const workflowStatePath = (runId) => path.join(runDirectory(runId), "servicenow-change-workflow.json");
+  const scopeResolutionPath = (runId) => path.join(runDirectory(runId), "servicenow-scope-resolution.json");
+
+  const resolveStartScope = async (request) => {
+    if (!request.affectedRecords) {
+      if (!allowExplicitScope) {
+        throw new HttpError(
+          409,
+          "Explicit Forward/Dynatrace scope is disabled; submit affectedRecords for protected mapping resolution.",
+        );
+      }
+      return request;
+    }
+    if (!scopeEnvironmentId) {
+      throw new Error("SERVICENOW_FLOW_SCOPE_ENVIRONMENT is required for affected-record scope resolution.");
+    }
+    if (!scopeMapping && !scopeMappingFile) {
+      throw new Error("SERVICENOW_FLOW_SCOPE_MAPPING_FILE is required for affected-record scope resolution.");
+    }
+    let resolution;
+    try {
+      resolution = resolveScopeMapping({
+        mapping: scopeMapping || await readScopeMapping(scopeMappingFile),
+        environmentId: scopeEnvironmentId,
+        sourceRecords: request.affectedRecords,
+        asOf: now(),
+      });
+    } catch (error) {
+      throw new HttpError(409, error instanceof Error ? error.message : String(error));
+    }
+    if (request.instanceAlias && request.instanceAlias !== resolution.serviceNowInstanceAlias) {
+      throw new HttpError(409, "instanceAlias does not match the protected scope mapping environment.");
+    }
+    return {
+      ...request,
+      forwardNetworkId: resolution.forwardNetworkId,
+      serviceEntityIds: resolution.serviceEntityIds,
+      instanceAlias: resolution.serviceNowInstanceAlias,
+      scopeResolution: resolution,
+    };
+  };
 
   const tryReadRun = async (runId) => {
     try {
@@ -331,6 +430,9 @@ export const createFlowService = ({
         ...(request.provenance.synthetic ? ["--synthetic"] : []),
         "--output-dir", directory,
         ...(request.instanceAlias ? ["--instance-alias", request.instanceAlias] : []),
+        ...(request.scopeResolution
+          ? ["--scope-resolution", scopeResolutionPath(runId)]
+          : []),
       ];
       const result = await workflowRunner({ argv, env, allowedCodes: [0, 2] });
       const state = await readJson(workflowStatePath(runId));
@@ -427,11 +529,21 @@ export const createFlowService = ({
 
   return {
     async start(value) {
-      const request = validateStartRequest(value);
+      const request = await resolveStartScope(validateStartRequest(value));
       request.provenance = workflowProvenance;
       const runId = runIdForRequest(request);
       const requestForHash = { ...request };
       delete requestForHash.retry;
+      if (requestForHash.scopeResolution) {
+        requestForHash.scopeResolution = {
+          mappingId: request.scopeResolution.mappingId,
+          mappingSha256: request.scopeResolution.mappingSha256,
+          environmentId: request.scopeResolution.environmentId,
+          sourceRecords: request.scopeResolution.sourceRecords,
+          serviceEntityIds: request.scopeResolution.serviceEntityIds,
+          forwardNetworkId: request.scopeResolution.forwardNetworkId,
+        };
+      }
       const requestSha256 = sha256(canonicalJson(requestForHash));
       await mkdir(baseDir, { recursive: true, mode: 0o700 });
       let existing = await tryReadRun(runId);
@@ -452,6 +564,9 @@ export const createFlowService = ({
           return respondToExistingStart(existing, request, requestSha256);
         }
         const createdAt = now();
+        if (request.scopeResolution) {
+          await atomicWriteJson(scopeResolutionPath(runId), request.scopeResolution);
+        }
         const run = {
           schemaVersion: RUN_SCHEMA,
           runId,
@@ -466,6 +581,14 @@ export const createFlowService = ({
             deploymentId: request.deploymentId,
             serviceEntityIds: request.serviceEntityIds,
           },
+          scopeMapping: request.scopeResolution ? {
+            mappingId: request.scopeResolution.mappingId,
+            mappingSha256: request.scopeResolution.mappingSha256,
+            environmentId: request.scopeResolution.environmentId,
+            sourceRecords: request.scopeResolution.sourceRecords,
+            resolvedAt: request.scopeResolution.resolvedAt,
+            expiresAt: request.scopeResolution.validity.mappingExpiresAt,
+          } : null,
           provenance: {
             ...request.provenance,
           },

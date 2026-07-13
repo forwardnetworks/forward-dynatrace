@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "forward-dynatrace-servicenow-scope-mapping/v1",
+  "mappingId": "showcase-fixed-scope-20260713-v1",
+  "environment": {
+    "environmentId": "showcase-nonproduction",
+    "serviceNowInstanceAlias": "showcase-itsm",
+    "dynatraceEnvironmentAlias": "showcase-observability",
+    "forwardNetworkId": "network-showcase"
+  },
+  "owner": {
+    "team": "integration-operations",
+    "contact": "integration-operations@example.com"
+  },
+  "observedAt": "2026-07-13T00:00:00.000Z",
+  "expiresAt": "2027-01-01T00:00:00.000Z",
+  "minimumConfidence": 0.95,
+  "mappings": [
+    {
+      "mappingEntryId": "checkout-service-v1",
+      "sourceRecord": {
+        "table": "cmdb_ci_service",
+        "sysId": "11111111111111111111111111111111"
+      },
+      "serviceEntityIds": ["SERVICE-CHECKOUT-API"],
+      "forwardEndpoints": [
+        {
+          "serviceEntityId": "SERVICE-CHECKOUT-API",
+          "locationType": "HostFilter",
+          "value": "checkout-api.nonprod.example.com"
+        }
+      ],
+      "confidence": 1,
+      "status": "reviewed",
+      "observedAt": "2026-07-13T00:00:00.000Z",
+      "expiresAt": "2027-01-01T00:00:00.000Z"
+    },
+    {
+      "mappingEntryId": "payments-service-v1",
+      "sourceRecord": {
+        "table": "cmdb_ci_service",
+        "sysId": "22222222222222222222222222222222"
+      },
+      "serviceEntityIds": ["SERVICE-PAYMENTS-API"],
+      "forwardEndpoints": [
+        {
+          "serviceEntityId": "SERVICE-PAYMENTS-API",
+          "locationType": "HostFilter",
+          "value": "payments-api.nonprod.example.com"
+        }
+      ],
+      "confidence": 1,
+      "status": "reviewed",
+      "observedAt": "2026-07-13T00:00:00.000Z",
+      "expiresAt": "2027-01-01T00:00:00.000Z"
+    }
+  ]
+}

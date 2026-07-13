@@ -8,6 +8,8 @@ system of record and does not move evidence or gate logic into ServiceNow.
 
 - ServiceNow owns the Change Request and Flow Designer triggers.
 - The worker re-reads ServiceNow approval, state, and the active window before baseline and finalization.
+- ServiceNow supplies affected CI/service record references only. The worker resolves Dynatrace service IDs, the
+  Forward network, and reviewed endpoint bindings from a protected environment-bound mapping.
 - The worker collects Forward evidence, waits for a different processed snapshot, performs dry-run reconciliation,
   and computes the deterministic gate.
 - Dynatrace dependencies can be supplied by the caller or collected with an explicitly configured tenant DQL file.
@@ -41,6 +43,8 @@ export SERVICENOW_FLOW_RUN_DIR=/var/lib/forward-dynatrace/servicenow-flow
 export SERVICENOW_FLOW_MAX_ACTIVE_RUNS=4
 export SERVICENOW_FLOW_EVIDENCE_SOURCE=live-customer-dependencies
 export SERVICENOW_FLOW_SYNTHETIC=0
+export SERVICENOW_FLOW_SCOPE_MAPPING_FILE=/secure/config/servicenow-scope-mapping.json
+export SERVICENOW_FLOW_SCOPE_ENVIRONMENT=customer-nonproduction
 
 # Existing read-only workflow credentials
 export SERVICENOW_BASE_URL=https://your-instance.service-now.com
@@ -61,6 +65,7 @@ docker run --rm \
   --env-file /secure/forward-dynatrace-flow.env \
   -p 127.0.0.1:8080:8080 \
   -v /secure/servicenow-flow:/var/lib/forward-dynatrace/servicenow-flow \
+  -v /secure/config:/secure/config:ro \
   forward-dynatrace-importer:local \
   servicenow-flow-server
 ```
@@ -97,10 +102,23 @@ tenant query fail the run.
 {
   "changeNumber": "CHG0042187",
   "deploymentId": "checkout-api-2026.07.15.3",
-  "forwardNetworkId": "network-production",
-  "serviceEntityIds": ["SERVICE-CHECKOUT-API", "SERVICE-PAYMENTS-API"]
+  "affectedRecords": [
+    {
+      "table": "cmdb_ci_service",
+      "sysId": "0123456789abcdef0123456789abcdef"
+    }
+  ]
 }
 ```
+
+The mapping file uses `forward-dynatrace-servicenow-scope-mapping/v1`; see
+[ServiceNow scope mapping](servicenow-scope-mapping.md). Missing, duplicate, ambiguous, disabled, stale,
+low-confidence, or cross-environment mappings return a conflict before baseline collection. The protected resolution
+artifact is checksummed into workflow state and its mapping identity is retained in the final Dynatrace event. Endpoint
+bindings remain inside the worker evidence directory and are never returned to ServiceNow.
+
+Legacy callers can supply `forwardNetworkId` plus `serviceEntityIds` only when the runtime explicitly sets
+`SERVICENOW_FLOW_ALLOW_EXPLICIT_SCOPE=1`. It defaults off and is not the checked Flow Designer path.
 
 Provenance is protected runtime configuration, not a customer-facing Flow input. Set
 `SERVICENOW_FLOW_SYNTHETIC=1` only for an approved replay/demo runtime. The worker persists the internal source/flag
@@ -109,7 +127,7 @@ provenance variables are mandatory; the worker refuses to start if the evidence 
 flag is not explicitly `0` or `1`.
 
 The response is HTTP `202` with a deterministic `fdca-<24 hex>` run ID. Replaying identical input returns the same
-run. Reusing the same change/deployment/network/service identity with different input returns HTTP `409`.
+run. Reusing the same change/deployment/mapped-scope identity with different input returns HTTP `409`.
 After investigating a failed Start phase, repeat the same body with `"retry": true`; changed authoritative input is
 still rejected. The worker admits at most `SERVICENOW_FLOW_MAX_ACTIVE_RUNS` concurrent phases.
 
@@ -117,8 +135,9 @@ still rejected. The worker admits at most `SERVICENOW_FLOW_MAX_ACTIVE_RUNS` conc
 
 `GET /v1/servicenow/change-assurance/runs/{runId}`
 
-The response contains only bounded state: phase, status, change identity, Forward network and snapshot IDs, decision,
-exit code, and a redacted error. Local paths, dependencies, credentials, and detailed topology are never returned.
+The response contains only bounded state: phase, status, change identity, mapping ID/hash/environment/source records,
+Forward network and snapshot IDs, decision, exit code, and a redacted error. Local paths, endpoint mappings,
+dependencies, credentials, and detailed topology are never returned.
 
 ### Complete
 

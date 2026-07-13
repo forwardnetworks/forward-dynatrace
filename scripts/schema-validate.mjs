@@ -33,6 +33,8 @@ const schemaPaths = {
   serviceNowChangeAssurance: "schemas/servicenow-change-assurance.schema.json",
   serviceNowChangeWorkflow: "schemas/servicenow-change-workflow.schema.json",
   serviceNowFlowRun: "schemas/servicenow-flow-run.schema.json",
+  serviceNowScopeMapping: "schemas/servicenow-scope-mapping.schema.json",
+  serviceNowScopeResolution: "schemas/servicenow-scope-resolution.schema.json",
   checkHealthTransitions: "schemas/forward-check-health-transitions.schema.json",
   securityCorrelation: "schemas/forward-security-correlation.schema.json",
   securityCorrelationEventBatch: "schemas/forward-security-correlation-event-batch.schema.json",
@@ -70,6 +72,10 @@ Options:
                            Validate resumable two-phase workflow state.
   --servicenow-flow-run path
                            Validate a bounded purchase-free Flow worker run.
+  --servicenow-scope-mapping path
+                           Validate a ServiceNow-to-Dynatrace/Forward scope mapping.
+  --servicenow-scope-resolution path
+                           Validate a resolved ServiceNow change scope.
   --check-health-transitions path
                            Validate a sanitized check-health transition batch.
   --security-correlation path
@@ -104,6 +110,8 @@ const parseArgs = (argv) => {
       value === "--servicenow-change-assurance" ||
       value === "--servicenow-change-workflow" ||
       value === "--servicenow-flow-run" ||
+      value === "--servicenow-scope-mapping" ||
+      value === "--servicenow-scope-resolution" ||
       value === "--check-health-transitions" ||
       value === "--security-correlation" ||
       value === "--security-correlation-event-batch"
@@ -255,6 +263,8 @@ const main = async () => {
       args["servicenow-change-assurance"] ||
       args["servicenow-change-workflow"] ||
       args["servicenow-flow-run"] ||
+      args["servicenow-scope-mapping"] ||
+      args["servicenow-scope-resolution"] ||
       args["check-health-transitions"] ||
       args["security-correlation"] ||
       args["security-correlation-event-batch"],
@@ -299,6 +309,12 @@ const main = async () => {
       validators.serviceNowFlowRun,
       "config/servicenow-flow-run.example.json",
       await readJson("config/servicenow-flow-run.example.json"),
+      results,
+    );
+    validate(
+      validators.serviceNowScopeMapping,
+      "config/servicenow-scope-mapping.example.json",
+      await readJson("config/servicenow-scope-mapping.example.json"),
       results,
     );
 
@@ -425,6 +441,22 @@ const main = async () => {
       validators.serviceNowFlowRun,
       args["servicenow-flow-run"],
       await readJson(args["servicenow-flow-run"]),
+      results,
+    );
+  }
+  if (args["servicenow-scope-mapping"]) {
+    validate(
+      validators.serviceNowScopeMapping,
+      args["servicenow-scope-mapping"],
+      await readJson(args["servicenow-scope-mapping"]),
+      results,
+    );
+  }
+  if (args["servicenow-scope-resolution"]) {
+    validate(
+      validators.serviceNowScopeResolution,
+      args["servicenow-scope-resolution"],
+      await readJson(args["servicenow-scope-resolution"]),
       results,
     );
   }

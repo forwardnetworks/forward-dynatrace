@@ -134,6 +134,34 @@ test("binds eligible ServiceNow scope to a deterministic pass gate and publicati
   assert.equal(first.serviceNowPlan.evidence.lineage.gateSha256.length, 64);
 });
 
+test("carries bounded scope-mapping identity into the Dynatrace event", () => {
+  const scopeMapping = {
+    mappingId: "customer-scope-v1",
+    mappingSha256: "f".repeat(64),
+    environmentId: "customer-nonproduction",
+    sourceRecords: [
+      { table: "cmdb_ci_service", sysId: "1".repeat(32) },
+      { table: "cmdb_ci", sysId: "2".repeat(32) },
+    ],
+    resolvedAt: "2026-07-15T18:30:00.000Z",
+    expiresAt: "2027-01-01T00:00:00.000Z",
+  };
+  const result = build({ scopeMapping });
+  assert.equal(
+    result.dynatraceEvent.properties["forward.dynatrace.scope_mapping_id"],
+    "customer-scope-v1",
+  );
+  assert.equal(
+    result.dynatraceEvent.properties["forward.dynatrace.scope_mapping_sha256"],
+    "f".repeat(64),
+  );
+  assert.equal(
+    result.dynatraceEvent.properties["forward.dynatrace.scope_source_record_count"],
+    2,
+  );
+  assert.equal(JSON.stringify(result.dynatraceEvent).includes("cmdb_ci_service"), false);
+});
+
 test("rejects blocked, mismatched, or cross-change input before building a gate", () => {
   assert.throws(
     () => validatePreflightContextAlignment({ ...preflight, authorization: { ...preflight.authorization, status: "blocked" } }, context),

@@ -26,6 +26,7 @@ const requiredFiles = [
   "docs/change-validation-gate.md",
   "docs/application-change-assurance.md",
   "docs/servicenow-flow-worker.md",
+  "docs/servicenow-scope-mapping.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
   "docs/forward-api-compatibility.md",
@@ -45,6 +46,7 @@ const requiredFiles = [
   "docs/package-handoff.md",
   "docs/observability.md",
   "docs/dynatrace-status-dashboard.md",
+  "docs/servicenow-scope-mapping.md",
   "docs/admin-operations.md",
   "docs/release.md",
   "docs/release-provenance.md",
@@ -76,6 +78,7 @@ const requiredFiles = [
   "config/servicenow-change-preflight.example.json",
   "config/servicenow-change-workflow.example.json",
   "config/servicenow-flow-run.example.json",
+  "config/servicenow-scope-mapping.example.json",
   "api/forward-status.function.ts",
   "api/forward-nqe-preview.function.ts",
   "actions/export-forward-package.action.ts",
@@ -102,6 +105,8 @@ const requiredFiles = [
   "scripts/package-release-artifacts.mjs",
   "scripts/publish-forward-package.mjs",
   "scripts/publish-forward-package.test.mjs",
+  "scripts/forward-handoff-server.mjs",
+  "scripts/forward-handoff-server.test.mjs",
   "scripts/publish-forward-status.mjs",
   "scripts/publish-forward-status.test.mjs",
   "scripts/publish-dynatrace-status-event.mjs",
@@ -110,6 +115,8 @@ const requiredFiles = [
   "scripts/publish-dynatrace-network-evidence.test.mjs",
   "scripts/forward-change-validation-gate.mjs",
   "scripts/servicenow-change-preflight.mjs",
+  "scripts/resolve-servicenow-scope.mjs",
+  "scripts/resolve-servicenow-scope.test.mjs",
   "scripts/servicenow-change-feedback.mjs",
   "scripts/servicenow-change-assurance.mjs",
   "scripts/servicenow-change-workflow.mjs",
@@ -166,6 +173,8 @@ const requiredFiles = [
   "scripts/workflow-smoke.mjs",
   "scripts/validate-runtime-manifests.mjs",
   "scripts/validate-dynatrace-workflow-examples.mjs",
+  "scripts/generate-dynatrace-workflows.mjs",
+  "scripts/generate-dynatrace-workflows.test.mjs",
   "scripts/replay-dynatrace-demo-data.mjs",
   "scripts/replay-dynatrace-demo-data.test.mjs",
   "scripts/live-demo-conductor.mjs",
@@ -183,11 +192,13 @@ const requiredFiles = [
   "deploy/systemd/forward-dynatrace-connector.service",
   "deploy/systemd/forward-dynatrace-connector.timer",
   "deploy/systemd/forward-dynatrace-servicenow-flow.service",
+  "deploy/systemd/forward-dynatrace-handoff.service",
   "deploy/systemd/forward-dynatrace-check-health.service",
   "deploy/systemd/forward-dynatrace-check-health.timer",
   "deploy/systemd/forward-check-health.env.example",
   "deploy/systemd/forward-dynatrace.env.example",
   "deploy/systemd/servicenow-flow.env.example",
+  "deploy/systemd/forward-handoff.env.example",
   "deploy/systemd/forward-connector.config.example.json",
   "deploy/cron/forward-connector.config.example.json",
   "deploy/cron/forward-dynatrace.env.example",
@@ -227,6 +238,8 @@ const requiredFiles = [
   "schemas/servicenow-change-assurance.schema.json",
   "schemas/servicenow-change-workflow.schema.json",
   "schemas/servicenow-flow-run.schema.json",
+  "schemas/servicenow-scope-mapping.schema.json",
+  "schemas/servicenow-scope-resolution.schema.json",
   "schemas/forward-approval.schema.json",
   "schemas/README.md",
 ];
@@ -739,9 +752,11 @@ for (const scriptName of [
   "schemas:validate:test",
   "acceptance:bundle:test",
   "forward:handoff:test",
+  "forward:handoff:server:test",
   "forward:cron:test",
   "forward:change-gate:test",
   "servicenow:change-preflight:test",
+  "servicenow:scope:test",
   "servicenow:change-feedback:test",
   "servicenow:change-assurance:test",
   "servicenow:change-workflow:test",
@@ -761,6 +776,7 @@ for (const scriptName of [
   "runtime:validate",
   "runtime:slo:test",
   "dynatrace:workflow:validate",
+  "dynatrace:workflow:generate:test",
   "demo:rehearsal",
   "demo:servicenow",
   "demo:servicenow:test",
@@ -835,6 +851,12 @@ if (!packageJson.scripts?.["forward:readiness"]) {
 if (!packageJson.scripts?.["forward:cron"]) {
   fail("package.json must define npm script forward:cron.");
 }
+if (!packageJson.scripts?.["forward:handoff:server"]) {
+  fail("package.json must define npm script forward:handoff:server.");
+}
+if (!packageJson.scripts?.["servicenow:scope:resolve"]) {
+  fail("package.json must define npm script servicenow:scope:resolve.");
+}
 if (!packageJson.scripts?.["forward:change-gate"]) {
   fail("package.json must define npm script forward:change-gate.");
 }
@@ -876,6 +898,7 @@ for (const requiredPackagerText of [
   "forward-ingest-status-attention.dql",
   "forward-ingest-status-dashboard.template.json",
   "forward-sync-on-demand.payload.example.json",
+  "config/servicenow-scope-mapping.example.json",
   "docs/assets/screenshots",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
@@ -911,8 +934,10 @@ for (const requiredPackagerText of [
   "scripts/acceptance-bundle.mjs",
   "scripts/query-dynatrace-dependencies.mjs",
   "scripts/deploy-dynatrace-app.mjs",
+  "scripts/generate-dynatrace-workflows.mjs",
   "scripts/forward-deployment-readiness.mjs",
   "scripts/publish-forward-package.mjs",
+  "scripts/forward-handoff-server.mjs",
   "scripts/forward-cron-import.mjs",
   "scripts/forward-resolve-hosts.mjs",
   "scripts/forward-path-evidence.mjs",
@@ -949,12 +974,14 @@ const importerDockerfile = await readText("Dockerfile.forward-importer");
 for (const requiredDockerfileText of [
   "scripts/forward-import-package.mjs",
   "scripts/publish-forward-package.mjs",
+  "scripts/forward-handoff-server.mjs",
   "scripts/forward-cron-import.mjs",
   "scripts/forward-resolve-hosts.mjs",
   "scripts/forward-path-evidence.mjs",
   "scripts/forward-change-validation-gate.mjs",
   "scripts/forward-check-health-transitions.mjs",
   "scripts/security-exposure-correlation.mjs",
+  "scripts/resolve-servicenow-scope.mjs",
   "scripts/servicenow-change-feedback.mjs",
   "scripts/servicenow-change-assurance.mjs",
   "scripts/servicenow-change-workflow.mjs",

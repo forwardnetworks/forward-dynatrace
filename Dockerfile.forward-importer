@@ -5,6 +5,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY scripts/forward-import-package.mjs ./scripts/forward-import-package.mjs
 COPY scripts/publish-forward-package.mjs ./scripts/publish-forward-package.mjs
+COPY scripts/forward-handoff-server.mjs ./scripts/forward-handoff-server.mjs
 COPY scripts/forward-cron-import.mjs ./scripts/forward-cron-import.mjs
 COPY scripts/forward-deployment-readiness.mjs ./scripts/forward-deployment-readiness.mjs
 COPY scripts/forward-nqe-artifacts.mjs ./scripts/forward-nqe-artifacts.mjs
@@ -16,6 +17,7 @@ COPY scripts/forward-check-health-transitions.mjs ./scripts/forward-check-health
 COPY scripts/security-exposure-correlation.mjs ./scripts/security-exposure-correlation.mjs
 COPY scripts/build-forward-package.mjs ./scripts/build-forward-package.mjs
 COPY scripts/servicenow-change-preflight.mjs ./scripts/servicenow-change-preflight.mjs
+COPY scripts/resolve-servicenow-scope.mjs ./scripts/resolve-servicenow-scope.mjs
 COPY scripts/servicenow-change-feedback.mjs ./scripts/servicenow-change-feedback.mjs
 COPY scripts/servicenow-change-assurance.mjs ./scripts/servicenow-change-assurance.mjs
 COPY scripts/servicenow-change-workflow.mjs ./scripts/servicenow-change-workflow.mjs

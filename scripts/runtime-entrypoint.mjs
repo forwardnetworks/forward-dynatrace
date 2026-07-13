@@ -5,10 +5,12 @@ import { spawn } from "node:child_process";
 const commands = new Map([
   ["forward-import", "scripts/forward-import-package.mjs"],
   ["forward-package-publish", "scripts/publish-forward-package.mjs"],
+  ["forward-handoff-server", "scripts/forward-handoff-server.mjs"],
   ["forward-check-health", "scripts/forward-check-health-transitions.mjs"],
   ["security-correlate", "scripts/security-exposure-correlation.mjs"],
   ["dynatrace-security-publish", "scripts/publish-dynatrace-security-correlation.mjs"],
   ["servicenow-change-preflight", "scripts/servicenow-change-preflight.mjs"],
+  ["servicenow-scope-resolve", "scripts/resolve-servicenow-scope.mjs"],
   ["servicenow-change-feedback", "scripts/servicenow-change-feedback.mjs"],
   ["servicenow-change-assurance", "scripts/servicenow-change-assurance.mjs"],
   ["servicenow-change-workflow", "scripts/servicenow-change-workflow.mjs"],

@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import {
   fingerprintCheck,
+  loadPackageAccess,
+  packageRequestHeaders,
   planApprovedMutations,
   reconcileChecks,
   reconciliationKey,
@@ -473,6 +478,52 @@ test("rejects connector config secrets", () => {
         forwardPassword: "do-not-store",
       }),
     /forwardPassword must not be stored/,
+  );
+  assert.throws(
+    () => validateConnectorConfig({
+      schemaVersion: "forward-dynatrace-connector/v1",
+      packageUrl: "https://package.example.com/dynatrace-forward/latest/",
+      packageToken: "do-not-store",
+    }),
+    /packageToken must not be stored/,
+  );
+  assert.doesNotThrow(() => validateConnectorConfig({
+    schemaVersion: "forward-dynatrace-connector/v1",
+    packageUrl: "https://package.example.com/dynatrace-forward/latest/",
+    packageTokenFile: "/etc/forward-dynatrace/handoff-read-token",
+  }));
+});
+
+test("loads a protected package read identity and never forwards it outside the handoff path", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "forward-package-access-"));
+  const tokenFile = path.join(directory, "token");
+  await writeFile(tokenFile, "dedicated-handoff-read-token\n", { mode: 0o600 });
+  const access = await loadPackageAccess({
+    packageUrl: "https://handoff.example.com/v1/packages/latest/",
+    tokenFile,
+  });
+  assert.deepEqual(
+    packageRequestHeaders(
+      "https://handoff.example.com/v1/packages/latest/forward-dynatrace-manifest.json",
+      access,
+    ),
+    { Authorization: "Bearer dedicated-handoff-read-token" },
+  );
+  assert.deepEqual(
+    packageRequestHeaders("https://another.example.com/v1/packages/latest/file.json", access),
+    {},
+  );
+  assert.deepEqual(
+    packageRequestHeaders("https://handoff.example.com/v1/packages/another/file.json", access),
+    {},
+  );
+  await assert.rejects(
+    loadPackageAccess({ tokenFile }),
+    /requires --package-url/u,
+  );
+  await assert.rejects(
+    loadPackageAccess({ packageUrl: "http://localhost/v1/packages/latest/", tokenFile }),
+    /requires an HTTPS/u,
   );
 });
 

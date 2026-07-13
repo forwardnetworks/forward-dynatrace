@@ -41,6 +41,36 @@ const context = {
 const liveProvenanceEnv = {
   SERVICENOW_FLOW_EVIDENCE_SOURCE: "live-test-dependencies",
   SERVICENOW_FLOW_SYNTHETIC: "0",
+  SERVICENOW_FLOW_ALLOW_EXPLICIT_SCOPE: "1",
+};
+
+const protectedScopeMapping = {
+  schemaVersion: "forward-dynatrace-servicenow-scope-mapping/v1",
+  mappingId: "flow-scope-v1",
+  environment: {
+    environmentId: "test-nonproduction",
+    serviceNowInstanceAlias: "test-itsm",
+    dynatraceEnvironmentAlias: "test-observability",
+    forwardNetworkId: "network-mapped",
+  },
+  owner: { team: "integration", contact: "integration@example.com" },
+  observedAt: "2026-01-01T00:00:00.000Z",
+  expiresAt: "2027-01-01T00:00:00.000Z",
+  minimumConfidence: 0.95,
+  mappings: [{
+    mappingEntryId: "service-mapped-v1",
+    sourceRecord: { table: "cmdb_ci_service", sysId: "1".repeat(32) },
+    serviceEntityIds: ["SERVICE-MAPPED"],
+    forwardEndpoints: [{
+      serviceEntityId: "SERVICE-MAPPED",
+      locationType: "HostFilter",
+      value: "mapped.internal.example.com",
+    }],
+    confidence: 1,
+    status: "reviewed",
+    observedAt: "2026-01-01T00:00:00.000Z",
+    expiresAt: "2027-01-01T00:00:00.000Z",
+  }],
 };
 
 const valueAfter = (values, target) => values[values.indexOf(target) + 1];
@@ -190,6 +220,67 @@ test("runs an idempotent asynchronous start and complete lifecycle without expos
     }),
     /differs from the context already bound/,
   );
+});
+
+test("resolves affected ServiceNow records through protected scope without exposing endpoints", async () => {
+  const runDir = await mkdtemp(path.join(tmpdir(), "servicenow-flow-mapped-scope-"));
+  const calls = [];
+  const service = createFlowService({
+    runDir,
+    scopeMapping: protectedScopeMapping,
+    env: {
+      SERVICENOW_FLOW_EVIDENCE_SOURCE: "live-mapped-dependencies",
+      SERVICENOW_FLOW_SYNTHETIC: "0",
+      SERVICENOW_FLOW_SCOPE_ENVIRONMENT: "test-nonproduction",
+    },
+    now: () => "2026-07-15T19:00:00.000Z",
+    workflowRunner: async ({ argv }) => {
+      calls.push(argv);
+      const outputDir = valueAfter(argv, "--output-dir");
+      await writeFile(path.join(outputDir, "servicenow-change-workflow.json"), JSON.stringify({
+        schemaVersion: "forward-dynatrace-servicenow-change-workflow/v2",
+        status: "baseline-captured",
+        change: {
+          number: "CHG0042187",
+          deploymentId: "deployment-mapped",
+          serviceEntityIds: ["SERVICE-MAPPED"],
+        },
+        forward: {
+          networkId: "network-mapped",
+          beforeSnapshotId: "snapshot-mapped",
+          afterSnapshotId: null,
+        },
+        decision: null,
+      }));
+      return { code: 0, stdout: "", stderr: "" };
+    },
+  });
+  const started = await service.start({
+    changeNumber: "CHG0042187",
+    deploymentId: "deployment-mapped",
+    affectedRecords: [{ table: "cmdb_ci_service", sysId: "1".repeat(32) }],
+    dependencies: [{ id: "dependency-1", serviceEntityId: "SERVICE-MAPPED" }],
+  });
+  const baseline = await waitForStatus(service, started.run.runId, "baseline-captured");
+  assert.equal(baseline.run.forward.networkId, "network-mapped");
+  assert.deepEqual(baseline.run.change.serviceEntityIds, ["SERVICE-MAPPED"]);
+  assert.equal(baseline.run.scopeMapping.mappingId, "flow-scope-v1");
+  assert.equal(baseline.run.scopeMapping.sourceRecords.length, 1);
+  assert.equal(JSON.stringify(baseline.run).includes("mapped.internal.example.com"), false);
+  assert.equal(valueAfter(calls[0], "--network-id"), "network-mapped");
+  assert.equal(valueAfter(calls[0], "--service-entity-id"), "SERVICE-MAPPED");
+  assert.match(valueAfter(calls[0], "--scope-resolution"), /servicenow-scope-resolution\.json$/u);
+  const resolution = JSON.parse(await readFile(valueAfter(calls[0], "--scope-resolution"), "utf8"));
+  assert.equal(resolution.forwardEndpoints[0].value, "mapped.internal.example.com");
+
+  const explicitOnly = createFlowService({
+    runDir: path.join(runDir, "explicit-disabled"),
+    env: {
+      SERVICENOW_FLOW_EVIDENCE_SOURCE: "live-mapped-dependencies",
+      SERVICENOW_FLOW_SYNTHETIC: "0",
+    },
+  });
+  await assert.rejects(explicitOnly.start(startRequest), /Explicit Forward\/Dynatrace scope is disabled/);
 });
 
 test("requires Basic authentication and bounds HTTP request bodies", async (t) => {

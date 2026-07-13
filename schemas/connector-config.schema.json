@@ -31,6 +31,7 @@
     "nqeDiffRequestsUrl": { "$ref": "#/definitions/httpsUrl" },
     "nqeQueryIdAllowlist": { "$ref": "#/definitions/nonEmptyString" },
     "packageUrl": { "$ref": "#/definitions/httpsUrl" },
+    "packageTokenFile": { "$ref": "#/definitions/nonEmptyString" },
     "publicKey": { "$ref": "#/definitions/nonEmptyString" },
     "publicKeyUrl": { "$ref": "#/definitions/httpsUrl" },
     "requireSignature": { "type": "boolean" },

@@ -76,11 +76,39 @@ sidecars may be added after ingest; unknown extra files still make immutable-ID 
 and required-signature rejection. Signature cryptographic verification remains an importer gate using the configured
 trusted public key.
 
+## Checked HTTPS Ingress
+
+`scripts/forward-handoff-server.mjs` exposes the checked publisher through a bounded API for the Dynatrace export
+action. It accepts complete base64-encoded package bytes at `POST /v1/packages`, validates the exact checksums,
+manifest identity, membership, freshness, and retention class, then uses the filesystem publisher above. It serves
+only allowlisted package files from immutable or `latest` paths. Publish and read identities are distinct, and every
+successful, denied, rejected, or missing package operation produces a sanitized access-log record.
+
+The primary non-production deployment is systemd:
+
+```bash
+cp deploy/systemd/forward-handoff.env.example /etc/forward-dynatrace/forward-handoff.env
+install -m 0600 /secure/handoff-write-token /etc/forward-dynatrace/handoff-write-token
+install -m 0600 /secure/handoff-read-token /etc/forward-dynatrace/handoff-read-token
+cp deploy/systemd/forward-dynatrace-handoff.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now forward-dynatrace-handoff.service
+```
+
+Keep `FORWARD_HANDOFF_HOST=127.0.0.1` and expose the service only through customer-owned HTTPS ingress. Configure the
+Dynatrace connection with the write identity and set the Forward connector's `packageTokenFile` to the protected read
+token file. The importer forwards that Bearer identity only to artifacts below the configured HTTPS package URL.
+Direct token environment variables are disabled unless `FORWARD_HANDOFF_ALLOW_ENV_TOKENS=1` is explicitly set for a
+controlled local test.
+`npm run forward:handoff:server:test` checks identity separation, byte validation, idempotent publication, immutable
+conflicts, bounded bodies, read authorization, and sanitized audit records.
+
 ## Storage Options
 
 Acceptable implementations include an internal object store, artifact repository, CI artifact with retention and access
 logs, or customer-controlled storage with equivalent controls. Do not use a shared desktop folder, email attachment, or
 chat upload as the production handoff.
 
-The checked publisher covers filesystem-backed handoff. Customer deployment still owns HTTPS/object-store exposure,
-access logging, retention, backup, and identity policy.
+The checked publisher and ingress cover filesystem-backed publication, retrieval, and access records. Customer
+deployment still owns TLS termination, token issuance/rotation, retention enforcement, backup, restore testing, and
+any object-store implementation.

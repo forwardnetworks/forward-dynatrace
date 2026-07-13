@@ -18,6 +18,7 @@ import {
   fetchServiceNowChange,
 } from "./servicenow-change-preflight.mjs";
 import { sha256 } from "./servicenow-change-feedback.mjs";
+import { validateScopeResolution } from "./resolve-servicenow-scope.mjs";
 
 const WORKFLOW_SCHEMA = "forward-dynatrace-servicenow-change-workflow/v2";
 const DEFAULT_SNAPSHOT_TIMEOUT_MS = 15 * 60 * 1000;
@@ -55,6 +56,7 @@ Options:
   --synthetic                   Mark the workflow synthetic when any input is replay/demo evidence.
   --output-dir path             Evidence directory for start.
   --instance-alias value        Publish-safe ServiceNow label.
+  --scope-resolution path       Protected scope-resolution artifact from the Flow worker.
   --evaluation-time value       Start preflight evaluation time; default current time.
   --before-snapshot-id value    Approved processed before snapshot; default latest processed.
   --state path                  Baseline workflow state for complete.
@@ -189,6 +191,35 @@ export const selectScopedDependencies = (dependencies, serviceEntityIds) => {
     throw new Error(`Dynatrace dependency evidence is missing affected services: ${missing.join(", ")}.`);
   }
   return selected;
+};
+
+export const validateScopedEndpointBindings = (dependencies, scopeResolution) => {
+  if (!scopeResolution) return dependencies;
+  validateScopeResolution(scopeResolution);
+  const endpointsByService = new Map();
+  for (const endpoint of scopeResolution.forwardEndpoints) {
+    const existing = endpointsByService.get(endpoint.serviceEntityId) || new Set();
+    existing.add(`${endpoint.locationType}:${endpoint.value}`);
+    endpointsByService.set(endpoint.serviceEntityId, existing);
+  }
+  for (const dependency of dependencies) {
+    const serviceEntityId = required(dependency?.serviceEntityId, "dependency service entity ID");
+    const approved = endpointsByService.get(serviceEntityId);
+    if (!approved || approved.size === 0) {
+      throw new Error(`Scope resolution has no endpoint binding for affected service ${serviceEntityId}.`);
+    }
+    const observed = new Set([
+      `${dependency.sourceFilterType || "HostFilter"}:${String(dependency.source || "").trim()}`,
+      `${dependency.destinationFilterType || "HostFilter"}:${String(dependency.destination || "").trim()}`,
+    ]);
+    if (![...observed].some((endpoint) => approved.has(endpoint))) {
+      throw new Error(
+        `Dynatrace dependency ${dependency.id || "<unknown>"} does not match a reviewed ` +
+        `Forward endpoint binding for ${serviceEntityId}.`,
+      );
+    }
+  }
+  return dependencies;
 };
 
 export const waitForNewProcessedSnapshot = async ({
@@ -344,6 +375,25 @@ const startWorkflow = async (args) => {
   const observedAt = args["evaluation-time"] || new Date().toISOString();
   const preflightPath = path.join(outputDir, "servicenow-change-preflight-start.json");
   const statePath = path.join(outputDir, "servicenow-change-workflow.json");
+  const scopeResolutionInput = args["scope-resolution"]
+    ? await readJsonText(args["scope-resolution"])
+    : null;
+  if (scopeResolutionInput) {
+    validateScopeResolution(scopeResolutionInput.value, {
+      asOf: observedAt,
+      forwardNetworkId: networkId,
+      serviceEntityIds,
+      serviceNowInstanceAlias: args["instance-alias"] || null,
+    });
+  }
+  const scopeMapping = scopeResolutionInput ? {
+    mappingId: scopeResolutionInput.value.mappingId,
+    mappingSha256: scopeResolutionInput.value.mappingSha256,
+    environmentId: scopeResolutionInput.value.environmentId,
+    sourceRecords: scopeResolutionInput.value.sourceRecords,
+    resolvedAt: scopeResolutionInput.value.resolvedAt,
+    expiresAt: scopeResolutionInput.value.validity.mappingExpiresAt,
+  } : null;
 
   const record = await fetchServiceNowChange({
     baseUrl: process.env.SERVICENOW_BASE_URL,
@@ -368,14 +418,21 @@ const startWorkflow = async (args) => {
       change: { number: changeNumber, sysId: preflight.change.sysId, deploymentId, serviceEntityIds: preflight.scope.serviceEntityIds },
       forward: { networkId, beforeSnapshotId: null, afterSnapshotId: null },
       provenance,
+      ...(scopeMapping ? { scopeMapping } : {}),
       decision: null,
       policy: {
         dynatraceStabilizationSeconds: DEFAULT_DYNATRACE_STABILIZATION_SECONDS,
         snapshotTimeoutMs: DEFAULT_SNAPSHOT_TIMEOUT_MS,
         snapshotPollMs: DEFAULT_SNAPSHOT_POLL_INTERVAL_MS,
       },
-      artifacts: { preflight: preflightPath },
-      hashes: { preflightSha256: preflightOutput.sha256 },
+      artifacts: {
+        preflight: preflightPath,
+        ...(scopeResolutionInput ? { scopeResolution: path.resolve(args["scope-resolution"]) } : {}),
+      },
+      hashes: {
+        preflightSha256: preflightOutput.sha256,
+        ...(scopeResolutionInput ? { scopeResolutionSha256: sha256(scopeResolutionInput.text) } : {}),
+      },
     };
     await writeJson(statePath, state);
     process.stdout.write(canonicalJson({ statePath, ...state }));
@@ -385,6 +442,7 @@ const startWorkflow = async (args) => {
   const dependencyInput = await readJsonText(required(args.dependencies, "option: --dependencies"));
   validateDependencyProvenance(dependencyInput.value, provenance);
   const scopedDependencies = selectScopedDependencies(dependencyInput.value, preflight.scope.serviceEntityIds);
+  validateScopedEndpointBindings(scopedDependencies, scopeResolutionInput?.value || null);
   const scopedDependenciesPath = path.join(outputDir, "dynatrace-dependencies-scoped.json");
   const scopedOutput = await writeJson(scopedDependenciesPath, scopedDependencies);
   const authorization = forwardReadOnlyAuthorization(process.env);
@@ -426,6 +484,7 @@ const startWorkflow = async (args) => {
     change: { number: changeNumber, sysId: preflight.change.sysId, deploymentId, serviceEntityIds: preflight.scope.serviceEntityIds },
     forward: { networkId, beforeSnapshotId, afterSnapshotId: null },
     provenance,
+    ...(scopeMapping ? { scopeMapping } : {}),
     decision: null,
     policy: {
       dynatraceStabilizationSeconds: DEFAULT_DYNATRACE_STABILIZATION_SECONDS,
@@ -438,12 +497,14 @@ const startWorkflow = async (args) => {
       resolvedDependencies: resolvedDependenciesPath,
       hostResolutionReport: resolutionReportPath,
       beforeEvidence: beforeEvidencePath,
+      ...(scopeResolutionInput ? { scopeResolution: path.resolve(args["scope-resolution"]) } : {}),
     },
     hashes: {
       preflightSha256: preflightOutput.sha256,
       scopedDependenciesSha256: scopedOutput.sha256,
       resolvedDependenciesSha256: resolvedOutput.sha256,
       beforeEvidenceSha256: beforeOutput.sha256,
+      ...(scopeResolutionInput ? { scopeResolutionSha256: sha256(scopeResolutionInput.text) } : {}),
     },
   };
   await writeJson(statePath, state);
@@ -475,6 +536,18 @@ const completeWorkflow = async (args) => {
     verifiedStateArtifact(state, "resolvedDependencies", "resolvedDependenciesSha256"),
     verifiedStateArtifact(state, "beforeEvidence", "beforeEvidenceSha256"),
   ]);
+  if (state.scopeMapping) {
+    const scopeResolution = await verifiedStateArtifact(
+      state,
+      "scopeResolution",
+      "scopeResolutionSha256",
+    );
+    validateScopeResolution(scopeResolution.value, {
+      asOf: new Date().toISOString(),
+      forwardNetworkId: state.forward.networkId,
+      serviceEntityIds: state.change.serviceEntityIds,
+    });
+  }
   const authorization = forwardReadOnlyAuthorization(process.env);
   const api = makeForwardReadOnlyClient({
     forwardBaseUrl: process.env.FORWARD_BASE_URL,
@@ -548,6 +621,9 @@ const completeWorkflow = async (args) => {
     "--output-dir", outputDir,
     "--evidence-source", state.provenance.evidenceSource,
     ...(state.provenance.synthetic ? ["--synthetic"] : []),
+    ...(state.artifacts.scopeResolution
+      ? ["--scope-resolution", state.artifacts.scopeResolution]
+      : []),
     ...(args["publish-servicenow"] ? ["--publish-servicenow"] : []),
     ...(args["verify-servicenow-retry"] ? ["--verify-servicenow-retry"] : []),
     ...(args["publish-dynatrace"] ? ["--publish-dynatrace"] : []),

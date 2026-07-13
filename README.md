@@ -11,16 +11,18 @@ does not write to Forward and does not store Forward credentials.
 ## Status
 
 - Latest published base-workflow release: `v1.0.0`
-- ServiceNow → Forward → Dynatrace assurance: release candidate in [PR #11](https://github.com/forwardnetworks/forward-dynatrace/pull/11), not included in `v1.0.0`
+- ServiceNow → Forward → Dynatrace assurance: merged in [PR #11](https://github.com/forwardnetworks/forward-dynatrace/pull/11) at `d706357a05dbee8b15e613f11fc515c10246b4e2`; not included in `v1.0.0`
+- Next release candidate: `v2.0.0`, not tagged or published yet
 - Runtime: Node.js 24.x
 - Distribution: GitHub release artifacts and GHCR importer image
 - Support model: field integration reference, not an officially supported Forward product integration
 - License: ISC
 
-The current release-candidate source adds the ServiceNow assurance worker, check-health poller, security correlator,
-cross-domain portal, and associated runtime commands. Do not combine those docs or templates with the published
-`v1.0.0` importer image; use a reviewed exact release-candidate commit for a controlled demo, or wait for the next
-tagged release and verify its artifacts.
+The current `v2.0.0` release-candidate source adds the ServiceNow assurance worker, check-health poller, security
+correlator, protected affected-record scope mapping, authenticated package handoff, generated Dynatrace Workflow
+templates, cross-domain portal, and associated runtime commands. Do not combine those docs or templates with the
+published `v1.0.0` importer image; use a reviewed exact `v2.0.0` release-candidate commit for a controlled demo, or wait
+for the matching tag and verify its artifacts.
 
 ## What It Does
 
@@ -74,8 +76,8 @@ pre/post evidence used by the change gate. The integration reports the decision 
 ```bash
 git clone https://github.com/forwardnetworks/forward-dynatrace.git
 cd forward-dynatrace
-# Check out the exact reviewed commit from PR #11; do not use v1.0.0 for the ServiceNow assurance flow.
-git checkout <reviewed-release-candidate-commit>
+# Check out the exact reviewed v2.0.0 release-candidate commit; do not use v1.0.0 for the integrated flow.
+git checkout <reviewed-v2.0.0-release-commit>
 npm ci
 npm run ci
 npm run acceptance:bundle -- \
@@ -276,8 +278,10 @@ Dynatrace. See [docs/forward-importer.md](docs/forward-importer.md) and
 ## Release Verification
 
 The commands below verify the published `v1.0.0` base-workflow release. That tag predates the ServiceNow assurance,
-check-health, security-correlation, and new runtime-command tranche. Before installing the release candidate, first
-land it, assign a new version, publish a matching tag, and substitute that tag in every command below.
+check-health, security-correlation, handoff, scope-mapping, and new runtime-command tranche. The repository version is
+now the unpublished `2.0.0` release candidate because the handoff-backed Workflow action is intentionally a breaking
+contract. Before installing it, first land the candidate, publish matching tag `v2.0.0`, and substitute that verified
+tag and image digest in every command below.
 
 Before installing or running any tagged release artifacts, verify the release:
 

@@ -49,6 +49,9 @@ spec:
                 - name: config
                   mountPath: /etc/forward-dynatrace
                   readOnly: true
+                - name: handoff-read-token
+                  mountPath: /etc/forward-dynatrace-secrets
+                  readOnly: true
                 - name: output
                   mountPath: /var/lib/forward-dynatrace
               securityContext:
@@ -61,5 +64,11 @@ spec:
             - name: config
               configMap:
                 name: forward-dynatrace-config
+            - name: handoff-read-token
+              secret:
+                secretName: forward-dynatrace-credentials
+                items:
+                  - key: handoff-read-token
+                    path: handoff-read-token
             - name: output
               emptyDir: {}

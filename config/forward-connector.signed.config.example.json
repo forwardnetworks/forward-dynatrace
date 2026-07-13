@@ -1,6 +1,7 @@
 {
   "schemaVersion": "forward-dynatrace-connector/v1",
   "packageUrl": "https://package.example.com/dynatrace-forward/latest/",
+  "packageTokenFile": "/secure/path/handoff-read-token",
   "signatureUrl": "https://package.example.com/dynatrace-forward/latest/forward-dynatrace-package.sig",
   "publicKey": "/secure/path/forward-dynatrace-public.pem",
   "requireSignature": true,
