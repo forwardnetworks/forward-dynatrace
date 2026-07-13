@@ -25,7 +25,13 @@ Actions. It is not published to PyPI.
    The tag workflow repeats this validation and fails before packaging or publishing when `GITHUB_REF_NAME` differs
    from `package.json`, the root package-lock versions, or `app.config.json`.
 
-4. The `release` workflow builds with Node 24, runs `npm run ci`, runs `npm run release:package`, optionally
+   Before any release write, the workflow also runs `scripts/validate-release-immutability.mjs`. It fails closed when
+   the tag has another release-workflow run, a GitHub release already uses the tag, the versioned GHCR tag already
+   resolves, or registry absence cannot be proven. A failed or superseded release must use a new semantic version;
+   never move or reuse its tag.
+
+4. After the pre-publish immutability gate passes, the `release` workflow builds with Node 24, runs `npm run ci`, runs
+   `npm run release:package`, optionally
    self-signs `SHA256SUMS`, uploads workflow artifacts, publishes the GHCR importer image, emits attestations, scans
    the image with Trivy SARIF output, fails on HIGH/CRITICAL findings, and publishes a GitHub release for tag pushes.
 5. After a successful tag workflow, `verify-release` checks out the immutable release source and runs the checked

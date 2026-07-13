@@ -98,6 +98,8 @@ const requiredFiles = [
   "scripts/generate-release-signing-keypair.test.mjs",
   "scripts/validate-release-ref.mjs",
   "scripts/validate-release-ref.test.mjs",
+  "scripts/validate-release-immutability.mjs",
+  "scripts/validate-release-immutability.test.mjs",
   "scripts/verify-published-release.mjs",
   "scripts/verify-published-release.test.mjs",
   "scripts/schema-validate.mjs",
@@ -613,11 +615,27 @@ for (const [file, requiredReleaseBoundary] of [
 
 const releaseWorkflowSource = await readText(".github/workflows/release.yml");
 for (const requiredReleaseGate of [
+  "actions: read",
+  "Validate release immutability before writes",
+  "scripts/validate-release-immutability.mjs",
+  "GITHUB_RUN_ID",
   "Validate release tag and repository version",
   "npm run release:ref:validate",
 ]) {
   if (!releaseWorkflowSource.includes(requiredReleaseGate)) {
     fail(`Release workflow must preserve ${requiredReleaseGate}.`);
+  }
+}
+const releaseImmutabilityStep = releaseWorkflowSource.indexOf("Validate release immutability before writes");
+for (const firstReleaseWriteBoundary of [
+  "Install dependencies",
+  "Attest release artifacts",
+  "Build and publish GHCR importer image",
+  "Publish GitHub release",
+]) {
+  const boundaryIndex = releaseWorkflowSource.indexOf(firstReleaseWriteBoundary);
+  if (releaseImmutabilityStep < 0 || boundaryIndex < 0 || releaseImmutabilityStep > boundaryIndex) {
+    fail(`Release immutability guard must run before ${firstReleaseWriteBoundary}.`);
   }
 }
 
@@ -635,6 +653,20 @@ for (const requiredVerificationText of [
   }
 }
 
+const releaseImmutabilityGuard = await readText("scripts/validate-release-immutability.mjs");
+for (const requiredImmutabilityBoundary of [
+  "workflow_runs",
+  "tag_name",
+  "docker",
+  "imagetools",
+  "already has workflow history",
+  "already exists",
+  "Unable to prove GHCR tag absence",
+]) {
+  if (!releaseImmutabilityGuard.includes(requiredImmutabilityBoundary)) {
+    fail(`Release immutability guard must preserve ${requiredImmutabilityBoundary}.`);
+  }
+}
 const publishedReleaseVerifier = await readText("scripts/verify-published-release.mjs");
 for (const requiredVerifierBoundary of [
   "--signer-workflow",
@@ -727,6 +759,10 @@ for (const file of publicBrandingFiles) {
 const packageJson = await readJson("package.json");
 const packageLock = await readJson("package-lock.json");
 const appConfig = await readJson("app.config.json");
+if (packageJson.scripts?.["release:immutability:validate"] !==
+    "node scripts/validate-release-immutability.mjs") {
+  fail("package.json must expose the checked release immutability command.");
+}
 const versions = new Map([
   ["package.json", packageJson.version],
   ["package-lock.json", packageLock.version],
@@ -784,6 +820,7 @@ for (const scriptName of [
   "release:sign:test",
   "release:signing-key:test",
   "release:ref:test",
+  "release:immutability:test",
   "release:published:test",
   "schemas:validate",
   "schemas:validate:test",
@@ -967,6 +1004,8 @@ for (const requiredPackagerText of [
   "scripts/write-release-checksums.mjs",
   "scripts/sign-release-checksums.mjs",
   "scripts/generate-release-signing-keypair.mjs",
+  "scripts/validate-release-immutability.mjs",
+  "scripts/validate-release-immutability.test.mjs",
   "scripts/verify-published-release.mjs",
   "scripts/verify-published-release.test.mjs",
   "scripts/schema-validate.mjs",

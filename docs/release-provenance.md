@@ -33,6 +33,24 @@ Store `release-ed25519-private.pem` as the GitHub Actions secret `RELEASE_SIGNIN
 `release-ed25519-public.pem` as the public verifier. The release workflow also emits `SHA256SUMS.pub` so a verifier can
 match the release signature to the public key used for that release.
 
+## Prevent Tag Reuse Before Publication
+
+The tag workflow runs this checked, read-only guard before installing dependencies, attesting artifacts, publishing an
+image, or creating a GitHub release:
+
+```bash
+npm run release:immutability:validate -- \
+  --release-name <tag> \
+  --repository forwardnetworks/forward-dynatrace \
+  --commit-sha <40-hex-tag-commit> \
+  --run-id <current-actions-run-id>
+```
+
+It paginates release-workflow and GitHub release history and probes the authenticated versioned GHCR reference. Any
+prior run, existing release, existing image tag, malformed response, registry uncertainty, or transient failure after
+bounded retries stops the workflow before release writes. Rerun a failure only when no publication state exists;
+otherwise increment the version and create a new immutable tag.
+
 ## Verify A Release
 
 Use the checked end-to-end verifier from the matching release source:

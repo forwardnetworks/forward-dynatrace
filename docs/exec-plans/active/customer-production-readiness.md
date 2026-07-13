@@ -73,6 +73,12 @@ This is the single active execution plan for `forward-dynatrace` and its compani
   Forward contact.
 - [x] Commit and publish the verifier tranche as `e0f7a13`; GitHub Actions run `29272387657` / job `86893027638`
   passed the complete `gitops` gate for that exact commit.
+- [x] Add a checked pre-publish immutability guard to the tag workflow. Before dependency installation or release
+  writes, it rejects prior tag workflow history, an existing GitHub release, an existing versioned GHCR tag, and any
+  failure to confirm registry absence; failures after partial publication require a new semantic version. A live
+  read-only probe found `v2.0.0` has 0 workflow runs, 0 releases, and no GHCR tag, while `v1.0.0` was rejected with
+  exact prior run IDs `28696863169` and `28696639370`. The complete Node `v24.18.0` `npm run ci` gate passed after
+  this guard was added, including its five tests and exact importer-archive membership.
 - [x] Close the checked handoff read path: the Forward importer loads a dedicated token from a protected file, scopes
   Bearer forwarding to the exact HTTPS package origin/path, rejects inline tokens, and the systemd/Compose/Kubernetes
   templates mount the read identity separately from Forward credentials.
@@ -213,6 +219,7 @@ synthetic portal row alone is insufficient.
 | 2026-07-13 | Make ServiceNow persistence limits part of the public cross-repository schemas. | Evidence accepted by the producer schema must fit the ledger fields without truncation, and the ingress must reject partial or extended documents. |
 | 2026-07-13 | Use `v2.0.0` for the next release. | The Workflow action now requires a customer handoff connection and returns the v2 receipt-bound result, which is intentionally breaking for `v1.0.0` workflows. |
 | 2026-07-13 | Use direct OpenPipeline publication for primary systemd status feedback. | It reuses the bounded event builder and checked DQL, keeps Forward credentials out of Dynatrace, and makes query-back explicit. |
+| 2026-07-13 | Fail before release writes when a tag or versioned image has prior publication state. | Post-release detection is necessary evidence but cannot prevent a reused tag from overwriting assets; partial publication must advance to a new version. |
 
 ## Evidence To Capture
 

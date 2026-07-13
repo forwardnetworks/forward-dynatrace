@@ -112,6 +112,7 @@ Forward-centric: Dynatrace exports desired state, while Forward-controlled tooli
 
 ## Exit Criteria
 
+- The pre-publish guard proves the release tag, release record, and versioned GHCR tag had no prior publication state.
 - `published-release-verification.json` records the exact successful release run, commit, artifacts, checksums,
   signature status, attestations, SBOM identity, zero-result Trivy SARIF, and digest-pinned image reference.
 - Acceptance evidence bundle is generated and retained.

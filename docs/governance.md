@@ -48,6 +48,10 @@ Every production-impacting PR should include:
 ## Release Governance
 
 - Releases are tag-driven from `main`.
+- Release tags and versioned GHCR tags are immutable. Never force-move or reuse a release tag; use a new version after
+  any partial publication.
+- The checked pre-publish guard must confirm no prior workflow run, GitHub release, or versioned GHCR tag exists before
+  release writes begin.
 - Release artifacts must include checksums, SBOM, provenance attestations, and GHCR image evidence.
 - `SHA256SUMS.sig` is published when the self-managed release signing key is available.
 - Customer-facing verification commands live in `docs/release-provenance.md`.

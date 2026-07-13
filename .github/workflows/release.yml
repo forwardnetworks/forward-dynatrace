@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   artifact-metadata: write
   attestations: write
   contents: write
@@ -34,6 +35,29 @@ jobs:
         with:
           node-version: "24"
           cache: npm
+
+      - name: Set up Docker Buildx
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Validate release immutability before writes
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          node scripts/validate-release-immutability.mjs
+          --release-name "${GITHUB_REF_NAME}"
+          --repository "${GITHUB_REPOSITORY}"
+          --commit-sha "${GITHUB_SHA}"
+          --run-id "${GITHUB_RUN_ID}"
 
       - name: Install dependencies
         run: npm ci
@@ -76,18 +100,6 @@ jobs:
           name: forward-dynatrace-release
           path: out/release/*
           if-no-files-found: error
-
-      - name: Set up Docker Buildx
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to GHCR
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
 
       - name: Extract image metadata
         if: startsWith(github.ref, 'refs/tags/')
