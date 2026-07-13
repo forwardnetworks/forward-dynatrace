@@ -87,13 +87,15 @@ successful, denied, rejected, or missing package operation produces a sanitized 
 The primary non-production deployment is systemd:
 
 ```bash
-cp deploy/systemd/forward-handoff.env.example /etc/forward-dynatrace/forward-handoff.env
+npm run systemd:install -- --source-dir /secure/releases/forward-dynatrace-importer-v2.0.0 --root / --apply
 install -m 0600 /secure/handoff-write-token /etc/forward-dynatrace/handoff-write-token
 install -m 0600 /secure/handoff-read-token /etc/forward-dynatrace/handoff-read-token
-cp deploy/systemd/forward-dynatrace-handoff.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now forward-dynatrace-handoff.service
 ```
+
+Run the installer without `--apply` first and retain its JSON plan. It stages the placeholder environment and unit but
+does not create either token or activate the service.
 
 Keep `FORWARD_HANDOFF_HOST=127.0.0.1` and expose the service only through customer-owned HTTPS ingress. Configure the
 Dynatrace connection with the write identity and set the Forward connector's `packageTokenFile` to the protected read

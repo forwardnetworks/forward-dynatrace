@@ -127,6 +127,7 @@ const requiredFiles = [
   "scripts/servicenow-flow-server.mjs",
   "scripts/validate-servicenow-flow-assets.mjs",
   "scripts/runtime-entrypoint.mjs",
+  "scripts/install-systemd-runtime.mjs",
   "scripts/forward-change-validation-gate.test.mjs",
   "scripts/servicenow-change-preflight.mjs",
   "scripts/servicenow-change-preflight.test.mjs",
@@ -135,6 +136,7 @@ const requiredFiles = [
   "scripts/servicenow-change-workflow.test.mjs",
   "scripts/servicenow-flow-server.test.mjs",
   "scripts/runtime-entrypoint.test.mjs",
+  "scripts/install-systemd-runtime.test.mjs",
   "scripts/dynatrace-export-action.test.mjs",
   "scripts/forward-check-health-transitions.mjs",
   "scripts/forward-check-health-transitions.test.mjs",
@@ -837,6 +839,7 @@ for (const scriptName of [
   "servicenow:flow-server:test",
   "servicenow:flow-assets:validate",
   "runtime:entrypoint:test",
+  "systemd:install:test",
   "forward:nqe-preview:test",
   "forward:nqe-live-smoke:test",
   "forward:resolve-hosts:test",
@@ -867,6 +870,9 @@ for (const scriptName of [
   } else if (!packageJson.scripts.ci?.includes(`npm run ${scriptName}`)) {
     fail(`package.json ci script must run ${scriptName}.`);
   }
+}
+if (!packageJson.scripts?.["systemd:install"]) {
+  fail("package.json must define npm script systemd:install.");
 }
 if (!packageJson.scripts?.["forward:sign"]) {
   fail("package.json must define npm script forward:sign.");
@@ -1027,6 +1033,8 @@ for (const requiredPackagerText of [
   "scripts/servicenow-change-assurance.mjs",
   "scripts/servicenow-change-workflow.mjs",
   "scripts/runtime-entrypoint.mjs",
+  "scripts/install-systemd-runtime.mjs",
+  "scripts/install-systemd-runtime.test.mjs",
   "scripts/publish-dynatrace-change-gate.mjs",
   "scripts/publish-dynatrace-security-correlation.mjs",
   "scripts/validate-servicenow-flow-assets.mjs",

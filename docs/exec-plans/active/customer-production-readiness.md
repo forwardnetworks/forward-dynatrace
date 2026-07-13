@@ -87,6 +87,10 @@ This is the single active execution plan for `forward-dynatrace` and its compani
 - [x] Select direct Dynatrace OpenPipeline publication for primary systemd status feedback. The connector publishes a
   sanitized handoff sidecar and aggregate event with an `openpipeline:events:ingest` token, then operators query back
   the exact run ID with the checked status DQL.
+- [x] Replace the repeated systemd copy sequence with a checked, dry-run-first installer. It stages exact release
+  runtime/config/unit files, omits all credentials and token files, preserves protected modes and operator-owned
+  configuration, fails closed on conflicting runtime/unit files, remains idempotent for identical bytes, and leaves
+  activation behind operator review.
 - [ ] Publish a release newer than `v1.0.0`; the current tag and GHCR digest predate the assurance, handoff,
   check-health, security, Flow-worker, and presenter-showcase commands.
 - [ ] Complete a current-window approved ServiceNow change with matching Forward and Dynatrace readback evidence.

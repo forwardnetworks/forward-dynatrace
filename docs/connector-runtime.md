@@ -38,7 +38,35 @@ The connector config must not contain user names, passwords, tokens, or private 
 
 ## systemd Runtime
 
-Install the importer source or release importer archive under `/opt/forward-dynatrace`.
+Install from the extracted, verified importer release with the checked dry-run-first installer. It stages the runtime,
+unit files, and secret-free configuration templates, but it never creates token files, invokes `systemctl`, or treats
+placeholder configuration as activation-ready:
+
+```bash
+npm run systemd:install -- \
+  --source-dir /secure/releases/forward-dynatrace-importer-v2.0.0 \
+  --root / \
+  --output /secure/evidence/systemd-install-plan.json
+
+npm run systemd:install -- \
+  --source-dir /secure/releases/forward-dynatrace-importer-v2.0.0 \
+  --root / \
+  --output /secure/evidence/systemd-install-report.json \
+  --apply
+```
+
+Run the apply command as root after reviewing the plan. Existing runtime and unit files must be byte-identical;
+upgrades fail closed unless the operator explicitly adds `--replace-existing` after reviewing the diff. Staged files
+under `/etc/forward-dynatrace` become operator-owned and are preserved on every later run, including replacement runs.
+The report binds every source file by SHA-256 and enumerates its ownership class, mode, required customer-owned input,
+and the activation commands that remain. Replace every placeholder, replace the staged showcase scope mapping with the reviewed customer
+mapping, install the listed token files at mode `0600`, and only then run the emitted activation commands.
+`npm run systemd:install:test` proves dry-run, source-plan checksum binding, secret omission, exact staging, protected
+modes, operator-config preservation, idempotence, and conflict rejection.
+
+The equivalent manual layout is `/opt/forward-dynatrace` for runtime files, `/etc/forward-dynatrace` for protected
+configuration, `/etc/systemd/system` for units, and dedicated state/log directories under `/var`. The commands below
+remain as an auditable manual reference.
 
 Create a locked-down config directory:
 

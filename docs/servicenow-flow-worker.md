@@ -70,9 +70,10 @@ docker run --rm \
   servicenow-flow-server
 ```
 
-For a host-native service, install `deploy/systemd/forward-dynatrace-servicenow-flow.service`, copy
-`deploy/systemd/servicenow-flow.env.example` to `/etc/forward-dynatrace/servicenow-flow.env`, replace placeholders,
-and keep the environment file readable only by the service owner.
+For a host-native service, use the dry-run-first `npm run systemd:install` path in
+[connector-runtime.md](connector-runtime.md). It installs the unit and stages
+`/etc/forward-dynatrace/servicenow-flow.env` at mode `0600` without creating credentials or activating the service.
+Replace every placeholder and the showcase scope mapping with customer-owned values before activation.
 
 Expose the worker to ServiceNow only through a customer-owned TLS reverse proxy or private HTTPS ingress. The
 ServiceNow client rejects HTTP and requires an exact origin allowlist plus a Basic Auth Profile. `/healthz` returns
