@@ -13,6 +13,7 @@ import {
   buildFeedbackReceipt,
   buildServiceNowFeedbackPlan,
   publishServiceNowFeedback,
+  verifyServiceNowFeedbackRetry,
 } from "./servicenow-change-feedback.mjs";
 import {
   buildChangeGateEvent,
@@ -45,6 +46,8 @@ Options:
   --reconciliation-status path   Read-only Forward reconciliation status.
   --output-dir path              Evidence output directory.
   --publish-servicenow           Submit to the ServiceNow assurance ledger ingress.
+  --verify-servicenow-retry      With ServiceNow publication, submit the exact evidence
+                                 twice and require duplicate-free existing receipts.
   --publish-dynatrace            Publish aggregate gate event to Dynatrace.
   --dynatrace-environment-url    Dynatrace Apps environment URL.
   --dynatrace-api-base-url       Override Dynatrace OpenPipeline API origin.
@@ -62,6 +65,7 @@ export const parseArgs = (argv) => {
   const flags = new Set([
     "help",
     "publish-servicenow",
+    "verify-servicenow-retry",
     "publish-dynatrace",
     "fail-on-non-pass",
     "report-only",
@@ -165,6 +169,12 @@ export const run = async (argv = process.argv.slice(2)) => {
     process.stdout.write(usage);
     return 0;
   }
+  if (args["use-saved-preflight"] && (args["publish-servicenow"] || args["publish-dynatrace"])) {
+    throw new Error("--use-saved-preflight is report-only and cannot publish externally.");
+  }
+  if (args["verify-servicenow-retry"] && !args["publish-servicenow"]) {
+    throw new Error("--verify-servicenow-retry requires --publish-servicenow.");
+  }
   const [preflight, context, beforeEvidence, afterEvidence, reconciliationStatus] = await Promise.all([
     readInput(required(args, "preflight")),
     readInput(required(args, "context")),
@@ -175,9 +185,6 @@ export const run = async (argv = process.argv.slice(2)) => {
   const outputDir = path.resolve(required(args, "output-dir"));
   await mkdir(outputDir, { recursive: true });
 
-  if (args["use-saved-preflight"] && (args["publish-servicenow"] || args["publish-dynatrace"])) {
-    throw new Error("--use-saved-preflight is report-only and cannot publish externally.");
-  }
   let effectivePreflight = preflight.value;
   let preflightSource = "authoritative-refresh";
   if (args["use-saved-preflight"]) {
@@ -227,6 +234,7 @@ export const run = async (argv = process.argv.slice(2)) => {
   const eventPath = path.join(outputDir, "forward-change-validation-event.json");
   const evidencePath = path.join(outputDir, artifacts.serviceNowPlan.attachmentFileName);
   const feedbackPath = path.join(outputDir, "servicenow-change-feedback.json");
+  const feedbackRetryPath = path.join(outputDir, "servicenow-change-feedback-retry.json");
   const summaryPath = path.join(outputDir, "servicenow-change-assurance.json");
   await Promise.all([
     writeFile(gatePath, artifacts.gateText),
@@ -238,6 +246,7 @@ export const run = async (argv = process.argv.slice(2)) => {
     workNote: { status: "planned", sysId: null },
     attachment: { status: "planned", sysId: null },
   };
+  let serviceNowRetryVerification = null;
   if (args["publish-servicenow"]) {
     const result = await publishServiceNowFeedback({
       preflight: effectivePreflight,
@@ -247,6 +256,21 @@ export const run = async (argv = process.argv.slice(2)) => {
       password: process.env.SERVICENOW_FEEDBACK_PASSWORD || process.env.SERVICENOW_PASSWORD,
     });
     serviceNowPublication = result.publication;
+    if (args["verify-servicenow-retry"]) {
+      const retry = await publishServiceNowFeedback({
+        preflight: effectivePreflight,
+        gate: artifacts.gate,
+        baseUrl: process.env.SERVICENOW_BASE_URL,
+        user: process.env.SERVICENOW_FEEDBACK_USER || process.env.SERVICENOW_USER,
+        password: process.env.SERVICENOW_FEEDBACK_PASSWORD || process.env.SERVICENOW_PASSWORD,
+      });
+      serviceNowRetryVerification = verifyServiceNowFeedbackRetry({ initial: result, retry });
+      await writeFile(feedbackRetryPath, canonicalJson(buildFeedbackReceipt({
+        plan: retry.plan,
+        mode: "apply",
+        publication: retry.publication,
+      })));
+    }
   }
   const feedbackReceipt = buildFeedbackReceipt({
     plan: artifacts.serviceNowPlan,
@@ -284,6 +308,9 @@ export const run = async (argv = process.argv.slice(2)) => {
     reasonCodes: artifacts.gate.reasons.map((reason) => reason.code),
     publications: {
       serviceNow: serviceNowPublication,
+      ...(serviceNowRetryVerification
+        ? { serviceNowRetry: serviceNowRetryVerification }
+        : {}),
       dynatrace: dynatracePublication,
       deploymentGate: { status: "artifact-ready", path: gatePath },
     },
@@ -293,6 +320,9 @@ export const run = async (argv = process.argv.slice(2)) => {
       dynatraceEvent: eventPath,
       serviceNowEvidence: evidencePath,
       serviceNowFeedback: feedbackPath,
+      ...(serviceNowRetryVerification
+        ? { serviceNowRetryFeedback: feedbackRetryPath }
+        : {}),
     },
   };
   await writeFile(summaryPath, canonicalJson(summary));

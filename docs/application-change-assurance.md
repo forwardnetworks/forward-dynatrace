@@ -157,6 +157,12 @@ OpenPipeline credential. These flags do not mutate Forward or deploy/rollback th
 consumes the gate artifact. Both `warn` and `fail` exit `2` after all artifacts are written; `--report-only` is an
 explicit non-enforcing override.
 
+For one non-production idempotency acceptance run, add `--verify-servicenow-retry` with `--publish-servicenow`. The
+conductor sends identical attachment bytes twice, requires the second response to mark both the work note and
+attachment `existing` with the original sys_ids, and writes `servicenow-change-feedback-retry.json`. The flag is
+opt-in because it intentionally performs a second ledger request; normal operation needs only the first idempotent
+publication.
+
 ServiceNow publication uses the authenticated companion endpoint
 `POST /api/now/forward_change_assurance/changes/{change_sys_id}/evidence`. The conductor sends the exact checksummed
 evidence bytes with `X-Forward-Dynatrace-SHA256` and refuses a receipt whose idempotency key or decision does not match.
@@ -241,7 +247,8 @@ Live acceptance tests:
 2. Capture the before/after Forward evidence and stabilized Dynatrace context for one customer-approved deployment.
 3. Publish one result to a non-production ServiceNow change and read back the exact work-note marker and attachment
    checksum.
-4. Publish the same evidence bundle again and verify the live instance creates no duplicate work note or attachment.
+4. Complete with `--publish-servicenow --verify-servicenow-retry`, retain both receipts, and verify the second reports
+   the same work-note and attachment sys_ids as `existing` rather than creating duplicates.
 5. Publish and query back the matching aggregate event from Dynatrace Grail.
 
 ## Explicitly Out Of Scope

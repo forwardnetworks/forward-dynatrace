@@ -26,6 +26,22 @@ test("parses two-phase workflow and repeated affected services", () => {
     "service-entity-id": ["SERVICE-1", "SERVICE-2"],
     "publish-servicenow": true,
   });
+  assert.deepEqual(parseArgs([
+    "--phase", "complete",
+    "--publish-servicenow",
+    "--verify-servicenow-retry",
+  ]), {
+    phase: "complete",
+    "publish-servicenow": true,
+    "verify-servicenow-retry": true,
+  });
+});
+
+test("requires ServiceNow publication for live retry verification", async () => {
+  await assert.rejects(
+    run(["--phase", "complete", "--verify-servicenow-retry"]),
+    /requires --publish-servicenow/,
+  );
 });
 
 test("start phase captures an authoritative scoped before-snapshot baseline", async (t) => {

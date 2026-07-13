@@ -28,7 +28,8 @@ can govern an actual change without moving approval or deployment authority into
 4. Complete assurance with fresh Dynatrace health/problem context and a new processed Forward snapshot.
 5. Show one safe decision and one regression with explicit reason codes and reachability deltas.
 6. Match the ServiceNow attachment SHA-256/work-note marker to the same checksum on the Dynatrace assurance row.
-7. Retry identical input and show that no duplicate evidence, attachment, or note is created.
+7. Enable `--verify-servicenow-retry` for the acceptance completion and show that the second receipt reports the same
+   attachment and work-note sys_ids as `existing`, with no duplicate evidence.
 
 ## Local Rehearsal
 
@@ -182,7 +183,8 @@ Use only a non-production Forward network.
 Build the Flow from the validated, instance-neutral assets in `deploy/servicenow-flow/` and run the authenticated worker
 with `npm run servicenow:flow-server`. Use one approved change and one blocked or regressed change. Preserve the exact
 run ID, change number/sys_id, deployment ID, network ID, before/after snapshot IDs, decision, evidence SHA-256, and
-Dynatrace query-back count. Do not use a copied JSON fixture as approval, and keep replay evidence visibly labeled
+Dynatrace query-back count. Enable `SERVICENOW_FLOW_VERIFY_RETRY=1` only for the live idempotency acceptance run and
+retain both feedback receipts. Do not use a copied JSON fixture as approval, and keep replay evidence visibly labeled
 `SYNTHETIC DEMO` in every system.
 
 ## Standard Demo Replay

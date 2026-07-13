@@ -25,13 +25,16 @@
       "additionalProperties": false,
       "required": ["serviceNow", "dynatrace", "deploymentGate"],
       "properties": {
-        "serviceNow": {
+        "serviceNow": { "$ref": "#/definitions/serviceNowPublication" },
+        "serviceNowRetry": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["workNote", "attachment"],
+          "required": ["status", "attempts", "idempotencyKey", "publication"],
           "properties": {
-            "workNote": { "$ref": "#/definitions/publicationItem" },
-            "attachment": { "$ref": "#/definitions/publicationItem" }
+            "status": { "const": "verified" },
+            "attempts": { "const": 2 },
+            "idempotencyKey": { "type": "string", "pattern": "^forward-dynatrace:[a-f0-9]{64}$" },
+            "publication": { "$ref": "#/definitions/serviceNowExistingPublication" }
           }
         },
         "dynatrace": {
@@ -63,11 +66,39 @@
         "gate": { "type": "string", "minLength": 1 },
         "dynatraceEvent": { "type": "string", "minLength": 1 },
         "serviceNowEvidence": { "type": "string", "minLength": 1 },
-        "serviceNowFeedback": { "type": "string", "minLength": 1 }
+        "serviceNowFeedback": { "type": "string", "minLength": 1 },
+        "serviceNowRetryFeedback": { "type": "string", "minLength": 1 }
       }
     }
   },
   "definitions": {
+    "serviceNowPublication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workNote", "attachment"],
+      "properties": {
+        "workNote": { "$ref": "#/definitions/publicationItem" },
+        "attachment": { "$ref": "#/definitions/publicationItem" }
+      }
+    },
+    "serviceNowExistingPublication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workNote", "attachment"],
+      "properties": {
+        "workNote": { "$ref": "#/definitions/existingPublicationItem" },
+        "attachment": { "$ref": "#/definitions/existingPublicationItem" }
+      }
+    },
+    "existingPublicationItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "sysId"],
+      "properties": {
+        "status": { "const": "existing" },
+        "sysId": { "type": "string", "minLength": 1 }
+      }
+    },
     "publicationItem": {
       "type": "object",
       "additionalProperties": false,

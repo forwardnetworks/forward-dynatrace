@@ -5,8 +5,11 @@ import { test } from "node:test";
 import {
   buildFeedbackReceipt,
   buildServiceNowFeedbackPlan,
+  parseArgs,
   publishServiceNowFeedback,
+  run as runFeedback,
   validatePreflightGateAlignment,
+  verifyServiceNowFeedbackRetry,
 } from "./servicenow-change-feedback.mjs";
 
 const preflight = {
@@ -71,6 +74,17 @@ const gate = {
     reconciliationStatusSha256: "d".repeat(64),
   },
 };
+
+test("parses explicit live retry verification", () => {
+  assert.deepEqual(
+    parseArgs(["--preflight", "preflight.json", "--gate", "gate.json", "--apply", "--verify-retry"]),
+    { preflight: "preflight.json", gate: "gate.json", apply: true, "verify-retry": true },
+  );
+});
+
+test("requires apply mode for live retry verification", async () => {
+  await assert.rejects(runFeedback(["--verify-retry"]), /requires --apply/);
+});
 
 test("builds bounded deterministic ServiceNow feedback from aligned evidence", () => {
   const first = buildServiceNowFeedbackPlan({ preflight, gate });
@@ -176,6 +190,38 @@ test("publishes through the ServiceNow assurance ingress and preserves exact evi
   assert.equal(state.bodies[1], second.plan.attachmentText);
   assert.equal(state.authorization.every((value) => value?.startsWith("Basic ")), true);
   assert.equal(JSON.stringify(first).includes("runtime-only"), false);
+  assert.deepEqual(verifyServiceNowFeedbackRetry({ initial: first, retry: second }), {
+    status: "verified",
+    attempts: 2,
+    idempotencyKey: first.plan.idempotencyKey,
+    publication: second.publication,
+  });
+  assert.throws(
+    () => verifyServiceNowFeedbackRetry({
+      initial: first,
+      retry: {
+        ...second,
+        publication: {
+          ...second.publication,
+          attachment: { status: "created", sysId: "attachment-1" },
+        },
+      },
+    }),
+    /attachment must report existing/,
+  );
+  assert.throws(
+    () => verifyServiceNowFeedbackRetry({
+      initial: first,
+      retry: {
+        ...second,
+        publication: {
+          ...second.publication,
+          workNote: { status: "existing", sysId: "journal-2" },
+        },
+      },
+    }),
+    /workNote sys_id does not match/,
+  );
 });
 
 test("fails closed when the ServiceNow assurance receipt does not match the evidence", async () => {

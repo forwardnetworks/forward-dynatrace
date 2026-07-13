@@ -113,6 +113,10 @@ test("runs an idempotent asynchronous start and complete lifecycle without expos
   const service = createFlowService({
     runDir,
     workflowRunner,
+    env: {
+      SERVICENOW_FLOW_PUBLISH_SERVICENOW: "1",
+      SERVICENOW_FLOW_VERIFY_RETRY: "1",
+    },
     now: () => `2026-07-15T19:00:${String(tick++).padStart(2, "0")}.000Z`,
   });
 
@@ -140,6 +144,8 @@ test("runs an idempotent asynchronous start and complete lifecycle without expos
   assert.equal(completed.run.forward.afterSnapshotId, "snapshot-after");
   assert.equal(calls.length, 2);
   assert.equal(valueAfter(calls[1], "--phase"), "complete");
+  assert.equal(calls[1].includes("--publish-servicenow"), true);
+  assert.equal(calls[1].includes("--verify-servicenow-retry"), true);
 
   const completeReplay = await service.complete(started.run.runId, { context });
   assert.equal(completeReplay.statusCode, 200);

@@ -226,6 +226,7 @@ for (const snippet of [
   "SERVICENOW_FLOW_RUN_DIR=/var/lib/forward-dynatrace/servicenow-flow",
   "SERVICENOW_FLOW_MAX_ACTIVE_RUNS=4",
   "SERVICENOW_FLOW_PUBLISH_SERVICENOW=0",
+  "SERVICENOW_FLOW_VERIFY_RETRY=0",
   "SERVICENOW_FLOW_PUBLISH_DYNATRACE=0",
 ]) {
   if (!flowEnvExample.includes(snippet)) {

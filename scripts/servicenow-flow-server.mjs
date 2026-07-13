@@ -349,6 +349,7 @@ export const createFlowService = ({
         "--state", workflowStatePath(runId),
         "--context", contextPath,
         ...(truthy(env.SERVICENOW_FLOW_PUBLISH_SERVICENOW) ? ["--publish-servicenow"] : []),
+        ...(truthy(env.SERVICENOW_FLOW_VERIFY_RETRY) ? ["--verify-servicenow-retry"] : []),
         ...(truthy(env.SERVICENOW_FLOW_PUBLISH_DYNATRACE) ? ["--publish-dynatrace"] : []),
         ...(env.DYNATRACE_ENVIRONMENT_URL ? ["--dynatrace-environment-url", env.DYNATRACE_ENVIRONMENT_URL] : []),
         ...(env.DYNATRACE_API_BASE_URL ? ["--dynatrace-api-base-url", env.DYNATRACE_API_BASE_URL] : []),

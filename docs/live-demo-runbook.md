@@ -76,7 +76,8 @@ Use the same customer-owned workflow twice: one safe change and one regression. 
    `completed`.
 6. Show decision in ServiceNow: before/after Forward snapshots, path delta, Dynatrace health, intent reconciliation,
    and explicit reason codes. Continue only for `pass`/exit `0`.
-7. Show checksummed evidence attachment and work-note marker. Retry identical input; show no duplicate attachment/note.
+7. Show the checksummed evidence attachment and work-note marker. For the acceptance run, enable
+   `--verify-servicenow-retry`; retain the second `existing` receipt with the same attachment/work-note sys_ids.
 8. Open the Dynatrace cross-domain assurance portal. Query back the same run/change/deployment IDs and compare the safe
    and regression records. Match the portal's ServiceNow evidence SHA-256 to the attachment/work-note marker on the
    change record.

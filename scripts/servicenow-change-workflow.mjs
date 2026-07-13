@@ -60,6 +60,8 @@ Options:
   --snapshot-poll-ms value      New-snapshot polling interval; default ${DEFAULT_SNAPSHOT_POLL_INTERVAL_MS}.
   --stabilization-seconds value Dynatrace stabilization wait; default ${DEFAULT_DYNATRACE_STABILIZATION_SECONDS}.
   --publish-servicenow          Publish idempotent ServiceNow feedback during complete.
+  --verify-servicenow-retry     With ServiceNow publication, prove an identical retry
+                                reuses the original work note and attachment.
   --publish-dynatrace           Publish the aggregate Dynatrace gate event during complete.
   --dynatrace-environment-url   Dynatrace Apps environment URL for publication.
   --dynatrace-api-base-url      Override Dynatrace OpenPipeline origin.
@@ -73,7 +75,13 @@ Forward check mutation is never enabled by this conductor.
 `;
 
 const repeatableArgs = new Set(["service-entity-id"]);
-const flagArgs = new Set(["help", "publish-servicenow", "publish-dynatrace", "report-only"]);
+const flagArgs = new Set([
+  "help",
+  "publish-servicenow",
+  "verify-servicenow-retry",
+  "publish-dynatrace",
+  "report-only",
+]);
 
 export const parseArgs = (argv) => {
   const args = {};
@@ -487,6 +495,7 @@ const completeWorkflow = async (args) => {
     "--reconciliation-status", reconciliationStatusPath,
     "--output-dir", outputDir,
     ...(args["publish-servicenow"] ? ["--publish-servicenow"] : []),
+    ...(args["verify-servicenow-retry"] ? ["--verify-servicenow-retry"] : []),
     ...(args["publish-dynatrace"] ? ["--publish-dynatrace"] : []),
     ...(args["dynatrace-environment-url"] ? ["--dynatrace-environment-url", args["dynatrace-environment-url"]] : []),
     ...(args["dynatrace-api-base-url"] ? ["--dynatrace-api-base-url", args["dynatrace-api-base-url"]] : []),
@@ -532,6 +541,12 @@ export const run = async (argv = process.argv.slice(2)) => {
   if (args.help) {
     process.stdout.write(usage);
     return 0;
+  }
+  if (args["verify-servicenow-retry"] && !args["publish-servicenow"]) {
+    throw new Error("--verify-servicenow-retry requires --publish-servicenow.");
+  }
+  if (args["verify-servicenow-retry"] && args.phase !== "complete") {
+    throw new Error("--verify-servicenow-retry is valid only for --phase complete.");
   }
   if (args.phase === "start") {
     const outputDir = path.resolve(required(args["output-dir"], "option: --output-dir"));

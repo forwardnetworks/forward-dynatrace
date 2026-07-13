@@ -7,6 +7,8 @@ import { test } from "node:test";
 
 import {
   buildAssuranceArtifacts,
+  parseArgs,
+  run as runAssurance,
   validatePreflightContextAlignment,
 } from "./servicenow-change-assurance.mjs";
 
@@ -69,6 +71,25 @@ const reconciliation = {
   mutationCounts: { created: 0, updated: 0, deactivated: 0 },
   plannedChecks: 2,
 };
+
+test("parses explicit ServiceNow retry verification", () => {
+  assert.deepEqual(parseArgs([
+    "--publish-servicenow",
+    "--verify-servicenow-retry",
+    "--output-dir", "/tmp/acceptance",
+  ]), {
+    "publish-servicenow": true,
+    "verify-servicenow-retry": true,
+    "output-dir": "/tmp/acceptance",
+  });
+});
+
+test("requires ServiceNow publication for retry verification", async () => {
+  await assert.rejects(
+    runAssurance(["--verify-servicenow-retry"]),
+    /requires --publish-servicenow/,
+  );
+});
 
 const asText = (value) => `${JSON.stringify(value, null, 2)}\n`;
 const build = (overrides = {}) => buildAssuranceArtifacts({
@@ -184,4 +205,33 @@ test("CLI writes the complete dry-run handoff and enforces non-pass exit 2", asy
     "--servicenow-change-assurance", path.join(files.output, "servicenow-change-assurance.json"),
   ], { cwd: process.cwd(), encoding: "utf8" });
   assert.equal(validation.status, 0, validation.stderr || validation.stdout);
+
+  const retrySummaryPath = path.join(files.output, "servicenow-change-assurance-retry-summary.json");
+  summary.publications.serviceNowRetry = {
+    status: "verified",
+    attempts: 2,
+    idempotencyKey: feedback.idempotencyKey,
+    publication: {
+      workNote: { status: "existing", sysId: "journal-1" },
+      attachment: { status: "existing", sysId: "attachment-1" },
+    },
+  };
+  summary.artifacts.serviceNowRetryFeedback = path.join(
+    files.output,
+    "servicenow-change-feedback-retry.json",
+  );
+  await writeFile(retrySummaryPath, asText(summary));
+  const retryValidation = spawnSync(process.execPath, [
+    "scripts/schema-validate.mjs",
+    "--servicenow-change-assurance", retrySummaryPath,
+  ], { cwd: process.cwd(), encoding: "utf8" });
+  assert.equal(retryValidation.status, 0, retryValidation.stderr || retryValidation.stdout);
+
+  summary.publications.serviceNowRetry.publication.attachment.status = "created";
+  await writeFile(retrySummaryPath, asText(summary));
+  const invalidRetryValidation = spawnSync(process.execPath, [
+    "scripts/schema-validate.mjs",
+    "--servicenow-change-assurance", retrySummaryPath,
+  ], { cwd: process.cwd(), encoding: "utf8" });
+  assert.notEqual(invalidRetryValidation.status, 0);
 });

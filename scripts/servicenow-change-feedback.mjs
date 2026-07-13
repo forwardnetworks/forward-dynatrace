@@ -26,6 +26,8 @@ Options:
   --gate path               Deterministic Forward and Dynatrace change gate.
   --output-dir path         Write evidence bundle and feedback receipt.
   --apply                   Submit evidence to the ServiceNow assurance ledger ingress.
+  --verify-retry            With --apply, submit the exact bundle twice and require
+                            the second receipt to reuse both publication sys_ids.
   --help                    Show help.
 
 Required environment for --apply:
@@ -39,7 +41,7 @@ export const parseArgs = (argv) => {
   const args = {};
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
-    if (value === "--apply" || value === "--help") {
+    if (value === "--apply" || value === "--verify-retry" || value === "--help") {
       args[value.slice(2)] = true;
       continue;
     }
@@ -250,11 +252,39 @@ export const buildFeedbackReceipt = ({ plan, mode, publication }) => ({
   publication,
 });
 
+export const verifyServiceNowFeedbackRetry = ({ initial, retry }) => {
+  if (initial.plan.idempotencyKey !== retry.plan.idempotencyKey) {
+    throw new Error("ServiceNow retry changed the evidence idempotency key.");
+  }
+  if (initial.plan.attachmentText !== retry.plan.attachmentText) {
+    throw new Error("ServiceNow retry changed the exact evidence attachment bytes.");
+  }
+  for (const key of ["workNote", "attachment"]) {
+    const first = initial.publication[key];
+    const second = retry.publication[key];
+    if (second.status !== "existing") {
+      throw new Error(`ServiceNow retry ${key} must report existing, received ${second.status}.`);
+    }
+    if (first.sysId !== second.sysId) {
+      throw new Error(`ServiceNow retry ${key} sys_id does not match the first publication.`);
+    }
+  }
+  return {
+    status: "verified",
+    attempts: 2,
+    idempotencyKey: initial.plan.idempotencyKey,
+    publication: retry.publication,
+  };
+};
+
 export const run = async (argv = process.argv.slice(2)) => {
   const args = parseArgs(argv);
   if (args.help) {
     process.stdout.write(usage);
     return 0;
+  }
+  if (args["verify-retry"] && !args.apply) {
+    throw new Error("--verify-retry requires --apply.");
   }
   const preflight = JSON.parse(await readFile(path.resolve(required(args.preflight, "option: --preflight")), "utf8"));
   const gate = JSON.parse(await readFile(path.resolve(required(args.gate, "option: --gate")), "utf8"));
@@ -262,6 +292,8 @@ export const run = async (argv = process.argv.slice(2)) => {
   await mkdir(outputDir, { recursive: true });
 
   let result;
+  let retryResult = null;
+  let retryVerification = null;
   if (args.apply) {
     result = await publishServiceNowFeedback({
       preflight,
@@ -270,6 +302,16 @@ export const run = async (argv = process.argv.slice(2)) => {
       user: process.env.SERVICENOW_USER,
       password: process.env.SERVICENOW_PASSWORD,
     });
+    if (args["verify-retry"]) {
+      retryResult = await publishServiceNowFeedback({
+        preflight,
+        gate,
+        baseUrl: process.env.SERVICENOW_BASE_URL,
+        user: process.env.SERVICENOW_USER,
+        password: process.env.SERVICENOW_PASSWORD,
+      });
+      retryVerification = verifyServiceNowFeedbackRetry({ initial: result, retry: retryResult });
+    }
   } else {
     const plan = buildServiceNowFeedbackPlan({ preflight, gate });
     result = {
@@ -283,6 +325,9 @@ export const run = async (argv = process.argv.slice(2)) => {
 
   const evidencePath = path.join(outputDir, result.plan.attachmentFileName);
   const receiptPath = path.join(outputDir, "servicenow-change-feedback.json");
+  const retryReceiptPath = retryResult
+    ? path.join(outputDir, "servicenow-change-feedback-retry.json")
+    : null;
   const receipt = buildFeedbackReceipt({
     plan: result.plan,
     mode: args.apply ? "apply" : "dry-run",
@@ -290,7 +335,20 @@ export const run = async (argv = process.argv.slice(2)) => {
   });
   await writeFile(evidencePath, result.plan.attachmentText);
   await writeFile(receiptPath, canonicalJson(receipt));
-  process.stdout.write(canonicalJson({ receiptPath, evidencePath, ...receipt }));
+  if (retryResult && retryReceiptPath) {
+    await writeFile(retryReceiptPath, canonicalJson(buildFeedbackReceipt({
+      plan: retryResult.plan,
+      mode: "apply",
+      publication: retryResult.publication,
+    })));
+  }
+  process.stdout.write(canonicalJson({
+    receiptPath,
+    retryReceiptPath,
+    retryVerification,
+    evidencePath,
+    ...receipt,
+  }));
   return 0;
 };
 

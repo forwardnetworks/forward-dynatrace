@@ -118,8 +118,9 @@ The `complete` phase uses the same named command with `--state` and `--context` 
 `FORWARD_USER`/`FORWARD_PASSWORD` credential path for read-only reconciliation. Use a secret-file or platform secret in
 production rather than literal environment values shown as placeholders here. If `--publish-servicenow` is enabled,
 use a separate feedback credential with only the companion package's `x_fwd_demo.assurance_writer` role; publication
-targets its authenticated assurance-ledger endpoint rather than generic table APIs. Run only one active conductor for
-a given change/evidence directory.
+targets its authenticated assurance-ledger endpoint rather than generic table APIs. Add
+`--verify-servicenow-retry` only for a non-production acceptance run that must confirm the second request reuses the
+same work-note and attachment sys_ids. Run only one active conductor for a given change/evidence directory.
 
 For scheduled operation, use Docker Compose, systemd, or Kubernetes templates in
 [connector-runtime.md](connector-runtime.md). Deployment gate details are in

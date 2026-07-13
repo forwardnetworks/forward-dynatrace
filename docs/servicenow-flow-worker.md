@@ -141,9 +141,15 @@ feedback credential:
 
 ```bash
 export SERVICENOW_FLOW_PUBLISH_SERVICENOW=1
+export SERVICENOW_FLOW_VERIFY_RETRY=1
 export SERVICENOW_FEEDBACK_USER='<assurance-writer-user>'
 export SERVICENOW_FEEDBACK_PASSWORD='<runtime-secret>'
 ```
+
+`SERVICENOW_FLOW_VERIFY_RETRY=1` is an explicit live-acceptance option. The worker submits the exact checksummed
+evidence twice, requires the second ledger receipt to return `existing` for both the work note and attachment with the
+same sys_ids, and retains `servicenow-change-feedback-retry.json`. Leave it disabled for normal operation after the
+idempotency proof is captured.
 
 Optional Dynatrace aggregate publication is similarly gated by `SERVICENOW_FLOW_PUBLISH_DYNATRACE=1` and the existing
 Dynatrace publication credential.

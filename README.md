@@ -136,6 +136,9 @@ per exact evidence bundle. See
 for purchase-free ServiceNow core Script steps. It does not move the gate into ServiceNow or require IntegrationHub.
 See [docs/servicenow-flow-worker.md](docs/servicenow-flow-worker.md).
 
+For a non-production idempotency acceptance run, `--verify-servicenow-retry` explicitly resubmits the same checksummed
+evidence and requires the second ServiceNow receipt to reuse both the original work-note and attachment sys_ids.
+
 ## Continuous Check-Health Feedback
 
 `npm run forward:check-health` polls only integration-managed checks, stores hashed durable state in the Forward-side

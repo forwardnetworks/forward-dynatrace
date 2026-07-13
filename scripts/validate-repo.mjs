@@ -597,6 +597,26 @@ for (const requiredProvenanceContract of [
     );
   }
 }
+
+const serviceNowFeedback = await readText("scripts/servicenow-change-feedback.mjs");
+for (const requiredRetryContract of [
+  "--verify-retry",
+  "ServiceNow retry changed the exact evidence attachment bytes.",
+  "must report existing",
+  "servicenow-change-feedback-retry.json",
+]) {
+  if (!serviceNowFeedback.includes(requiredRetryContract)) {
+    fail(`ServiceNow live retry verifier must contain ${requiredRetryContract}.`);
+  }
+}
+for (const file of [
+  "scripts/servicenow-change-assurance.mjs",
+  "scripts/servicenow-change-workflow.mjs",
+]) {
+  if (!(await readText(file)).includes("--verify-servicenow-retry")) {
+    fail(`${file} must preserve the explicit ServiceNow retry-verification gate.`);
+  }
+}
 if (
   crossDomainEvidence.includes(
     "filter isNull(`forward.dynatrace.synthetic`) or `forward.dynatrace.synthetic` == false",
