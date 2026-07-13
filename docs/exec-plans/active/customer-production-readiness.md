@@ -91,6 +91,10 @@ This is the single active execution plan for `forward-dynatrace` and its compani
   runtime/config/unit files, omits all credentials and token files, preserves protected modes and operator-owned
   configuration, fails closed on conflicting runtime/unit files, remains idempotent for identical bytes, and leaves
   activation behind operator review.
+- [x] Commit and publish the checked systemd installer as `a7c17e5`. A clean local Node `v24.18.0` `npm run ci`
+  completed with exit `0`; the generated importer archive then staged 169 SHA-256-bound files, created zero operator
+  inputs, and reported all 169 unchanged on repeat. GitHub Actions run `29274955732` / job `86901631894` passed the
+  complete `gitops` gate for that exact commit.
 - [ ] Publish a release newer than `v1.0.0`; the current tag and GHCR digest predate the assurance, handoff,
   check-health, security, Flow-worker, and presenter-showcase commands.
 - [ ] Complete a current-window approved ServiceNow change with matching Forward and Dynatrace readback evidence.
