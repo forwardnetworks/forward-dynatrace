@@ -2,11 +2,17 @@
 // Use this with npm run dynatrace:query and adapt filters/fields to the tenant's dependency data source.
 // Adjust entity filters, ownership joins, and endpoint mapping fields for the tenant.
 
-fetch events
+fetch events, from: -24h
 | filter event.provider == "forward-dynatrace-demo"
 | filter event.type == "com.forward.demo.dependency"
 | filter `demo.fixture` == "standard-forward-demo"
+| sort timestamp desc
+| dedup dependency.id
 | fields
+    timestamp,
+    `demo.run_id`,
+    `demo.synthetic`,
+    dependency.id,
     app.name,
     app.environment,
     dt.entity.service,
@@ -19,4 +25,4 @@ fetch events
     criticality,
     dependency.confidence,
     dependency.mapping_state
-| sort app.name asc, service.name asc
+| limit 500

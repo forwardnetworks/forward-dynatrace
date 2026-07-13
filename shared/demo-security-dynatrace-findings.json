@@ -1,0 +1,14 @@
+[
+  {
+    "findingId": "DT-RVA-DEMO-001",
+    "observedAt": "2026-07-12T13:30:00.000Z",
+    "severity": "critical",
+    "activeExecution": true
+  },
+  {
+    "findingId": "DT-RVA-DEMO-002",
+    "observedAt": "2026-07-12T13:31:00.000Z",
+    "severity": "high",
+    "activeExecution": false
+  }
+]

@@ -213,6 +213,43 @@ export const classifyPathSearchResult = (result) => {
     : "blocked";
 };
 
+const uniqueStrings = (values) => [
+  ...new Set(values.filter((value) => typeof value === "string" && value.trim())),
+];
+
+export const summarizePathSearchResult = (result) => {
+  const paths = Array.isArray(result?.info?.paths)
+    ? result.info.paths
+    : Array.isArray(result?.paths)
+      ? result.paths
+      : [];
+  return {
+    queryUrl: typeof result?.queryUrl === "string" ? result.queryUrl : null,
+    sourceLocationType:
+      typeof result?.srcIpLocationType === "string" ? result.srcIpLocationType : null,
+    destinationLocationType:
+      typeof result?.dstIpLocationType === "string" ? result.dstIpLocationType : null,
+    pathCount: paths.length,
+    forwardingOutcomes: uniqueStrings(paths.map((pathResult) => pathResult?.forwardingOutcome)),
+    securityOutcomes: uniqueStrings(paths.map((pathResult) => pathResult?.securityOutcome)),
+    maxHopCount: paths.reduce(
+      (maximum, pathResult) =>
+        Math.max(maximum, Array.isArray(pathResult?.hops) ? pathResult.hops.length : 0),
+      0,
+    ),
+  };
+};
+
+export const modeledReachabilityAssessment = (rows) => {
+  if (rows.some((row) => row.status === "blocked")) {
+    return "consistent-with-network-policy-block";
+  }
+  if (rows.length > 0 && rows.every((row) => row.status === "reachable")) {
+    return "no-modeled-policy-block";
+  }
+  return "inconclusive";
+};
+
 const countStatuses = (rows) => ({
   total: rows.length,
   queryable: rows.filter((row) => row.status !== "unmapped").length,
@@ -312,15 +349,16 @@ export const buildPathEvidence = async ({
         id: item.dependency.id || null,
         status: "unmapped",
         reason: item.reason,
+        ...summarizePathSearchResult(null),
       };
     }
-    const status = execute
-      ? classifyPathSearchResult(responses[responseIndex++])
-      : "planned";
+    const response = execute ? responses[responseIndex++] : null;
+    const status = execute ? classifyPathSearchResult(response) : "planned";
     return {
       id: item.dependency.id || null,
       status,
       reason: execute ? "Forward path search evaluated this dependency." : "Path query planned.",
+      ...summarizePathSearchResult(response),
     };
   });
 
@@ -336,6 +374,7 @@ export const buildPathEvidence = async ({
           : "completed",
     source: "forward-path-search-bulk",
     endpoint: PATH_SEARCH_ENDPOINT,
+    modeledReachabilityAssessment: modeledReachabilityAssessment(rows),
     hostResolution: hostResolution
       ? {
           status: "completed",

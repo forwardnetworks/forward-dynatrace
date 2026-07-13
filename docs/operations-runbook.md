@@ -115,6 +115,9 @@ Before enabling scheduled import, fill in these local values outside the repo:
 
 5. Schedule the command only after a manual dry-run has passed.
 
+For a portable cron installation, use `scripts/forward-cron-import.mjs` and the guarded schedule in
+`docs/cron-runtime.md`. Do not place Forward credentials or `--allow-apply` in the initial crontab.
+
 ## Signed Package Import
 
 When the deployment requires provenance:

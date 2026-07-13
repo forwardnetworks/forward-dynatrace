@@ -10,6 +10,8 @@ import { fileURLToPath } from "node:url";
 import {
   buildPathQuery,
   classifyPathSearchResult,
+  modeledReachabilityAssessment,
+  summarizePathSearchResult,
 } from "./forward-path-evidence.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -119,6 +121,9 @@ const startFakeForward = async () =>
           response,
           200,
           payload.queries.map(() => ({
+            srcIpLocationType: "HOST",
+            dstIpLocationType: "HOST",
+            queryUrl: "https://forward.example.com/path-search/demo",
             info: {
               paths: [
                 {
@@ -144,6 +149,56 @@ const startFakeForward = async () =>
       });
     });
   });
+
+test("bootstraps Forward CSRF for Basic-auth path search", async () => {
+  const calls = [];
+  let csrfRequests = 0;
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    calls.push({
+      path: parsed.pathname,
+      method: options.method || "GET",
+      headers: options.headers || {},
+    });
+    if (parsed.pathname === "/api/public/csrf") {
+      csrfRequests += 1;
+      return new Response(JSON.stringify({
+        headerName: "X-CSRF-TOKEN",
+        parameterName: "_csrf",
+        token: `csrf-${csrfRequests}`,
+      }), { status: 200 });
+    }
+    if (parsed.pathname.endsWith("/paths-bulk")) {
+      const token = options.headers?.["X-CSRF-TOKEN"];
+      if (token !== "csrf-1") {
+        return new Response(JSON.stringify({ message: "Invalid CSRF token" }), { status: 403 });
+      }
+      return new Response(JSON.stringify([{ info: { paths: [] } }]), { status: 200 });
+    }
+    throw new Error(`Unexpected request: ${parsed.pathname}`);
+  };
+
+  const { buildPathEvidence } = await import("./forward-path-evidence.mjs");
+  const evidence = await buildPathEvidence({
+    dependencies: [dependency({
+      sourceResolvedValue: "10.10.10.10/32",
+      destinationResolvedValue: "10.20.20.20/32",
+    })],
+    forwardBaseUrl: "https://forward.example.test",
+    forwardNetworkId: "network-1",
+    snapshotId: "snapshot-1",
+    authorization: "Basic dXNlcjpwYXNz",
+    execute: true,
+    fetchImpl,
+  });
+
+  assert.equal(evidence.counts.blocked, 1);
+  assert.equal(csrfRequests, 1);
+  assert.equal(calls[0].path, "/api/public/csrf");
+  assert.equal(calls[0].headers.Authorization, undefined);
+  assert.equal(calls[1].headers.Authorization, "Basic dXNlcjpwYXNz");
+  assert.equal(calls[1].headers["X-CSRF-TOKEN"], "csrf-1");
+});
 
 test("builds path queries from Forward-resolved endpoint values", () => {
   const result = buildPathQuery(
@@ -204,6 +259,54 @@ test("classifies Forward path search responses into evidence states", () => {
   assert.equal(classifyPathSearchResult({ errorMessage: "bad query" }), "failed");
 });
 
+test("summarizes causal path outcomes without copying hop-level topology", () => {
+  const summary = summarizePathSearchResult({
+    srcIpLocationType: "HOST",
+    dstIpLocationType: "DNAT",
+    queryUrl: "https://forward.example.com/path-search/demo",
+    info: {
+      paths: [
+        {
+          forwardingOutcome: "DELIVERED",
+          securityOutcome: "PERMITTED",
+          hops: [{ deviceName: "leaf-a" }, { deviceName: "firewall-a" }],
+        },
+        {
+          forwardingOutcome: "DELIVERED",
+          securityOutcome: "PERMITTED",
+          hops: [{ deviceName: "leaf-b" }],
+        },
+      ],
+    },
+  });
+
+  assert.deepEqual(summary, {
+    queryUrl: "https://forward.example.com/path-search/demo",
+    sourceLocationType: "HOST",
+    destinationLocationType: "DNAT",
+    pathCount: 2,
+    forwardingOutcomes: ["DELIVERED"],
+    securityOutcomes: ["PERMITTED"],
+    maxHopCount: 2,
+  });
+  assert.equal(JSON.stringify(summary).includes("leaf-a"), false);
+});
+
+test("builds a bounded modeled-reachability assessment", () => {
+  assert.equal(
+    modeledReachabilityAssessment([{ status: "reachable" }, { status: "reachable" }]),
+    "no-modeled-policy-block",
+  );
+  assert.equal(
+    modeledReachabilityAssessment([{ status: "reachable" }, { status: "blocked" }]),
+    "consistent-with-network-policy-block",
+  );
+  assert.equal(
+    modeledReachabilityAssessment([{ status: "reachable" }, { status: "ambiguous" }]),
+    "inconclusive",
+  );
+});
+
 test("CLI resolves hosts before executing Forward bulk path search", async () => {
   const { server, calls, baseUrl } = await startFakeForward();
   const workdir = await mkdtemp(path.join(tmpdir(), "forward-path-evidence-"));
@@ -243,6 +346,11 @@ test("CLI resolves hosts before executing Forward bulk path search", async () =>
     assert.equal(evidence.hostResolution.counts.needsMap, 1);
     assert.equal(evidence.counts.reachable, 1);
     assert.equal(evidence.counts.unmapped, 1);
+    assert.equal(evidence.modeledReachabilityAssessment, "inconclusive");
+    assert.equal(evidence.rows[0].queryUrl, "https://forward.example.com/path-search/demo");
+    assert.deepEqual(evidence.rows[0].forwardingOutcomes, ["DELIVERED"]);
+    assert.deepEqual(evidence.rows[0].securityOutcomes, ["PERMITTED"]);
+    assert.equal(evidence.rows[0].maxHopCount, 0);
 
     const persisted = JSON.parse(await readFile(outputPath, "utf8"));
     assert.deepEqual(persisted.counts, evidence.counts);

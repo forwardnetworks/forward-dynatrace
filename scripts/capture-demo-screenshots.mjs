@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 
 import { createServer } from "node:http";
-import { readFile, stat } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { chromium } from "playwright";
+
+import { buildDemoRehearsal } from "./servicenow-demo-rehearsal.mjs";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 const distDir = path.join(root, "dist");
@@ -245,15 +248,75 @@ const capture = async (page, fileName) => {
   });
 };
 
+const captureElement = async (locator, fileName) => {
+  await locator.screenshot({
+    animations: "disabled",
+    path: path.join(screenshotDir, fileName),
+    quality: 90,
+    type: "jpeg",
+  });
+};
+
+const assertAssuranceCaptureReady = async (page) => {
+  const table = page.locator(".change-comparison-section .evidence-table-wrap");
+  const dimensions = await table.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  if (dimensions.scrollWidth > dimensions.clientWidth + 1) {
+    throw new Error(
+      `ServiceNow assurance table is horizontally clipped (${dimensions.scrollWidth}px > ${dimensions.clientWidth}px).`,
+    );
+  }
+  const labels = await page.locator(".change-comparison-section .evidence-reason").allTextContents();
+  for (const expected of [
+    "All validation passed",
+    "Blocked paths",
+    "Path regression",
+    "Service unhealthy",
+    "Open problems",
+  ]) {
+    if (!labels.includes(expected)) {
+      throw new Error(`ServiceNow assurance capture is missing the reason label: ${expected}.`);
+    }
+  }
+};
+
+const buildCaptureEvidence = async (outputDir) => {
+  const rehearsal = await buildDemoRehearsal(outputDir);
+  const changeRows = [];
+  for (const scenario of [...rehearsal.scenarios].reverse()) {
+    const event = JSON.parse(
+      await readFile(
+        path.join(outputDir, scenario.id, "forward-change-validation-event.json"),
+        "utf8",
+      ),
+    );
+    changeRows.push({ timestamp: event.timestamp, severity: event.severity, ...event.properties });
+  }
+  return {
+    ingestRows: [],
+    networkRows: [],
+    changeRows,
+    healthRows: [],
+    securityRows: [],
+  };
+};
+
 const main = async () => {
   await stat(path.join(uiDir, "index.html")).catch(() => {
     throw new Error("dist/ui/index.html is missing. Run npm run build first.");
   });
 
+  const rehearsalDir = await mkdtemp(path.join(tmpdir(), "forward-dynatrace-capture-rehearsal-"));
+  const captureEvidence = await buildCaptureEvidence(rehearsalDir);
   const server = await startDemoServer();
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { height: 1200, width: 1440 } });
+    await page.addInitScript((evidence) => {
+      globalThis.__FORWARD_DYNATRACE_CAPTURE_EVIDENCE__ = evidence;
+    }, captureEvidence);
     await page.goto(`${server.baseUrl}/ui/`, { waitUntil: "networkidle" });
     await markScrollRoot(page);
     await capture(page, "01-overview.jpg");
@@ -274,8 +337,15 @@ const main = async () => {
     await scrollToPanel(page, "Forward-Centric Ingest Package");
     await capture(page, "03-forward-side-api.jpg");
 
-    await scrollToText(page, "Bulk intent check payload preview", 80);
+    await scrollToText(page, "Bulk intent check payload sample", 80);
     await capture(page, "04-intent-check-payload.jpg");
+
+    await scrollToText(page, "ServiceNow → Forward → Dynatrace assurance history", 80);
+    await assertAssuranceCaptureReady(page);
+    await captureElement(
+      page.locator(".change-comparison-section"),
+      "05-servicenow-change-assurance.jpg",
+    );
 
     process.stdout.write(
       JSON.stringify(
@@ -287,6 +357,7 @@ const main = async () => {
             "docs/assets/screenshots/02-export-package-readiness.jpg",
             "docs/assets/screenshots/03-forward-side-api.jpg",
             "docs/assets/screenshots/04-intent-check-payload.jpg",
+            "docs/assets/screenshots/05-servicenow-change-assurance.jpg",
           ],
         },
         null,
@@ -296,10 +367,26 @@ const main = async () => {
   } finally {
     await browser.close();
     await server.close();
+    await rm(rehearsalDir, { recursive: true, force: true });
   }
 };
 
-main().catch((error) => {
+const run = async () => {
+  if (!process.argv.includes("--serve")) {
+    await main();
+    return;
+  }
+
+  const server = await startDemoServer();
+  process.stdout.write(`${server.baseUrl}/ui/\n`);
+  await new Promise((resolve) => {
+    process.once("SIGINT", resolve);
+    process.once("SIGTERM", resolve);
+  });
+  await server.close();
+};
+
+run().catch((error) => {
   process.stderr.write(`${error instanceof Error ? error.message : "unknown error"}\n`);
   process.exit(1);
 });

@@ -1,0 +1,16 @@
+[
+  {
+    "mappingId": "DEMO-MAPPING-001",
+    "findingId": "DT-RVA-DEMO-001",
+    "exposureId": "FWD-EXPOSURE-DEMO-001",
+    "confidence": "high",
+    "owner": "security-platform"
+  },
+  {
+    "mappingId": "DEMO-MAPPING-002",
+    "findingId": "DT-RVA-DEMO-002",
+    "exposureId": "FWD-EXPOSURE-DEMO-002",
+    "confidence": "low",
+    "owner": "application-security"
+  }
+]

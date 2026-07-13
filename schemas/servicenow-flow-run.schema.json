@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/servicenow-flow-run.schema.json",
+  "title": "Purchase-free ServiceNow Flow worker run",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "status", "phase", "createdAt", "updatedAt", "change", "forward", "decision", "exitCode", "error"],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace-servicenow-flow-run/v1" },
+    "runId": { "type": "string", "pattern": "^fdca-[a-f0-9]{24}$" },
+    "status": {
+      "enum": [
+        "start-queued",
+        "start-running",
+        "baseline-captured",
+        "blocked",
+        "complete-queued",
+        "complete-running",
+        "completed",
+        "failed"
+      ]
+    },
+    "phase": { "enum": ["start", "complete"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number", "deploymentId", "serviceEntityIds"],
+      "properties": {
+        "number": { "type": "string", "pattern": "^CHG[0-9]+$" },
+        "deploymentId": { "type": "string", "minLength": 1 },
+        "serviceEntityIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "forward": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["networkId", "beforeSnapshotId", "afterSnapshotId"],
+      "properties": {
+        "networkId": { "type": "string", "minLength": 1 },
+        "beforeSnapshotId": { "type": ["string", "null"] },
+        "afterSnapshotId": { "type": ["string", "null"] }
+      }
+    },
+    "decision": { "enum": ["pass", "warn", "fail", null] },
+    "exitCode": { "type": ["integer", "null"] },
+    "error": { "type": ["string", "null"], "maxLength": 1000 }
+  }
+}

@@ -1,0 +1,25 @@
+// Ranked, read-only security correlation events with source evidence references.
+
+fetch events, from: now() - 30d
+| filter event.type == "forward.dynatrace.security.correlation"
+| fields
+    timestamp,
+    severity,
+    forward.dynatrace.security_run_id,
+    forward.dynatrace.correlation_id,
+    forward.dynatrace.correlation_confidence,
+    forward.dynatrace.correlation_disposition,
+    forward.dynatrace.owner,
+    forward.dynatrace.dynatrace_finding_id,
+    forward.dynatrace.dynatrace_observed_at,
+    forward.dynatrace.forward_exposure_id,
+    forward.dynatrace.forward_snapshot_id,
+    forward.dynatrace.forward_observed_at,
+    forward.dynatrace.identity_mapping_id,
+    forward.dynatrace.fact.observed_execution,
+    forward.dynatrace.fact.vulnerable_runtime,
+    forward.dynatrace.fact.modeled_reachability,
+    forward.dynatrace.fact.internet_addressability,
+    forward.dynatrace.fact.policy_finding
+| sort timestamp desc
+| limit 100

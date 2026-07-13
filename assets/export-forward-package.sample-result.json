@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "forward-dynatrace-workflow-action/v1",
+  "status": "ready",
+  "packageId": "dynatrace-forward-20260713000000",
+  "generatedAt": "2026-07-13T00:00:00.000Z",
+  "intentCheckCount": 2,
+  "rejectedDependencyCount": 0,
+  "artifacts": {
+    "manifestFileName": "forward-dynatrace-manifest.json",
+    "manifest": "{\n  \"schemaVersion\": \"forward-dynatrace/v1\"\n}\n",
+    "intentChecksFileName": "forward-intent-checks.json",
+    "intentChecks": "[]\n"
+  },
+  "boundary": "dynatrace-never-writes-forward"
+}
+

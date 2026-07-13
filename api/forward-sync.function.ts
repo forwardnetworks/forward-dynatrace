@@ -31,7 +31,7 @@ interface DependencyCandidate {
   mappingState: "ready" | "needs-map" | "review";
 }
 
-interface ForwardSyncRequest {
+export interface ForwardSyncRequest {
   forwardBaseUrl?: string;
   forwardNetworkId?: string;
   syncMode: ForwardSyncMode;
@@ -170,7 +170,7 @@ interface ForwardExportManifest {
 const missing = (value: string | undefined): boolean => !value?.trim();
 
 const INTEGRATION_BOUNDARY_DISCLAIMER =
-  "Forward Field Integration reference: this Dynatrace app only exports Forward-ready artifacts and is not an officially supported Forward product integration. Forward ingestion runs in a Forward-controlled environment: either a manual importer or a Forward-side connector that pulls the package.";
+  "forward.dynatrace exports Forward-ready artifacts and is not an officially supported Forward product integration. Forward ingestion runs in a Forward-controlled environment: either a manual importer or a Forward-side connector that pulls the package.";
 
 const MANIFEST_FILE_NAME = "forward-dynatrace-manifest.json";
 const INTENT_CHECKS_FILE_NAME = "forward-intent-checks.json";
@@ -242,15 +242,27 @@ const resolvedLocationValue = (
     ? dependency.sourceResolvedValue?.trim() || dependency.source
     : dependency.destinationResolvedValue?.trim() || dependency.destination;
 
+const isIpOrSubnet = (value: string): boolean =>
+  /^(?:\d{1,3}\.){3}\d{1,3}(?:\/(?:3[0-2]|[12]?\d))?$/u.test(value.trim()) ||
+  /^[A-Fa-f0-9:]+(?::[A-Fa-f0-9:]*)?(?:\/(?:12[0-8]|1[01]\d|\d?\d))?$/u.test(
+    value.trim(),
+  );
+
 const resolvedLocationType = (
   dependency: DependencyCandidate,
   role: "source" | "destination",
-): ForwardLocationFilterType =>
-  role === "source"
-    ? dependency.sourceResolvedFilterType || dependency.sourceFilterType || "HostFilter"
-    : dependency.destinationResolvedFilterType ||
-      dependency.destinationFilterType ||
-      "HostFilter";
+): ForwardLocationFilterType => {
+  const explicitType =
+    role === "source"
+      ? dependency.sourceResolvedFilterType || dependency.sourceFilterType
+      : dependency.destinationResolvedFilterType || dependency.destinationFilterType;
+  if (explicitType) {
+    return explicitType;
+  }
+  return isIpOrSubnet(resolvedLocationValue(dependency, role))
+    ? "SubnetLocationFilter"
+    : "HostFilter";
+};
 
 const resolutionNoteFields = (dependency: DependencyCandidate): string[] => [
   ...(dependency.sourceResolvedValue

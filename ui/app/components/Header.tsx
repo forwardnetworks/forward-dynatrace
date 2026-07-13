@@ -10,9 +10,9 @@ export const Header = () => {
     <header className="app-shell-header">
       <Link className="app-shell-brand" to="/">
         <span className="app-shell-logo">
-          <img src={forwardLogoUrl} alt="Forward Networks" />
+          <img src={forwardLogoUrl} alt="Forward" />
         </span>
-        <span>Intent Export</span>
+        <span>forward.dynatrace</span>
       </Link>
     </header>
   );

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import forwardSync from "../api/forward-sync.function.ts";
+import exportForwardPackage from "../actions/export-forward-package.logic.mjs";
 
 const examples = [
   "deploy/dynatrace-workflows/forward-sync-schedule.payload.example.json",
@@ -34,6 +35,22 @@ for (const example of examples) {
       assert.equal(/\s/.test(tag), false, `${example} generated whitespace tag ${tag}`);
     }
   }
+
+  const actionResult = await exportForwardPackage({ request: payload });
+  assert.equal(actionResult.status, "ready", `${example} should execute through the Workflow action`);
+  assert.equal(actionResult.boundary, "dynatrace-never-writes-forward");
+  assert.equal(actionResult.intentCheckCount, result.intentCheckCount);
 }
+
+const appConfig = JSON.parse(await readFile("app.config.json", "utf8"));
+assert.ok(
+  appConfig.app.actions.some((action) => action.name === "export-forward-package"),
+  "app.config.json must register export-forward-package",
+);
+const sampleResult = JSON.parse(
+  await readFile("assets/export-forward-package.sample-result.json", "utf8"),
+);
+assert.equal(sampleResult.schemaVersion, "forward-dynatrace-workflow-action/v1");
+assert.equal(sampleResult.boundary, "dynatrace-never-writes-forward");
 
 process.stdout.write("Dynatrace workflow example validation passed.\n");

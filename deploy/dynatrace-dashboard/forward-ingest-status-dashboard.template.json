@@ -1,6 +1,6 @@
 {
   "schemaVersion": "forward-dynatrace-dashboard-template/v1",
-  "title": "Forward Integration for Dynatrace Ingest Status",
+  "title": "forward.dynatrace Ingest Status",
   "description": "Dashboard construction template for publish-safe Forward ingest status events.",
   "eventType": "forward.dynatrace.ingest.status",
   "dataSensitivity": "aggregate-status-only",

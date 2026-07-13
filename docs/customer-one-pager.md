@@ -1,8 +1,9 @@
 # Forward Integration for Dynatrace
 
 This Forward Field Integration turns Dynatrace-discovered application dependencies into Forward-reviewed network intent
-checks. It is designed for a customer-controlled workflow: Dynatrace exports desired state, and Forward-side tooling
-validates, reconciles, and applies approved changes.
+checks, then uses ServiceNow change context to compare Dynatrace application health with Forward modeled-network
+evidence before and after a deployment. The customer keeps every control boundary: ServiceNow owns approval, Forward
+owns network intent, Dynatrace owns application evidence, and the deployment system owns deploy/rollback.
 
 ## What It Does
 
@@ -18,6 +19,9 @@ validates, reconciles, and applies approved changes.
 - Optionally emits Forward NQE check and diff artifacts with Forward-owned query IDs and allowlists.
 - Publishes sanitized aggregate status back to Dynatrace so operators can see import state, planned counts, signature
   state, drift counts, and failures.
+- Runs a two-phase ServiceNow-first assurance workflow that verifies the authoritative change window, captures exact
+  Forward before/after snapshots, evaluates stabilized Dynatrace health, and returns a deterministic decision.
+- Binds the ServiceNow evidence attachment and matching Dynatrace Grail event with the same SHA-256/idempotency marker.
 
 ## What It Does Not Do
 
@@ -27,8 +31,9 @@ validates, reconciles, and applies approved changes.
 - Status events do not include Forward credentials, hostnames, check names, dependency rows, or Forward API response
   bodies.
 - Demo replay data is not a production source path; production uses the customer's own Dynatrace topology.
+- The integration does not approve changes, deploy applications, perform rollback, or replace ServiceNow CAB controls.
 
-## Standard Customer Workflow
+## Continuous Intent Workflow
 
 1. Dynatrace exports dependency candidates and package artifacts.
 2. Forward-side tooling resolves dependency source/destination names through Forward host inventory.
@@ -38,6 +43,17 @@ validates, reconciles, and applies approved changes.
 6. The Forward operator reviews create, unchanged, changed, stale, unmapped, and evidence counts.
 7. The importer applies missing checks only after approval.
 8. The importer publishes sanitized status for Dynatrace dashboards and customer evidence retention.
+
+## ServiceNow Change-Assurance Workflow
+
+1. ServiceNow supplies an approved change, active window, deployment ID, and affected Dynatrace services.
+2. The Forward-side worker re-reads the exact change and fails closed on ambiguous, unapproved, or out-of-window input.
+3. The worker captures the baseline Forward snapshot and modeled-path evidence for only the affected services.
+4. The customer's existing deployment system performs the change.
+5. The worker waits for a new processed Forward snapshot and fresh Dynatrace deployment/health/problem context.
+6. The deterministic gate compares pre/post reachability, application health, and intent drift.
+7. ServiceNow receives a checksummed evidence attachment and idempotent work-note marker; non-pass blocks by default.
+8. Dynatrace shows the matching run, change, snapshots, reasons, and ServiceNow attachment checksum in Grail.
 
 ## Acceptance Evidence
 
@@ -52,6 +68,9 @@ npm run acceptance:bundle -- \
 
 The bundle is read-only. It validates package shape, writes `ACCEPTANCE.md`, emits sanitized status telemetry, and
 records schema-validation evidence without contacting Forward.
+
+Live ServiceNow acceptance is intentionally separate: exercise one approved and one blocked non-production change,
+read back the attachment/work-note marker, retry without duplicates, and query the matching Dynatrace event.
 
 ## Release Verification
 

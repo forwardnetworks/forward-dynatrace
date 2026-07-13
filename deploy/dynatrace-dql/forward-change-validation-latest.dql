@@ -1,0 +1,33 @@
+// Latest Forward and Dynatrace change-validation decisions.
+// Detailed paths and check definitions remain in the Forward-controlled runtime.
+
+fetch events, from: now() - 30d
+| filter event.type == "forward.dynatrace.change.validation"
+| fields
+    timestamp,
+    severity,
+    forward.dynatrace.gate_run_id,
+    forward.dynatrace.change_id,
+    forward.dynatrace.deployment_id,
+    forward.dynatrace.gate_decision,
+    forward.dynatrace.gate_reason_codes,
+    forward.dynatrace.gate_sha256,
+    forward.dynatrace.servicenow_evidence_sha256,
+    forward.dynatrace.servicenow_idempotency_key,
+    forward.dynatrace.evidence_source,
+    forward.dynatrace.synthetic,
+    forward.dynatrace.network_id,
+    forward.dynatrace.before_snapshot_id,
+    forward.dynatrace.after_snapshot_id,
+    forward.dynatrace.before_reachable,
+    forward.dynatrace.before_blocked,
+    forward.dynatrace.after_reachable,
+    forward.dynatrace.after_blocked,
+    forward.dynatrace.after_ambiguous,
+    forward.dynatrace.after_unmapped,
+    forward.dynatrace.after_failed,
+    forward.dynatrace.deployment_state,
+    forward.dynatrace.service_health,
+    forward.dynatrace.open_problem_count
+| sort timestamp desc
+| limit 100

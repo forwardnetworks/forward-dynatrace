@@ -165,7 +165,7 @@ export const toDynatraceStatusEvent = (artifact) => ({
   timestamp: artifact.generatedAt || new Date().toISOString(),
   eventType: "forward.dynatrace.ingest.status",
   severity: eventSeverity(artifact),
-  title: `Forward Integration for Dynatrace ingest ${artifact.importState || "unknown"}`,
+  title: `forward.dynatrace ingest ${artifact.importState || "unknown"}`,
   properties: {
     "forward.dynatrace.run_id": artifact.runId,
     "forward.dynatrace.package_id": artifact.packageId,

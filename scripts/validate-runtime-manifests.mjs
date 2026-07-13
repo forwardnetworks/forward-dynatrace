@@ -13,6 +13,15 @@ const verifiedImporterImage =
   "ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:7f884e44a2b54303d7da708bc805f0e16c1d19b192f95a90e94a63aad66bb7c6";
 
 const cronJob = await readText("deploy/kubernetes/forward-dynatrace-connector-cronjob.yaml");
+const checkHealthCronJob = await readText(
+  "deploy/kubernetes/forward-dynatrace-check-health-cronjob.yaml",
+);
+const checkHealthConfigMap = await readText(
+  "deploy/kubernetes/forward-dynatrace-check-health-config.example.yaml",
+);
+const statePvc = await readText(
+  "deploy/kubernetes/forward-dynatrace-state-pvc.example.yaml",
+);
 const kubernetesConfigMap = await readText(
   "deploy/kubernetes/forward-dynatrace-configmap.example.yaml",
 );
@@ -27,8 +36,22 @@ const dockerComposeConfig = JSON.parse(
 const service = await readText("deploy/systemd/forward-dynatrace-connector.service");
 const timer = await readText("deploy/systemd/forward-dynatrace-connector.timer");
 const envExample = await readText("deploy/systemd/forward-dynatrace.env.example");
+const flowService = await readText("deploy/systemd/forward-dynatrace-servicenow-flow.service");
+const flowEnvExample = await readText("deploy/systemd/servicenow-flow.env.example");
+const checkHealthService = await readText(
+  "deploy/systemd/forward-dynatrace-check-health.service",
+);
+const checkHealthTimer = await readText(
+  "deploy/systemd/forward-dynatrace-check-health.timer",
+);
+const checkHealthEnv = await readText("deploy/systemd/forward-check-health.env.example");
 const systemdConfig = JSON.parse(
   await readText("deploy/systemd/forward-connector.config.example.json"),
+);
+const cronSchedule = await readText("deploy/cron/forward-dynatrace.crontab.example");
+const cronEnv = await readText("deploy/cron/forward-dynatrace.env.example");
+const cronConfig = JSON.parse(
+  await readText("deploy/cron/forward-connector.config.example.json"),
 );
 
 const requiredCronJobSnippets = [
@@ -47,6 +70,47 @@ const requiredCronJobSnippets = [
 for (const snippet of requiredCronJobSnippets) {
   if (!cronJob.includes(snippet)) {
     fail(`Kubernetes CronJob missing ${snippet}.`);
+  }
+}
+
+for (const snippet of [
+  "kind: CronJob",
+  'schedule: "*/5 * * * *"',
+  "concurrencyPolicy: Forbid",
+  "forward-check-health",
+  "--apply",
+  "persistentVolumeClaim:",
+  "claimName: forward-dynatrace-state",
+  "dynatrace-platform-token",
+  "runAsNonRoot: true",
+  "readOnlyRootFilesystem: true",
+  "allowPrivilegeEscalation: false",
+]) {
+  if (!checkHealthCronJob.includes(snippet)) {
+    fail(`Kubernetes check-health CronJob missing ${snippet}.`);
+  }
+}
+if (!checkHealthCronJob.includes("<forward-dynatrace-importer-image@sha256:digest>")) {
+  fail("Kubernetes check-health CronJob must require a digest-pinned importer image.");
+}
+for (const snippet of [
+  "kind: ConfigMap",
+  "forward-base-url:",
+  "forward-network-id:",
+  "dynatrace-environment-url:",
+]) {
+  if (!checkHealthConfigMap.includes(snippet)) {
+    fail(`Kubernetes check-health ConfigMap missing ${snippet}.`);
+  }
+}
+for (const snippet of [
+  "kind: PersistentVolumeClaim",
+  "name: forward-dynatrace-state",
+  "ReadWriteOnce",
+  "storage: 1Gi",
+]) {
+  if (!statePvc.includes(snippet)) {
+    fail(`Kubernetes state PVC missing ${snippet}.`);
   }
 }
 
@@ -85,6 +149,7 @@ for (const snippet of [
   "name: forward-dynatrace-credentials",
   'forward-user: "<user>"',
   'forward-password: "<password-or-token>"',
+  'dynatrace-platform-token: "<platform-token>"',
 ]) {
   if (!kubernetesSecret.includes(snippet)) {
     fail(`Kubernetes Secret example missing ${snippet}.`);
@@ -107,6 +172,67 @@ for (const snippet of requiredServiceSnippets) {
   }
 }
 
+for (const snippet of [
+  "Type=simple",
+  "EnvironmentFile=/etc/forward-dynatrace/servicenow-flow.env",
+  "ExecStart=/usr/bin/node /opt/forward-dynatrace/scripts/servicenow-flow-server.mjs",
+  "Restart=on-failure",
+  "NoNewPrivileges=true",
+  "ProtectSystem=strict",
+  "ReadWritePaths=/var/lib/forward-dynatrace",
+  "UMask=0077",
+]) {
+  if (!flowService.includes(snippet)) {
+    fail(`ServiceNow Flow systemd service missing ${snippet}.`);
+  }
+}
+
+for (const snippet of [
+  "Type=oneshot",
+  "EnvironmentFile=/etc/forward-dynatrace/forward-check-health.env",
+  "scripts/forward-check-health-transitions.mjs",
+  "--state /var/lib/forward-dynatrace/check-health-state.json",
+  "--apply",
+  "--token-file /etc/forward-dynatrace/dynatrace-platform.token",
+  "NoNewPrivileges=true",
+  "ProtectSystem=strict",
+  "UMask=0077",
+]) {
+  if (!checkHealthService.includes(snippet)) {
+    fail(`Check-health systemd service missing ${snippet}.`);
+  }
+}
+if (
+  !checkHealthTimer.includes("OnUnitActiveSec=5min") ||
+  !checkHealthTimer.includes("Persistent=true")
+) {
+  fail("Check-health systemd timer must be persistent and run every 5 minutes.");
+}
+for (const snippet of [
+  "FORWARD_BASE_URL=https://forward.example.com",
+  "FORWARD_NETWORK_ID=<network-id>",
+  "FORWARD_USER=<user>",
+  "FORWARD_PASSWORD=<password-or-token>",
+  "DYNATRACE_ENVIRONMENT_URL=https://your-environment-id.apps.dynatrace.com/",
+]) {
+  if (!checkHealthEnv.includes(snippet)) {
+    fail(`Check-health systemd env example missing ${snippet}.`);
+  }
+}
+for (const snippet of [
+  "SERVICENOW_FLOW_USERNAME=<dedicated-flow-user>",
+  "SERVICENOW_FLOW_PASSWORD=<random-runtime-secret>",
+  "SERVICENOW_FLOW_HOST=127.0.0.1",
+  "SERVICENOW_FLOW_RUN_DIR=/var/lib/forward-dynatrace/servicenow-flow",
+  "SERVICENOW_FLOW_MAX_ACTIVE_RUNS=4",
+  "SERVICENOW_FLOW_PUBLISH_SERVICENOW=0",
+  "SERVICENOW_FLOW_PUBLISH_DYNATRACE=0",
+]) {
+  if (!flowEnvExample.includes(snippet)) {
+    fail(`ServiceNow Flow env example missing ${snippet}.`);
+  }
+}
+
 if (!timer.includes("OnUnitActiveSec=15min") || !timer.includes("Persistent=true")) {
   fail("systemd timer must be persistent and run on the expected cadence.");
 }
@@ -125,6 +251,46 @@ if (systemdConfig.reportPath !== "/var/lib/forward-dynatrace/forward-import-repo
 }
 if (systemdConfig.apply !== false || systemdConfig.failOnDrift !== true) {
   fail("systemd connector config example must default to dry-run and fail-on-drift.");
+}
+
+for (const snippet of [
+  "*/15 * * * *",
+  "set -a",
+  ". /etc/forward-dynatrace/forward-dynatrace.env",
+  "/opt/forward-dynatrace/scripts/forward-cron-import.mjs",
+  "--config /etc/forward-dynatrace/forward-connector.config.json",
+  "--state-dir /var/lib/forward-dynatrace",
+  "--log-dir /var/log/forward-dynatrace",
+]) {
+  if (!cronSchedule.includes(snippet)) {
+    fail(`cron schedule missing ${snippet}.`);
+  }
+}
+if (cronSchedule.includes("--allow-apply")) {
+  fail("cron schedule must not enable Forward apply by default.");
+}
+if (!cronEnv.includes("FORWARD_USER=<user>")) {
+  fail("cron env example must contain a placeholder Forward user.");
+}
+if (!cronEnv.includes("FORWARD_PASSWORD=<password-or-token>")) {
+  fail("cron env example must contain a placeholder Forward password.");
+}
+if (cronConfig.schemaVersion !== "forward-dynatrace-connector/v1") {
+  fail("cron connector config example must use the connector schema version.");
+}
+if (
+  cronConfig.apply !== false ||
+  cronConfig.applyUpdates !== false ||
+  cronConfig.deactivateStale !== false ||
+  cronConfig.failOnDrift !== true
+) {
+  fail("cron connector config must default to dry-run, fail-on-drift, and no update/stale mutations.");
+}
+if (
+  cronConfig.reportPath !== "/var/lib/forward-dynatrace/forward-import-report.json" ||
+  cronConfig.statusArtifactPath !== "/var/lib/forward-dynatrace/forward-ingest-status.json"
+) {
+  fail("cron connector config must write report and status under the state directory.");
 }
 
 for (const snippet of [
@@ -172,6 +338,9 @@ if (
 
 for (const content of [
   cronJob,
+  checkHealthCronJob,
+  checkHealthConfigMap,
+  statePvc,
   kubernetesConfigMap,
   kubernetesSecret,
   dockerCompose,
@@ -180,7 +349,15 @@ for (const content of [
   service,
   timer,
   envExample,
+  flowService,
+  flowEnvExample,
+  checkHealthService,
+  checkHealthTimer,
+  checkHealthEnv,
   JSON.stringify(systemdConfig),
+  cronSchedule,
+  cronEnv,
+  JSON.stringify(cronConfig),
 ]) {
   if (/dt0[a-z0-9]{2,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{20,}/i.test(content)) {
     fail("Runtime manifests must not contain Dynatrace token-shaped secrets.");

@@ -1,0 +1,139 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/servicenow-change-preflight.schema.json",
+  "title": "ServiceNow change-assurance preflight",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "observedAt",
+    "mode",
+    "source",
+    "change",
+    "scope",
+    "authorization",
+    "nextStages"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace-servicenow-change-preflight/v1" },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "mode": { "const": "read-only" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instanceAlias", "table", "authoritativeRead"],
+      "properties": {
+        "instanceAlias": { "$ref": "#/definitions/nonEmptyString" },
+        "table": { "const": "change_request" },
+        "authoritativeRead": { "const": true }
+      }
+    },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "number",
+        "sysId",
+        "deploymentId",
+        "approval",
+        "state",
+        "risk",
+        "assignmentGroup",
+        "window"
+      ],
+      "properties": {
+        "number": { "type": "string", "pattern": "^CHG[0-9]+$" },
+        "sysId": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+        "deploymentId": { "$ref": "#/definitions/nonEmptyString" },
+        "approval": { "$ref": "#/definitions/valueDisplay" },
+        "state": { "$ref": "#/definitions/valueDisplay" },
+        "risk": { "$ref": "#/definitions/valueDisplay" },
+        "assignmentGroup": { "$ref": "#/definitions/valueDisplay" },
+        "window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["startsAt", "endsAt"],
+          "properties": {
+            "startsAt": { "type": ["string", "null"], "format": "date-time" },
+            "endsAt": { "type": ["string", "null"], "format": "date-time" }
+          }
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["forwardNetworkId", "serviceEntityIds"],
+      "properties": {
+        "forwardNetworkId": { "$ref": "#/definitions/nonEmptyString" },
+        "serviceEntityIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/nonEmptyString" }
+        }
+      }
+    },
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reasons", "eligibleStateValues", "approvedValues"],
+      "properties": {
+        "status": { "enum": ["eligible", "blocked"] },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "message"],
+            "properties": {
+              "code": { "$ref": "#/definitions/nonEmptyString" },
+              "message": { "$ref": "#/definitions/nonEmptyString" }
+            }
+          }
+        },
+        "eligibleStateValues": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/nonEmptyString" }
+        },
+        "approvedValues": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/nonEmptyString" }
+        }
+      }
+    },
+    "nextStages": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "dynatrace-baseline",
+          "forward-before-evidence",
+          "customer-deployment",
+          "dynatrace-post-change-health",
+          "forward-after-evidence",
+          "forward-reconciliation-dry-run",
+          "combined-change-gate",
+          "servicenow-evidence-feedback"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "valueDisplay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "display"],
+      "properties": {
+        "value": { "type": "string" },
+        "display": { "type": "string" }
+      }
+    }
+  }
+}

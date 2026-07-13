@@ -25,10 +25,11 @@ import {
   SyncIcon,
   UploadIcon,
 } from "@dynatrace/strato-icons";
-import { useAppFunction } from "@dynatrace-sdk/react-hooks";
+import { useAppFunction, useDql } from "@dynatrace-sdk/react-hooks";
 
 import demoForwardStatus from "../../../shared/demo-forward-ingest-status.json";
-import syntheticDependencies from "../../../shared/demo-dependencies.json";
+import customerTrialDependencies from "../../../shared/customer-trial-dependencies.json";
+import { CrossDomainEvidence } from "../components/CrossDomainEvidence";
 import type {
   NetworkProofRequest,
   NetworkProofResponse,
@@ -51,11 +52,148 @@ import type {
 
 import "./Home.css";
 
-const dependencies = syntheticDependencies as DependencyCandidate[];
+const dependencies = customerTrialDependencies as DependencyCandidate[];
 const sampleForwardStatus = demoForwardStatus as ForwardIngestStatusArtifact;
-const sampleForwardStatusCounts = sampleForwardStatus.counts ?? {};
 const dynatraceLogoUrl = "assets/Dynatrace_Logo.svg";
 const forwardLogoUrl = "assets/forward-logo.svg";
+const LIVE_DEPENDENCY_QUERY = `
+fetch events, from: -24h
+| filter event.type == "com.forward.application.dependency"
+| sort timestamp desc
+| dedup dependency.id
+| fields timestamp, \`forward.dynatrace.run_id\`, dependency.id,
+    app.name, app.environment, dt.entity.service, service.name,
+    network.source, network.destination, network.protocol, network.port,
+    owner.team, criticality, dependency.confidence, dependency.mapping_state
+| limit 500
+`;
+const DEFAULT_VISIBLE_DEPENDENCIES = 12;
+
+type DependencySource = "reference" | "live";
+type DynatraceDependencyRow = Record<string, unknown>;
+
+const rowField = (
+  row: DynatraceDependencyRow,
+  names: string[],
+  fallback = "",
+): string => {
+  for (const name of names) {
+    const value = row[name];
+    if (
+      (typeof value === "string" || typeof value === "number" || typeof value === "boolean") &&
+      String(value).trim()
+    ) {
+      return String(value).trim();
+    }
+  }
+  return fallback;
+};
+
+const dependencySlug = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+
+const normalizeLiveDependencies = (
+  rows: DynatraceDependencyRow[],
+): DependencyCandidate[] =>
+  rows.map((row, index) => {
+    const appName = rowField(row, ["app.name", "appName"], "unknown-app");
+    const environment = rowField(row, ["app.environment", "environment"], "unknown");
+    const serviceEntityId = rowField(row, ["dt.entity.service", "serviceEntityId"]);
+    const serviceName = rowField(row, ["service.name", "serviceName"], serviceEntityId);
+    const source = rowField(row, ["network.source", "source"]);
+    const destination = rowField(row, ["network.destination", "destination"]);
+    const rawProtocol = rowField(row, ["network.protocol", "protocol"], "tcp").toLowerCase();
+    const protocol: DependencyCandidate["protocol"] = rawProtocol === "udp" ? "udp" : "tcp";
+    const port = rowField(row, ["network.port", "port"]);
+    const owner = rowField(row, ["owner.team", "owner"], "unknown-owner");
+    const rawCriticality = rowField(row, ["criticality"], "medium").toLowerCase();
+    const criticality: DependencyCandidate["criticality"] =
+      rawCriticality === "critical" || rawCriticality === "high"
+        ? rawCriticality
+        : "medium";
+    const parsedConfidence = Number.parseInt(
+      rowField(row, ["dependency.confidence", "confidence"], "0"),
+      10,
+    );
+    const confidence = Number.isFinite(parsedConfidence) ? parsedConfidence : 0;
+    const rawMappingState = rowField(
+      row,
+      ["dependency.mapping_state", "mappingState"],
+    ).toLowerCase();
+    const mappingState: DependencyCandidate["mappingState"] =
+      rawMappingState === "ready" || rawMappingState === "review" || rawMappingState === "needs-map"
+        ? rawMappingState
+        : !source || !destination || !serviceEntityId || !port
+          ? "needs-map"
+          : confidence < 90
+            ? "review"
+            : "ready";
+    const id = rowField(
+      row,
+      ["dependency.id", "id"],
+      [
+        dependencySlug(appName),
+        dependencySlug(environment),
+        dependencySlug(serviceEntityId || serviceName),
+        dependencySlug(source || `source-${index + 1}`),
+        dependencySlug(destination || `destination-${index + 1}`),
+        protocol,
+        dependencySlug(port || "unknown-port"),
+      ]
+        .filter(Boolean)
+        .join("-"),
+    );
+
+    return {
+      id,
+      appName,
+      environment,
+      serviceEntityId,
+      serviceName,
+      source,
+      destination,
+      protocol,
+      port,
+      owner,
+      criticality,
+      confidence,
+      mappingState,
+    };
+  });
+
+const selectShowcaseDependencies = (
+  candidates: DependencyCandidate[],
+): DependencyCandidate[] => {
+  const selected: DependencyCandidate[] = [];
+  const seenFlows = new Set<string>();
+
+  for (const dependency of candidates) {
+    if (!dependency.serviceName || /^[_:]|:\d/u.test(dependency.serviceName)) {
+      continue;
+    }
+    const flowKey = [
+      dependency.source,
+      dependency.destination,
+      dependency.protocol,
+      dependency.port,
+    ].join("|");
+    if (seenFlows.has(flowKey)) {
+      continue;
+    }
+    seenFlows.add(flowKey);
+    selected.push(dependency);
+    if (selected.length === DEFAULT_VISIBLE_DEPENDENCIES) {
+      break;
+    }
+  }
+
+  return selected;
+};
 
 const statusLabel: Record<DependencyCandidate["mappingState"], string> = {
   ready: "Ready",
@@ -92,6 +230,9 @@ const downloadTextFile = (fileName: string, text: string, type: string) => {
 
 export const Home = () => {
   const [activeDependencyId, setActiveDependencyId] = useState(dependencies[0].id);
+  const [dependencySource, setDependencySource] = useState<DependencySource>("live");
+  const [showcaseMode, setShowcaseMode] = useState(false);
+  const [showAllDependencies, setShowAllDependencies] = useState(false);
   const [problemId, setProblemId] = useState("P-000000");
   const [forwardBaseUrl, setForwardBaseUrl] = useState("");
   const [forwardNetworkId, setForwardNetworkId] = useState("");
@@ -115,6 +256,28 @@ export const Home = () => {
     ForwardStatusRequest | undefined
   >();
 
+  const liveDependencyQuery = useDql<DynatraceDependencyRow>(
+    {
+      query: LIVE_DEPENDENCY_QUERY,
+      maxResultRecords: 500,
+    },
+    { enabled: true, staleTime: 0 },
+  );
+  const liveDependencies = useMemo(
+    () => normalizeLiveDependencies(liveDependencyQuery.data?.records || []),
+    [liveDependencyQuery.data?.records],
+  );
+  const isLiveSource = dependencySource === "live" && liveDependencies.length > 0;
+  const sourceDependencies =
+    isLiveSource
+      ? liveDependencies
+      : dependencies;
+  const liveRunId = rowField(
+    liveDependencyQuery.data?.records?.[0] || {},
+    ["forward.dynatrace.run_id"],
+    "unknown run",
+  );
+
   const proof = useAppFunction<NetworkProofResponse>({
     name: "network-proof",
     data: proofRequest,
@@ -134,24 +297,35 @@ export const Home = () => {
 
   const effectiveDependencies = useMemo(
     () =>
-      dependencies.map((dependency) => ({
+      sourceDependencies.map((dependency) => ({
         ...dependency,
         mappingState: mappingOverrides[dependency.id] || dependency.mappingState,
       })),
-    [mappingOverrides],
+    [mappingOverrides, sourceDependencies],
   );
   const activeDependency =
     effectiveDependencies.find((dependency) => dependency.id === activeDependencyId) ||
     effectiveDependencies[0];
 
-  const selectedForSync = useMemo(
-    () =>
-      effectiveDependencies.filter((dependency) =>
-        dependency.mappingState === "ready" ||
-        (includeReviewRows && dependency.mappingState === "review"),
-      ),
-    [effectiveDependencies, includeReviewRows],
+  const showcaseDependencies = useMemo(
+    () => selectShowcaseDependencies(effectiveDependencies),
+    [effectiveDependencies],
   );
+  const selectedForSync = useMemo(() => {
+    const eligible = effectiveDependencies.filter((dependency) =>
+        dependency.mappingState === "ready" ||
+        (includeReviewRows && dependency.mappingState === "review"));
+    if (!showcaseMode) {
+      return eligible;
+    }
+    const showcaseIds = new Set(showcaseDependencies.map((dependency) => dependency.id));
+    return eligible.filter((dependency) => showcaseIds.has(dependency.id));
+  }, [effectiveDependencies, includeReviewRows, showcaseDependencies, showcaseMode]);
+  const displayedDependencies = showAllDependencies
+    ? effectiveDependencies
+    : showcaseMode
+      ? showcaseDependencies
+      : effectiveDependencies.slice(0, DEFAULT_VISIBLE_DEPENDENCIES);
 
   const readiness = useMemo(() => {
     const readyRows = effectiveDependencies.filter(
@@ -170,21 +344,19 @@ export const Home = () => {
       ),
     [effectiveDependencies],
   );
-  const forwardDriftCount =
-    (sampleForwardStatusCounts.changed ?? 0) + (sampleForwardStatusCounts.stale ?? 0);
   const workflowStages: WorkflowStageDefinition[] = [
     {
       icon: <FlowIcon />,
       label: "Observe",
       title: "Dynatrace app map",
       value: `${effectiveDependencies.length}`,
-      detail: "service dependency rows",
+      detail: isLiveSource ? "live Grail dependency rows" : "saved dependency rows",
       tone: "ready",
     },
     {
       icon: <NetworkIcon />,
       label: "Resolve",
-      title: "Forward host resolution",
+      title: "Endpoint eligibility",
       value: `${mappingCounts.ready}`,
       detail: `${mappingCounts.review} review / ${mappingCounts["needs-map"]} unmapped`,
       tone:
@@ -219,10 +391,10 @@ export const Home = () => {
     {
       icon: <CheckmarkIcon />,
       label: "Reconcile",
-      title: "Forward status artifact",
-      value: sampleForwardStatus.importState ?? "pending",
-      detail: `${sampleForwardStatusCounts.unchanged ?? 0} unchanged / ${forwardDriftCount} drift`,
-      tone: forwardDriftCount > 0 ? "needs-work" : "ready",
+      title: "Forward status feedback",
+      value: "Live Grail",
+      detail: "sanitized reconciliation events",
+      tone: "controlled",
     },
   ];
 
@@ -236,6 +408,22 @@ export const Home = () => {
       [nqePreviewDependencyId]: endpointResolution.mappingState,
     }));
   }, [nqePreview.data, nqePreviewDependencyId]);
+
+  useEffect(() => {
+    if (!effectiveDependencies.some((dependency) => dependency.id === activeDependencyId)) {
+      setActiveDependencyId(effectiveDependencies[0]?.id || "");
+    }
+  }, [activeDependencyId, effectiveDependencies]);
+
+  async function loadLiveDependencies() {
+    const result = await liveDependencyQuery.forceRefetch();
+    const normalized = normalizeLiveDependencies(result.data?.records || []);
+    if (normalized.length > 0) {
+      setDependencySource("live");
+      setActiveDependencyId(normalized[0].id);
+      setShowAllDependencies(false);
+    }
+  }
 
   function runPreview(dependency = activeDependency) {
     setProofRequest({
@@ -302,7 +490,7 @@ export const Home = () => {
       forwardNetworkId,
       syncMode,
       includeReviewRows,
-      dependencies: effectiveDependencies,
+      dependencies: showcaseMode ? showcaseDependencies : effectiveDependencies,
     });
   }
 
@@ -315,7 +503,7 @@ export const Home = () => {
   return (
     <Flex className="page" flexDirection="column" gap={24}>
       <TitleBar>
-        <TitleBar.Title>Forward Intent Check Export</TitleBar.Title>
+        <TitleBar.Title>forward.dynatrace</TitleBar.Title>
       </TitleBar>
 
       <section className="hero-band">
@@ -327,27 +515,27 @@ export const Home = () => {
             </span>
             <span className="brand-arrow" aria-hidden="true">→</span>
             <span className="brand-node forward-brand">
-              <img src={forwardLogoUrl} alt="Forward Networks" />
+              <img src={forwardLogoUrl} alt="Forward" />
             </span>
           </div>
-          <p className="eyebrow">Dynatrace application mapping to Forward intent</p>
-          <Heading level={1}>Fill Forward intent checks from app dependencies</Heading>
+          <p className="eyebrow">Application and modeled-network assurance</p>
+          <Heading level={1}>Connect Dynatrace context to Forward evidence</Heading>
           <Paragraph>
-            Forward Field Integration reference for turning Dynatrace dependency
-            maps into Forward-resolved bulk intent-check JSON.
+            Correlate live dependencies, pre/post change validation, problem evidence,
+            intent health, and security exposure without moving Forward credentials into Dynatrace.
           </Paragraph>
           <div className="workflow-strip" aria-label="Forward ingestion workflow">
             <div>
-              <Strong>Dynatrace maps</Strong>
-              <span>Service dependencies</span>
+              <Strong>Dynatrace observes</Strong>
+              <span>Services, deployments, problems</span>
             </div>
             <div>
-              <Strong>Forward resolves</Strong>
-              <span>Host inventory and path evidence</span>
+              <Strong>Forward models</Strong>
+              <span>Paths, checks, exposure</span>
             </div>
             <div>
-              <Strong>Forward imports</Strong>
-              <span>Reviewed bulk checks</span>
+              <Strong>Portal assures</Strong>
+              <span>Change gates and evidence feedback</span>
             </div>
           </div>
         </div>
@@ -356,7 +544,7 @@ export const Home = () => {
             <Button.Prefix>
               <PlayIcon />
             </Button.Prefix>
-            Run preview
+            Stage path context
           </Button>
           <Button color="primary" variant="emphasized" onClick={buildExportPackage}>
             <Button.Prefix>
@@ -381,6 +569,46 @@ export const Home = () => {
           connector pulls the package.
         </span>
       </section>
+
+      <section className={`source-banner ${isLiveSource ? "live" : "reference"}`} aria-label="Dynatrace data source">
+        <div>
+          <Strong>
+            {isLiveSource ? "Live Dynatrace Grail data" : "Saved dependency data"}
+          </Strong>
+          <span>
+            {isLiveSource
+              ? `${liveDependencies.length} deduplicated rows from ${liveRunId}`
+              : "Local fallback while live Grail dependency evidence is unavailable."}
+          </span>
+        </div>
+        <div className="source-actions">
+          {liveDependencyQuery.isFetching && <ProgressCircle aria-label="Loading live Dynatrace data" />}
+          <Button
+            color="primary"
+            variant="accent"
+            onClick={() => {
+              void loadLiveDependencies();
+            }}
+          >
+            Load live Dynatrace data
+          </Button>
+          <Button
+            color="primary"
+            onClick={() => {
+              setDependencySource("reference");
+              setActiveDependencyId(dependencies[0].id);
+              setShowAllDependencies(false);
+            }}
+          >
+            Use saved dependencies
+          </Button>
+        </div>
+        {liveDependencyQuery.error && (
+          <Paragraph>Live query failed: {liveDependencyQuery.error.message}</Paragraph>
+        )}
+      </section>
+
+      <CrossDomainEvidence />
 
       <section className="workflow-board" aria-label="Forward intent ingestion workflow">
         <div className="workflow-board-header">
@@ -422,7 +650,7 @@ export const Home = () => {
         <MetricCard
           icon={<FlowIcon />}
           label="Dependencies"
-          value={`${dependencies.length}`}
+          value={`${effectiveDependencies.length}`}
           detail={`${selectedForSync.length} exportable`}
         />
         <MetricCard
@@ -445,9 +673,9 @@ export const Home = () => {
         />
         <MetricCard
           icon={<CheckmarkIcon />}
-          label="Last ingest"
-          value={sampleForwardStatus.importState ?? "unknown"}
-          detail={`${sampleForwardStatusCounts.changed ?? 0} changed / ${sampleForwardStatusCounts.stale ?? 0} stale`}
+          label="Forward status"
+          value="Live evidence"
+          detail="Refresh the assurance portal above"
         />
       </section>
 
@@ -472,7 +700,7 @@ export const Home = () => {
                 </tr>
               </thead>
               <tbody>
-                {effectiveDependencies.map((dependency) => (
+                {displayedDependencies.map((dependency) => (
                   <tr
                     key={dependency.id}
                     className={
@@ -536,6 +764,20 @@ export const Home = () => {
               </tbody>
             </table>
           </div>
+          {effectiveDependencies.length > DEFAULT_VISIBLE_DEPENDENCIES && (
+            <div className="table-footer">
+              <span>
+                Showing {displayedDependencies.length} of {effectiveDependencies.length} rows.
+              </span>
+              <Button
+                color="primary"
+                size="condensed"
+                onClick={() => setShowAllDependencies((current) => !current)}
+              >
+                {showAllDependencies ? "Show first 12" : "Show all rows"}
+              </Button>
+            </div>
+          )}
         </section>
 
         <section className="panel">
@@ -599,6 +841,22 @@ export const Home = () => {
 
           <div className="override-control">
             <Switch
+              name="focused-scope"
+              value={showcaseMode}
+              onChange={(value) => {
+                setShowcaseMode(value);
+                setShowAllDependencies(false);
+              }}
+            >
+              Focused change scope
+            </Switch>
+            <small>
+              Limit the package to 12 unique flows for focused review. Turn off for the full discovered scope.
+            </small>
+          </div>
+
+          <div className="override-control">
+            <Switch
               name="include-review-rows"
               value={includeReviewRows}
               onChange={setIncludeReviewRows}
@@ -628,7 +886,7 @@ export const Home = () => {
       <section className="panel">
         <PanelHeader
           icon={<NetworkIcon />}
-          title="Path Context"
+          title="Path Context Plan"
           detail={activeDependency.serviceName}
         />
         {proof.isLoading && <ProgressCircle aria-label="Loading preview" />}
@@ -748,7 +1006,7 @@ export const Home = () => {
             <Button.Prefix>
               <DownloadIcon />
             </Button.Prefix>
-            Load status artifact
+            Load saved status artifact
           </Button>
           <span>
             Forward-side connector publishes aggregate status only. No Forward
@@ -778,6 +1036,8 @@ export const Home = () => {
         {sync.isLoading && <ProgressCircle aria-label="Loading export package" />}
         {sync.data ? (() => {
           const syncData = sync.data;
+          const intentChecks = JSON.parse(syncData.intentChecksPreview) as unknown[];
+          const intentCheckSample = JSON.stringify(intentChecks.slice(0, 3), null, 2);
           return (
             <div className="sync-result">
               <ResultBody
@@ -860,8 +1120,11 @@ export const Home = () => {
                 </div>
               </div>
               <div className="intent-preview">
-                <Heading level={5}>Bulk intent check payload preview</Heading>
-                <pre className="json-preview">{syncData.intentChecksPreview}</pre>
+                <Heading level={5}>Bulk intent check payload sample</Heading>
+                <Paragraph>
+                  Showing 3 of {syncData.intentCheckCount}; the downloaded artifact contains the full package.
+                </Paragraph>
+                <pre className="json-preview">{intentCheckSample}</pre>
               </div>
             </div>
           );

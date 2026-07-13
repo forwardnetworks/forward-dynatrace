@@ -4,14 +4,32 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY scripts/forward-import-package.mjs ./scripts/forward-import-package.mjs
+COPY scripts/publish-forward-package.mjs ./scripts/publish-forward-package.mjs
+COPY scripts/forward-cron-import.mjs ./scripts/forward-cron-import.mjs
 COPY scripts/forward-deployment-readiness.mjs ./scripts/forward-deployment-readiness.mjs
 COPY scripts/forward-nqe-artifacts.mjs ./scripts/forward-nqe-artifacts.mjs
 COPY scripts/forward-nqe-live-smoke.mjs ./scripts/forward-nqe-live-smoke.mjs
 COPY scripts/forward-resolve-hosts.mjs ./scripts/forward-resolve-hosts.mjs
 COPY scripts/forward-path-evidence.mjs ./scripts/forward-path-evidence.mjs
+COPY scripts/forward-change-validation-gate.mjs ./scripts/forward-change-validation-gate.mjs
+COPY scripts/forward-check-health-transitions.mjs ./scripts/forward-check-health-transitions.mjs
+COPY scripts/security-exposure-correlation.mjs ./scripts/security-exposure-correlation.mjs
+COPY scripts/build-forward-package.mjs ./scripts/build-forward-package.mjs
+COPY scripts/servicenow-change-preflight.mjs ./scripts/servicenow-change-preflight.mjs
+COPY scripts/servicenow-change-feedback.mjs ./scripts/servicenow-change-feedback.mjs
+COPY scripts/servicenow-change-assurance.mjs ./scripts/servicenow-change-assurance.mjs
+COPY scripts/servicenow-change-workflow.mjs ./scripts/servicenow-change-workflow.mjs
+COPY scripts/servicenow-flow-server.mjs ./scripts/servicenow-flow-server.mjs
+COPY scripts/query-dynatrace-dependencies.mjs ./scripts/query-dynatrace-dependencies.mjs
+COPY scripts/normalize-dynatrace-dependencies.mjs ./scripts/normalize-dynatrace-dependencies.mjs
 COPY scripts/publish-forward-status.mjs ./scripts/publish-forward-status.mjs
 COPY scripts/publish-dynatrace-status-event.mjs ./scripts/publish-dynatrace-status-event.mjs
+COPY scripts/publish-dynatrace-change-gate.mjs ./scripts/publish-dynatrace-change-gate.mjs
+COPY scripts/publish-dynatrace-security-correlation.mjs ./scripts/publish-dynatrace-security-correlation.mjs
+COPY scripts/live-demo-conductor.mjs ./scripts/live-demo-conductor.mjs
+COPY scripts/runtime-entrypoint.mjs ./scripts/runtime-entrypoint.mjs
 COPY api/forward-nqe-preview.function.ts ./api/forward-nqe-preview.function.ts
+COPY api/forward-sync.function.ts ./api/forward-sync.function.ts
 COPY config ./config
 
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
@@ -19,5 +37,7 @@ RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 RUN addgroup -S forward && adduser -S forward -G forward
 USER forward
 
-ENTRYPOINT ["node", "scripts/forward-import-package.mjs"]
+EXPOSE 8080
+
+ENTRYPOINT ["node", "scripts/runtime-entrypoint.mjs"]
 CMD ["--help"]

@@ -23,6 +23,7 @@ const usage = `Usage:
 Options:
   --environment-url URL   Target Dynatrace Apps URL.
   --app-id ID             Temporary app ID for this deploy. Use my.* for unsigned trial installs.
+  --app-version VERSION   Temporary SemVer app version for iterative trial deploys.
   --sign-archive          Sign the app archive. Required for non-my.* app IDs.
   --dry-run               Build a distributable archive without installing it.
   --no-open               Do not open a browser.
@@ -54,12 +55,13 @@ const booleanOptions = new Set([
   "--skip-build",
 ]);
 
-const valueOptions = new Set(["--app-id", "--environment-url"]);
+const valueOptions = new Set(["--app-id", "--app-version", "--environment-url"]);
 const tempWorkspaceSkips = new Set([".git", "app.config.json", "dist", "out", "tmp"]);
 
 export const parseArgs = (argv) => {
   const args = {
     appId: undefined,
+    appVersion: undefined,
     environmentUrl: undefined,
     dryRun: false,
     help: false,
@@ -81,6 +83,7 @@ export const parseArgs = (argv) => {
       }
       index += 1;
       if (arg === "--app-id") args.appId = value;
+      if (arg === "--app-version") args.appVersion = value;
       if (arg === "--environment-url") args.environmentUrl = value;
       continue;
     }
@@ -113,6 +116,9 @@ export const validateDeployArgs = (args, defaultAppId, env = process.env) => {
   const targetAppId = args.appId || defaultAppId;
   if (!/^[a-z][a-z0-9]*(\.[a-z0-9][a-z0-9-]*)+$/.test(targetAppId)) {
     throw new Error(`Invalid Dynatrace app ID: ${targetAppId}`);
+  }
+  if (args.appVersion && !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(args.appVersion)) {
+    throw new Error(`Invalid Dynatrace app version: ${args.appVersion}`);
   }
 
   const isUnsignedDeployAllowed = targetAppId.startsWith("my.") || args.dryRun;
@@ -150,10 +156,11 @@ const buildDtAppArgs = (args) => {
   return dtArgs;
 };
 
-const createDeployWorkspace = async (appConfig, targetAppId) => {
+const createDeployWorkspace = async (appConfig, targetAppId, appVersion) => {
   const deployRoot = await mkdtemp(path.join(tmpdir(), "forward-dynatrace-deploy-"));
   const deployConfig = structuredClone(appConfig);
   deployConfig.app.id = targetAppId;
+  if (appVersion) deployConfig.app.version = appVersion;
 
   for (const entry of await readdir(root)) {
     if (tempWorkspaceSkips.has(entry)) continue;
@@ -212,7 +219,7 @@ const run = async () => {
   });
 
   try {
-    deployRoot = await createDeployWorkspace(appConfig, targetAppId);
+    deployRoot = await createDeployWorkspace(appConfig, targetAppId, args.appVersion);
 
     childProcess = spawn(path.join(root, "node_modules/.bin/dt-app"), buildDtAppArgs(args), {
       cwd: deployRoot,

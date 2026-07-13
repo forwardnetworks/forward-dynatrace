@@ -19,6 +19,10 @@ Live ingest:
 
 Options:
   --apply                         POST saved demo dependency events to Dynatrace.
+  --customer-flow                 Use production-style event names and run metadata for a trial workflow.
+  --showcase                      Replay two governed exceptions: one review and one needs-map row.
+  --dependencies path             Replay an explicit dependency fixture instead of the standard 100 rows.
+  --fixture name                  Provenance label for an explicit fixture. Defaults to the input filename.
   --environment-url URL           Dynatrace app/environment URL. Defaults to app.config.json.
   --api-base-url URL              Override API base URL. Defaults to the Dynatrace live ingest origin.
   --token-file path               Optional local token file outside the repo.
@@ -27,7 +31,7 @@ Options:
 Required for --apply:
   DYNATRACE_TOKEN, DYNATRACE_TOKEN_FILE, or --token-file.
 
-Uses the checked shared/demo-dependencies.json standard demo fixture and
+Uses the checked shared/demo-dependencies.json standard demo fixture by default and
 OpenPipeline events with Bearer auth. The Platform Token needs
 openpipeline:events:ingest. This is for demos and trial sandboxes only;
 production deployments should query the customer's own Dynatrace topology.
@@ -41,7 +45,7 @@ const parseArgs = (argv) => {
       throw new Error(`Unexpected positional argument: ${value}`);
     }
     const key = value.slice(2);
-    if (key === "apply" || key === "help") {
+    if (key === "apply" || key === "customer-flow" || key === "help" || key === "showcase") {
       args[key] = true;
       continue;
     }
@@ -99,13 +103,34 @@ const toOpenPipelineApiBaseUrl = (environmentUrl) => {
 const OPENPIPELINE_EVENTS_ENDPOINT = "/platform/ingest/v1/events";
 const OPENPIPELINE_EVENTS_SCOPE = "openpipeline:events:ingest";
 
-const toDependencyEvent = (dependency, runId, timestamp) => ({
-  "event.provider": "forward-dynatrace-demo",
-  "event.type": "com.forward.demo.dependency",
-  "demo.fixture": "standard-forward-demo",
-  "demo.replay": true,
-  "demo.synthetic": true,
-  "demo.run_id": runId,
+const applyShowcaseStates = (dependencies) =>
+  dependencies.map((dependency) => {
+    if (dependency.serviceName === "astroshop-shipping") {
+      return { ...dependency, confidence: 75, mappingState: "review" };
+    }
+    if (dependency.serviceName === "easytrade-accountservice (AccountControllerV2)") {
+      return { ...dependency, confidence: 60, mappingState: "needs-map" };
+    }
+    return dependency;
+  });
+
+const toDependencyEvent = (dependency, runId, timestamp, fixture, customerFlow) => ({
+  "event.provider": customerFlow ? "forward-dynatrace" : "forward-dynatrace-demo",
+  "event.type": customerFlow
+    ? "com.forward.application.dependency"
+    : "com.forward.demo.dependency",
+  ...(customerFlow
+    ? {
+        "forward.dynatrace.dataset": fixture,
+        "forward.dynatrace.run_id": runId,
+        "forward.dynatrace.seeded": true,
+      }
+    : {
+        "demo.fixture": fixture,
+        "demo.replay": true,
+        "demo.synthetic": true,
+        "demo.run_id": runId,
+      }),
   "dependency.id": dependency.id,
   "dependency.mapping_state": dependency.mappingState,
   "dependency.confidence": dependency.confidence,
@@ -130,7 +155,13 @@ const main = async () => {
   }
 
   const appConfig = await readJson(appConfigPath);
-  const dependencies = await readJson(demoDependenciesPath);
+  const dependenciesPath = args.dependencies
+    ? path.resolve(args.dependencies)
+    : demoDependenciesPath;
+  const savedDependencies = await readJson(dependenciesPath);
+  const dependencies = args.showcase
+    ? applyShowcaseStates(savedDependencies)
+    : savedDependencies;
   const environmentUrl =
     args["environment-url"] ||
     process.env.DYNATRACE_ENVIRONMENT_URL ||
@@ -141,11 +172,21 @@ const main = async () => {
     toOpenPipelineApiBaseUrl(environmentUrl);
   const runId =
     args["run-id"] ||
-    `forward-dynatrace-demo-${new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14)}`;
+    `${args["customer-flow"] ? "forward-dynatrace" : "forward-dynatrace-demo"}-${new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14)}`;
   const timestamp = new Date().toISOString();
+  const fixture =
+    args.fixture ||
+    (args.dependencies
+      ? path.basename(dependenciesPath, path.extname(dependenciesPath))
+      : "standard-forward-demo");
   const events = dependencies.map((dependency) =>
-    toDependencyEvent(dependency, runId, timestamp),
+    toDependencyEvent(dependency, runId, timestamp, fixture, Boolean(args["customer-flow"])),
   );
+
+  const eventType = args["customer-flow"]
+    ? "com.forward.application.dependency"
+    : "com.forward.demo.dependency";
+  const provider = args["customer-flow"] ? "forward-dynatrace" : "forward-dynatrace-demo";
 
   const summary = {
     mode: args.apply ? "apply" : "dry-run",
@@ -155,9 +196,12 @@ const main = async () => {
     requiredScope: OPENPIPELINE_EVENTS_SCOPE,
     queryTable: "events",
     runId,
-    eventType: "com.forward.demo.dependency",
-    provider: "forward-dynatrace-demo",
-    fixture: "shared/demo-dependencies.json",
+    eventType,
+    provider,
+    fixture,
+    dependenciesSource: path.relative(root, dependenciesPath) || path.basename(dependenciesPath),
+    showcase: Boolean(args.showcase),
+    customerFlow: Boolean(args["customer-flow"]),
     replayEvents: events.length,
     readyRows: dependencies.filter((dependency) => dependency.mappingState === "ready").length,
     reviewRows: dependencies.filter((dependency) => dependency.mappingState === "review").length,

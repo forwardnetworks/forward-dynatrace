@@ -14,8 +14,9 @@ The app fixture is [shared/demo-dependencies.json](../shared/demo-dependencies.j
 - deterministic service IDs, service names, Forward-resolvable source/destination host filters, protocol, and port fields
 - no tenant ID, user identity, credential, customer name, Forward network ID, or customer topology
 
-The local app imports this fixture so screenshots and browser tests tell the same story. These rows are demo evidence
-for the standard Forward demo network. Production packages still require customer-owned Dynatrace topology and
+The app starts with this fixture as an explicit synthetic fallback. Operators can select **Load live Dynatrace data**
+to query the same event contract from Grail. The UI labels the active source and replay run ID so fixture-backed and
+live tenant evidence cannot be confused. Production packages still require customer-owned Dynatrace topology and
 customer-approved endpoint mapping.
 
 The DQL-shaped fixture is
@@ -41,6 +42,17 @@ npm run demo:rehearsal
 
 This normalizes DQL-shaped rows, builds the Forward package shape, and validates it without Forward credentials. The
 saved demo fixture normalizes to 100 ready rows.
+
+For the change-assurance act, run:
+
+```bash
+npm run demo:servicenow
+```
+
+This creates one safe and one regressed synthetic ServiceNow scenario in a new temporary directory. It uses the same
+gate, checksummed ServiceNow evidence attachment, retry receipt, and Dynatrace event builders as the live workflow,
+but performs zero external reads or writes. The generated `DEMO.md` and every change event keep `SYNTHETIC DEMO`
+provenance explicit.
 
 ## Local Workflow Smoke
 
@@ -105,6 +117,9 @@ npm run dynatrace:replay-demo -- \
   --token-file /secure/path/platform-token \
   --apply
 ```
+
+For a customer demo, add `--showcase`. The replay remains 100 rows for scale evidence, but marks one clean service row
+`review` and one `needs-map` so the UI demonstrates governance and exclusion before package creation.
 
 The script reads `DYNATRACE_TOKEN`, `DYNATRACE_TOKEN_FILE`, or `--token-file` locally. The Platform Token must have the
 `openpipeline:events:ingest` scope. No token is written to the repo. When given an Apps URL, the script derives the

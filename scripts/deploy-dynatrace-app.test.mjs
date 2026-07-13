@@ -67,4 +67,23 @@ describe("deploy-dynatrace-app", () => {
 
     assert.throws(() => validateDeployArgs(args, defaultAppId, {}), /Invalid Dynatrace app ID/);
   });
+
+  it("accepts a temporary trial version and rejects invalid versions", () => {
+    const valid = parseArgs([
+      "--environment-url",
+      "https://your-environment-id.apps.dynatrace.com/",
+      "--app-id",
+      "my.forwardnetworks.dynatrace.field.integration",
+      "--app-version",
+      "1.0.1-demo.1",
+    ]);
+    assert.equal(valid.appVersion, "1.0.1-demo.1");
+    assert.doesNotThrow(() => validateDeployArgs(valid, defaultAppId, {}));
+
+    const invalid = { ...valid, appVersion: "latest" };
+    assert.throws(
+      () => validateDeployArgs(invalid, defaultAppId, {}),
+      /Invalid Dynatrace app version/,
+    );
+  });
 });

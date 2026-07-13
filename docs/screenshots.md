@@ -35,3 +35,13 @@ changed/stale drift, and publish sanitized status back to Dynatrace.
 ## Persistent Intent Check Payload
 
 ![Forward intent check payload](assets/screenshots/04-intent-check-payload.jpg)
+
+## ServiceNow Change Assurance
+
+![ServiceNow, Forward, and Dynatrace change assurance](assets/screenshots/05-servicenow-change-assurance.jpg)
+
+This checked synthetic rehearsal renders the safe and regressed change scenarios through the same production gate,
+ServiceNow evidence, and Dynatrace event builders used by the live workflow. The table preserves the exact change and
+deployment IDs, evidence provenance, ServiceNow attachment checksum, Forward snapshot and reachability delta,
+Dynatrace health, reconciliation drift, and decision reasons. Replace the rehearsal rows with authoritative readback
+before presenting them as live customer evidence.
