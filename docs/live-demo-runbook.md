@@ -46,6 +46,12 @@ Review `demo-summary.json`, `forward-host-resolution-report.json`, `forward-path
 Use `--skip-path-evidence` only when the approved Forward credential cannot execute path search. The endpoint
 resolution, package, dry-run, and status handoff stages still run.
 
+If the live Dynatrace query returns zero rows or no clean unique flows, the conductor stops before any Forward call and
+records a blocked `demo-summary.json` with the observed row/dependency counts, live provenance, and
+`forward.attempted=false`. Populate customer-owned live dependency evidence for production proof. For an approved
+non-production demo tenant only, inspect `npm run dynatrace:replay-demo -- --help` and use the checked replay path; the
+conductor never replays automatically, and replay provenance must remain visibly synthetic.
+
 ## Offline ServiceNow Story Rehearsal
 
 Before a customer session, exercise the complete safe/regression narrative without credentials:

@@ -106,6 +106,50 @@ export const selectShowcaseDependencies = (
   return selected;
 };
 
+export const noShowcaseDependenciesMessage = ({ rowCount, dependencyCount }) => {
+  const observed = rowCount === 0
+    ? "Live Dynatrace query returned zero dependency rows."
+    : `Live Dynatrace query returned ${rowCount} rows and ${dependencyCount} normalized dependencies, but none had a clean service name and unique flow.`;
+  return `${observed} No Forward call was attempted. Populate live customer-owned dependency evidence or, for an approved non-production demo tenant only, inspect \`npm run dynatrace:replay-demo -- --help\`; replay evidence must remain visibly synthetic.`;
+};
+
+export const buildNoShowcaseSummary = ({
+  applyRequested,
+  dependenciesPath,
+  dependencyCount,
+  environmentUrl,
+  outputDir,
+  publishDynatraceStatusRequested,
+  rowCount,
+  rowsPath,
+}) => ({
+  status: "blocked",
+  reason: "NO_LIVE_SHOWCASE_DEPENDENCIES",
+  message: noShowcaseDependenciesMessage({ rowCount, dependencyCount }),
+  provenance: {
+    evidenceSource: "live-dynatrace-query",
+    synthetic: false,
+  },
+  dynatrace: {
+    environmentUrl,
+    rawRows: rowCount,
+    normalizedDependencies: dependencyCount,
+    showcaseRows: 0,
+    statusPublicationRequested: publishDynatraceStatusRequested,
+    statusPublished: false,
+  },
+  forward: {
+    attempted: false,
+    applyRequested,
+  },
+  artifacts: {
+    outputDir,
+    queryRows: rowsPath,
+    dependencies: dependenciesPath,
+    showcaseDependencies: null,
+  },
+});
+
 const run = (args, options = {}) =>
   new Promise((resolve, reject) => {
     const child = spawn(process.execPath, args, {
@@ -199,10 +243,22 @@ const main = async () => {
     dependenciesPath,
   ]);
 
+  const rows = JSON.parse(await readFile(rowsPath, "utf8"));
   const dependencies = JSON.parse(await readFile(dependenciesPath, "utf8"));
   const showcase = selectShowcaseDependencies(dependencies, showcaseLimit);
   if (showcase.length === 0) {
-    throw new Error("Live Dynatrace query returned no clean showcase dependencies.");
+    const blockedSummary = buildNoShowcaseSummary({
+      applyRequested: Boolean(args.apply),
+      dependenciesPath,
+      dependencyCount: dependencies.length,
+      environmentUrl,
+      outputDir,
+      publishDynatraceStatusRequested: Boolean(args["publish-dynatrace-status"]),
+      rowCount: rows.length,
+      rowsPath,
+    });
+    await writeFile(summaryPath, `${JSON.stringify(blockedSummary, null, 2)}\n`);
+    throw new Error(`${blockedSummary.message} Evidence: ${summaryPath}`);
   }
   await writeFile(showcasePath, `${JSON.stringify(showcase, null, 2)}\n`);
 

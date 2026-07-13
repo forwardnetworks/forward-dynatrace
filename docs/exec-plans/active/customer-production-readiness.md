@@ -49,6 +49,10 @@ acceptance deployment without changing the system-of-record or credential bounda
   explicit provenance, an exact ServiceNow attachment-checksum/idempotency binding, exact Forward snapshots and
   reachability, and Dynatrace health; retain partial and pre-contract rows in history without presenting them as
   completed ServiceNow acceptance.
+- [x] Recheck live Dynatrace dependency evidence: the read-only 2026-07-13 query returned zero rows, attempted no
+  Forward call, and now produces a tested blocked summary with exact counts and `forward.attempted=false` that keeps
+  customer-owned live evidence primary and limits replay to approved non-production tenants with visible synthetic
+  provenance.
 - [x] Add an explicit live ServiceNow retry-verification gate that requires the second publication receipt to reuse
   the original work-note and attachment sys_ids and retains the retry receipt for acceptance evidence.
 - [x] Authoritatively read an approved/scheduled and a requested/authorize change from a ServiceNow personal developer
