@@ -36,7 +36,9 @@ acceptance deployment without changing the system-of-record or credential bounda
   receipt, and Dynatrace event builders with explicit synthetic provenance and zero external I/O.
 - [x] Render that rehearsal in the Dynatrace assurance portal as a checked, unclipped safe/regression comparison with
   readable decision reasons and exact ServiceNow checksum, Forward snapshot, and Dynatrace health evidence.
-- [ ] Review, branch, and land the current implementation tranche.
+- [x] Review and commit the coherent implementation tranche as `2f1ce92` on
+  `codex/servicenow-forward-dynatrace-demo` after the supported Node 24 gate passed.
+- [ ] Obtain external review and land the current implementation tranche.
 - [ ] Install customer-owned Forward-side and Dynatrace runtimes.
 - [ ] Complete base import, ServiceNow, check-health, and security live acceptance.
 - [ ] Resolve optional NQE and productization decisions.
