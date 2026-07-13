@@ -275,23 +275,23 @@ export const CrossDomainEvidence = () => {
   const captureEvidence = globalThis.__FORWARD_DYNATRACE_CAPTURE_EVIDENCE__;
   const ingest = useDql<EvidenceRecord>(
     { query: INGEST_QUERY, maxResultRecords: 20 },
-    { enabled: true, staleTime: 0 },
+    { enabled: !captureEvidence, staleTime: 0 },
   );
   const network = useDql<EvidenceRecord>(
     { query: NETWORK_EVIDENCE_QUERY, maxResultRecords: 20 },
-    { enabled: true, staleTime: 0 },
+    { enabled: !captureEvidence, staleTime: 0 },
   );
   const change = useDql<EvidenceRecord>(
     { query: CHANGE_GATE_QUERY, maxResultRecords: 20 },
-    { enabled: true, staleTime: 0 },
+    { enabled: !captureEvidence, staleTime: 0 },
   );
   const health = useDql<EvidenceRecord>(
     { query: CHECK_HEALTH_QUERY, maxResultRecords: 50 },
-    { enabled: true, staleTime: 0 },
+    { enabled: !captureEvidence, staleTime: 0 },
   );
   const security = useDql<EvidenceRecord>(
     { query: SECURITY_QUERY, maxResultRecords: 50 },
-    { enabled: true, staleTime: 0 },
+    { enabled: !captureEvidence, staleTime: 0 },
   );
 
   const ingestRows = captureEvidence?.ingestRows || ingest.data?.records || [];

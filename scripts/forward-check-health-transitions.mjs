@@ -241,17 +241,9 @@ export const pollForwardInventory = async ({ baseUrl, user, password, networkId,
   return { checks, snapshotId: String(snapshot.id) };
 };
 
-export const publishTransitions = async ({
-  batch,
-  apiBaseUrl,
-  token,
-  fetchImpl = globalThis.fetch,
-  maxAttempts = 3,
-  sleepImpl = sleep,
-}) => {
-  if (batch.transitions.length === 0) return { published: 0, responseStatus: null };
+export const buildTransitionEventRecords = (batch) => {
   assertTransitionBound(batch);
-  const records = batch.transitions.map((transition) => ({
+  return batch.transitions.map((transition) => ({
     "event.id": transition.transitionId,
     "event.provider": "forward-dynatrace",
     "event.type": EVENT_TYPE,
@@ -271,6 +263,18 @@ export const publishTransitions = async ({
     ...(transition.owner ? { "forward.dynatrace.owner": transition.owner } : {}),
     ...(transition.service ? { "forward.dynatrace.service": transition.service } : {}),
   }));
+};
+
+export const publishTransitions = async ({
+  batch,
+  apiBaseUrl,
+  token,
+  fetchImpl = globalThis.fetch,
+  maxAttempts = 3,
+  sleepImpl = sleep,
+}) => {
+  if (batch.transitions.length === 0) return { published: 0, responseStatus: null };
+  const records = buildTransitionEventRecords(batch);
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const response = await fetchImpl(`${apiBaseUrl}/platform/ingest/v1/events`, {
       method: "POST",

@@ -54,6 +54,19 @@
   border-radius: 8px;
 }
 
+.servicenow-brand {
+  gap: 8px;
+  padding: 8px 11px;
+  color: #0a4b43;
+  background: #eef9f6;
+  border: 1px solid #9bd8ca;
+  font-weight: 700;
+}
+
+.servicenow-brand svg {
+  color: #1b8c78;
+}
+
 .dynatrace-brand {
   gap: 8px;
   padding: 5px 10px 5px 6px;

@@ -1,11 +1,12 @@
 # Forward Integration for Dynatrace
 
 Forward Integration for Dynatrace is a Forward Field Integration that turns Dynatrace application dependency evidence into
-Forward-reviewed network intent-check packages.
+Forward-reviewed network intent-check packages, then gives an approved ServiceNow change one checksummed decision across
+Forward modeled-network evidence and Dynatrace application health.
 
-The integration keeps the write boundary explicit: the Dynatrace app exports desired state, and Forward-side tooling
-validates, reconciles, and applies approved changes. The Dynatrace app does not write to Forward and does not store
-Forward credentials.
+The integration keeps every authority boundary explicit: ServiceNow owns approval and audit, the customer's deployment
+system owns deploy and rollback, Forward owns network intent, and Dynatrace owns application evidence. The Dynatrace app
+does not write to Forward and does not store Forward credentials.
 
 ## Status
 
@@ -48,23 +49,19 @@ Forward credentials.
 ## Architecture
 
 ```text
-Dynatrace topology evidence
-        |
-        v
-Dynatrace app export package
-        |
-        v
-Forward-side validation and reconciliation
-        |
-        v
-Forward intent checks, after operator approval
-        |
-        v
-Sanitized status returned to Dynatrace
+Dynatrace dependencies -> exported intent package -> Forward validates, reconciles, and applies
+        ^                                                       |
+        +---------------- sanitized aggregate status -----------+
+
+ServiceNow approved change -> Forward-side assurance worker <- Dynatrace deployment and health
+                                      |
+                                      +-> pre/post Forward path evidence
+                                      +-> checksummed decision -> ServiceNow + Dynatrace Grail
 ```
 
-The production path is intentionally Forward-centric. Dynatrace provides dependency intent; Forward validates that the
-dependencies match the target network snapshot before any persistent checks are created.
+Both production paths remain Forward-centric at the write boundary. Dynatrace supplies dependency and application
+evidence; Forward validates the target network snapshot before persistent checks are created and supplies the modeled
+pre/post evidence used by the change gate. The integration reports the decision but never deploys or rolls back.
 
 ## Quick Start
 

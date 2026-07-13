@@ -21,7 +21,6 @@ import {
   FlowIcon,
   NetworkIcon,
   PathIcon,
-  PlayIcon,
   SyncIcon,
   UploadIcon,
 } from "@dynatrace/strato-icons";
@@ -229,8 +228,11 @@ const downloadTextFile = (fileName: string, text: string, type: string) => {
 };
 
 export const Home = () => {
+  const captureMode = Boolean(globalThis.__FORWARD_DYNATRACE_CAPTURE_EVIDENCE__);
   const [activeDependencyId, setActiveDependencyId] = useState(dependencies[0].id);
-  const [dependencySource, setDependencySource] = useState<DependencySource>("live");
+  const [dependencySource, setDependencySource] = useState<DependencySource>(
+    captureMode ? "reference" : "live",
+  );
   const [showcaseMode, setShowcaseMode] = useState(false);
   const [showAllDependencies, setShowAllDependencies] = useState(false);
   const [problemId, setProblemId] = useState("P-000000");
@@ -261,7 +263,7 @@ export const Home = () => {
       query: LIVE_DEPENDENCY_QUERY,
       maxResultRecords: 500,
     },
-    { enabled: true, staleTime: 0 },
+    { enabled: !captureMode, staleTime: 0 },
   );
   const liveDependencies = useMemo(
     () => normalizeLiveDependencies(liveDependencyQuery.data?.records || []),
@@ -500,6 +502,13 @@ export const Home = () => {
     });
   }
 
+  function showChangeAssurance() {
+    document.querySelector(".change-comparison-section")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+
   return (
     <Flex className="page" flexDirection="column" gap={24}>
       <TitleBar>
@@ -508,43 +517,48 @@ export const Home = () => {
 
       <section className="hero-band">
         <div className="hero-copy">
-          <div className="brand-lockup" aria-label="Dynatrace to Forward">
-            <span className="brand-node dynatrace-brand">
-              <img src={dynatraceLogoUrl} alt="" aria-hidden="true" />
-              <span>Dynatrace</span>
+          <div className="brand-lockup" aria-label="ServiceNow to Forward to Dynatrace assurance">
+            <span className="brand-node servicenow-brand">
+              <CheckmarkIcon />
+              <span>ServiceNow change</span>
             </span>
             <span className="brand-arrow" aria-hidden="true">→</span>
             <span className="brand-node forward-brand">
               <img src={forwardLogoUrl} alt="Forward" />
             </span>
+            <span className="brand-arrow" aria-hidden="true">→</span>
+            <span className="brand-node dynatrace-brand">
+              <img src={dynatraceLogoUrl} alt="" aria-hidden="true" />
+              <span>Dynatrace</span>
+            </span>
           </div>
-          <p className="eyebrow">Application and modeled-network assurance</p>
-          <Heading level={1}>Connect Dynatrace context to Forward evidence</Heading>
+          <p className="eyebrow">Checksummed cross-domain change assurance</p>
+          <Heading level={1}>Assure ServiceNow changes with Forward and Dynatrace evidence</Heading>
           <Paragraph>
-            Correlate live dependencies, pre/post change validation, problem evidence,
-            intent health, and security exposure without moving Forward credentials into Dynatrace.
+            Bind one approved change to exact pre/post Forward reachability, Dynatrace deployment
+            health, intent drift, and explicit gate reasons without moving Forward credentials into Dynatrace.
           </Paragraph>
-          <div className="workflow-strip" aria-label="Forward ingestion workflow">
+          <div className="workflow-strip" aria-label="ServiceNow, Forward, and Dynatrace assurance workflow">
             <div>
-              <Strong>Dynatrace observes</Strong>
-              <span>Services, deployments, problems</span>
+              <Strong>ServiceNow governs</Strong>
+              <span>Approval, scope, audit record</span>
             </div>
             <div>
-              <Strong>Forward models</Strong>
+              <Strong>Forward verifies</Strong>
               <span>Paths, checks, exposure</span>
             </div>
             <div>
-              <Strong>Portal assures</Strong>
-              <span>Change gates and evidence feedback</span>
+              <Strong>Dynatrace observes</Strong>
+              <span>Deployment, service health, Grail</span>
             </div>
           </div>
         </div>
         <div className="hero-actions">
-          <Button color="primary" variant="emphasized" onClick={() => runPreview()}>
+          <Button color="primary" variant="emphasized" onClick={showChangeAssurance}>
             <Button.Prefix>
-              <PlayIcon />
+              <CheckmarkIcon />
             </Button.Prefix>
-            Stage path context
+            Review change assurance
           </Button>
           <Button color="primary" variant="emphasized" onClick={buildExportPackage}>
             <Button.Prefix>
@@ -564,8 +578,8 @@ export const Home = () => {
       <section className="boundary-callout">
         <Strong>Integration boundary</Strong>
         <span>
-          This app builds Forward-ready artifacts. It never writes to Forward.
-          Forward imports the bulk checks JSON manually, or a Forward-side
+          ServiceNow remains the approval and audit record. This integration does not deploy or roll back;
+          it never writes to Forward. Forward imports the bulk checks JSON manually, or a Forward-side
           connector pulls the package.
         </span>
       </section>
@@ -573,37 +587,49 @@ export const Home = () => {
       <section className={`source-banner ${isLiveSource ? "live" : "reference"}`} aria-label="Dynatrace data source">
         <div>
           <Strong>
-            {isLiveSource ? "Live Dynatrace Grail data" : "Saved dependency data"}
+            {captureMode
+              ? "Checked replay dependency data"
+              : isLiveSource
+                ? "Live Dynatrace Grail data"
+                : "Saved dependency data"}
           </Strong>
           <span>
-            {isLiveSource
+            {captureMode
+              ? `${dependencies.length} saved rows for the credential-free rehearsal; live Grail remains the production source.`
+              : isLiveSource
               ? `${liveDependencies.length} deduplicated rows from ${liveRunId}`
               : "Local fallback while live Grail dependency evidence is unavailable."}
           </span>
         </div>
         <div className="source-actions">
-          {liveDependencyQuery.isFetching && <ProgressCircle aria-label="Loading live Dynatrace data" />}
-          <Button
-            color="primary"
-            variant="accent"
-            onClick={() => {
-              void loadLiveDependencies();
-            }}
-          >
-            Load live Dynatrace data
-          </Button>
-          <Button
-            color="primary"
-            onClick={() => {
-              setDependencySource("reference");
-              setActiveDependencyId(dependencies[0].id);
-              setShowAllDependencies(false);
-            }}
-          >
-            Use saved dependencies
-          </Button>
+          {captureMode ? (
+            <span className="evidence-status controlled">SYNTHETIC DEMO REHEARSAL</span>
+          ) : (
+            <>
+              {liveDependencyQuery.isFetching && <ProgressCircle aria-label="Loading live Dynatrace data" />}
+              <Button
+                color="primary"
+                variant="accent"
+                onClick={() => {
+                  void loadLiveDependencies();
+                }}
+              >
+                Load live Dynatrace data
+              </Button>
+              <Button
+                color="primary"
+                onClick={() => {
+                  setDependencySource("reference");
+                  setActiveDependencyId(dependencies[0].id);
+                  setShowAllDependencies(false);
+                }}
+              >
+                Use saved dependencies
+              </Button>
+            </>
+          )}
         </div>
-        {liveDependencyQuery.error && (
+        {!captureMode && liveDependencyQuery.error && (
           <Paragraph>Live query failed: {liveDependencyQuery.error.message}</Paragraph>
         )}
       </section>

@@ -1,8 +1,9 @@
 # Live Demo Runbook
 
-Use this runbook for a customer meeting, trial sandbox, or internal rehearsal. The production story is customer-owned
-Dynatrace topology into a Forward-side import workflow. The standard demo replay path is available when the trial
-tenant needs demo dependency evidence aligned to the standard Forward demo snapshot.
+Use this runbook for a customer meeting, trial sandbox, or internal rehearsal. The strongest meeting story has two
+acts: lead with one ServiceNow-governed change receiving a checksummed Forward-plus-Dynatrace decision, then show how
+Dynatrace topology becomes the Forward-owned intent behind that assurance. The standard demo replay path is available
+when the trial tenant needs demo dependency evidence aligned to the standard Forward demo snapshot.
 
 ## Rehearsal Command
 

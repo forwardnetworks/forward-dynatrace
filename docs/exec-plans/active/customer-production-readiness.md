@@ -27,7 +27,8 @@ acceptance deployment without changing the system-of-record or credential bounda
 - [x] Add atomic immutable package handoff publication plus checked systemd/Kubernetes check-health schedules.
 - [x] Pass the full local CI suite on the current working tree on 2026-07-13.
 - [x] Repeat the release-candidate CI and packaging run on supported Node `24.x`; full CI passed in clean
-  `node:24-alpine` (`v24.18.0`) on 2026-07-13.
+  `node:24-alpine` (`v24.18.0`) and the polished portal-capture tree passed again in clean `node:24-bookworm`
+  (`v24.18.0`) on 2026-07-13.
 - [x] Bind the ServiceNow attachment SHA-256/idempotency marker into the matching Dynatrace change event and assurance
   portal row, with schema and deterministic tests.
 - [x] Require the new ServiceNow worker, cross-domain DQL, schemas, examples, and runtime commands by exact release
@@ -36,8 +37,16 @@ acceptance deployment without changing the system-of-record or credential bounda
   receipt, and Dynatrace event builders with explicit synthetic provenance and zero external I/O.
 - [x] Render that rehearsal in the Dynatrace assurance portal as a checked, unclipped safe/regression comparison with
   readable decision reasons and exact ServiceNow checksum, Forward snapshot, and Dynatrace health evidence.
+- [x] Make the credential-free portal capture exercise the production event builders for Forward reconciliation,
+  problem evidence, ServiceNow change gates, check-health transitions, and security correlation; keep every row
+  explicitly synthetic, lead with the ServiceNow → Forward → Dynatrace story, and fail capture if a live-query error
+  or primary assurance action is missing.
 - [x] Add an explicit live ServiceNow retry-verification gate that requires the second publication receipt to reuse
   the original work-note and attachment sys_ids and retains the retry receipt for acceptance evidence.
+- [x] Repeat base-import live acceptance on Forward network `235937`, snapshot `1322821`: verify zero-check preflight,
+  create 24 checks, read back IDs and 12 PASS / 12 FAIL state, rerun 24 unchanged, report one changed and one stale
+  item without mutation, fail closed on an invalid checksum, recover, and query the matching status event back once
+  from Dynatrace.
 - [x] Review and commit the coherent implementation tranche as `2f1ce92` on
   `codex/servicenow-forward-dynatrace-demo` after the supported Node 24 gate passed.
 - [ ] Obtain external review and land the current implementation tranche.
@@ -80,11 +89,11 @@ Exit: installed and monitored runtimes produce traceable reports and sanitized D
 
 Base import:
 
-- [ ] Dry-run and apply a small package to a Forward test network; record created check IDs.
-- [ ] Re-run it and verify unchanged/no duplicates.
-- [ ] Change one dependency and verify changed is report-only.
-- [ ] Remove one dependency and verify stale is report-only.
-- [ ] Exercise a bounded failure and recovery.
+- [x] Dry-run and apply a small package to a Forward test network; record created check IDs.
+- [x] Re-run it and verify unchanged/no duplicates.
+- [x] Change one dependency and verify changed is report-only.
+- [x] Remove one dependency and verify stale is report-only.
+- [x] Exercise a bounded failure and recovery.
 
 ServiceNow:
 
@@ -96,6 +105,8 @@ ServiceNow:
 
 Check-health feedback:
 
+- [x] Rehearse a live Forward baseline plus fresh-process unchanged poll with `synthetic=false`, 24 tracked checks,
+  zero emitted transitions, and mode-`0600` durable state.
 - [ ] Baseline managed checks from a customer-owned poller with durable protected state.
 - [ ] Capture one real approved failure and recovery transition.
 - [ ] Verify unchanged polls publish nothing and retry/restart preserves identity.

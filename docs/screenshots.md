@@ -1,8 +1,9 @@
 # Workflow Screenshots
 
-These screenshots show the Forward Field Integration workflow: Dynatrace application mapping becomes Forward-resolved
-intent package JSON for Forward-side reconciliation. Forward-side host resolution happens before package generation,
-optional read-only path evidence can run before approval, and optional NQE evidence remains a customer-approved add-on.
+These screenshots show the complete Forward Field Integration story: ServiceNow governs the change, Forward verifies
+modeled-network intent, and Dynatrace supplies application context and the cross-domain evidence portal. Dynatrace
+application mapping also becomes Forward-resolved intent package JSON for Forward-side reconciliation. Optional NQE
+evidence remains a customer-approved add-on.
 
 Regenerate them with:
 
@@ -11,12 +12,17 @@ npm run demo:capture
 ```
 
 The capture harness builds the Dynatrace app, serves the built UI locally, answers app-function calls through the built
-function modules, and drives Chromium with placeholder Forward/Dynatrace metadata. It does not contact a live Dynatrace
-or Forward tenant.
+function modules, builds every assurance-portal row through the production event builders, and drives Chromium with
+placeholder Forward/Dynatrace metadata. It does not contact a live Dynatrace, Forward, or ServiceNow tenant. The
+capture fails if the overview contains a live-query error, omits a headline evidence domain, or clips the change table.
 
 ## Overview
 
 ![Forward Integration for Dynatrace overview](assets/screenshots/01-overview.jpg)
+
+The overview is the explicitly labeled credential-free rehearsal: idempotent Forward reconciliation, safe/regressed
+path evidence, ServiceNow change decisions, failure/recovery check-health, and security correlation are all populated
+with checked synthetic records. Live Grail remains the production source.
 
 ## Host Resolution And Path Evidence
 
@@ -35,6 +41,9 @@ changed/stale drift, and publish sanitized status back to Dynatrace.
 ## Persistent Intent Check Payload
 
 ![Forward intent check payload](assets/screenshots/04-intent-check-payload.jpg)
+
+The cropped preview makes the exact Forward `NewNetworkCheck[]` payload readable while the downloaded artifact retains
+all 24 checks. It is generated only after both dependency endpoints resolve against Forward inventory.
 
 ## ServiceNow Change Assurance
 

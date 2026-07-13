@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 
 import { chromium } from "playwright";
 
-import { buildDemoRehearsal } from "./servicenow-demo-rehearsal.mjs";
+import { buildCaptureEvidence } from "./build-demo-capture-evidence.mjs";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 const distDir = path.join(root, "dist");
@@ -282,27 +282,6 @@ const assertAssuranceCaptureReady = async (page) => {
   }
 };
 
-const buildCaptureEvidence = async (outputDir) => {
-  const rehearsal = await buildDemoRehearsal(outputDir);
-  const changeRows = [];
-  for (const scenario of [...rehearsal.scenarios].reverse()) {
-    const event = JSON.parse(
-      await readFile(
-        path.join(outputDir, scenario.id, "forward-change-validation-event.json"),
-        "utf8",
-      ),
-    );
-    changeRows.push({ timestamp: event.timestamp, severity: event.severity, ...event.properties });
-  }
-  return {
-    ingestRows: [],
-    networkRows: [],
-    changeRows,
-    healthRows: [],
-    securityRows: [],
-  };
-};
-
 const main = async () => {
   await stat(path.join(uiDir, "index.html")).catch(() => {
     throw new Error("dist/ui/index.html is missing. Run npm run build first.");
@@ -319,7 +298,26 @@ const main = async () => {
     }, captureEvidence);
     await page.goto(`${server.baseUrl}/ui/`, { waitUntil: "networkidle" });
     await markScrollRoot(page);
+    await page.getByText("Checked replay dependency data", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "Review change assurance" }).waitFor();
+    if (await page.getByText(/Live query failed:/u).count()) {
+      throw new Error("Overview capture must not contain a failed live query.");
+    }
+    for (const expected of ["reconciled", "consistent-with-network-policy-block", "FAIL", "FAIL_TO_PASS", "critical"]) {
+      await page.getByText(expected, { exact: true }).first().waitFor();
+    }
     await capture(page, "01-overview.jpg");
+
+    await page.getByRole("button", { name: "Review change assurance" }).click();
+    await page.waitForFunction(() => {
+      const root = document.querySelector("[data-capture-scroll-root=true]");
+      const section = document.querySelector(".change-comparison-section");
+      if (!root || !section) return false;
+      const rootRect = root.getBoundingClientRect();
+      const sectionRect = section.getBoundingClientRect();
+      return sectionRect.bottom > rootRect.top && sectionRect.top < rootRect.bottom;
+    });
+    await scrollRootTo(page, 0);
 
     const fields = page.getByRole("textbox");
     await fields.nth(1).fill("https://forward.example.com");
@@ -338,7 +336,7 @@ const main = async () => {
     await capture(page, "03-forward-side-api.jpg");
 
     await scrollToText(page, "Bulk intent check payload sample", 80);
-    await capture(page, "04-intent-check-payload.jpg");
+    await captureElement(page.locator(".intent-preview"), "04-intent-check-payload.jpg");
 
     await scrollToText(page, "ServiceNow → Forward → Dynatrace assurance history", 80);
     await assertAssuranceCaptureReady(page);
