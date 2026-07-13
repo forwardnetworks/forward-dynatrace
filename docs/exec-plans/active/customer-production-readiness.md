@@ -42,8 +42,9 @@ This is the single active execution plan for `forward-dynatrace` and its compani
   the assurance ledger, close the embedded evidence contracts, distinguish client and retryable server failures, and
   verify attachment-before-work-note plus stable retry identifiers. The hardened branch passes 19 Node tests and 15
   Python tests on Node `v24.18.0`.
-- [x] Commit and publish the companion tranche as immutable commit `2c7291c` and open
-  [`forward-snow` PR #1](https://github.com/forwardnetworks/forward-snow/pull/1). Review and merge remain required before
+- [x] Commit and publish the companion tranche as immutable implementation commit `2c7291c`, add the checked PR gate
+  in follow-up commit `12f7445`, and open [`forward-snow` PR #1](https://github.com/forwardnetworks/forward-snow/pull/1).
+  GitHub Actions run `29270128698` passed the Node 24/Python validation gate. Review and merge remain required before
   the companion-package exit criterion is complete.
 - [x] Align the `forward-dynatrace` assurance/preflight/gate/Flow schemas with the ServiceNow persisted-field bounds and
   run the focused schema, assurance-conductor, and Flow-server suite: 14 tests plus 16 artifact validations passed on
