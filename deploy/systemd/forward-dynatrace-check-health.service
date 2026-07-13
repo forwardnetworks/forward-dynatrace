@@ -1,0 +1,23 @@
+[Unit]
+Description=Forward Integration for Dynatrace check-health transition poll
+Documentation=https://github.com/forwardnetworks/forward-dynatrace
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=forward-dynatrace
+Group=forward-dynatrace
+WorkingDirectory=/opt/forward-dynatrace
+EnvironmentFile=/etc/forward-dynatrace/forward-check-health.env
+ExecStart=/usr/bin/node /opt/forward-dynatrace/scripts/forward-check-health-transitions.mjs --state /var/lib/forward-dynatrace/check-health-state.json --output /var/lib/forward-dynatrace/check-health-transitions.json --evidence-source live-forward-poll --apply --token-file /etc/forward-dynatrace/dynatrace-platform.token
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadOnlyPaths=/etc/forward-dynatrace/dynatrace-platform.token
+ReadWritePaths=/var/lib/forward-dynatrace /var/log/forward-dynatrace
+StateDirectory=forward-dynatrace
+LogsDirectory=forward-dynatrace
+UMask=0077
+

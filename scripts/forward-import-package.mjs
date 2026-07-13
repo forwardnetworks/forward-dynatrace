@@ -79,6 +79,8 @@ Options:
   --report path        Write the reconciliation report to a JSON file.
   --signature path      Verify detached package signature.
   --signature-url url    Pull detached package signature from HTTPS URL.
+  --snapshot-id id       Dry-run reconciliation against an explicit historical snapshot.
+                         Forbidden with --apply; apply always targets latest processed.
   --status-artifact path
                        Write sanitized read-only ingest status JSON for Dynatrace display.
   --validate-only      Validate package shape without contacting Forward.
@@ -120,6 +122,7 @@ const SUPPORTED_ARGS = new Set([
   "report",
   "signature",
   "signature-url",
+  "snapshot-id",
   "status-artifact",
   "validate-only",
 ]);
@@ -189,7 +192,7 @@ const validateArgs = (args) => {
   }
 };
 
-const validatePolicyArgs = (args) => {
+export const validatePolicyArgs = (args) => {
   const hasMutationFlag = Boolean(args["apply-updates"] || args["deactivate-stale"]);
   if (hasMutationFlag && !args.apply) {
     throw new Error("--apply-updates and --deactivate-stale require --apply.");
@@ -201,6 +204,9 @@ const validatePolicyArgs = (args) => {
     throw new Error(
       "--apply-updates and --deactivate-stale require --require-approval-file.",
     );
+  }
+  if (args["snapshot-id"] && args.apply) {
+    throw new Error("--snapshot-id is dry-run only; Forward apply always targets latest processed.");
   }
 };
 
@@ -734,8 +740,30 @@ export const reconciliationKey = (check) => dynatraceKeys(check)[0] || check.nam
 
 const sortedTags = (check) => [...(check.tags || [])].sort();
 
+const canonicalizeSubnetLocationValue = (value) => {
+  if (typeof value !== "string") return value;
+  if (/^(?:\d{1,3}\.){3}\d{1,3}\/32$/u.test(value)) {
+    return value.slice(0, -3);
+  }
+  if (/^[A-Fa-f0-9:]+\/128$/u.test(value)) {
+    return value.slice(0, -4);
+  }
+  return value;
+};
+
+const canonicalizeDefinition = (definition) => {
+  if (!definition || typeof definition !== "object") return definition;
+  const canonical = structuredClone(definition);
+  for (const endpoint of [canonical.filters?.from, canonical.filters?.to]) {
+    if (endpoint?.location?.type === "SubnetLocationFilter") {
+      endpoint.location.value = canonicalizeSubnetLocationValue(endpoint.location.value);
+    }
+  }
+  return canonical;
+};
+
 export const canonicalizeCheck = (check) => ({
-  definition: check.definition,
+  definition: canonicalizeDefinition(check.definition),
   enabled: check.enabled !== false,
   name: check.name || "",
   note: check.note || "",
@@ -1608,11 +1636,28 @@ const main = async () => {
     maxRetries,
   });
 
-  const latestSnapshot = await api(
-    "GET",
-    `/api/networks/${networkId}/snapshots/latestProcessed`,
-  );
-  const snapshotId = latestSnapshot.id;
+  let snapshotId;
+  if (args["snapshot-id"]) {
+    const snapshots = await api(
+      "GET",
+      `/api/networks/${networkId}/snapshots?includeArchived=true&limit=1000`,
+    );
+    const explicitSnapshot = snapshots?.snapshots?.find(
+      (snapshot) => String(snapshot.id) === String(args["snapshot-id"]),
+    );
+    if (!explicitSnapshot || explicitSnapshot.state !== "PROCESSED") {
+      throw new Error(
+        `Explicit snapshot ${args["snapshot-id"]} is not a processed snapshot in network ${networkId}.`,
+      );
+    }
+    snapshotId = String(explicitSnapshot.id);
+  } else {
+    const latestSnapshot = await api(
+      "GET",
+      `/api/networks/${networkId}/snapshots/latestProcessed`,
+    );
+    snapshotId = String(latestSnapshot.id);
+  }
   const existingChecks = await api(
     "GET",
     `/api/snapshots/${snapshotId}/checks?type=Existential`,

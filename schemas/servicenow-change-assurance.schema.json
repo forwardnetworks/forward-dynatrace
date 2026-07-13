@@ -1,0 +1,121 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/servicenow-change-assurance.schema.json",
+  "title": "ServiceNow-first change-assurance conductor summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "runId", "change", "provenance", "decision", "reasonCodes", "publications", "artifacts"],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace-servicenow-change-assurance/v2" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "runId": { "type": "string", "pattern": "^servicenow-change-assurance-[a-f0-9]{16}$" },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number", "deploymentId"],
+      "properties": {
+        "number": { "type": "string", "pattern": "^CHG[0-9]+$" },
+        "deploymentId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceSource", "synthetic"],
+      "properties": {
+        "evidenceSource": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+        "synthetic": { "type": "boolean" }
+      }
+    },
+    "decision": { "enum": ["pass", "warn", "fail"] },
+    "reasonCodes": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" } },
+    "publications": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["serviceNow", "dynatrace", "deploymentGate"],
+      "properties": {
+        "serviceNow": { "$ref": "#/definitions/serviceNowPublication" },
+        "serviceNowRetry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "attempts", "idempotencyKey", "publication"],
+          "properties": {
+            "status": { "const": "verified" },
+            "attempts": { "const": 2 },
+            "idempotencyKey": { "type": "string", "pattern": "^forward-dynatrace:[a-f0-9]{64}$" },
+            "publication": { "$ref": "#/definitions/serviceNowExistingPublication" }
+          }
+        },
+        "dynatrace": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "responseStatus"],
+          "properties": {
+            "status": { "enum": ["planned", "published"] },
+            "responseStatus": { "type": ["integer", "null"] }
+          }
+        },
+        "deploymentGate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "path"],
+          "properties": {
+            "status": { "const": "artifact-ready" },
+            "path": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["serviceNowPreflight", "gate", "dynatraceEvent", "serviceNowEvidence", "serviceNowFeedback"],
+      "properties": {
+        "serviceNowPreflight": { "type": "string", "minLength": 1 },
+        "gate": { "type": "string", "minLength": 1 },
+        "dynatraceEvent": { "type": "string", "minLength": 1 },
+        "serviceNowEvidence": { "type": "string", "minLength": 1 },
+        "serviceNowFeedback": { "type": "string", "minLength": 1 },
+        "serviceNowRetryFeedback": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "definitions": {
+    "serviceNowPublication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workNote", "attachment"],
+      "properties": {
+        "workNote": { "$ref": "#/definitions/publicationItem" },
+        "attachment": { "$ref": "#/definitions/publicationItem" }
+      }
+    },
+    "serviceNowExistingPublication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workNote", "attachment"],
+      "properties": {
+        "workNote": { "$ref": "#/definitions/existingPublicationItem" },
+        "attachment": { "$ref": "#/definitions/existingPublicationItem" }
+      }
+    },
+    "existingPublicationItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "sysId"],
+      "properties": {
+        "status": { "const": "existing" },
+        "sysId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "publicationItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "sysId"],
+      "properties": {
+        "status": { "enum": ["planned", "created", "existing"] },
+        "sysId": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

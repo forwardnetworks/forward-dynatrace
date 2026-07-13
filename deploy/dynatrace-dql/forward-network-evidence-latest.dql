@@ -1,0 +1,28 @@
+// Latest aggregate Forward network evidence correlated to Dynatrace problems.
+// Detailed endpoints, devices, paths, and Forward response bodies are intentionally excluded.
+
+fetch events, from: now() - 7d
+| filter event.type == "forward.dynatrace.network.evidence"
+| fields
+    timestamp,
+    severity,
+    event.status,
+    event.provider,
+    forward.dynatrace.evidence_run_id,
+    forward.dynatrace.problem_id,
+    forward.dynatrace.service_entity_id,
+    forward.dynatrace.network_assessment,
+    forward.dynatrace.target.network_id,
+    forward.dynatrace.target.snapshot_id,
+    forward.dynatrace.count.total,
+    forward.dynatrace.count.queryable,
+    forward.dynatrace.count.reachable,
+    forward.dynatrace.count.blocked,
+    forward.dynatrace.count.ambiguous,
+    forward.dynatrace.count.unmapped,
+    forward.dynatrace.count.failed,
+    forward.dynatrace.forwarding_outcomes,
+    forward.dynatrace.security_outcomes,
+    forward.dynatrace.max_hop_count
+| sort timestamp desc
+| limit 100

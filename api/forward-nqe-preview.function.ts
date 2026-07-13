@@ -525,19 +525,6 @@ export const buildForwardNqePreview = async (
     body,
   };
 
-  if (missing(request.forwardBaseUrl) || missing(request.forwardNetworkId)) {
-    return blocked(
-      "Forward NQE preview requires Forward URL metadata and a network ID.",
-      { ...request, templateId },
-      body,
-      [
-        "Add Forward URL and network ID metadata.",
-        "Keep Forward write credentials out of Dynatrace.",
-        "Use read-only NQE execution permission only for this preview path.",
-      ],
-    );
-  }
-
   if (templateId !== "endpoint-inventory-smoke" && !request.queryId) {
     return blocked(
       "This preview template requires an approved Forward NQE Library query ID.",
@@ -575,19 +562,36 @@ export const buildForwardNqePreview = async (
   }
 
   if (!request.execute) {
+    const targetSupplied = !missing(request.forwardBaseUrl) && !missing(request.forwardNetworkId);
     return {
       status: "planned",
-      summary: "Read-only Forward NQE preview request is planned but not executed.",
+      summary: targetSupplied
+        ? "Read-only Forward NQE preview request is planned but not executed."
+        : "Read-only Forward NQE preview is planned. Add Forward URL metadata and a network ID before execution.",
       generatedAt,
       templateId,
       requestPreview,
       evidence: baseEvidence(request, templateId),
       nextSteps: [
+        ...(targetSupplied ? [] : ["Add Forward URL and network ID metadata before execution."]),
         "Review the NQE request body and dependency parameters.",
         "Execute only from a runtime with read-only Forward NQE permission.",
         "Use preview results to mark Dynatrace rows ready, review, or needs-map.",
       ],
     };
+  }
+
+  if (missing(request.forwardBaseUrl) || missing(request.forwardNetworkId)) {
+    return blocked(
+      "Forward NQE execution requires Forward URL metadata and a network ID.",
+      { ...request, templateId },
+      body,
+      [
+        "Add Forward URL and network ID metadata.",
+        "Keep Forward write credentials out of Dynatrace.",
+        "Use read-only NQE execution permission only for this preview path.",
+      ],
+    );
   }
 
   const authorization = runtimeAuthorization();

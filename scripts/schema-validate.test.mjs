@@ -37,6 +37,7 @@ test("validates committed examples and generated demo package", async () => {
   assert.equal(result.status, "ok");
   assert.ok(result.validated >= 10);
   assert.ok(result.artifacts.includes("shared/demo-forward-ingest-status.json"));
+  assert.ok(result.artifacts.includes("config/servicenow-change-preflight.example.json"));
 });
 
 test("rejects connector configs that contain secret-shaped keys", async () => {
@@ -58,4 +59,39 @@ test("rejects connector configs that contain secret-shaped keys", async () => {
     runSchemaValidate(["--connector-config", configPath]),
     /failed schema validation/,
   );
+});
+
+test("validates sanitized problem network-evidence events", async () => {
+  const tempDir = await mkdtemp(path.join(tmpdir(), "forward-network-evidence-schema-"));
+  const eventPath = path.join(tempDir, "event.json");
+  await writeFile(
+    eventPath,
+    `${JSON.stringify(
+      {
+        schemaVersion: "forward-dynatrace-network-evidence-event/v1",
+        timestamp: "2026-01-01T00:00:00.000Z",
+        eventType: "forward.dynatrace.network.evidence",
+        severity: "WARN",
+        title: "Modeled network evidence for problem P-1",
+        properties: {
+          "forward.dynatrace.evidence_run_id": "run-1",
+          "forward.dynatrace.problem_id": "P-1",
+          "forward.dynatrace.network_assessment": "inconclusive",
+          "forward.dynatrace.count.total": 1,
+          "forward.dynatrace.count.queryable": 0,
+          "forward.dynatrace.count.reachable": 0,
+          "forward.dynatrace.count.blocked": 0,
+          "forward.dynatrace.count.ambiguous": 0,
+          "forward.dynatrace.count.unmapped": 1,
+          "forward.dynatrace.count.failed": 0,
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+  const result = await runSchemaValidate(["--network-evidence-event", eventPath]);
+  assert.equal(result.status, "ok");
+  assert.deepEqual(result.artifacts, [eventPath]);
 });

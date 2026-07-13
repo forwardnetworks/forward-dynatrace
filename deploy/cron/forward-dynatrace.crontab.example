@@ -1,0 +1,6 @@
+SHELL=/bin/sh
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Every 15 minutes. The runner skips overlaps, defaults to dry-run through the
+# connector config, and writes a protected per-run log.
+*/15 * * * * set -a; . /etc/forward-dynatrace/forward-dynatrace.env; set +a; /usr/bin/node /opt/forward-dynatrace/scripts/forward-cron-import.mjs --config /etc/forward-dynatrace/forward-connector.config.json --state-dir /var/lib/forward-dynatrace --log-dir /var/log/forward-dynatrace >> /var/log/forward-dynatrace/cron-launch.log 2>&1

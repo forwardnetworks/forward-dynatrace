@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "forward-dynatrace-servicenow-change-workflow/v2",
+  "status": "baseline-captured",
+  "updatedAt": "2026-07-15T18:35:00.000Z",
+  "change": {
+    "number": "CHG0042187",
+    "sysId": "0123456789abcdef0123456789abcdef",
+    "deploymentId": "checkout-api-2026.07.15.3",
+    "serviceEntityIds": ["SERVICE-CHECKOUT-API", "SERVICE-PAYMENTS-API"]
+  },
+  "forward": {
+    "networkId": "network-production",
+    "beforeSnapshotId": "snapshot-before",
+    "afterSnapshotId": null
+  },
+  "provenance": {
+    "evidenceSource": "live-customer-dependencies",
+    "synthetic": false
+  },
+  "decision": null,
+  "policy": {
+    "dynatraceStabilizationSeconds": 120,
+    "snapshotTimeoutMs": 900000,
+    "snapshotPollMs": 15000
+  },
+  "artifacts": {
+    "preflight": "/secure/evidence/change/servicenow-change-preflight-start.json",
+    "scopedDependencies": "/secure/evidence/change/dynatrace-dependencies-scoped.json",
+    "resolvedDependencies": "/secure/evidence/change/forward-resolved-dependencies.json",
+    "hostResolutionReport": "/secure/evidence/change/forward-host-resolution-report.json",
+    "beforeEvidence": "/secure/evidence/change/forward-before-path-evidence.json"
+  },
+  "hashes": {
+    "preflightSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "scopedDependenciesSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "resolvedDependenciesSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "beforeEvidenceSha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  }
+}

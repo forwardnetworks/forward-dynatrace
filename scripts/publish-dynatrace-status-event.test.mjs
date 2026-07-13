@@ -17,7 +17,7 @@ const baseEvent = {
   timestamp: "2026-01-01T00:00:00.000Z",
   eventType: "forward.dynatrace.ingest.status",
   severity: "INFO",
-  title: "Forward Integration for Dynatrace ingest reconciled",
+  title: "forward.dynatrace ingest reconciled",
   properties: {
     "forward.dynatrace.run_id": "forward-dynatrace-20260101000000",
     "forward.dynatrace.package_id": "dynatrace-forward-demo",
@@ -45,6 +45,16 @@ test("validates status event schema and rejects credential-like content", () => 
         },
       }),
     /forbidden credential-like content/,
+  );
+  assert.throws(
+    () => validateStatusEvent({
+      ...baseEvent,
+      properties: {
+        ...baseEvent.properties,
+        "forward.dynatrace.evidence_source": "trial-replay",
+      },
+    }),
+    /requires paired publish-safe source and synthetic boolean/,
   );
 });
 

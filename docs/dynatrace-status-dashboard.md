@@ -17,8 +17,8 @@ because final dashboard JSON is tenant-specific.
 
 Use `deploy/dynatrace-dql/forward-ingest-status-latest.dql`.
 
-This view shows recent package IDs, import state, planned checks, create/unchanged/changed/stale counts, mutation
-counts, and the Forward-side publisher run ID.
+This view shows recent package IDs, explicit evidence source and live/synthetic classification, import state, planned
+checks, create/unchanged/changed/stale counts, mutation counts, and the Forward-side publisher run ID.
 
 ## Attention Queue
 
@@ -41,5 +41,7 @@ some Dynatrace-discovered dependencies were not applied automatically.
 - Alert on `severity == "ERROR"` or `forward.dynatrace.import_state == "failed"`.
 - Alert on unresolved changed or stale counts when scheduled automation is expected to stay clean.
 - Treat `planned_checks == 0` as suspicious unless the package scope is intentionally empty.
+- Treat missing `evidence_source` or `synthetic` on new demo-conductor events as incomplete provenance; older events may
+  remain visible as `PROVENANCE UNSPECIFIED`.
 - Keep Forward-side logs and reports as the system of record for exact check details.
 - Use the Dynatrace dashboard to explain health and workflow state, not to approve Forward writes.

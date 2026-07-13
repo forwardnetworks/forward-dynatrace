@@ -151,6 +151,58 @@ test("detects IP and subnet inputs without live Forward lookup", () => {
   assert.equal(isIpOrSubnet("checkout-vip"), false);
 });
 
+test("maps raw IP and subnet endpoints to Forward subnet location filters", async () => {
+  const result = await resolveDependencyCandidates({
+    dependencies: [
+      dependency({
+        source: "10.0.0.1/32",
+        destination: "10.0.1.0/24",
+        mappingState: "ready",
+      }),
+    ],
+    execute: false,
+  });
+
+  assert.equal(result.dependencies[0].sourceResolvedFilterType, "SubnetLocationFilter");
+  assert.equal(result.dependencies[0].destinationResolvedFilterType, "SubnetLocationFilter");
+  assert.equal(result.dependencies[0].mappingState, "ready");
+});
+
+test("preserves explicit governance holds after endpoints resolve", async () => {
+  const result = await resolveDependencyCandidates({
+    dependencies: [
+      dependency({
+        id: "low-confidence-review",
+        source: "10.0.0.1",
+        destination: "10.0.1.1",
+        confidence: 75,
+        mappingState: "review",
+      }),
+      dependency({
+        id: "explicit-needs-map",
+        source: "10.0.0.2",
+        destination: "10.0.1.2",
+        confidence: 60,
+        mappingState: "needs-map",
+      }),
+    ],
+    execute: false,
+  });
+
+  assert.equal(result.dependencies[0].mappingState, "review");
+  assert.equal(result.dependencies[1].mappingState, "needs-map");
+  assert.deepEqual(result.report.counts, {
+    total: 2,
+    ready: 0,
+    review: 1,
+    needsMap: 1,
+    sourceResolved: 2,
+    destinationResolved: 2,
+    ambiguous: 0,
+    unresolved: 0,
+  });
+});
+
 test("selects exactly one Forward host subnet as resolved", () => {
   const result = selectResolvedHostCandidate({
     hosts: [{ name: "checkout-vip", subnets: ["10.10.10.10"] }],

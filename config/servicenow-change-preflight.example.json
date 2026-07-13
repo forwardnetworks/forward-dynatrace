@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "forward-dynatrace-servicenow-change-preflight/v1",
+  "observedAt": "2026-07-15T18:30:00.000Z",
+  "mode": "read-only",
+  "source": {
+    "instanceAlias": "production-itsm",
+    "table": "change_request",
+    "authoritativeRead": true
+  },
+  "change": {
+    "number": "CHG0042187",
+    "sysId": "0123456789abcdef0123456789abcdef",
+    "deploymentId": "checkout-api-2026.07.15.3",
+    "approval": {
+      "value": "approved",
+      "display": "Approved"
+    },
+    "state": {
+      "value": "-2",
+      "display": "Scheduled"
+    },
+    "risk": {
+      "value": "3",
+      "display": "Moderate"
+    },
+    "assignmentGroup": {
+      "value": "89abcdef0123456789abcdef01234567",
+      "display": "Commerce Platform"
+    },
+    "window": {
+      "startsAt": "2026-07-15T18:00:00.000Z",
+      "endsAt": "2026-07-15T20:00:00.000Z"
+    }
+  },
+  "scope": {
+    "forwardNetworkId": "network-production",
+    "serviceEntityIds": [
+      "SERVICE-CHECKOUT-API",
+      "SERVICE-PAYMENTS-API"
+    ]
+  },
+  "authorization": {
+    "status": "eligible",
+    "reasons": [],
+    "eligibleStateValues": ["-2", "-1"],
+    "approvedValues": ["approved"]
+  },
+  "nextStages": [
+    "dynatrace-baseline",
+    "forward-before-evidence",
+    "customer-deployment",
+    "dynatrace-post-change-health",
+    "forward-after-evidence",
+    "forward-reconciliation-dry-run",
+    "combined-change-gate",
+    "servicenow-evidence-feedback"
+  ]
+}

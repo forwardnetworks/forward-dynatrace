@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "forward-dynatrace-servicenow-flow-blueprint/v1",
+  "name": "Forward and Dynatrace Change Assurance",
+  "trigger": {
+    "table": "change_request",
+    "when": "customer-owned deployment transition"
+  },
+  "connection": {
+    "workerBaseUrlInput": "worker_base_url",
+    "basicAuthProfileInput": "basic_auth_profile_sys_id",
+    "httpsRequired": true
+  },
+  "steps": [
+    {
+      "id": "start_assurance",
+      "type": "core-script-step",
+      "scriptFile": "start-assurance.js",
+      "terminalStatus": "baseline-captured",
+      "pollWith": "get-assurance-status.js"
+    },
+    {
+      "id": "customer_deployment",
+      "type": "customer-owned",
+      "description": "Existing deployment and rollback control. Not implemented by this integration."
+    },
+    {
+      "id": "complete_assurance",
+      "type": "core-script-step",
+      "scriptFile": "complete-assurance.js",
+      "terminalStatus": "completed",
+      "pollWith": "get-assurance-status.js"
+    },
+    {
+      "id": "enforce_decision",
+      "type": "flow-condition",
+      "pass": "decision == pass and exit_code == 0",
+      "block": "decision == warn or decision == fail or exit_code != 0"
+    }
+  ],
+  "retryPolicy": {
+    "sameStartBodyReturnsSameRunId": true,
+    "sameCompletionContextIsIdempotent": true,
+    "changedInputFailsClosed": true
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "forward-dynatrace-connector/v1",
+  "packageUrl": "https://package.example.com/dynatrace-forward/latest/",
+  "forwardBaseUrl": "https://forward.example.com",
+  "forwardNetworkId": "<network-id>",
+  "batchSize": 500,
+  "maxRetries": 3,
+  "maxPackageAgeMinutes": 1440,
+  "requireSignature": false,
+  "failOnDrift": true,
+  "apply": false,
+  "applyUpdates": false,
+  "deactivateStale": false,
+  "maxUpdates": 0,
+  "maxDeactivations": 0,
+  "reportPath": "/var/lib/forward-dynatrace/forward-import-report.json",
+  "metricsPath": "/var/lib/forward-dynatrace/forward-import-metrics.prom",
+  "statusArtifactPath": "/var/lib/forward-dynatrace/forward-ingest-status.json"
+}

@@ -30,6 +30,53 @@ const numberField = (row, names, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const parsedBooleanFields = (row, names) => {
+  const values = [];
+  for (const name of names) {
+    const value = row[name];
+    if (value === undefined || value === null || String(value).trim() === "") continue;
+    if (typeof value === "boolean") {
+      values.push({ name, value });
+      continue;
+    }
+    const normalized = String(value).trim().toLowerCase();
+    if (normalized === "true" || normalized === "1") {
+      values.push({ name, value: true });
+      continue;
+    }
+    if (normalized === "false" || normalized === "0") {
+      values.push({ name, value: false });
+      continue;
+    }
+    throw new Error(`${name} must be a boolean when supplied.`);
+  }
+  return values;
+};
+
+const syntheticField = (row) => {
+  const explicit = parsedBooleanFields(row, [
+    "demo.synthetic",
+    "demo.replay",
+    "forward.dynatrace.seeded",
+    "provenance.synthetic",
+    "synthetic",
+  ]);
+  const implicitMarkers = [
+    row["event.provider"] === "forward-dynatrace-demo",
+    row["event.type"] === "com.forward.demo.dependency",
+    row.owner === "dynatrace-demo",
+    /^dynatrace-demo-/iu.test(String(row["dependency.id"] || row.id || "")),
+  ];
+  const hasSyntheticMarker = explicit.some(({ value }) => value) || implicitMarkers.some(Boolean);
+  const hasLiveMarker = explicit.some(({ value }) => !value);
+  if (hasSyntheticMarker && hasLiveMarker) {
+    throw new Error("Dependency row contains conflicting live and synthetic provenance markers.");
+  }
+  if (hasSyntheticMarker) return true;
+  if (hasLiveMarker) return false;
+  return undefined;
+};
+
 const slug = (value) =>
   String(value)
     .trim()
@@ -100,6 +147,7 @@ export const normalizeDynatraceRows = (rows) => {
     const owner = field(row, ["owner.team", "owner", "team"], "unknown-owner");
     const criticality = normalizeCriticality(field(row, ["criticality", "business.criticality"], "medium"));
     const confidence = numberField(row, ["dependency.confidence", "confidence", "mapping.confidence"], 0);
+    const synthetic = syntheticField(row);
     const id = field(
       row,
       ["dependency.id", "id"],
@@ -129,6 +177,7 @@ export const normalizeDynatraceRows = (rows) => {
       owner,
       criticality,
       confidence,
+      ...(synthetic === undefined ? {} : { synthetic }),
       mappingState:
         explicitMappingState ||
         mappingStateFor({

@@ -56,8 +56,31 @@ Use immutable package ID paths for audit. Use `latest/` only for scheduled conne
      --output-dir /handoff/dynatrace-forward/latest
    ```
 
+## Checked Filesystem Publisher
+
+For a mounted customer-controlled handoff filesystem, use the checked publisher:
+
+```bash
+npm run forward:handoff:publish -- \
+  --package-dir /secure/generated-package \
+  --handoff-root /srv/forward-dynatrace-handoff \
+  --require-signature
+```
+
+The publisher validates package shape, checksums, freshness, optional NQE artifacts, and signature presence before
+writing. It creates `packages/<package-id>/` once, rejects same-ID byte changes, and atomically repoints `latest` with a
+relative symlink only after all bytes are durable. Re-publishing identical bytes is idempotent. Known sanitized status
+sidecars may be added after ingest; unknown extra files still make immutable-ID reuse fail closed.
+
+`npm run forward:handoff:test` covers first publish, idempotent retry, immutable-ID conflict, atomic latest behavior,
+and required-signature rejection. Signature cryptographic verification remains an importer gate using the configured
+trusted public key.
+
 ## Storage Options
 
 Acceptable implementations include an internal object store, artifact repository, CI artifact with retention and access
 logs, or customer-controlled storage with equivalent controls. Do not use a shared desktop folder, email attachment, or
 chat upload as the production handoff.
+
+The checked publisher covers filesystem-backed handoff. Customer deployment still owns HTTPS/object-store exposure,
+access logging, retention, backup, and identity policy.

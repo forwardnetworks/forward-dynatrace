@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/servicenow-change-assurance-evidence.schema.json",
+  "title": "ServiceNow change-assurance evidence attachment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "change", "decision", "reasonCodes", "forward", "dynatrace", "lineage", "preflight", "gate"],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace-servicenow-change-assurance-evidence/v1" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number", "sysId", "deploymentId", "serviceEntityIds"],
+      "properties": {
+        "number": { "type": "string", "pattern": "^CHG[0-9]+$" },
+        "sysId": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+        "deploymentId": { "type": "string", "minLength": 1 },
+        "serviceEntityIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "decision": { "enum": ["pass", "warn", "fail"] },
+    "reasonCodes": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" } },
+    "forward": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["networkId", "beforeSnapshotId", "afterSnapshotId", "reconciliationRunId", "reconciliationState"],
+      "properties": {
+        "networkId": { "type": "string", "minLength": 1 },
+        "beforeSnapshotId": { "type": "string", "minLength": 1 },
+        "afterSnapshotId": { "type": "string", "minLength": 1 },
+        "reconciliationRunId": { "type": ["string", "null"] },
+        "reconciliationState": { "type": ["string", "null"] }
+      }
+    },
+    "dynatrace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deploymentState", "serviceHealth", "openProblemCount"],
+      "properties": {
+        "deploymentState": { "enum": ["SUCCEEDED", "FAILED", "IN_PROGRESS", "UNKNOWN"] },
+        "serviceHealth": { "enum": ["HEALTHY", "DEGRADED", "UNHEALTHY", "UNKNOWN"] },
+        "openProblemCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preflightSha256", "gateSha256", "gateEvidence"],
+      "properties": {
+        "preflightSha256": { "$ref": "#/definitions/sha256" },
+        "gateSha256": { "$ref": "#/definitions/sha256" },
+        "gateEvidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["contextSha256", "beforePathEvidenceSha256", "afterPathEvidenceSha256", "reconciliationStatusSha256"],
+          "properties": {
+            "contextSha256": { "$ref": "#/definitions/sha256" },
+            "beforePathEvidenceSha256": { "$ref": "#/definitions/sha256" },
+            "afterPathEvidenceSha256": { "$ref": "#/definitions/sha256" },
+            "reconciliationStatusSha256": { "$ref": "#/definitions/sha256" }
+          }
+        }
+      }
+    },
+    "preflight": { "$ref": "https://github.com/forwardnetworks/forward-dynatrace/schemas/servicenow-change-preflight.schema.json" },
+    "gate": { "$ref": "https://github.com/forwardnetworks/forward-dynatrace/schemas/forward-change-validation-gate.schema.json" }
+  },
+  "definitions": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

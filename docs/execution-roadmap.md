@@ -1,5 +1,8 @@
 # Execution Roadmap
 
+> Status: long-range design history and capability record. The single active project plan is
+> `docs/exec-plans/active/customer-production-readiness.md`; verified evidence lives in `docs/validation-matrix.md`.
+
 This roadmap turns the Forward Integration for Dynatrace field integration into an execution plan. It preserves the core boundary:
 Dynatrace can export evidence and run approved read-only Forward queries; Forward-owned workflows perform persistent
 Forward writes.
@@ -45,7 +48,8 @@ Shared package artifacts:
 
 ## Phase 0: Boundary And Demo Readiness
 
-Status: mostly implemented.
+Status: implemented and live-validated in non-production Forward and Dynatrace environments; customer-owned runtime
+installation remains an acceptance activity.
 
 Goal: show the workflow safely before customer trial work.
 
@@ -71,6 +75,9 @@ Exit criteria:
 - No tenant IDs, credentials, customer data, or private token filenames are committed.
 
 ## Phase 1: Production-Safe Manual Import
+
+Status: implemented and live-validated for create, unchanged, changed, stale, and bounded failure behavior on a
+non-production Forward network.
 
 Goal: support real customer topology with Forward operator control.
 
@@ -301,12 +308,17 @@ Exit criteria:
 
 ## Phase 5: Bidirectional Evidence Loop
 
+Status: implemented for live dependency, reconciliation, problem, change-gate, check-health, and security evidence
+views. Non-production live proof exists for dependency/reconciliation/problem/change evidence; customer-owned live
+acceptance remains for ServiceNow, check-health, and security evidence.
+
 Goal: make both systems more useful without changing system-of-record boundaries.
 
 Dynatrace improvements from Forward evidence:
 
 - Show Forward ingest status beside application dependencies.
 - Show whether dependency rows map to known Forward network entities.
+- Show aggregate read-only path-analysis outcomes for observed service flows without returning check-level topology.
 - Show Forward-reported drift: created, unchanged, changed, stale.
 - Show read-only NQE preview summaries for impacted services.
 - Raise Dynatrace workflow tasks when Forward reports changed/stale drift.
@@ -385,6 +397,220 @@ Exit criteria:
 - Customer deployment model is repeatable without engineer handholding.
 - Security review signs off on credentials, package handoff, logs, and data handling.
 
+## Cross-Domain Product Roadmap
+
+The earlier phases establish the package, credential, and system-of-record boundaries. The next product increments use
+those controls to turn the integration from an intent-check generator into a cross-domain diagnosis and change-assurance
+workflow.
+
+### Foundation: Honest Live Demo And Operator Conductor
+
+Status: implemented and live-validated in the non-production Trial and DemoFoundry environments.
+
+Deliverables:
+
+- Let the app load live Grail dependency evidence or an explicitly labeled synthetic fallback.
+- Preserve source provenance and replay `run_id`; never present fixture data as live customer evidence.
+- Use a curated 8-12 row mixed-state customer showcase while retaining the 100-row replay as separate scale evidence.
+- Remove repeated flow tuples and misleading service/port combinations from the presentation path.
+- Resolve endpoints, run read-only Forward path analysis, build the package, and reconcile through one operator-owned
+  live-demo conductor.
+- Rename or disable UI actions that only stage a plan; do not imply a live Forward result where none exists.
+- Label synthetic status artifacts and screenshots as demo evidence.
+
+Acceptance criteria:
+
+- UI, exported package, Forward report, and status handoff share traceable provenance.
+- `npm run demo:live:test`, app build, and a dry-run against the approved demo network pass.
+- Apply and Dynatrace publication remain separate explicit gates.
+
+### Increment 1: Problem-Triggered Network Evidence
+
+Status: implemented and live-validated for the non-production demo environment.
+
+Goal: attach safe, aggregate Forward evidence to an affected-service Dynatrace problem.
+
+Deliverables:
+
+- Consume the impacted dependency candidates from a Dynatrace problem workflow.
+- Resolve endpoints and run Forward bulk path analysis in a Forward-controlled runtime.
+- Publish only a sanitized `forward.dynatrace.network.evidence` event with the problem ID, service ID, run ID, target
+  snapshot, assessment, and aggregate counts.
+- Provide latest and attention DQL views.
+- Keep detailed endpoint, device, path, and API response data inside the Forward-controlled boundary.
+
+Acceptance criteria:
+
+- Dry-run event generation and schema validation are automated.
+- Live Forward execution proves the target network/snapshot and records exact aggregate counts.
+- Live Dynatrace publication is separately gated and query-back proves the event is present.
+- The assessment says `consistent-with-network-policy-block`, `no-modeled-policy-block`, or `inconclusive`; it never
+  asserts network root cause.
+
+Implementation references:
+
+- `docs/problem-network-evidence.md`
+- `scripts/publish-dynatrace-network-evidence.mjs`
+- `schemas/forward-network-evidence-event.schema.json`
+
+Live validation record (2026-07-12):
+
+- Dynatrace Trial query returned and normalized 100 replay dependency rows.
+- Forward network `235937`, snapshot `1322821` evaluated 100 queryable paths: reachable `0`, blocked `100`, ambiguous
+  `0`, unmapped `0`, failed `0`.
+- Host resolution classified 98 ready, 1 review, and 1 needs-map row with 100 source and 100 destination resolutions.
+- Dynatrace OpenPipeline accepted run `fd-problem-evidence-20260712T113700Z` with HTTP `202`.
+- Grail query-back returned exactly one matching `forward.dynatrace.network.evidence` event with assessment
+  `consistent-with-network-policy-block` and the same network, snapshot, and aggregate counts.
+
+### Increment 2: Forward And Dynatrace Change-Validation Gate
+
+Status: implemented and live-validated with separate safe and regression snapshot pairs.
+
+Goal: correlate an application deployment or change window with Dynatrace service health and Forward modeled-network
+validation before promotion.
+
+Deliverables:
+
+- Accept a deployment/change correlation ID, affected services, and approved before/after Forward snapshot IDs.
+- Reuse the resolved dependency set for pre-change and post-change path evidence.
+- Combine Forward path results and governed intent-check reconciliation with Dynatrace deployment/problem/service-health
+  context.
+- Emit a signed or checksummed gate artifact with `pass`, `warn`, or `fail`, plus explicit reasons and evidence IDs.
+- Keep the gate read-only by default; a failed gate blocks promotion through the customer's deployment system, not by
+  mutating Forward or Dynatrace.
+
+Acceptance criteria:
+
+- The same inputs produce a deterministic gate artifact.
+- Missing snapshots, unmapped endpoints, or partial evidence cannot silently pass.
+- A demo demonstrates one safe change and one rejected/inconclusive change from both application and network perspectives.
+
+Initial implementation slice:
+
+- `scripts/forward-change-validation-gate.mjs` builds a deterministic aggregate gate artifact from checked input files.
+- `schemas/forward-change-context.schema.json` defines the Dynatrace deployment/service-health input contract.
+- `schemas/forward-change-validation-gate.schema.json` defines the `pass`, `warn`, or `fail` output contract.
+- `--fail-on-non-pass` lets a customer-owned deployment job stop promotion after the evidence artifact is written.
+- Unit and CLI tests cover pass, fail-closed, warning, deterministic output, and schema validation paths.
+
+Live evidence exercise (2026-07-12):
+
+- The live conductor queried 100 Trial rows and selected 12 flows: 10 ready, 1 review, and 1 needs-map.
+- Forward network `235937`, snapshot `1322821` returned 12 blocked, 0 ambiguous, 0 unmapped, and 0 failed path rows.
+- Dry-run reconciliation planned 10 creates with 0 changed and 0 stale managed checks.
+- Reusing snapshot `1322821` as both before and after was intentionally rejected with
+  `FORWARD_SNAPSHOT_UNCHANGED` and `FORWARD_BLOCKED_PATHS`; `--fail-on-non-pass` exited `2`.
+- The schema-valid gate artifact SHA-256 was
+  `c3691aea3a0d1a7fab1ba431ef0abedb29df81624b77f0ca7e0679c8ffacc34c`.
+- A complete safe pair used snapshots `1322819 -> 1322820`: all 24 modeled paths remained reachable, no paths were
+  blocked, Dynatrace service health was healthy with no open problems, and the gate passed.
+- A complete regression pair used snapshots `1322820 -> 1322821`: reachable paths dropped `24 -> 12`, blocked paths
+  rose `0 -> 12`, Dynatrace service health was unhealthy with one open problem, and the gate failed with
+  `FORWARD_BLOCKED_PATHS`, `FORWARD_PATH_REGRESSION`, `DYNATRACE_SERVICE_UNHEALTHY`, and
+  `DYNATRACE_OPEN_PROBLEMS`.
+- Both sanitized change-gate events were published to Dynatrace, queried back from Grail, and rendered in the Trial
+  portal with exact snapshot IDs, deltas, application health, reconciliation state, and reason codes.
+
+#### ServiceNow Production Extension
+
+Status: implemented and fake-server validated in the repository; non-production ServiceNow acceptance remains.
+
+- `scripts/servicenow-change-preflight.mjs` performs the authoritative, exact read and fails closed on approval, state,
+  and planned-window eligibility.
+- `scripts/servicenow-change-assurance.mjs` binds that eligible preflight to the Dynatrace context and Forward
+  before/after/reconciliation evidence, re-reads ServiceNow before finalization, produces the deployment gate, and
+  prepares both feedback channels.
+- `scripts/servicenow-change-workflow.mjs` persists the approved baseline across the customer deployment boundary,
+  verifies artifact hashes on resume, waits within a fixed bound for a different processed Forward snapshot, captures
+  post-change evidence, and runs dry-run reconciliation.
+- `scripts/servicenow-change-feedback.mjs` sends the exact checksummed bundle to the companion ServiceNow assurance
+  ingress, verifies the returned decision/idempotency receipt, and relies on the unique ServiceNow ledger key for
+  cross-host retry safety.
+- Cross-change correlation mismatches fail before gate or publication, and Forward check mutation remains outside the
+  assurance workflow.
+- Live acceptance still requires one approved and one blocked non-production change, readback of the exact marker and
+  checksum, a duplicate-free retry, and matching Dynatrace query-back.
+
+### Increment 3: Continuous Forward Check-Health Transition Feedback
+
+Status: implemented and synthetic trial publication/portal rendering validated; customer-owned live runtime validation
+remains.
+
+Goal: correlate Forward-managed intent health with Dynatrace problems, deployments, service health, and ownership
+without creating a high-cardinality metric stream.
+
+Deliverables:
+
+- Poll only checks managed by this integration from Forward's read-only snapshot check inventory.
+- Persist the last observed state in the Forward-controlled runtime.
+- Publish events only for `PASS -> FAIL`, `FAIL -> PASS`, `ERROR`, and newly missing/stale intent transitions.
+- Include stable check identity hashes and aggregate ownership/service context; exclude credentials and detailed topology.
+- Add overlap prevention, retry behavior, retention, and replay protection to the scheduled runtime.
+
+Acceptance criteria:
+
+- Unchanged polling cycles publish nothing.
+- Transition events are idempotent across restart/retry.
+- Cardinality and OpenPipeline ingestion volume are bounded and documented.
+- No failed or stale check is auto-remediated without customer-owned approval, audit, and rollback controls.
+
+Implementation references:
+
+- `scripts/forward-check-health-transitions.mjs`
+- `schemas/forward-check-health-transitions.schema.json`
+- `docs/check-health-transition-feedback.md`
+
+Trial validation record (2026-07-12):
+
+- A real 24-check Forward baseline contained 12 PASS and 12 FAIL results on snapshot `1322821`.
+- Saved, explicitly synthetic inventory edits produced exactly one `PASS_TO_FAIL` and one `FAIL_TO_PASS` event with
+  deterministic transition IDs.
+- Both events were accepted by Dynatrace OpenPipeline, queried back from Grail, and rendered in the portal with
+  `SYNTHETIC DEMO` provenance. This validates the feedback path without claiming the saved edits were live network
+  changes.
+
+### Increment 4: Security Exposure Correlation
+
+Status: implemented and synthetic trial publication/portal rendering validated; customer evidence validation remains.
+
+Goal: prioritize security exposure using both runtime/application context and modeled network reachability.
+
+Deliverables:
+
+- Correlate Dynatrace runtime vulnerability relevance and active execution context with Forward device CVEs,
+  internet-addressability, network location, and modeled paths.
+- Produce an evidence bundle and ranked investigation queue; keep raw vendor findings in their source systems.
+- Distinguish observed execution, modeled reachability, vulnerable infrastructure, and policy findings as separate facts.
+- Require customer-owned approval before any remediation workflow.
+
+Acceptance criteria:
+
+- Every correlation is traceable to exact Dynatrace and Forward evidence IDs and timestamps.
+- Reachability is never described as proof that traffic should be permitted or prohibited.
+- Low-confidence identity mappings cannot produce an automatic high-severity conclusion.
+- Security and network owners approve the data-sharing, retention, and remediation boundaries.
+
+Implementation references:
+
+- `scripts/security-exposure-correlation.mjs`
+- `schemas/forward-security-correlation.schema.json`
+- `docs/security-exposure-correlation.md`
+
+Trial validation record (2026-07-12):
+
+- Two explicitly synthetic correlations were published and queried back: one high-confidence critical investigation
+  and one low-confidence medium identity-review item.
+- The portal preserved separate execution, vulnerable-runtime, modeled-reachability, internet-addressability, and
+  policy facts, and labeled the evidence `SYNTHETIC DEMO`.
+
+Implementation order completed in the repository:
+
+1. Problem-triggered network evidence.
+2. Forward + Dynatrace change-validation gate and ServiceNow extension.
+3. Check-health transition feedback.
+4. Security exposure correlation.
+
 ## Open Decisions
 
 1. Dynamic NQE preview credential model: dedicated Forward principal with `NetworkOperation.USE_NQE`, no
@@ -403,12 +629,16 @@ Exit criteria:
 
 ## Near-Term Execution Backlog
 
-1. Run `npm run forward:nqe-live-smoke -- --execute --approval-file <approval.json>` once the customer approves the
+1. Live-validate check-health polling and one failure/recovery transition pair in the customer-owned runtime.
+2. Validate security correlation against customer-approved evidence and identity mappings.
+3. Run `npm run forward:nqe-live-smoke -- --execute --approval-file <approval.json>` once the customer approves the
    exact Forward read-only credential model.
-2. Capture customer-approved query IDs only if the optional persistent NQE or NQE diff path is enabled.
+4. Capture customer-approved query IDs only if the optional persistent NQE or NQE diff path is enabled.
 
 Completed near-term execution docs:
 
 - Live demo runbook uses customer-owned data for production and standard demo replay for trial sandboxes: `docs/live-demo-runbook.md`.
+- The live-demo conductor now joins Grail query, Forward host resolution, read-only path analysis, governed package
+  generation, dry-run/apply reconciliation, and sanitized Dynatrace status handoff behind separate write gates.
 - Workflow screenshots cover optional NQE preview and iterative Forward reconciliation: `docs/screenshots.md`.
 - Forward checks, NQE, and NQE diff compatibility notes: `docs/forward-api-compatibility.md`.

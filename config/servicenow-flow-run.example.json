@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "forward-dynatrace-servicenow-flow-run/v1",
+  "runId": "fdca-0123456789abcdef01234567",
+  "status": "baseline-captured",
+  "phase": "start",
+  "createdAt": "2026-07-15T18:30:00.000Z",
+  "updatedAt": "2026-07-15T18:31:00.000Z",
+  "change": {
+    "number": "CHG0042187",
+    "deploymentId": "checkout-api-2026.07.15.3",
+    "serviceEntityIds": ["SERVICE-CHECKOUT-API", "SERVICE-PAYMENTS-API"]
+  },
+  "forward": {
+    "networkId": "network-production",
+    "beforeSnapshotId": "snapshot-before",
+    "afterSnapshotId": null
+  },
+  "decision": null,
+  "exitCode": 0,
+  "error": null
+}

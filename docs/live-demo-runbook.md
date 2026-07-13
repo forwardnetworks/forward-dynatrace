@@ -1,8 +1,102 @@
 # Live Demo Runbook
 
-Use this runbook for a customer meeting, trial sandbox, or internal rehearsal. The production story is customer-owned
-Dynatrace topology into a Forward-side import workflow. The standard demo replay path is available when the trial
-tenant needs demo dependency evidence aligned to the standard Forward demo snapshot.
+Use this runbook for a customer meeting, trial sandbox, or internal rehearsal. The strongest meeting story has two
+acts: lead with one ServiceNow-governed change receiving a checksummed Forward-plus-Dynatrace decision, then show how
+Dynatrace topology becomes the Forward-owned intent behind that assurance. The standard demo replay path is available
+when the trial tenant needs demo dependency evidence aligned to the standard Forward demo snapshot.
+
+## Rehearsal Command
+
+Set the Forward test-network environment in the Forward-controlled operator shell, then run:
+
+```bash
+export FORWARD_BASE_URL=https://forward.example.com
+export FORWARD_USER=<user>
+export FORWARD_PASSWORD=<password-or-token>
+export FORWARD_NETWORK_ID=<network-id>
+# Optional: preferred dedicated credential for host resolution and path analysis.
+export FORWARD_READONLY_AUTHORIZATION='Bearer <read-only-token>'
+
+npm run demo:live -- \
+  --dynatrace-environment-url https://<trial-sandbox-id>.apps.dynatrace.com/ \
+  --dynatrace-token-file /secure/path/platform-token \
+  --evidence-source approved-trial-replay \
+  --synthetic \
+  --output-dir /tmp/forward-dynatrace-live-demo
+```
+
+This single command performs the safe default sequence:
+
+1. Query live, deduplicated dependency evidence from Dynatrace Grail.
+2. Select 12 clean, unique flows while retaining review and needs-map governance states.
+3. Resolve endpoints against Forward's latest processed snapshot.
+4. Run read-only Forward bulk path analysis for the resolved rows.
+5. Build and validate the intent-check package from those same resolved rows.
+6. Reconcile against Forward in dry-run mode.
+7. Produce a sanitized status handoff and a concise `demo-summary.json`.
+
+When `FORWARD_READONLY_AUTHORIZATION` (or the more specific host/path authorization variable) is present, the
+conductor uses it for host resolution and path analysis. Otherwise it reuses the Forward importer credential for
+those read-only calls. Forward apply remains separately gated by `--apply`.
+
+Review `demo-summary.json`, `forward-host-resolution-report.json`, `forward-path-evidence.json`, and
+`forward-dry-run-report.json` before adding either write gate:
+
+- `--apply` creates missing Forward checks only; changed and stale checks remain report-only.
+- `--publish-dynatrace-status` publishes only the sanitized aggregate reconciliation event back to Dynatrace.
+
+Use `--skip-path-evidence` only when the approved Forward credential cannot execute path search. The endpoint
+resolution, package, dry-run, and status handoff stages still run.
+
+If the live Dynatrace query returns zero rows or no clean unique flows, the conductor stops before any Forward call and
+records a blocked `demo-summary.json` with the observed row/dependency counts, live provenance, and
+`forward.attempted=false`. Populate customer-owned live dependency evidence for production proof. For an approved
+non-production demo tenant only, inspect `npm run dynatrace:replay-demo -- --help` and use the checked replay path; the
+conductor never replays automatically, and replay provenance must remain visibly synthetic. The checked default DQL is
+replay-only and therefore requires `--synthetic`. Customer evidence requires an explicit `--dynatrace-query-file` and
+truthful `--evidence-source`; the conductor rejects replay/seeded rows labeled live before contacting Forward.
+
+## Credential-Free Two-Act Rehearsal
+
+Before a customer session, exercise intent creation and safe/regression change assurance in one presenter bundle:
+
+```bash
+npm run demo:showcase -- --output-dir /tmp/servicenow-forward-dynatrace-showcase
+```
+
+Open `SHOWCASE.md`. Act 1 builds and validate-only checks the 100-row Dynatrace-to-Forward intent package. Act 2 keeps
+the safe change 24/24 reachable with healthy Dynatrace context and passes; the regressed change falls from 24 to 12,
+reports 12 blocked modeled paths plus unhealthy Dynatrace context, and fails with explicit reason codes. In both
+cases, the ServiceNow attachment SHA-256 exactly matches the Dynatrace event field.
+
+This rehearsal performs no external reads or writes. Keep its `SYNTHETIC DEMO SHOWCASE` provenance visible; replace
+it with authoritative ServiceNow readback, customer-approved Forward snapshots, and Dynatrace query-back before
+making a live customer claim. Use `npm run demo:servicenow` only for a focused Act 2 rehearsal.
+
+## Compelling ServiceNow → Forward → Dynatrace Story
+
+Use the same customer-owned workflow twice: one safe change and one regression. Avoid showing scripts until asked.
+
+1. Open the ServiceNow change. Show approval, active window, owner, deployment ID, and affected Dynatrace services.
+2. Trigger the Flow Designer **Start assurance** step. Show stable `fdca-*` run ID and poll until
+   `baseline-captured`.
+3. Open Forward. Show exact network and before-snapshot ID; explain that collection is read-only and scoped to affected
+   services.
+4. Run the customer deployment step. This integration does not deploy or roll back the application.
+5. Submit fresh Dynatrace deployment/service-health/problem context through **Complete assurance** and poll until
+   `completed`.
+6. Show decision in ServiceNow: before/after Forward snapshots, path delta, Dynatrace health, intent reconciliation,
+   and explicit reason codes. Continue only for `pass`/exit `0`.
+7. Show the checksummed evidence attachment and work-note marker. For the acceptance run, enable
+   `--verify-servicenow-retry`; retain the second `existing` receipt with the same attachment/work-note sys_ids.
+8. Open the Dynatrace cross-domain assurance portal. Query back the same run/change/deployment IDs and compare the safe
+   and regression records. Match the portal's ServiceNow evidence SHA-256 to the attachment/work-note marker on the
+   change record. Internal diagnostic evidence retains source provenance; keep the visible walkthrough on the
+   customer change, snapshots, decision, and checksum rather than demo mechanics.
+
+Flow assets: `deploy/servicenow-flow/`. Worker: `npm run servicenow:flow-server`. Customer rehearsal must preserve exact
+run ID, change number/sys_id, deployment ID, Forward network/snapshot IDs, decision, checksum, and Dynatrace query-back
+count. If using replay data, keep `SYNTHETIC DEMO` visible in all three systems.
 
 ## Production Demo Path
 
@@ -14,14 +108,14 @@ tenant needs demo dependency evidence aligned to the standard Forward demo snaps
    npm run dynatrace:query -- \
      --environment-url https://<environment-id>.apps.dynatrace.com/ \
      --token-file /secure/path/platform-token \
-     --query-file deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql \
+     --query-file /secure/queries/customer-dependencies.dql \
      --output /tmp/forward-dynatrace-rows.json \
      --dependencies-output /tmp/forward-dynatrace-dependencies.json
    ```
 
-4. Run the read-only endpoint-resolution preflight for review rows when a Forward NQE query ID is approved. If Forward
-   cannot resolve the Dynatrace source or destination, mark the row `needs-map`; those rows are evidence for follow-up
-   mapping, not check creation.
+4. Run Forward host resolution for every candidate before package generation. This uses host inventory and does not
+   require an NQE query ID. If Forward cannot resolve the Dynatrace source or destination, mark the row `needs-map`;
+   those rows are evidence for follow-up mapping, not check creation.
 5. Build the base package:
 
    ```bash
@@ -127,11 +221,13 @@ Saved fixture replay:
 npm run dynatrace:replay-demo -- \
   --environment-url https://<trial-sandbox-id>.apps.dynatrace.com/ \
   --token-file /secure/path/platform-token \
+  --showcase \
   --apply
 ```
 
-Replay evidence must be labeled as demo-only. Do not use the saved replay fixture as the production source for Forward
-intent.
+`--showcase` keeps the 100-row scale story but deliberately marks one row review and one row needs-map so the demo can
+show governance and exclusion before Forward reconciliation. Replay evidence must be labeled as demo-only. Do not use
+the saved replay fixture as the production source for Forward intent.
 
 ## Evidence To Keep
 

@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/servicenow-change-workflow.schema.json",
+  "title": "ServiceNow two-phase change-assurance workflow state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "status", "updatedAt", "change", "forward", "provenance", "decision", "policy", "artifacts", "hashes"],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace-servicenow-change-workflow/v2" },
+    "status": { "enum": ["blocked", "baseline-captured", "completed"] },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number", "sysId", "deploymentId", "serviceEntityIds"],
+      "properties": {
+        "number": { "type": "string", "pattern": "^CHG[0-9]+$" },
+        "sysId": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+        "deploymentId": { "type": "string", "minLength": 1 },
+        "serviceEntityIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "forward": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["networkId", "beforeSnapshotId", "afterSnapshotId"],
+      "properties": {
+        "networkId": { "type": "string", "minLength": 1 },
+        "beforeSnapshotId": { "type": ["string", "null"] },
+        "afterSnapshotId": { "type": ["string", "null"] }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceSource", "synthetic"],
+      "properties": {
+        "evidenceSource": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+        "synthetic": { "type": "boolean" }
+      }
+    },
+    "decision": { "type": ["string", "null"], "enum": ["pass", "warn", "fail", null] },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dynatraceStabilizationSeconds", "snapshotTimeoutMs", "snapshotPollMs"],
+      "properties": {
+        "dynatraceStabilizationSeconds": { "type": "integer", "minimum": 0 },
+        "snapshotTimeoutMs": { "type": "integer", "minimum": 1 },
+        "snapshotPollMs": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preflight"],
+      "properties": {
+        "preflight": { "$ref": "#/definitions/path" },
+        "scopedDependencies": { "$ref": "#/definitions/path" },
+        "resolvedDependencies": { "$ref": "#/definitions/path" },
+        "hostResolutionReport": { "$ref": "#/definitions/path" },
+        "beforeEvidence": { "$ref": "#/definitions/path" },
+        "afterEvidence": { "$ref": "#/definitions/path" },
+        "packageDir": { "$ref": "#/definitions/path" },
+        "reconciliationReport": { "$ref": "#/definitions/path" },
+        "reconciliationStatus": { "$ref": "#/definitions/path" },
+        "assuranceSummary": { "$ref": "#/definitions/path" }
+      }
+    },
+    "hashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preflightSha256"],
+      "properties": {
+        "preflightSha256": { "$ref": "#/definitions/sha256" },
+        "scopedDependenciesSha256": { "$ref": "#/definitions/sha256" },
+        "resolvedDependenciesSha256": { "$ref": "#/definitions/sha256" },
+        "beforeEvidenceSha256": { "$ref": "#/definitions/sha256" },
+        "afterEvidenceSha256": { "$ref": "#/definitions/sha256" },
+        "contextSha256": { "$ref": "#/definitions/sha256" },
+        "assuranceSummarySha256": { "$ref": "#/definitions/sha256" }
+      }
+    }
+  },
+  "definitions": {
+    "path": { "type": "string", "minLength": 1 },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

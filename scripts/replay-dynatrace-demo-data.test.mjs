@@ -46,3 +46,77 @@ test("dry-run replay honors explicit API base override", () => {
   const summary = JSON.parse(result.stdout);
   assert.equal(summary.apiBaseUrl, "https://example.test");
 });
+
+test("showcase replay includes governed review and needs-map rows", () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      "scripts/replay-dynatrace-demo-data.mjs",
+      "--environment-url",
+      "https://your-environment-id.apps.dynatrace.com/",
+      "--run-id",
+      "test-showcase",
+      "--showcase",
+    ],
+    { cwd: process.cwd(), encoding: "utf8" },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.showcase, true);
+  assert.equal(summary.replayEvents, 100);
+  assert.equal(summary.readyRows, 98);
+  assert.equal(summary.reviewRows, 1);
+  assert.equal(summary.needsMapRows, 1);
+});
+
+test("replays an explicit change-assurance dependency fixture", () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      "scripts/replay-dynatrace-demo-data.mjs",
+      "--environment-url",
+      "https://your-environment-id.apps.dynatrace.com/",
+      "--run-id",
+      "test-change-showcase",
+      "--dependencies",
+      "shared/demo-change-dependencies.json",
+      "--fixture",
+      "forward-change-showcase",
+    ],
+    { cwd: process.cwd(), encoding: "utf8" },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.fixture, "forward-change-showcase");
+  assert.equal(summary.replayEvents, 10);
+  assert.equal(summary.readyRows, 10);
+  assert.equal(summary.dependenciesSource, "shared/demo-change-dependencies.json");
+});
+
+test("customer flow uses neutral application dependency event names", () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      "scripts/replay-dynatrace-demo-data.mjs",
+      "--environment-url",
+      "https://your-environment-id.apps.dynatrace.com/",
+      "--run-id",
+      "change-assurance-20260712",
+      "--dependencies",
+      "shared/customer-trial-dependencies.json",
+      "--fixture",
+      "commerce-application-map",
+      "--customer-flow",
+    ],
+    { cwd: process.cwd(), encoding: "utf8" },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.customerFlow, true);
+  assert.equal(summary.provider, "forward-dynatrace");
+  assert.equal(summary.eventType, "com.forward.application.dependency");
+  assert.equal(summary.replayEvents, 24);
+});

@@ -44,10 +44,49 @@ test("honors explicit dependency mapping state from DQL rows", () => {
       "network.port": "443",
       "dependency.confidence": "80",
       "dependency.mapping_state": "ready",
+      "demo.synthetic": true,
     },
   ]);
 
   assert.equal(dependency.mappingState, "ready");
+  assert.equal(dependency.synthetic, true);
+});
+
+test("preserves replay provenance and rejects ambiguous synthetic markers", () => {
+  const baseRow = {
+    "dt.entity.service": "SERVICE-SEEDED",
+    "network.source": "10.0.0.10/32",
+    "network.destination": "10.0.0.20/32",
+    "network.port": "443",
+    "forward.dynatrace.seeded": "true",
+  };
+  const [dependency] = normalizeDynatraceRows([baseRow]);
+  assert.equal(dependency.synthetic, true);
+  assert.throws(
+    () => normalizeDynatraceRows([{ ...baseRow, "forward.dynatrace.seeded": "unknown" }]),
+    /must be a boolean when supplied/,
+  );
+  assert.throws(
+    () => normalizeDynatraceRows([{
+      ...baseRow,
+      "demo.synthetic": false,
+    }]),
+    /conflicting live and synthetic provenance markers/,
+  );
+
+  const [providerMarked] = normalizeDynatraceRows([{
+    ...baseRow,
+    "forward.dynatrace.seeded": undefined,
+    "event.provider": "forward-dynatrace-demo",
+  }]);
+  assert.equal(providerMarked.synthetic, true);
+
+  const [replayMarked] = normalizeDynatraceRows([{
+    ...baseRow,
+    "forward.dynatrace.seeded": undefined,
+    "demo.replay": "true",
+  }]);
+  assert.equal(replayMarked.synthetic, true);
 });
 
 test("rejects non-array input", () => {

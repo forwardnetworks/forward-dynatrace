@@ -4,13 +4,19 @@ The connector runtime is the scheduled process that imports a Dynatrace-generate
 Dynatrace, holds Forward credentials, validates the package, reconciles against existing checks, and applies only
 missing checks when `apply` is enabled.
 
-The repo includes three deployable runtime templates:
+The purchase-free ServiceNow Flow worker is a separate long-running process because this connector remains a scheduled
+one-shot import. Use `deploy/systemd/forward-dynatrace-servicenow-flow.service` with
+`deploy/systemd/servicenow-flow.env.example`; bind it to localhost and place customer-owned TLS ingress in front of it.
+See [servicenow-flow-worker.md](servicenow-flow-worker.md).
+
+The repo includes four deployable runtime templates:
 
 - `deploy/docker-compose/`: a small controlled runtime or trial environment.
 - `deploy/systemd/`: a VM or appliance-style scheduled import.
 - `deploy/kubernetes/`: a Kubernetes CronJob scheduled import.
+- `deploy/cron/`: a portable Linux cron schedule using the guarded importer wrapper.
 
-Both templates use the same importer:
+All scheduled templates use the same importer:
 
 ```bash
 node scripts/forward-import-package.mjs --config /etc/forward-dynatrace/forward-connector.config.json
@@ -65,6 +71,16 @@ journalctl -u forward-dynatrace-connector.service
 
 The service is oneshot, uses `NoNewPrivileges`, writes only to `/var/lib/forward-dynatrace` and
 `/var/log/forward-dynatrace`, and relies on `UMask=0077` for generated artifacts.
+
+## Cron Runtime
+
+Use [cron-runtime.md](cron-runtime.md) when the Forward-controlled host has cron but not systemd or Kubernetes. The
+optional wrapper uses the same importer and connector config, prevents overlapping runs, reclaims abandoned locks,
+writes protected per-run logs, refuses `apply=true` without a second explicit gate, and can publish sanitized status
+to an approved handoff directory.
+
+The checked schedule is `deploy/cron/forward-dynatrace.crontab.example`; it runs every 15 minutes in dry-run mode by
+default.
 
 After a successful run, publish sanitized status to the approved handoff location:
 

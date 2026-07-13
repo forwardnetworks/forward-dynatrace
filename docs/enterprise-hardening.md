@@ -1,5 +1,9 @@
 # Enterprise Hardening Backlog
 
+> This is a control and productization catalog, not the active execution queue. Current work is tracked in
+> `docs/exec-plans/active/customer-production-readiness.md`; structural debt is tracked in
+> `docs/exec-plans/tech-debt-tracker.md`.
+
 This tracks what is implemented now and what remains before positioning this Forward Field Integration reference for
 broader enterprise use.
 It remains a field-built reference, not an officially supported Forward product integration.
@@ -89,8 +93,9 @@ It remains a field-built reference, not an officially supported Forward product 
   and reruns the same package to confirm idempotency.
 - External after policy decision: operate the approval process for update/stale automation and decide whether it is
   enabled for each deployment.
-- Future productization: add a UI view for package history, rejected rows, drift state, and last Forward-side ingest
-  result.
+- Done in repo: the Dynatrace app shows dependency eligibility/rejected rows plus sanitized Forward package history,
+  drift state, and the latest Forward-side ingest result. An owned-product decision would still determine long-term
+  support and UX ownership.
 
 ## Exit Criteria
 

@@ -14,12 +14,16 @@ Actions. It is not published to PyPI.
    git diff --check
    ```
 
-3. Tag the release:
+3. Validate and tag the release. The tag must exactly match the synchronized repository version:
 
    ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
+   npm run release:ref:validate -- --release-name v<package-version>
+   git tag v<package-version>
+   git push origin v<package-version>
    ```
+
+   The tag workflow repeats this validation and fails before packaging or publishing when `GITHUB_REF_NAME` differs
+   from `package.json`, the root package-lock versions, or `app.config.json`.
 
 4. The `release` workflow builds with Node 24, runs `npm run ci`, runs `npm run release:package`, optionally
    self-signs `SHA256SUMS`, uploads workflow artifacts, publishes the GHCR importer image, emits attestations, scans

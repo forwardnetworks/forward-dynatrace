@@ -2,14 +2,29 @@
   "$schema": "./.dt-app/app.config.schema.json",
   "environmentUrl": "https://your-environment-id.apps.dynatrace.com/",
   "app": {
-    "name": "forward-dynatrace-field-integration",
+    "name": "forward.dynatrace",
     "version": "1.0.0",
-    "description": "Field Integration reference for Forward intent-check package export",
+    "description": "Application dependency and modeled network evidence for Dynatrace and Forward",
     "id": "com.forwardnetworks.dynatrace.field.integration",
     "scopes": [
       {
+        "name": "storage:buckets:read",
+        "comment": "Read Grail buckets containing approved dependency evidence"
+      },
+      {
+        "name": "storage:events:read",
+        "comment": "Query approved Dynatrace dependency events from Grail"
+      },
+      {
         "name": "environment-api:entities:read",
         "comment": "Read Dynatrace service/entity context before exporting Forward packages"
+      }
+    ],
+    "actions": [
+      {
+        "name": "export-forward-package",
+        "title": "Export Forward intent package",
+        "description": "Generate checksummed Forward package artifacts from approved Dynatrace dependency evidence. Performs no Forward writes."
       }
     ]
   }

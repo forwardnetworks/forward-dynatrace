@@ -12,6 +12,7 @@ import {
   validateApprovalFile,
   validateConnectorConfig,
   validateManifest,
+  validatePolicyArgs,
   validatePlannedChecks,
   verifyPackageSignature,
 } from "./forward-import-package.mjs";
@@ -194,6 +195,33 @@ test("uses the dynatrace-key tag as the reconciliation key", () => {
 
 test("ignores Forward result-only fields when comparing fingerprints", () => {
   assert.equal(fingerprintCheck(baseCheck), fingerprintCheck(withResultFields(baseCheck)));
+});
+
+test("allows historical snapshot dry-run but forbids historical apply", () => {
+  assert.doesNotThrow(() => validatePolicyArgs({ "snapshot-id": "snapshot-before" }));
+  assert.throws(
+    () => validatePolicyArgs({ "snapshot-id": "snapshot-before", apply: true }),
+    /dry-run only/,
+  );
+});
+
+test("treats Forward-normalized host subnets as unchanged", () => {
+  const planned = structuredClone(baseCheck);
+  planned.definition.filters.from.location = {
+    type: "SubnetLocationFilter",
+    value: "10.55.101.11/32",
+  };
+  planned.definition.filters.to.location = {
+    type: "SubnetLocationFilter",
+    value: "2001:db8::42/128",
+  };
+  const existing = withResultFields(structuredClone(planned));
+  existing.definition.filters.from.location.value = "10.55.101.11";
+  existing.definition.filters.to.location.value = "2001:db8::42";
+
+  const plan = reconcileChecks([planned], [existing]);
+  assert.equal(plan.unchanged.length, 1);
+  assert.equal(plan.changed.length, 0);
 });
 
 test("classifies matching generated checks as unchanged", () => {

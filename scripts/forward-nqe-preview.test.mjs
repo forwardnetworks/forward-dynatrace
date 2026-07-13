@@ -66,6 +66,49 @@ test("plans read-only NQE request without runtime credentials", async () => {
   assert.equal(JSON.stringify(result.evidence).includes("checkout-api"), true);
 });
 
+test("plans a credential-free request before Forward target metadata is supplied", async () => {
+  const result = await withEnv(
+    {
+      FORWARD_NQE_READONLY_AUTHORIZATION: undefined,
+      FORWARD_READONLY_AUTHORIZATION: undefined,
+      FORWARD_NQE_ALLOWED_QUERY_IDS: undefined,
+    },
+    () => buildForwardNqePreview(
+      {
+        dependency: baseRequest.dependency,
+        templateId: "endpoint-inventory-smoke",
+      },
+      async () => {
+        throw new Error("fetch should not be called in plan mode");
+      },
+    ),
+  );
+
+  assert.equal(result.status, "planned");
+  assert.equal(result.requestPreview.path, "/api/nqe");
+  assert.match(result.summary, /Add Forward URL metadata and a network ID before execution/);
+  assert.equal(
+    result.nextSteps.includes("Add Forward URL and network ID metadata before execution."),
+    true,
+  );
+});
+
+test("still blocks execution when Forward target metadata is missing", async () => {
+  const result = await buildForwardNqePreview(
+    {
+      dependency: baseRequest.dependency,
+      templateId: "endpoint-inventory-smoke",
+      execute: true,
+    },
+    async () => {
+      throw new Error("fetch should not be called without a target");
+    },
+  );
+
+  assert.equal(result.status, "blocked");
+  assert.match(result.summary, /execution requires Forward URL metadata and a network ID/);
+});
+
 test("blocks execution when read-only runtime authorization is absent", async () => {
   const result = await withEnv(
     {

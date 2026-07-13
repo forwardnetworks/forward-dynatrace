@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 
 import { createServer } from "node:http";
-import { readFile, stat } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { chromium } from "playwright";
+
+import { buildCaptureEvidence } from "./build-demo-capture-evidence.mjs";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 const distDir = path.join(root, "dist");
@@ -57,14 +60,12 @@ const sendJson = (response, statusCode, payload) => {
 };
 
 const loadFunctions = async () => {
-  const networkProof = await import(pathToFileURL(path.join(distDir, "api/network-proof.js")));
   const forwardSync = await import(pathToFileURL(path.join(distDir, "api/forward-sync.js")));
   const forwardStatus = await import(pathToFileURL(path.join(distDir, "api/forward-status.js")));
   const forwardNqePreview = await import(
     pathToFileURL(path.join(distDir, "api/forward-nqe-preview.js"))
   );
   return {
-    networkProof: networkProof.default,
     forwardSync: forwardSync.default,
     forwardStatus: forwardStatus.default,
     forwardNqePreview: forwardNqePreview.buildForwardNqePreview,
@@ -114,10 +115,6 @@ const startDemoServer = async () => {
       if (request.method === "POST" && url.pathname.startsWith("/api/")) {
         const rawBody = await parseBody(request);
         const payload = rawBody?.data ?? rawBody;
-        if (url.pathname === "/api/network-proof") {
-          sendJson(response, 200, await functions.networkProof(payload));
-          return;
-        }
         if (url.pathname === "/api/forward-sync") {
           sendJson(response, 200, await functions.forwardSync(payload));
           return;
@@ -245,18 +242,92 @@ const capture = async (page, fileName) => {
   });
 };
 
+const captureElement = async (locator, fileName) => {
+  await locator.screenshot({
+    animations: "disabled",
+    path: path.join(screenshotDir, fileName),
+    quality: 90,
+    type: "jpeg",
+  });
+};
+
+const assertAssuranceCaptureReady = async (page) => {
+  const table = page.locator(".change-comparison-section .evidence-table-wrap");
+  const dimensions = await table.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  if (dimensions.scrollWidth > dimensions.clientWidth + 1) {
+    throw new Error(
+      `ServiceNow assurance table is horizontally clipped (${dimensions.scrollWidth}px > ${dimensions.clientWidth}px).`,
+    );
+  }
+  const labels = await page.locator(".change-comparison-section .evidence-reason").allTextContents();
+  for (const expected of [
+    "All validation passed",
+    "Blocked paths",
+    "Path regression",
+    "Service unhealthy",
+    "Open problems",
+  ]) {
+    if (!labels.includes(expected)) {
+      throw new Error(`ServiceNow assurance capture is missing the reason label: ${expected}.`);
+    }
+  }
+};
+
 const main = async () => {
   await stat(path.join(uiDir, "index.html")).catch(() => {
     throw new Error("dist/ui/index.html is missing. Run npm run build first.");
   });
 
+  const rehearsalDir = await mkdtemp(path.join(tmpdir(), "forward-dynatrace-capture-rehearsal-"));
+  const captureEvidence = await buildCaptureEvidence(rehearsalDir);
   const server = await startDemoServer();
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { height: 1200, width: 1440 } });
+    await page.addInitScript((evidence) => {
+      globalThis.__FORWARD_DYNATRACE_CAPTURE_EVIDENCE__ = evidence;
+    }, captureEvidence);
     await page.goto(`${server.baseUrl}/ui/`, { waitUntil: "networkidle" });
+    await page.waitForFunction(() =>
+      Array.from(document.images).every(
+        (image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0,
+      ));
     await markScrollRoot(page);
+    await scrollRootTo(page, 0);
+    await page.locator(".app-shell-brand").waitFor({ state: "visible" });
+    await page.getByText("Checked replay dependency data", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "Review change assurance" }).waitFor();
+    if (await page.getByText(/Live query failed:/u).count()) {
+      throw new Error("Overview capture must not contain a failed live query.");
+    }
+    if (await page.getByText("Path Context Plan", { exact: true }).count()) {
+      throw new Error("Overview capture must not expose the retired stub-only path context panel.");
+    }
+    for (const expected of ["reconciled", "consistent-with-network-policy-block", "FAIL", "FAIL_TO_PASS", "critical"]) {
+      await page.getByText(expected, { exact: true }).first().waitFor();
+    }
+    for (const expected of [
+      "One evidence contract: safe changes pass, regressions stop",
+      "Validation supports proceed",
+      "Validation blocks promotion",
+    ]) {
+      await page.getByText(expected, { exact: true }).waitFor();
+    }
     await capture(page, "01-overview.jpg");
+
+    await page.getByRole("button", { name: "Review change assurance" }).click();
+    await page.waitForFunction(() => {
+      const root = document.querySelector("[data-capture-scroll-root=true]");
+      const section = document.querySelector(".change-comparison-section");
+      if (!root || !section) return false;
+      const rootRect = root.getBoundingClientRect();
+      const sectionRect = section.getBoundingClientRect();
+      return sectionRect.bottom > rootRect.top && sectionRect.top < rootRect.bottom;
+    });
+    await scrollRootTo(page, 0);
 
     const fields = page.getByRole("textbox");
     await fields.nth(1).fill("https://forward.example.com");
@@ -266,16 +337,30 @@ const main = async () => {
     await page.getByRole("button", { name: "Check endpoint mapping" }).click();
     await page.getByText("Forward resolved both dependency endpoints.").first().waitFor();
     await scrollToPanel(page, "Forward Host Resolution And Path Evidence");
+    await page.locator(".panel", { hasText: "Forward Host Resolution And Path Evidence" })
+      .getByText("SYNTHETIC DEMO REHEARSAL", { exact: true }).waitFor();
     await capture(page, "02-export-package-readiness.jpg");
 
     await scrollRootTo(page, 0);
     await page.getByRole("button", { name: "Build resolved package" }).click();
     await page.getByText("Forward bulk intent package is ready.").waitFor();
     await scrollToPanel(page, "Forward-Centric Ingest Package");
+    await page.locator(".panel", { hasText: "Forward-Centric Ingest Package" })
+      .locator(".panel-header")
+      .getByText("SYNTHETIC DEMO REHEARSAL", { exact: true }).waitFor();
     await capture(page, "03-forward-side-api.jpg");
 
-    await scrollToText(page, "Bulk intent check payload preview", 80);
-    await capture(page, "04-intent-check-payload.jpg");
+    await scrollToText(page, "Bulk intent check payload sample", 80);
+    await page.locator(".intent-preview")
+      .getByText("SYNTHETIC DEMO REHEARSAL", { exact: true }).waitFor();
+    await captureElement(page.locator(".intent-preview"), "04-intent-check-payload.jpg");
+
+    await scrollToText(page, "ServiceNow → Forward → Dynatrace assurance history", 80);
+    await assertAssuranceCaptureReady(page);
+    await captureElement(
+      page.locator(".change-comparison-section"),
+      "05-servicenow-change-assurance.jpg",
+    );
 
     process.stdout.write(
       JSON.stringify(
@@ -287,6 +372,7 @@ const main = async () => {
             "docs/assets/screenshots/02-export-package-readiness.jpg",
             "docs/assets/screenshots/03-forward-side-api.jpg",
             "docs/assets/screenshots/04-intent-check-payload.jpg",
+            "docs/assets/screenshots/05-servicenow-change-assurance.jpg",
           ],
         },
         null,
@@ -296,10 +382,26 @@ const main = async () => {
   } finally {
     await browser.close();
     await server.close();
+    await rm(rehearsalDir, { recursive: true, force: true });
   }
 };
 
-main().catch((error) => {
+const run = async () => {
+  if (!process.argv.includes("--serve")) {
+    await main();
+    return;
+  }
+
+  const server = await startDemoServer();
+  process.stdout.write(`${server.baseUrl}/ui/\n`);
+  await new Promise((resolve) => {
+    process.once("SIGINT", resolve);
+    process.once("SIGTERM", resolve);
+  });
+  await server.close();
+};
+
+run().catch((error) => {
   process.stderr.write(`${error instanceof Error ? error.message : "unknown error"}\n`);
   process.exit(1);
 });

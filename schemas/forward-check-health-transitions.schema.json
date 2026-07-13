@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://forwardnetworks.com/schemas/forward-check-health-transitions.schema.json",
+  "title": "Forward Dynatrace check-health transition batch",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "eventType", "networkId", "snapshotId", "provenance", "counts", "transitions"],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace-check-health-transitions/v1" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "eventType": { "const": "forward.dynatrace.check.health.transition" },
+    "networkId": { "type": "string", "minLength": 1 },
+    "snapshotId": { "type": "string", "minLength": 1 },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "synthetic"],
+      "properties": {
+        "source": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+        "synthetic": { "type": "boolean" }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tracked", "transitions", "passToFail", "failToPass", "error", "missing"],
+      "properties": {
+        "tracked": { "type": "integer", "minimum": 0 },
+        "transitions": { "type": "integer", "minimum": 0 },
+        "passToFail": { "type": "integer", "minimum": 0 },
+        "failToPass": { "type": "integer", "minimum": 0 },
+        "error": { "type": "integer", "minimum": 0 },
+        "missing": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["transitionId", "identityHash", "type", "before", "after", "owner", "service"],
+        "properties": {
+          "transitionId": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "identityHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "type": { "enum": ["PASS_TO_FAIL", "FAIL_TO_PASS", "ERROR", "MISSING"] },
+          "before": { "enum": ["PASS", "FAIL", "ERROR"] },
+          "after": { "enum": ["PASS", "FAIL", "ERROR", "MISSING"] },
+          "owner": { "type": ["string", "null"] },
+          "service": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

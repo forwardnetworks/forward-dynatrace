@@ -1,55 +1,20 @@
 # Agent Map
 
-This repository is a Forward Field Integration reference for exporting Forward
-intent-check packages from Dynatrace application dependency evidence.
-
-Use this file as the table of contents. The source of truth lives in the linked
-docs and executable checks.
+This repository is a Forward Field Integration reference for exporting Forward intent-check packages from Dynatrace
+application dependency evidence. Keep this file as a map; durable knowledge belongs in the linked documents and
+executable checks.
 
 ## Start Here
 
-- [README.md](README.md): project shape, commands, deployed app, and Forward ingest summary.
-- [docs/install.md](docs/install.md): install model, release model, and public-release gate.
-- [docs/workflow.md](docs/workflow.md): Forward-centric workflow and screenshots.
-- [docs/dynatrace-workflow-trigger.md](docs/dynatrace-workflow-trigger.md): schedule/problem trigger payload contract.
-- [docs/forward-ingest-contract.md](docs/forward-ingest-contract.md): package and API contract.
-- [docs/forward-host-resolution.md](docs/forward-host-resolution.md): Forward host resolver used before package generation.
-- [docs/forward-path-evidence.md](docs/forward-path-evidence.md): optional read-only Forward path evidence from resolved Dynatrace dependencies.
-- [docs/forward-nqe-preview.md](docs/forward-nqe-preview.md): optional read-only Forward NQE preview workflow.
-- [docs/forward-nqe-artifacts.md](docs/forward-nqe-artifacts.md): optional NQE check and diff artifact workflow.
-- [docs/forward-api-compatibility.md](docs/forward-api-compatibility.md): Forward API version and optional NQE gates.
-- [docs/forward-importer.md](docs/forward-importer.md): manual Forward-side importer behavior.
-- [docs/production-readiness.md](docs/production-readiness.md): production checklist.
-- [docs/enterprise-hardening.md](docs/enterprise-hardening.md): enterprise hardening backlog and exit criteria.
-- [docs/operations-runbook.md](docs/operations-runbook.md): operator runbook for manual and connector import.
-- [docs/incident-response.md](docs/incident-response.md): failure triage and recovery runbook.
-- [docs/threat-model.md](docs/threat-model.md): trust boundary, threats, controls, and residual risk.
-- [docs/container-runtime.md](docs/container-runtime.md): Forward importer container build and run workflow.
-- [docs/connector-runtime.md](docs/connector-runtime.md): systemd and Kubernetes scheduler runtime templates.
-- [docs/deployment-readiness.md](docs/deployment-readiness.md): package, dry-run, optional NQE, and deployment gate checks.
-- [docs/schema-versioning.md](docs/schema-versioning.md): package schema compatibility and migration rules.
-- [docs/data-handling.md](docs/data-handling.md): publish-safe data, screenshot, and artifact handling rules.
-- [docs/rbac.md](docs/rbac.md): least-privilege roles and separation rules.
-- [docs/package-handoff.md](docs/package-handoff.md): package storage, retention, immutability, and access-log controls.
-- [docs/observability.md](docs/observability.md): reports, metrics, suggested alerts, and evidence retention.
-- [docs/dynatrace-status-dashboard.md](docs/dynatrace-status-dashboard.md): status-event dashboard and DQL views.
-- [docs/admin-operations.md](docs/admin-operations.md): audit export, config restore, disaster recovery, and access review.
-- [docs/release.md](docs/release.md): release workflow, artifacts, and checksum verification.
-- [docs/release-provenance.md](docs/release-provenance.md): SBOM, self-managed signatures, GHCR image, and attestations.
-- [docs/governance.md](docs/governance.md): PR-only governance and branch-rule checklist.
-- [docs/customer-acceptance-checklist.md](docs/customer-acceptance-checklist.md): customer trial and production acceptance gates.
-- [docs/customer-one-pager.md](docs/customer-one-pager.md): customer handout for integration scope and verification.
-- [docs/validation-matrix.md](docs/validation-matrix.md): tested, automated, and remaining validation.
-- [docs/demo-data.md](docs/demo-data.md): standard demo fixtures and Dynatrace replay data.
-- [docs/client-trial-plan.md](docs/client-trial-plan.md): meeting/demo rehearsal, trial tenant, and live Forward workflow.
-- [docs/live-demo-runbook.md](docs/live-demo-runbook.md): customer-owned path and standard demo replay execution.
-- [docs/prospect-talk-track.md](docs/prospect-talk-track.md): prospect/customer value narrative and demo flow.
-- [docs/execution-roadmap.md](docs/execution-roadmap.md): phased plan, optional NQE path, and ownership boundaries.
-- [docs/harness-engineering.md](docs/harness-engineering.md): agent-first operating model for this repo.
-- [docs/agent-guides/dynatrace-app.md](docs/agent-guides/dynatrace-app.md): detailed Dynatrace AppEngine, Strato, and SDK guidance.
-- [schemas/README.md](schemas/README.md): JSON Schema contracts and validation command.
+- [README.md](README.md): project purpose, supported commands, and release shape.
+- [ARCHITECTURE.md](ARCHITECTURE.md): components, data flow, ownership, and dependency boundaries.
+- [docs/index.md](docs/index.md): task-oriented knowledge map for all detailed documentation.
+- [docs/exec-plans/README.md](docs/exec-plans/README.md): active plans, completed plans, and technical debt.
+- [docs/exec-plans/active/customer-production-readiness.md](docs/exec-plans/active/customer-production-readiness.md): current execution plan.
+- [docs/validation-matrix.md](docs/validation-matrix.md): verified evidence and remaining live-validation gaps.
+- [docs/harness-engineering.md](docs/harness-engineering.md): agent-first working model and repository feedback loops.
 
-## Non-Negotiables
+## Non-Negotiable Boundaries
 
 - The Dynatrace app never writes to Forward and never stores Forward credentials.
 - Forward writes happen only through the manual importer or a Forward-side connector.
@@ -57,55 +22,21 @@ docs and executable checks.
 - Optional NQE artifacts require Forward-owned query IDs and Forward-side allowlists.
 - Forward-side ingest validates packages, reads existing checks, reconciles, then creates missing checks only by default.
 - Changed and stale Dynatrace-managed checks are report-only unless approval-gated mutation is enabled.
+- Synthetic/demo evidence must remain visibly distinguishable from live customer evidence.
 
-## Local Verification
+## Working Loop
 
-Run this before committing meaningful changes:
-
-```bash
-npm run ci
-```
-
-For faster iteration:
-
-```bash
-npm run repo:validate
-npm run forward:import:test
-npm run forward:nqe-artifacts:test
-npm run forward:nqe-live-smoke -- --help
-npm run forward:nqe-live-smoke:test
-npm run forward:nqe-preview:test
-npm run forward:resolve-hosts -- --help
-npm run forward:resolve-hosts:test
-npm run forward:path-evidence -- --help
-npm run forward:path-evidence:test
-npm run forward:package:test
-npm run forward:readiness:test
-npm run dynatrace:query -- --help
-npm run dynatrace:deploy -- --help
-npm run dynatrace:deploy:test
-npm run dynatrace:replay-demo -- --help
-npm run dynatrace:status:publish -- --help
-npm run dynatrace:status:publish:test
-npm run dynatrace:normalize:test
-npm run forward:package -- --help
-npm run forward:status:test
-npm run forward:status:publish -- --help
-npm run forward:status:publish:test
-npm run schemas:validate
-npm run schemas:validate:test
-npm run acceptance:bundle:test
-npm run release:checksums:test
-npm run release:signing-key:test
-npm run demo:rehearsal
-npm run workflow:smoke
-npm run lint
-npm run build
-```
+1. Read the active execution plan and the relevant route in `docs/index.md`.
+2. Inspect the executable source of truth before changing behavior.
+3. Make the smallest coherent change and add or update an executable check for every new invariant.
+4. Update `docs/validation-matrix.md` when validation coverage or live evidence changes.
+5. Run focused tests while iterating, then run `npm run ci` on Node 24 before handoff or commit.
+6. Turn repeated review feedback into a documented rule or a mechanical repository check.
 
 ## Editing Guidance
 
-- Keep repo knowledge short at the root and detailed in `docs/`.
-- Add or update executable checks when adding a new rule.
-- Update `docs/validation-matrix.md` whenever validation coverage changes.
-- Keep screenshots real: capture from the app, then update the files under `docs/assets/screenshots/`.
+- Keep root guidance short; put details in `docs/` and link them from `docs/index.md`.
+- Keep active plans in `docs/exec-plans/active/`; move completed work to `docs/exec-plans/completed/`.
+- Record deferred structural work in `docs/exec-plans/tech-debt-tracker.md` with a trigger and exit condition.
+- Keep screenshots real: capture from the app and update `docs/assets/screenshots/`.
+- Never commit tenant URLs, customer data, credentials, or private token paths.

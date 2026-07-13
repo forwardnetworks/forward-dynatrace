@@ -1,0 +1,27 @@
+// Problem-correlated Forward network evidence that needs operator attention.
+
+fetch events, from: now() - 7d
+| filter event.type == "forward.dynatrace.network.evidence"
+| filter
+    severity == "ERROR" or
+    severity == "WARN" or
+    forward.dynatrace.network_assessment == "consistent-with-network-policy-block" or
+    forward.dynatrace.network_assessment == "inconclusive" or
+    forward.dynatrace.count.ambiguous > 0 or
+    forward.dynatrace.count.unmapped > 0 or
+    forward.dynatrace.count.failed > 0
+| fields
+    timestamp,
+    severity,
+    forward.dynatrace.evidence_run_id,
+    forward.dynatrace.problem_id,
+    forward.dynatrace.service_entity_id,
+    forward.dynatrace.network_assessment,
+    forward.dynatrace.target.network_id,
+    forward.dynatrace.target.snapshot_id,
+    forward.dynatrace.count.blocked,
+    forward.dynatrace.count.ambiguous,
+    forward.dynatrace.count.unmapped,
+    forward.dynatrace.count.failed
+| sort timestamp desc
+| limit 100

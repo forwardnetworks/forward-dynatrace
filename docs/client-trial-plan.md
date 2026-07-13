@@ -6,6 +6,11 @@ runbook is in `docs/live-demo-runbook.md`.
 
 ## Demo Story
 
+Use two connected acts. The first establishes application-to-network intent; the second proves that the same evidence
+can govern an actual change without moving approval or deployment authority into the integration.
+
+### Act 1: Dependency Evidence To Network Intent
+
 1. Dynatrace dependency data is normalized into dependency candidates.
 2. The app classifies rows as `ready`, `review`, or `needs-map`.
 3. The app exports:
@@ -15,16 +20,39 @@ runbook is in `docs/live-demo-runbook.md`.
 5. Forward creates missing checks only when `--apply` is used.
 6. Dynatrace displays a sanitized Forward ingest status artifact.
 
+### Act 2: ServiceNow Change Assurance
+
+1. Open an approved ServiceNow change with its active window, deployment ID, and affected Dynatrace services.
+2. Start assurance and show the stable `fdca-*` run plus exact Forward before-snapshot ID.
+3. Let the customer-owned deployment step run; the integration does not deploy or roll back.
+4. Complete assurance with fresh Dynatrace health/problem context and a new processed Forward snapshot.
+5. Show one safe decision and one regression with explicit reason codes and reachability deltas.
+6. Match the ServiceNow attachment SHA-256/work-note marker to the same checksum on the Dynatrace assurance row.
+7. Enable `--verify-servicenow-retry` for the acceptance completion and show that the second receipt reports the same
+   attachment and work-note sys_ids as `existing`, with no duplicate evidence.
+
 ## Local Rehearsal
 
-Run:
+Run the complete two-act rehearsal:
+
+```bash
+npm run demo:showcase -- --output-dir /tmp/servicenow-forward-dynatrace-showcase
+```
+
+Open `SHOWCASE.md` in that directory. The command uses `shared/demo-dynatrace-query-rows.json`, normalizes dependency
+rows, builds and validates the Forward package, then creates the ServiceNow safe/regression assurance artifacts. It
+uses the production builders, contacts no external system, and keeps synthetic provenance explicit across both acts.
+
+Use the component commands only when rehearsing one act in isolation:
 
 ```bash
 npm run demo:rehearsal
+npm run demo:servicenow
 ```
 
-This uses `shared/demo-dynatrace-query-rows.json`, normalizes dependency rows, builds the Forward package, and runs
-validate-only import without Forward credentials.
+The assurance component emits a focused `DEMO.md`, exact safe/regression gates, dry-run ServiceNow receipts,
+checksummed evidence attachments, and schema-valid Dynatrace events. These commands are deliberately synthetic; use
+them to rehearse the story, not as customer acceptance evidence.
 
 ## Dynatrace Trial
 
@@ -152,6 +180,15 @@ Use only a non-production Forward network.
 
 7. Delete demo checks after the trial if they were created in a shared test network.
 
+## ServiceNow Non-Production Test
+
+Build the Flow from the validated, instance-neutral assets in `deploy/servicenow-flow/` and run the authenticated worker
+with `npm run servicenow:flow-server`. Use one approved change and one blocked or regressed change. Preserve the exact
+run ID, change number/sys_id, deployment ID, network ID, before/after snapshot IDs, decision, evidence SHA-256, and
+Dynatrace query-back count. Enable `SERVICENOW_FLOW_VERIFY_RETRY=1` only for the live idempotency acceptance run and
+retain both feedback receipts. Do not use a copied JSON fixture as approval, and keep replay evidence visibly labeled
+`SYNTHETIC DEMO` in every system.
+
 ## Standard Demo Replay
 
 If the trial sandbox does not yet have useful topology, replay the checked standard demo fixture into the sandbox:
@@ -181,6 +218,8 @@ checked replay fixture.
 - Teams can see Forward ingest state without Forward credentials in Dynatrace.
 - Problem or schedule workflows can regenerate packages as app topology changes.
 - Drift remains visible without letting Dynatrace mutate Forward.
+- ServiceNow users get a bounded, checksummed decision on the original change while Dynatrace users get the same
+  publish-safe receipt identity for cross-team diagnosis.
 - See `docs/prospect-talk-track.md` for the concise customer-facing explanation of what Forward and Dynatrace each get.
 
 ## Stop Conditions

@@ -153,15 +153,52 @@ export const makeForwardReadOnlyClient = ({
   fetchImpl = fetch,
 }) => {
   const root = normalizeBaseUrl(forwardBaseUrl);
+  let csrfHeaderPromise = null;
+
+  const loadCsrfHeader = async () => {
+    if (!/^Basic\s+/iu.test(authorization || "")) {
+      return {};
+    }
+    csrfHeaderPromise ||= (async () => {
+      // Forward's browser/API Basic-auth path requires the anonymous CSRF
+      // token on non-GET requests. Do not attach Basic credentials to this
+      // bootstrap request: authenticated /api/public/csrf responses are empty.
+      const response = await fetchImpl(`${root}/api/public/csrf`, {
+        headers: { Accept: "application/json" },
+      });
+      const text = await response.text();
+      if (!response.ok) {
+        throw new Error(
+          `GET /api/public/csrf failed with ${response.status}: ${text.slice(0, 300)}`,
+        );
+      }
+      const payload = parseResponseBody(text);
+      const headerName = payload?.headerName;
+      const token = payload?.token;
+      if (
+        typeof headerName !== "string" ||
+        !/^X-(?:CSRF|XSRF)-TOKEN$/iu.test(headerName) ||
+        typeof token !== "string" ||
+        !token
+      ) {
+        throw new Error("Forward CSRF bootstrap did not return a supported header and token.");
+      }
+      return { [headerName]: token };
+    })();
+    return csrfHeaderPromise;
+  };
+
   return async (method, requestPath, options = {}) => {
     const hasBody = Object.prototype.hasOwnProperty.call(options, "body");
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      const csrfHeader = method === "GET" ? {} : await loadCsrfHeader();
       const response = await fetchImpl(`${root}${requestPath}`, {
         method,
         headers: {
           Accept: "application/json",
           ...(hasBody ? { "Content-Type": "application/json" } : {}),
           ...(authorization ? { Authorization: authorization } : {}),
+          ...csrfHeader,
           ...(options.headers || {}),
         },
         body: hasBody ? JSON.stringify(options.body) : undefined,
@@ -172,6 +209,15 @@ export const makeForwardReadOnlyClient = ({
       }
       if (TRANSIENT_STATUS_CODES.has(response.status) && attempt < maxRetries) {
         await sleep(retryDelayMs(attempt, response.headers?.get?.("retry-after")));
+        continue;
+      }
+      if (
+        response.status === 403 &&
+        /csrf/iu.test(text) &&
+        /^Basic\s+/iu.test(authorization || "") &&
+        attempt < maxRetries
+      ) {
+        csrfHeaderPromise = null;
         continue;
       }
       throw new Error(
@@ -281,14 +327,16 @@ export const resolveEndpoint = async ({
   }
 
   if (isIpOrSubnet(endpointValue)) {
+    const selectedFilterType =
+      endpointFilterType === "HostFilter" ? "SubnetLocationFilter" : endpointFilterType;
     return {
       role,
       input: endpointValue,
       inputFilterType: endpointFilterType,
       status: "resolved",
-      reason: "Dependency endpoint is already an IP address or subnet.",
+      reason: "Dependency endpoint is already an IP address or subnet location.",
       selectedValue: endpointValue,
-      selectedFilterType: endpointFilterType,
+      selectedFilterType,
       matchCount: null,
       candidateCount: 1,
     };
@@ -335,14 +383,24 @@ export const resolveEndpoint = async ({
   };
 };
 
-const mappingStateFromResolutions = (source, destination) => {
+const mappingStateFromResolutions = (dependency, source, destination) => {
   if (source.status === "unresolved" || destination.status === "unresolved") {
     return "needs-map";
   }
-  if (source.status === "resolved" && destination.status === "resolved") {
-    return "ready";
+  if (source.status !== "resolved" || destination.status !== "resolved") {
+    return "review";
   }
-  return "review";
+
+  // Endpoint resolution can promote a high-confidence row that was waiting on
+  // Forward inventory, but it must not erase an explicit governance hold or a
+  // low-confidence review decision from Dynatrace.
+  if (dependency.mappingState === "needs-map") {
+    return "needs-map";
+  }
+  if (dependency.mappingState === "review" && Number(dependency.confidence) < 90) {
+    return "review";
+  }
+  return "ready";
 };
 
 const applyEndpointResolution = (dependency, role, resolution) => {
@@ -413,7 +471,7 @@ export const resolveDependencyCandidates = async ({
       snapshotId: effectiveSnapshotId,
       execute,
     });
-    const mappingState = mappingStateFromResolutions(source, destination);
+    const mappingState = mappingStateFromResolutions(dependency, source, destination);
     const resolvedDependency = {
       ...applyEndpointResolution(applyEndpointResolution(dependency, "source", source), "destination", destination),
       mappingState,
