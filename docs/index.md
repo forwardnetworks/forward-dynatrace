@@ -72,6 +72,7 @@ listing every document.
 - [Customer one-pager](customer-one-pager.md): customer-facing scope and verification.
 - [Client trial plan](client-trial-plan.md): rehearsal and trial flow.
 - [Live demo runbook](live-demo-runbook.md): customer-owned and standard replay paths.
+- [Live change assurance presenter guide](live-change-demo-presenter-guide.md): exact screen flow, talk track, and integration proof for the local cEOS demo.
 - [Demo data](demo-data.md): fixture provenance and replay rules.
 - [Prospect talk track](prospect-talk-track.md): value narrative and demo flow.
 
