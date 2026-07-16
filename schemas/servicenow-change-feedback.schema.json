@@ -27,7 +27,7 @@
       "required": ["sha256", "attachmentFileName", "contentType", "bytes"],
       "properties": {
         "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-        "attachmentFileName": { "type": "string", "pattern": "^forward-dynatrace-change-assurance-[a-f0-9]{64}\\.json$" },
+        "attachmentFileName": { "type": "string", "pattern": "^fwd-dt-assurance-[a-f0-9]{64}\\.json$", "maxLength": 100 },
         "contentType": { "const": "application/json" },
         "bytes": { "type": "integer", "minimum": 1 }
       }

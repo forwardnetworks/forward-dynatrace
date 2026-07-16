@@ -2,7 +2,7 @@
 
 Status: active
 Owner: repository maintainer plus ServiceNow, Dynatrace, Forward runtime, security, and network owners
-Last updated: 2026-07-13
+Last updated: 2026-07-14
 
 ## Objective
 
@@ -95,6 +95,10 @@ This is the single active execution plan for `forward-dynatrace` and its compani
   completed with exit `0`; the generated importer archive then staged 169 SHA-256-bound files, created zero operator
   inputs, and reported all 169 unchanged on repeat. GitHub Actions run `29274955732` / job `86901631894` passed the
   complete `gitops` gate for that exact commit.
+- [x] Exercise the current local ARM64 cEOS path through ServiceNow Start, a real Forward baseline, and an ACL
+  regression snapshot. The fail gate correctly detected one reachable-to-blocked transition and exposed signed-delta,
+  tenant-specific ServiceNow base-URI, and cross-runtime lineage-hash defects; those contracts are now fixed and
+  test-covered. Final ServiceNow publication and Dynatrace query-back remain pending.
 - [ ] Publish a release newer than `v1.0.0`; the current tag and GHCR digest predate the assurance, handoff,
   check-health, security, Flow-worker, and presenter-showcase commands.
 - [ ] Complete a current-window approved ServiceNow change with matching Forward and Dynatrace readback evidence.

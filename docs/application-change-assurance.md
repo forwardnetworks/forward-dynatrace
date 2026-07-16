@@ -178,11 +178,14 @@ opt-in because it intentionally performs a second ledger request; normal operati
 publication.
 
 ServiceNow publication uses the authenticated companion endpoint
-`POST /api/now/forward_change_assurance/changes/{change_sys_id}/evidence`. The conductor sends the exact checksummed
+`POST /api/now/forward_change_assurance/changes/{change_sys_id}/evidence` by default. When ServiceNow assigns a
+tenant-specific Scripted REST namespace, set `SERVICENOW_ASSURANCE_BASE_URI` to the API definition's authoritative
+`base_uri`. The conductor sends the exact checksummed
 evidence bytes with `X-Forward-Dynatrace-SHA256` and refuses a receipt whose idempotency key or decision does not match.
-The ServiceNow endpoint verifies the header against the raw body before writing. Its contract
-recomputes the embedded preflight and gate hashes, verifies every summarized reason, Forward reconciliation,
-Dynatrace state, and gate evidence hash, and rejects topology- or credential-shaped content.
+The ServiceNow endpoint verifies the header against the raw body before writing. Its contract recomputes the embedded
+preflight and gate hashes from recursively key-sorted JSON, so ServiceNow object decoding cannot change lineage merely
+by reordering keys. It also verifies every summarized reason, Forward reconciliation, Dynatrace state, and gate
+evidence hash, and rejects topology- or credential-shaped content.
 
 The ServiceNow service upserts one `u_forward_change_assurance` row through a unique
 `forward-dynatrace:<evidence-sha256>` key, creates the evidence attachment before the work note, and returns whether

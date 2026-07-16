@@ -1,0 +1,25 @@
+// Synthetic dependency evidence for the local ARM64 cEOS change demo only.
+fetch events, from: -24h
+| filter event.provider == "forward-dynatrace-demo"
+| filter event.type == "com.forward.demo.dependency"
+| filter `demo.fixture` == "forward-change-local-arm64"
+| sort timestamp desc
+| dedup dependency.id
+| fields
+    timestamp,
+    `demo.run_id`,
+    `demo.synthetic`,
+    dependency.id,
+    app.name,
+    app.environment,
+    dt.entity.service,
+    service.name,
+    network.source,
+    network.destination,
+    network.protocol,
+    network.port,
+    owner.team,
+    criticality,
+    dependency.confidence,
+    dependency.mapping_state
+| limit 10

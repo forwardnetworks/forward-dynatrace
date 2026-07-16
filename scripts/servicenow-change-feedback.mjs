@@ -61,6 +61,19 @@ const required = (value, label) => {
 
 const isRecord = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const canonicalJson = (value) => `${JSON.stringify(value, null, 2)}\n`;
+const canonicalHashJson = (value) => {
+  const normalize = (item) => {
+    if (Array.isArray(item)) return item.map(normalize);
+    if (!isRecord(item)) return item;
+    return Object.fromEntries(
+      Object.keys(item).sort().map((key) => [key, normalize(item[key])]),
+    );
+  };
+  // Keep the lineage representation independent of runtime-specific pretty
+  // printing. ServiceNow's Rhino JSON implementation does not guarantee that
+  // the optional spacing argument is rendered identically to Node.js.
+  return JSON.stringify(normalize(value));
+};
 export const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
 const sortedUnique = (values) => [...new Set(values)].sort();
@@ -101,8 +114,8 @@ export const validatePreflightGateAlignment = (preflight, gate) => {
 
 export const buildServiceNowEvidenceBundle = ({ preflight, gate }) => {
   validatePreflightGateAlignment(preflight, gate);
-  const preflightText = canonicalJson(preflight);
-  const gateText = canonicalJson(gate);
+  const preflightText = canonicalHashJson(preflight);
+  const gateText = canonicalHashJson(gate);
   return {
     schemaVersion: EVIDENCE_SCHEMA,
     generatedAt: gate.generatedAt,
@@ -137,7 +150,7 @@ export const buildServiceNowFeedbackPlan = ({ preflight, gate }) => {
   const attachmentText = canonicalJson(evidence);
   const evidenceSha256 = sha256(attachmentText);
   const idempotencyKey = `forward-dynatrace:${evidenceSha256}`;
-  const attachmentFileName = `forward-dynatrace-change-assurance-${evidenceSha256}.json`;
+  const attachmentFileName = `fwd-dt-assurance-${evidenceSha256}.json`;
   const reasonCodes = evidence.reasonCodes.join(",");
   const workNote = [
     `Forward/Dynatrace change assurance: ${evidence.decision.toUpperCase()}`,
@@ -160,6 +173,14 @@ export const buildServiceNowFeedbackPlan = ({ preflight, gate }) => {
 
 const basicAuthorization = (user, password) =>
   `Basic ${Buffer.from(`${user}:${password}`).toString("base64")}`;
+
+const normalizeAssuranceBaseUri = (value) => {
+  const baseUri = String(value || "/api/now/forward_change_assurance").trim();
+  if (!baseUri.startsWith("/api/") || baseUri.includes("?") || baseUri.includes("#")) {
+    throw new Error("ServiceNow assurance base URI must be an absolute /api/... path.");
+  }
+  return baseUri.replace(/\/+$/u, "");
+};
 
 const readResponse = async (response, label) => {
   const text = await response.text();
@@ -190,6 +211,7 @@ export const publishServiceNowFeedback = async ({
   baseUrl,
   user,
   password,
+  assuranceBaseUri = process.env.SERVICENOW_ASSURANCE_BASE_URI,
   fetchImpl = fetch,
 }) => {
   const plan = buildServiceNowFeedbackPlan({ preflight, gate });
@@ -199,8 +221,9 @@ export const publishServiceNowFeedback = async ({
     required(password, "environment: SERVICENOW_PASSWORD"),
   );
   const sysId = preflight.change.sysId;
+  const normalizedAssuranceBaseUri = normalizeAssuranceBaseUri(assuranceBaseUri);
   const response = await fetchImpl(
-    `${normalizedBaseUrl}/api/now/forward_change_assurance/changes/${encodeURIComponent(sysId)}/evidence`,
+    `${normalizedBaseUrl}${normalizedAssuranceBaseUri}/changes/${encodeURIComponent(sysId)}/evidence`,
     {
       method: "POST",
       headers: {
@@ -213,7 +236,10 @@ export const publishServiceNowFeedback = async ({
     },
   );
   const body = await readResponse(response, "ServiceNow assurance ingress");
-  const assurance = body?.status === "ok" && isRecord(body.assurance) ? body.assurance : null;
+  const envelope = isRecord(body?.result) ? body.result : body;
+  const assurance = envelope?.status === "ok" && isRecord(envelope.assurance)
+    ? envelope.assurance
+    : null;
   if (!assurance) throw new Error("ServiceNow assurance ingress response is invalid.");
   if (assurance.idempotencyKey !== plan.idempotencyKey) {
     throw new Error("ServiceNow assurance ingress idempotency key does not match the evidence bundle.");

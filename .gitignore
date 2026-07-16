@@ -35,6 +35,7 @@
 Thumbs.db
 
 # Local credentials and environment files
+/.state/
 *.token
 *.pem
 *.sig

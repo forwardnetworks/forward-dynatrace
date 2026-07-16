@@ -5,6 +5,25 @@ acts: lead with one ServiceNow-governed change receiving a checksummed Forward-p
 Dynatrace topology becomes the Forward-owned intent behind that assurance. The standard demo replay path is available
 when the trial tenant needs demo dependency evidence aligned to the standard Forward demo snapshot.
 
+## Native Substrate Ownership
+
+Keep the end-to-end demo split across the systems that own each operation:
+
+- ServiceNow Workflow Studio owns the change trigger, Start/Get Status/Complete actions, approval and window checks,
+  assurance ledger, attachment, and work note. ServiceNow stores only native credential-profile references.
+- Dynatrace owns dependency evidence and sanitized aggregate assurance status. For the local ARM64 lab, replay
+  `shared/local-arm64-change-dependencies.json` and query it with
+  `deploy/dynatrace-dql/service-dependency-candidates-local-arm64-demo.dql`; keep its synthetic provenance visible.
+- The Forward-side conductor owns Forward credentials, check reconciliation, snapshot collection, path analysis, and
+  publication of checksum-bound aggregate results to ServiceNow and Dynatrace.
+- `forward-change-demo` owns only containerlab topology bringup and the actual device configuration stages. It does not
+  duplicate ServiceNow or Dynatrace application behavior.
+
+The local sequence is: bring up the lab, replay/query the Dynatrace dependency, start the approved ServiceNow change,
+capture the Forward baseline, apply the `local-post1` ACL regression, collect and complete the fail gate, apply
+`local-fix`, collect again, and complete the recovery gate. Acceptance requires matching Forward snapshot IDs in the
+ServiceNow evidence and Dynatrace query-back.
+
 ## Rehearsal Command
 
 Set the Forward test-network environment in the Forward-controlled operator shell, then run:

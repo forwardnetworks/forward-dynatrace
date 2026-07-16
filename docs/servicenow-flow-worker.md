@@ -43,11 +43,15 @@ export SERVICENOW_FLOW_RUN_DIR=/var/lib/forward-dynatrace/servicenow-flow
 export SERVICENOW_FLOW_MAX_ACTIVE_RUNS=4
 export SERVICENOW_FLOW_EVIDENCE_SOURCE=live-customer-dependencies
 export SERVICENOW_FLOW_SYNTHETIC=0
+# Optional: defaults to the workflow's 120-second stabilization wait.
+# Use 0 only for an approved synthetic demo with separately fresh context.
+# export SERVICENOW_FLOW_STABILIZATION_SECONDS=0
 export SERVICENOW_FLOW_SCOPE_MAPPING_FILE=/secure/config/servicenow-scope-mapping.json
 export SERVICENOW_FLOW_SCOPE_ENVIRONMENT=customer-nonproduction
 
 # Existing read-only workflow credentials
 export SERVICENOW_BASE_URL=https://your-instance.service-now.com
+export SERVICENOW_ASSURANCE_BASE_URI=/api/your_namespace/forward_change_assurance
 export SERVICENOW_USER=<read-only-integration-user>
 export SERVICENOW_PASSWORD=<runtime-secret>
 export FORWARD_BASE_URL=https://forward.example.com
@@ -57,6 +61,12 @@ export FORWARD_PASSWORD=<password-or-token>
 
 npm run servicenow:flow-server
 ```
+
+Copy `SERVICENOW_ASSURANCE_BASE_URI` from the ServiceNow system property
+`x_fwd_demo.assurance.ingress_base_uri`; the companion installer keeps that non-secret property synchronized with the
+platform-assigned `sys_ws_definition.base_uri`. Inject every credential variable above through the approved runtime
+secret provider. Do not export credential values in an agent-controlled shell or persist them in the repository,
+command history, or run-state directory.
 
 In the runtime image:
 

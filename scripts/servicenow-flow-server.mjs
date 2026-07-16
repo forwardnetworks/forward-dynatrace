@@ -20,6 +20,7 @@ const DEFAULT_BODY_LIMIT = 512 * 1024;
 const DEFAULT_PORT = 8080;
 const DEFAULT_STALE_RUN_MS = 30 * 60 * 1000;
 const DEFAULT_MAX_ACTIVE_RUNS = 4;
+const MAX_STABILIZATION_SECONDS = 3600;
 const MAX_SERVICES = 100;
 const MAX_DEPENDENCIES = 5000;
 const EVIDENCE_SOURCE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
@@ -277,11 +278,23 @@ export const createFlowService = ({
   const baseDir = path.resolve(runDir || env.SERVICENOW_FLOW_RUN_DIR || "/var/lib/forward-dynatrace/servicenow-flow");
   const staleRunMs = Number.parseInt(env.SERVICENOW_FLOW_STALE_RUN_MS || String(DEFAULT_STALE_RUN_MS), 10);
   const maxActiveRuns = Number.parseInt(env.SERVICENOW_FLOW_MAX_ACTIVE_RUNS || String(DEFAULT_MAX_ACTIVE_RUNS), 10);
+  const stabilizationSeconds = env.SERVICENOW_FLOW_STABILIZATION_SECONDS === undefined
+    ? null
+    : Number.parseInt(env.SERVICENOW_FLOW_STABILIZATION_SECONDS, 10);
   if (!Number.isInteger(staleRunMs) || staleRunMs < 60000 || staleRunMs > 24 * 60 * 60 * 1000) {
     throw new Error("SERVICENOW_FLOW_STALE_RUN_MS must be between 60000 and 86400000.");
   }
   if (!Number.isInteger(maxActiveRuns) || maxActiveRuns < 1 || maxActiveRuns > 32) {
     throw new Error("SERVICENOW_FLOW_MAX_ACTIVE_RUNS must be between 1 and 32.");
+  }
+  if (
+    stabilizationSeconds !== null &&
+    (!Number.isInteger(stabilizationSeconds) ||
+      String(stabilizationSeconds) !== String(env.SERVICENOW_FLOW_STABILIZATION_SECONDS).trim() ||
+      stabilizationSeconds < 0 ||
+      stabilizationSeconds > MAX_STABILIZATION_SECONDS)
+  ) {
+    throw new Error(`SERVICENOW_FLOW_STABILIZATION_SECONDS must be an integer between 0 and ${MAX_STABILIZATION_SECONDS}.`);
   }
   const workflowEvidenceSource = String(env.SERVICENOW_FLOW_EVIDENCE_SOURCE || "").trim();
   if (!workflowEvidenceSource) {
@@ -475,6 +488,9 @@ export const createFlowService = ({
         "--phase", "complete",
         "--state", workflowStatePath(runId),
         "--context", contextPath,
+        ...(stabilizationSeconds === null
+          ? []
+          : ["--stabilization-seconds", String(stabilizationSeconds)]),
         ...(truthy(env.SERVICENOW_FLOW_PUBLISH_SERVICENOW) ? ["--publish-servicenow"] : []),
         ...(truthy(env.SERVICENOW_FLOW_VERIFY_RETRY) ? ["--verify-servicenow-retry"] : []),
         ...(truthy(env.SERVICENOW_FLOW_PUBLISH_DYNATRACE) ? ["--publish-dynatrace"] : []),

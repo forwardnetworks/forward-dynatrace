@@ -8,6 +8,7 @@ import {
   parseArgs,
   publishServiceNowFeedback,
   run as runFeedback,
+  sha256,
   validatePreflightGateAlignment,
   verifyServiceNowFeedbackRetry,
 } from "./servicenow-change-feedback.mjs";
@@ -91,6 +92,7 @@ test("builds bounded deterministic ServiceNow feedback from aligned evidence", (
   const second = buildServiceNowFeedbackPlan({ preflight, gate });
   assert.equal(first.evidenceSha256, second.evidenceSha256);
   assert.equal(first.attachmentFileName, second.attachmentFileName);
+  assert.ok(first.attachmentFileName.length <= 100, "attachment name fits ServiceNow sys_attachment.file_name");
   assert.match(first.workNote, /PASS/);
   assert.match(first.workNote, /snapshot-before -> snapshot-after/);
   assert.match(first.workNote, new RegExp(first.evidenceSha256));
@@ -128,10 +130,42 @@ const readBody = async (request) => {
   return Buffer.concat(chunks).toString("utf8");
 };
 
+const reverseObjectKeys = (value) => {
+  if (Array.isArray(value)) return value.map(reverseObjectKeys);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.keys(value).reverse().map((key) => [key, reverseObjectKeys(value[key])]),
+  );
+};
+
+const sortObjectKeys = (value) => {
+  if (Array.isArray(value)) return value.map(sortObjectKeys);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.keys(value).sort().map((key) => [key, sortObjectKeys(value[key])]),
+  );
+};
+
+test("canonicalizes embedded lineage independently of object insertion order", () => {
+  const ordered = buildServiceNowFeedbackPlan({ preflight, gate });
+  const reordered = buildServiceNowFeedbackPlan({
+    preflight: reverseObjectKeys(preflight),
+    gate: reverseObjectKeys(gate),
+  });
+  assert.equal(ordered.evidence.lineage.preflightSha256, reordered.evidence.lineage.preflightSha256);
+  assert.equal(ordered.evidence.lineage.gateSha256, reordered.evidence.lineage.gateSha256);
+  assert.equal(
+    ordered.evidence.lineage.preflightSha256,
+    sha256(JSON.stringify(sortObjectKeys(ordered.evidence.preflight))),
+    "lineage uses a compact representation instead of runtime-specific pretty printing",
+  );
+});
+
 test("publishes through the ServiceNow assurance ingress and preserves exact evidence bytes", async (t) => {
-  const state = { posts: 0, authorization: [], bodies: [] };
+  const state = { posts: 0, authorization: [], bodies: [], paths: [] };
   const server = createServer(async (request, response) => {
     const url = new URL(request.url, "http://localhost");
+    state.paths.push(url.pathname);
     state.authorization.push(request.headers.authorization);
     response.setHeader("Content-Type", "application/json");
     if (request.method === "POST" && url.pathname.endsWith(`/changes/${preflight.change.sysId}/evidence`)) {
@@ -142,14 +176,16 @@ test("publishes through the ServiceNow assurance ingress and preserves exact evi
       const plan = buildServiceNowFeedbackPlan({ preflight, gate });
       const status = state.posts === 1 ? "created" : "existing";
       response.end(JSON.stringify({
-        status: "ok",
-        assurance: {
+        result: {
+          status: "ok",
+          assurance: {
           idempotencyKey: plan.idempotencyKey,
           decision: "pass",
           publicationStatus: "published",
           publication: {
             workNote: { status, sysId: "journal-1" },
             attachment: { status, sysId: "attachment-1" },
+          },
           },
         },
       }));
@@ -177,6 +213,15 @@ test("publishes through the ServiceNow assurance ingress and preserves exact evi
     password: "runtime-only",
   });
 
+  await publishServiceNowFeedback({
+    preflight,
+    gate,
+    baseUrl,
+    user: "writer",
+    password: "runtime-only",
+    assuranceBaseUri: "/api/customer_namespace/forward_change_assurance/",
+  });
+
   assert.deepEqual(first.publication, {
     workNote: { status: "created", sysId: "journal-1" },
     attachment: { status: "created", sysId: "attachment-1" },
@@ -185,9 +230,13 @@ test("publishes through the ServiceNow assurance ingress and preserves exact evi
     workNote: { status: "existing", sysId: "journal-1" },
     attachment: { status: "existing", sysId: "attachment-1" },
   });
-  assert.equal(state.posts, 2);
+  assert.equal(state.posts, 3);
   assert.equal(state.bodies[0], first.plan.attachmentText);
   assert.equal(state.bodies[1], second.plan.attachmentText);
+  assert.equal(
+    state.paths[2],
+    `/api/customer_namespace/forward_change_assurance/changes/${preflight.change.sysId}/evidence`,
+  );
   assert.equal(state.authorization.every((value) => value?.startsWith("Basic ")), true);
   assert.equal(JSON.stringify(first).includes("runtime-only"), false);
   assert.deepEqual(verifyServiceNowFeedbackRetry({ initial: first, retry: second }), {

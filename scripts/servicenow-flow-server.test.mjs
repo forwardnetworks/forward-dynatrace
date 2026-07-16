@@ -179,6 +179,7 @@ test("runs an idempotent asynchronous start and complete lifecycle without expos
       SERVICENOW_FLOW_SYNTHETIC: "1",
       SERVICENOW_FLOW_PUBLISH_SERVICENOW: "1",
       SERVICENOW_FLOW_VERIFY_RETRY: "1",
+      SERVICENOW_FLOW_STABILIZATION_SECONDS: "0",
     },
     now: () => `2026-07-15T19:00:${String(tick++).padStart(2, "0")}.000Z`,
   });
@@ -211,6 +212,7 @@ test("runs an idempotent asynchronous start and complete lifecycle without expos
   assert.equal(valueAfter(calls[1], "--phase"), "complete");
   assert.equal(calls[1].includes("--publish-servicenow"), true);
   assert.equal(calls[1].includes("--verify-servicenow-retry"), true);
+  assert.equal(valueAfter(calls[1], "--stabilization-seconds"), "0");
 
   const completeReplay = await service.complete(started.run.runId, { context });
   assert.equal(completeReplay.statusCode, 200);
@@ -219,6 +221,19 @@ test("runs an idempotent asynchronous start and complete lifecycle without expos
       context: { ...context, observedAt: "2026-07-15T19:01:00.000Z" },
     }),
     /differs from the context already bound/,
+  );
+});
+
+test("rejects an invalid workflow stabilization override", () => {
+  assert.throws(
+    () => createFlowService({
+      env: {
+        ...liveProvenanceEnv,
+        SERVICENOW_FLOW_STABILIZATION_SECONDS: "1.5",
+      },
+      runDir: path.join(tmpdir(), "unused-stabilization-service"),
+    }),
+    /must be an integer between 0 and 3600/,
   );
 });
 

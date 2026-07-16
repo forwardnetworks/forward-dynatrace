@@ -54,11 +54,11 @@
           "additionalProperties": false,
           "required": ["reachable", "blocked", "ambiguous", "unmapped", "failed"],
           "properties": {
-            "reachable": { "type": "integer" },
-            "blocked": { "type": "integer" },
-            "ambiguous": { "type": "integer" },
-            "unmapped": { "type": "integer" },
-            "failed": { "type": "integer" }
+            "reachable": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+            "blocked": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+            "ambiguous": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+            "unmapped": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+            "failed": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 }
           }
         },
         "reconciliation": {

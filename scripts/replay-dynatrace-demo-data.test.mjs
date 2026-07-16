@@ -95,6 +95,30 @@ test("replays an explicit change-assurance dependency fixture", () => {
   assert.equal(summary.dependenciesSource, "shared/demo-change-dependencies.json");
 });
 
+test("keeps the local ARM64 topology dependency in the Dynatrace substrate", () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      "scripts/replay-dynatrace-demo-data.mjs",
+      "--environment-url",
+      "https://your-environment-id.apps.dynatrace.com/",
+      "--run-id",
+      "test-local-arm64",
+      "--dependencies",
+      "shared/local-arm64-change-dependencies.json",
+      "--fixture",
+      "forward-change-local-arm64",
+    ],
+    { cwd: process.cwd(), encoding: "utf8" },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.fixture, "forward-change-local-arm64");
+  assert.equal(summary.replayEvents, 1);
+  assert.equal(summary.readyRows, 1);
+});
+
 test("customer flow uses neutral application dependency event names", () => {
   const result = spawnSync(
     process.execPath,
