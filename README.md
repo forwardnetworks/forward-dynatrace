@@ -1,28 +1,28 @@
 # Forward Integration for Dynatrace
 
-Forward Integration for Dynatrace is a Forward Field Integration that turns Dynatrace application dependency evidence into
-Forward-reviewed network intent-check packages, then gives an approved ServiceNow change one checksummed decision across
-Forward modeled-network evidence and Dynatrace application health.
+Forward Integration for Dynatrace is a standalone Forward Field Integration that turns Dynatrace application dependency
+evidence into Forward-reviewed network intent-check packages and publishes bounded Forward results back to Dynatrace.
 
-The integration keeps every authority boundary explicit: ServiceNow owns approval and audit, the customer's deployment
-system owns deploy and rollback, Forward owns network intent, and Dynatrace owns application evidence. The Dynatrace app
-does not write to Forward and does not store Forward credentials.
+Forward owns network intent, Dynatrace owns application evidence, and the customer's deployment system owns deployment
+and rollback. The Dynatrace app does not write to Forward and does not store Forward credentials.
+
+This repository installs and operates independently. Cross-product demonstrations and workflow-system orchestration
+belong in a separate demo or customer automation project, not in this repository's installation path.
 
 ## Status
 
 - Latest published base-workflow release: `v1.0.0`
-- ServiceNow → Forward → Dynatrace assurance: merged in [PR #11](https://github.com/forwardnetworks/forward-dynatrace/pull/11) at `d706357a05dbee8b15e613f11fc515c10246b4e2`; not included in `v1.0.0`
 - Next release candidate: `v2.0.0`, not tagged or published yet
+- Current release-candidate capabilities are not included in `v1.0.0`
 - Runtime: Node.js 24.x
 - Distribution: GitHub release artifacts and GHCR importer image
 - Support model: field integration reference, not an officially supported Forward product integration
 - License: ISC
 
-The current `v2.0.0` release-candidate source adds the ServiceNow assurance worker, check-health poller, security
-correlator, protected affected-record scope mapping, authenticated package handoff, generated Dynatrace Workflow
-templates, cross-domain portal, and associated runtime commands. Do not combine those docs or templates with the
-published `v1.0.0` importer image; use a reviewed exact `v2.0.0` release-candidate commit for a controlled demo, or wait
-for the matching tag and verify its artifacts.
+The current `v2.0.0` release-candidate source adds check-health polling, security correlation, authenticated package
+handoff, generated Dynatrace Workflow templates, and associated runtime commands. Do not combine those docs or
+templates with the published `v1.0.0` importer image; use a reviewed exact `v2.0.0` release-candidate commit for a
+controlled demo, or wait for the matching tag and verify its artifacts.
 
 ## What It Does
 
@@ -40,7 +40,6 @@ for the matching tag and verify its artifacts.
   and sanitized reconciliation status.
 - Emits bounded Forward-managed check-health transitions without publishing unchanged polling cycles.
 - Includes systemd and Kubernetes schedules with durable state for continuous check-health feedback.
-- Includes validated ServiceNow Flow Designer Script-step assets for start/status/complete change assurance.
 - Correlates explicit Dynatrace vulnerability and Forward exposure evidence into a read-only investigation queue.
 - Supports bulk create-missing-only imports through a Forward-side importer or scheduled connector.
 - Optionally emits Forward NQE check and diff artifacts using Forward-controlled query IDs and allowlists.
@@ -60,16 +59,11 @@ for the matching tag and verify its artifacts.
 Dynatrace dependencies -> exported intent package -> Forward validates, reconciles, and applies
         ^                                                       |
         +---------------- sanitized aggregate status -----------+
-
-ServiceNow approved change -> Forward-side assurance worker <- Dynatrace deployment and health
-                                      |
-                                      +-> pre/post Forward path evidence
-                                      +-> checksummed decision -> ServiceNow + Dynatrace Grail
 ```
 
-Both production paths remain Forward-centric at the write boundary. Dynatrace supplies dependency and application
-evidence; Forward validates the target network snapshot before persistent checks are created and supplies the modeled
-pre/post evidence used by the change gate. The integration reports the decision but never deploys or rolls back.
+The production path remains Forward-centric at the write boundary. Dynatrace supplies dependency and application
+evidence; Forward validates the target network snapshot before persistent checks are created. The integration reports
+bounded results but never deploys or rolls back.
 
 ## Release-Candidate Quick Start
 
@@ -89,23 +83,17 @@ npm run acceptance:bundle -- \
 The acceptance bundle is read-only. It builds a demo package, validates schemas and package integrity, writes
 `ACCEPTANCE.md`, and does not contact Forward.
 
-## One-Command Two-Act Rehearsal
+## Credential-Free Rehearsal
 
-Build the complete credential-free presenter bundle before a meeting:
+Build and validate a Dynatrace-shaped Forward package before a meeting:
 
 ```bash
-npm run demo:showcase -- --output-dir /tmp/servicenow-forward-dynatrace-showcase
+npm run demo:rehearsal -- --output-dir /tmp/forward-dynatrace-demo
 ```
 
-Open `/tmp/servicenow-forward-dynatrace-showcase/SHOWCASE.md`. Act 1 turns 100 checked Dynatrace-shaped dependencies
-into a checksum-bound Forward `NewNetworkCheck[]` package and validates it without a Forward call. Act 2 compares a
-safe ServiceNow change with a regressed change through the production Forward gate, ServiceNow evidence/receipt, and
-Dynatrace event builders. The bundle records exact package/check checksums, change IDs, snapshot deltas, decision
-reasons, and ServiceNow evidence SHA-256 values.
-
-This path performs zero external reads or writes and labels the entire bundle `SYNTHETIC DEMO SHOWCASE`. Replace its
-records with authoritative current-window ServiceNow, customer-approved Forward, and fresh Dynatrace query-back
-evidence before making a live claim.
+The rehearsal turns checked Dynatrace-shaped dependencies into a checksum-bound Forward `NewNetworkCheck[]` package
+and validates it without a Forward call. It performs zero external reads or writes and labels its evidence synthetic.
+Replace those records with customer-owned evidence before making a live claim.
 
 ## Live Demo
 
@@ -151,22 +139,6 @@ DQL views, and stop rules.
 `npm run forward:change-gate` combines Dynatrace deployment/service-health context, Forward before/after path evidence,
 and Forward reconciliation status into a checksummed `pass`, `warn`, or `fail` artifact. It is read-only; enforcement
 belongs to the customer's deployment system. See [docs/change-validation-gate.md](docs/change-validation-gate.md).
-
-## ServiceNow-First Change Assurance
-
-`npm run servicenow:change-workflow` captures the authoritative pre-deployment ServiceNow/Forward baseline, persists a
-checksummed resume state across the customer-owned deployment, waits for a different processed Forward snapshot, and
-then binds stabilized Dynatrace context to the final gate. ServiceNow is re-read before finalization, non-pass exits `2`
-by default, publication is separately gated, and the companion ServiceNow assurance ledger makes retries idempotent
-per exact evidence bundle. See
-[docs/application-change-assurance.md](docs/application-change-assurance.md).
-
-`npm run servicenow:flow-server` exposes the same tested two-phase workflow through an authenticated asynchronous API
-for purchase-free ServiceNow core Script steps. It does not move the gate into ServiceNow or require IntegrationHub.
-See [docs/servicenow-flow-worker.md](docs/servicenow-flow-worker.md).
-
-For a non-production idempotency acceptance run, `--verify-servicenow-retry` explicitly resubmits the same checksummed
-evidence and requires the second ServiceNow receipt to reuse both the original work-note and attachment sys_ids.
 
 ## Continuous Check-Health Feedback
 
@@ -313,8 +285,8 @@ Release provenance, SBOM, Trivy scan evidence, and digest pinning guidance are i
 ## Screenshots
 
 These checked, credential-free captures use synthetic rehearsal records and placeholder target metadata. Each
-standalone evidence view labels that provenance; live Grail and customer-owned Forward/ServiceNow readback remain the
-production proof sources.
+standalone evidence view labels that provenance; live Grail and customer-owned Forward readback remain the production
+proof sources.
 
 ![Forward Integration for Dynatrace overview](docs/assets/screenshots/01-overview.jpg)
 
@@ -323,8 +295,6 @@ production proof sources.
 ![Forward-side API sequence](docs/assets/screenshots/03-forward-side-api.jpg)
 
 ![Forward intent check payload](docs/assets/screenshots/04-intent-check-payload.jpg)
-
-![ServiceNow, Forward, and Dynatrace change assurance](docs/assets/screenshots/05-servicenow-change-assurance.jpg)
 
 ## Development
 
@@ -337,8 +307,6 @@ npm run forward:import:test
 npm run forward:package:test
 npm run runtime:validate
 npm run demo:rehearsal
-npm run demo:servicenow
-npm run demo:showcase
 npm run security:audit
 npm run lint
 npm run build
@@ -346,13 +314,6 @@ npm run ci
 ```
 
 `npm run ci` is the local equivalent of the GitHub Actions `gitops` workflow.
-
-`npm run demo:servicenow` creates a synthetic, read-only safe/regression rehearsal using the production ServiceNow
-evidence, Forward gate, receipt, and Dynatrace event builders. Its `DEMO.md` includes the exact change IDs, snapshot
-deltas, reason codes, and shared evidence checksums. It contacts no external system and never represents live proof.
-
-`npm run demo:showcase` is the preferred presenter rehearsal: it combines that assurance proof with the checked
-Dynatrace-to-Forward package act and writes one `SHOWCASE.md` plus a machine-readable bundle index.
 
 For Dynatrace API smoke checks, keep platform tokens outside the repository and pass them with `DYNATRACE_TOKEN`,
 `DYNATRACE_TOKEN_FILE`, or `--token-file`. Do not commit tenant URLs, access tokens, OAuth callback URLs, Forward

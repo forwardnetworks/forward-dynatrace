@@ -32,16 +32,13 @@ const CONFIG_TEMPLATES = [
   ["deploy/systemd/forward-connector.config.example.json", "/etc/forward-dynatrace/forward-connector.config.json", 0o640],
   ["deploy/systemd/forward-dynatrace.env.example", "/etc/forward-dynatrace/forward-dynatrace.env", 0o600],
   ["deploy/systemd/forward-handoff.env.example", "/etc/forward-dynatrace/forward-handoff.env", 0o600],
-  ["deploy/systemd/servicenow-flow.env.example", "/etc/forward-dynatrace/servicenow-flow.env", 0o600],
   ["deploy/systemd/forward-check-health.env.example", "/etc/forward-dynatrace/forward-check-health.env", 0o600],
-  ["config/servicenow-scope-mapping.example.json", "/etc/forward-dynatrace/servicenow-scope-mapping.json", 0o600],
 ];
 
 const SYSTEMD_UNITS = [
   "forward-dynatrace-connector.service",
   "forward-dynatrace-connector.timer",
   "forward-dynatrace-handoff.service",
-  "forward-dynatrace-servicenow-flow.service",
   "forward-dynatrace-check-health.service",
   "forward-dynatrace-check-health.timer",
 ];
@@ -67,7 +64,7 @@ const ACTIVATION_COMMANDS = [
   "cd /opt/forward-dynatrace && npm ci --omit=dev --ignore-scripts",
   "systemd-analyze verify /etc/systemd/system/forward-dynatrace-*.service /etc/systemd/system/forward-dynatrace-*.timer",
   "systemctl daemon-reload",
-  "systemctl enable --now forward-dynatrace-handoff.service forward-dynatrace-servicenow-flow.service forward-dynatrace-connector.timer",
+  "systemctl enable --now forward-dynatrace-handoff.service forward-dynatrace-connector.timer",
 ];
 
 const usage = `

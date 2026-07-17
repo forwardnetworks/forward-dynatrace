@@ -3,21 +3,6 @@ import { test } from "node:test";
 
 import { resolveRuntimeCommand } from "./runtime-entrypoint.mjs";
 
-test("dispatches ServiceNow workflow commands in the runtime image", () => {
-  assert.deepEqual(
-    resolveRuntimeCommand(["servicenow-change-workflow", "--phase", "start"]),
-    { script: "scripts/servicenow-change-workflow.mjs", args: ["--phase", "start"] },
-  );
-  assert.deepEqual(
-    resolveRuntimeCommand(["servicenow-flow-server"]),
-    { script: "scripts/servicenow-flow-server.mjs", args: [] },
-  );
-  assert.deepEqual(
-    resolveRuntimeCommand(["servicenow-scope-resolve", "--help"]),
-    { script: "scripts/resolve-servicenow-scope.mjs", args: ["--help"] },
-  );
-});
-
 test("dispatches handoff, check-health, and security commands", () => {
   assert.deepEqual(
     resolveRuntimeCommand(["forward-package-publish", "--help"]),

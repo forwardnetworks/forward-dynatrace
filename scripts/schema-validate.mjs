@@ -27,14 +27,6 @@ const schemaPaths = {
   changeContext: "schemas/forward-change-context.schema.json",
   changeValidationGate: "schemas/forward-change-validation-gate.schema.json",
   changeValidationEvent: "schemas/forward-change-validation-event.schema.json",
-  serviceNowChangePreflight: "schemas/servicenow-change-preflight.schema.json",
-  serviceNowChangeAssuranceEvidence: "schemas/servicenow-change-assurance-evidence.schema.json",
-  serviceNowChangeFeedback: "schemas/servicenow-change-feedback.schema.json",
-  serviceNowChangeAssurance: "schemas/servicenow-change-assurance.schema.json",
-  serviceNowChangeWorkflow: "schemas/servicenow-change-workflow.schema.json",
-  serviceNowFlowRun: "schemas/servicenow-flow-run.schema.json",
-  serviceNowScopeMapping: "schemas/servicenow-scope-mapping.schema.json",
-  serviceNowScopeResolution: "schemas/servicenow-scope-resolution.schema.json",
   checkHealthTransitions: "schemas/forward-check-health-transitions.schema.json",
   securityCorrelation: "schemas/forward-security-correlation.schema.json",
   securityCorrelationEventBatch: "schemas/forward-security-correlation-event-batch.schema.json",
@@ -60,22 +52,6 @@ Options:
                            Validate a Forward and Dynatrace gate artifact.
   --change-validation-event path
                            Validate a sanitized change-validation event.
-  --servicenow-change-preflight path
-                           Validate an authoritative ServiceNow change preflight.
-  --servicenow-change-assurance-evidence path
-                           Validate the checksummed ServiceNow evidence attachment.
-  --servicenow-change-feedback path
-                           Validate a ServiceNow feedback publication receipt.
-  --servicenow-change-assurance path
-                           Validate the final assurance conductor summary.
-  --servicenow-change-workflow path
-                           Validate resumable two-phase workflow state.
-  --servicenow-flow-run path
-                           Validate a bounded purchase-free Flow worker run.
-  --servicenow-scope-mapping path
-                           Validate a ServiceNow-to-Dynatrace/Forward scope mapping.
-  --servicenow-scope-resolution path
-                           Validate a resolved ServiceNow change scope.
   --check-health-transitions path
                            Validate a sanitized check-health transition batch.
   --security-correlation path
@@ -104,14 +80,6 @@ const parseArgs = (argv) => {
       value === "--change-context" ||
       value === "--change-validation-gate" ||
       value === "--change-validation-event" ||
-      value === "--servicenow-change-preflight" ||
-      value === "--servicenow-change-assurance-evidence" ||
-      value === "--servicenow-change-feedback" ||
-      value === "--servicenow-change-assurance" ||
-      value === "--servicenow-change-workflow" ||
-      value === "--servicenow-flow-run" ||
-      value === "--servicenow-scope-mapping" ||
-      value === "--servicenow-scope-resolution" ||
       value === "--check-health-transitions" ||
       value === "--security-correlation" ||
       value === "--security-correlation-event-batch"
@@ -257,14 +225,6 @@ const main = async () => {
       args["change-context"] ||
       args["change-validation-gate"] ||
       args["change-validation-event"] ||
-      args["servicenow-change-preflight"] ||
-      args["servicenow-change-assurance-evidence"] ||
-      args["servicenow-change-feedback"] ||
-      args["servicenow-change-assurance"] ||
-      args["servicenow-change-workflow"] ||
-      args["servicenow-flow-run"] ||
-      args["servicenow-scope-mapping"] ||
-      args["servicenow-scope-resolution"] ||
       args["check-health-transitions"] ||
       args["security-correlation"] ||
       args["security-correlation-event-batch"],
@@ -291,30 +251,6 @@ const main = async () => {
       validators.changeContext,
       "config/forward-change-context.example.json",
       await readJson("config/forward-change-context.example.json"),
-      results,
-    );
-    validate(
-      validators.serviceNowChangePreflight,
-      "config/servicenow-change-preflight.example.json",
-      await readJson("config/servicenow-change-preflight.example.json"),
-      results,
-    );
-    validate(
-      validators.serviceNowChangeWorkflow,
-      "config/servicenow-change-workflow.example.json",
-      await readJson("config/servicenow-change-workflow.example.json"),
-      results,
-    );
-    validate(
-      validators.serviceNowFlowRun,
-      "config/servicenow-flow-run.example.json",
-      await readJson("config/servicenow-flow-run.example.json"),
-      results,
-    );
-    validate(
-      validators.serviceNowScopeMapping,
-      "config/servicenow-scope-mapping.example.json",
-      await readJson("config/servicenow-scope-mapping.example.json"),
       results,
     );
 
@@ -393,70 +329,6 @@ const main = async () => {
       validators.changeValidationEvent,
       args["change-validation-event"],
       await readJson(args["change-validation-event"]),
-      results,
-    );
-  }
-  if (args["servicenow-change-preflight"]) {
-    validate(
-      validators.serviceNowChangePreflight,
-      args["servicenow-change-preflight"],
-      await readJson(args["servicenow-change-preflight"]),
-      results,
-    );
-  }
-  if (args["servicenow-change-assurance-evidence"]) {
-    validate(
-      validators.serviceNowChangeAssuranceEvidence,
-      args["servicenow-change-assurance-evidence"],
-      await readJson(args["servicenow-change-assurance-evidence"]),
-      results,
-    );
-  }
-  if (args["servicenow-change-feedback"]) {
-    validate(
-      validators.serviceNowChangeFeedback,
-      args["servicenow-change-feedback"],
-      await readJson(args["servicenow-change-feedback"]),
-      results,
-    );
-  }
-  if (args["servicenow-change-assurance"]) {
-    validate(
-      validators.serviceNowChangeAssurance,
-      args["servicenow-change-assurance"],
-      await readJson(args["servicenow-change-assurance"]),
-      results,
-    );
-  }
-  if (args["servicenow-change-workflow"]) {
-    validate(
-      validators.serviceNowChangeWorkflow,
-      args["servicenow-change-workflow"],
-      await readJson(args["servicenow-change-workflow"]),
-      results,
-    );
-  }
-  if (args["servicenow-flow-run"]) {
-    validate(
-      validators.serviceNowFlowRun,
-      args["servicenow-flow-run"],
-      await readJson(args["servicenow-flow-run"]),
-      results,
-    );
-  }
-  if (args["servicenow-scope-mapping"]) {
-    validate(
-      validators.serviceNowScopeMapping,
-      args["servicenow-scope-mapping"],
-      await readJson(args["servicenow-scope-mapping"]),
-      results,
-    );
-  }
-  if (args["servicenow-scope-resolution"]) {
-    validate(
-      validators.serviceNowScopeResolution,
-      args["servicenow-scope-resolution"],
-      await readJson(args["servicenow-scope-resolution"]),
       results,
     );
   }

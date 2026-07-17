@@ -45,7 +45,7 @@ checks, or own committed Forward NQE Library content.
 5. Apply is create-missing-only unless a signed package, exact-key approval, change window, and mutation budgets allow
    update/stale actions.
 6. Detailed Forward topology stays inside the Forward-controlled boundary; return paths publish bounded aggregates.
-7. ServiceNow and deployment systems consume checksummed evidence and enforce promotion decisions outside Forward and
+7. Customer deployment systems may consume checksummed evidence and enforce promotion decisions outside Forward and
    Dynatrace.
 8. Every live proof records environment, correlation IDs, Forward network/snapshot IDs, counts, and provenance.
 
@@ -61,11 +61,10 @@ Dynatrace dependency rows are normalized, optionally resolved against Forward re
 The Forward-side runtime resolves endpoints and runs approved path or NQE queries. Only aggregate assessments and counts
 are eligible for publication back to Dynatrace.
 
-### Change Assurance
+### Change Validation
 
-ServiceNow establishes the authoritative change window and scope. The runtime captures before/after Forward snapshots,
-Dynatrace health context, and dry-run reconciliation, then emits a deterministic pass/warn/fail artifact. The customer's
-deployment system decides whether promotion continues.
+The runtime can combine before/after Forward snapshots, Dynatrace health context, and dry-run reconciliation into a
+deterministic pass/warn/fail artifact. A customer-operated deployment system decides whether promotion continues.
 
 ### Continuous Feedback
 
@@ -77,8 +76,7 @@ correlation combines separately sourced facts without treating modeled reachabil
 - App or UI behavior: `docs/agent-guides/dynatrace-app.md`, then `docs/workflow.md`.
 - Package/import behavior: `docs/forward-ingest-contract.md`, then `docs/forward-importer.md`.
 - Runtime deployment: `docs/connector-runtime.md`, `docs/container-runtime.md`, or `docs/cron-runtime.md`.
-- Change assurance: `docs/application-change-assurance.md` and `docs/servicenow-flow-worker.md`.
+- Change validation: `docs/change-validation-gate.md`.
 - Security or data handling: `docs/threat-model.md`, `docs/data-handling.md`, and `docs/rbac.md`.
 - Current priorities: `docs/exec-plans/active/customer-production-readiness.md`.
 - Verified truth: `docs/validation-matrix.md` and executable CI.
-

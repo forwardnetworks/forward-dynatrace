@@ -29,8 +29,8 @@ npm run ci
 npm run acceptance:bundle -- --dependencies shared/demo-dependencies.json --output-dir out/acceptance
 ```
 
-The ServiceNow assurance worker, check-health poller, security correlator, cross-domain portal, and their runtime
-commands are not included in `v1.0.0`. That tag remains the legacy published base package/import line. Do not run current
+The check-health poller, security correlator, and expanded evidence portal are not included in `v1.0.0`. That tag
+remains the legacy published base package/import line. Do not run current
 templates with the `v1.0.0` importer image. Historical Actions evidence shows that tag on three commits, so it is not
 immutable release proof. Use a reviewed exact release-candidate commit only for a controlled rehearsal, or a newer
 matching tag after this tranche lands and passes the checked published-release verifier.

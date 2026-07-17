@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import path from "node:path";
 
 import {
   buildTransitionEventRecords,
@@ -20,9 +19,7 @@ import {
   toDynatraceStatusEvent,
 } from "./publish-forward-status.mjs";
 import { correlateSecurityExposure } from "./security-exposure-correlation.mjs";
-import { buildDemoRehearsal } from "./servicenow-demo-rehearsal.mjs";
-
-const EVIDENCE_SOURCE = "checked-servicenow-demo-rehearsal";
+const EVIDENCE_SOURCE = "checked-dynatrace-demo-rehearsal";
 const NETWORK_ID = "235937";
 
 const readJson = async (file) => JSON.parse(await readFile(file, "utf8"));
@@ -135,20 +132,12 @@ const buildSecurityRows = async () => {
     provenance: { source: EVIDENCE_SOURCE, synthetic: true },
   });
   return buildSecurityCorrelationEventBatch(artifact, {
-    runId: "security-servicenow-demo-rehearsal",
+    runId: "security-dynatrace-demo-rehearsal",
   }).records;
 };
 
 export const buildCaptureEvidence = async (outputDir) => {
-  const rehearsal = await buildDemoRehearsal(outputDir);
-  const changeRows = [];
-  for (const scenario of [...rehearsal.scenarios].reverse()) {
-    const event = await readJson(
-      path.join(outputDir, scenario.id, "forward-change-validation-event.json"),
-    );
-    changeRows.push({ timestamp: event.timestamp, severity: event.severity, ...event.properties });
-  }
-
+  void outputDir;
   return {
     ingestRows: [
       statusRecord(
@@ -190,7 +179,6 @@ export const buildCaptureEvidence = async (outputDir) => {
         blocked: 0,
       }),
     ],
-    changeRows,
     healthRows: buildHealthRows(),
     securityRows: await buildSecurityRows(),
   };

@@ -1,256 +1,77 @@
-# Cross-Repository Integration Completion
+# Dynatrace Integration Production Readiness
 
 Status: active
-Owner: repository maintainer plus ServiceNow, Dynatrace, Forward runtime, security, and network owners
-Last updated: 2026-07-14
+Owner: repository maintainer plus Dynatrace, Forward runtime, security, and network owners
+Last updated: 2026-07-16
 
 ## Objective
 
-Turn the merged ServiceNow → Forward → Dynatrace implementation into a reproducible, released, customer-operated
-non-production integration. Finish the companion ServiceNow package, remove the remaining manual glue where repository
-code can do so safely, install exact release artifacts, and capture one authoritative three-system acceptance run.
+Release and validate the standalone Dynatrace-to-Forward integration as a reproducible, customer-operated
+non-production deployment. The acceptance boundary covers Dynatrace dependency evidence, deterministic package
+generation, customer-approved handoff, Forward-side validation and reconciliation, and bounded Dynatrace readback.
 
-This is the single active execution plan for `forward-dynatrace` and its companion GitHub repository `forward-snow`
-(local worktree `forward-servicenow-demo`). Detailed historical proof remains in `docs/validation-matrix.md`.
+Cross-product workflow orchestration and combined demonstrations are intentionally maintained outside this repository.
 
 ## Non-Goals
 
-- Do not move Forward write credentials into Dynatrace or ServiceNow.
-- Do not let change assurance deploy applications, perform rollback, or imply Forward mutation approval.
-- Do not enable changed/stale mutation without a signed package, exact approval, change window, budget, audit, and
-  rollback owned by the customer.
+- Do not move Forward write credentials into Dynatrace.
+- Do not deploy applications or perform rollback.
+- Do not enable changed or stale mutation without a signed package, exact approval, change window, budget, and audit.
 - Do not present replay or fixture evidence as live customer evidence.
 - Do not make optional NQE or security-correlation lanes a dependency of the base workflow.
-- Do not decide field-kit versus supported-product ownership on behalf of product leadership.
 
 ## Progress
 
-- [x] Merge the cross-domain assurance tranche through PR `#11` as merge commit
-  `d706357a05dbee8b15e613f11fc515c10246b4e2`; GitHub Actions run `29258140360` passed for the final head.
-- [x] Validate the merged implementation on Node `v24.18.0`, including full CI, 2,500-row scale smoke,
-  zero-vulnerability production audit, Dynatrace app build, exact release membership, checked screenshots, and a
-  network-disabled two-act showcase.
-- [x] Live-validate Forward base import create/unchanged/changed/stale/failure behavior and query the sanitized status
-  event back from Dynatrace.
-- [x] Live-validate read-only ServiceNow approval/state/window preflight for one eligible and one blocked change.
-- [x] Verify the ServiceNow ledger contract, retry-verification client, Forward change gate, check-health poller, security
-  correlator, and Dynatrace event builders with deterministic repository tests.
-- [x] Audit the companion `forward-snow` worktree: its uncommitted assurance ledger, ingress, Flow client, installer,
-  admin audit, and contract tranche passes 14 Node tests plus 11 Python tests, but is not committed or proposed for
-  review.
-- [x] Preserve that companion worktree on branch `codex/change-assurance-package`, disable direct Table API access to
-  the assurance ledger, close the embedded evidence contracts, distinguish client and retryable server failures, and
-  verify attachment-before-work-note plus stable retry identifiers. The hardened branch passes 19 Node tests and 15
-  Python tests on Node `v24.18.0`.
-- [x] Commit and publish the companion tranche as immutable implementation commit `2c7291c`, add the checked PR gate
-  in follow-up commit `12f7445`, and open [`forward-snow` PR #1](https://github.com/forwardnetworks/forward-snow/pull/1).
-  GitHub Actions run `29270128698` passed the Node 24/Python validation gate. Review and merge remain required before
-  the companion-package exit criterion is complete.
-- [x] Align the `forward-dynatrace` assurance/preflight/gate/Flow schemas with the ServiceNow persisted-field bounds and
-  run the focused schema, assurance-conductor, and Flow-server suite: 14 tests plus 16 artifact validations passed on
-  Node `v24.18.0`.
-- [x] Run the complete `npm run ci` gate for the integrated schema/plan tranche on Node `v24.18.0`; repository and
-  whitespace checks, all tests, 2,500-row scale smoke, runtime validation, zero-vulnerability production audit,
-  Dynatrace build, SBOM generation, and exact release-package smoke completed with exit `0`.
-- [x] Re-run the full Node `v24.18.0` gate after the handoff/workflow/scope tranche, then run the actual
-  `acceptance:bundle` command against 100 checked dependencies. Both completed with exit `0`; the acceptance bundle
-  remained validate-only, made no Forward contact, and reported 100 selected dependencies and 100 intent checks.
-- [x] Select `v2.0.0` for the post-merge release candidate and synchronize the package, lockfile, and Dynatrace app
-  versions. Requiring a package-handoff connection changes the published Workflow action input contract, so a major
-  version is required rather than a `v1.x` compatibility claim.
-- [x] Commit and publish the integrated release-candidate tranche as immutable commit `b2acfce` and open
-  [`forward-dynatrace` PR #13](https://github.com/forwardnetworks/forward-dynatrace/pull/13), explicitly linked to the
-  companion ServiceNow PR. Review, merge, and the `v2.0.0` tag/release remain required.
-- [x] Replace the manual post-tag proof sequence with a checked, read-only published-release verifier and follow-up
-  workflow. The verifier correlates the exact tag, commit, successful release run, release assets, checksums, optional
-  signature, SBOM, source/ref/signer/run/subject-bound artifact and image attestations, GHCR digest, and Trivy-authored
-  zero-result SARIF into one bounded report, and fails closed when release-workflow history shows tag reuse. Live
-  negative proof found that `v1.0.0` was used across three commits, so the new `v2.0.0` tag must remain immutable.
-- [x] Run a clean `npm ci && npm run ci` on Node `v24.18.0` after the published-release verifier tranche. All tests,
-  the 2,500-row scale smoke, runtime validation, zero-vulnerability production audit, Dynatrace app build, SBOM,
-  lint, and exact release-package smoke passed with exit `0`. A fresh acceptance bundle run
-  `forward-dynatrace-20260713175331` also passed validate-only for 100 dependencies and 100 intent checks with no
-  Forward contact.
-- [x] Commit and publish the verifier tranche as `e0f7a13`; GitHub Actions run `29272387657` / job `86893027638`
-  passed the complete `gitops` gate for that exact commit.
-- [x] Add a checked pre-publish immutability guard to the tag workflow. Before dependency installation or release
-  writes, it rejects prior tag workflow history, an existing GitHub release, an existing versioned GHCR tag, and any
-  failure to confirm registry absence; failures after partial publication require a new semantic version. A live
-  read-only probe found `v2.0.0` has 0 workflow runs, 0 releases, and no GHCR tag, while `v1.0.0` was rejected with
-  exact prior run IDs `28696863169` and `28696639370`. The complete Node `v24.18.0` `npm run ci` gate passed after
-  this guard was added, including its five tests and exact importer-archive membership.
-- [x] Commit and publish the pre-publish guard as `6431075`; GitHub Actions run `29273484791` / job `86896698615`
-  passed the complete `gitops` gate for that exact commit.
-- [x] Close the checked handoff read path: the Forward importer loads a dedicated token from a protected file, scopes
-  Bearer forwarding to the exact HTTPS package origin/path, rejects inline tokens, and the systemd/Compose/Kubernetes
-  templates mount the read identity separately from Forward credentials.
-- [x] Select direct Dynatrace OpenPipeline publication for primary systemd status feedback. The connector publishes a
-  sanitized handoff sidecar and aggregate event with an `openpipeline:events:ingest` token, then operators query back
-  the exact run ID with the checked status DQL.
-- [x] Replace the repeated systemd copy sequence with a checked, dry-run-first installer. It stages exact release
-  runtime/config/unit files, omits all credentials and token files, preserves protected modes and operator-owned
-  configuration, fails closed on conflicting runtime/unit files, remains idempotent for identical bytes, and leaves
-  activation behind operator review.
-- [x] Commit and publish the checked systemd installer as `a7c17e5`. A clean local Node `v24.18.0` `npm run ci`
-  completed with exit `0`; the generated importer archive then staged 169 SHA-256-bound files, created zero operator
-  inputs, and reported all 169 unchanged on repeat. GitHub Actions run `29274955732` / job `86901631894` passed the
-  complete `gitops` gate for that exact commit.
-- [x] Exercise the current local ARM64 cEOS path through ServiceNow Start, a real Forward baseline, and an ACL
-  regression snapshot. The fail gate correctly detected one reachable-to-blocked transition and exposed signed-delta,
-  tenant-specific ServiceNow base-URI, and cross-runtime lineage-hash defects; those contracts are now fixed and
-  test-covered. Final ServiceNow publication and Dynatrace query-back remain pending.
-- [ ] Publish a release newer than `v1.0.0`; the current tag and GHCR digest predate the assurance, handoff,
-  check-health, security, Flow-worker, and presenter-showcase commands.
-- [ ] Complete a current-window approved ServiceNow change with matching Forward and Dynatrace readback evidence.
+- [x] Validate the implementation on Node `v24.18.0`, including full CI, a 2,500-row scale smoke, a zero-vulnerability
+  production audit, Dynatrace app build, exact release membership, and checked screenshots.
+- [x] Validate Forward import create, unchanged, changed, stale, and bounded failure behavior.
+- [x] Query sanitized aggregate status back from Dynatrace.
+- [x] Verify deterministic package checksums, authenticated handoff, host resolution, read-only path evidence,
+  check-health polling, and security correlation with repository tests.
+- [x] Add pre-publish tag immutability, release-provenance, SBOM, attestation, and image-scanning checks.
+- [x] Validate the complete demonstration loop with six explicitly live containerlab service observations, six modeled paths,
+  a verified signed package, idempotent reconciliation, Grail query-back, and a populated native Dynatrace app.
 
 ## Plan
 
-### 1. Land The Companion ServiceNow Package
-
-1. Review the complete dirty `forward-snow` worktree and confirm every changed/untracked file belongs to the bounded
-   assurance ledger, authenticated ingress, Flow client, installer, audit, schema, tests, and operator docs.
-2. Add or repair executable checks for every installation and contract invariant discovered during review.
-3. Validate the exact raw-body SHA-256 contract, unique idempotency key, attachment-before-work-note order, retry
-   receipts, writer-role boundary, origin allowlist, auth-profile requirement, and production-mode credential policy.
-4. Run the full Node/Python validation suite and credential-free installer/audit contract smoke, then run the
-   read-only installer/audit against the target ServiceNow instance before proposing review.
-5. Move the coherent work from dirty `main` to a review branch without losing or rewriting unrelated user changes.
-6. Commit, push, open a PR, obtain review, and land the package.
-
-Exit: a clean reviewed companion commit installs the exact endpoint expected by `forward-dynatrace`, passes all
-contract/installer tests, and has an immutable commit or release identifier.
-
-### 2. Cut Matching Release Artifacts
-
-1. Choose the next semantic version after reviewing the persisted ServiceNow workflow/assurance v2 compatibility
-   boundary.
-2. Synchronize `package.json`, `package-lock.json`, and `app.config.json`.
-3. Confirm the release archives contain every merged runtime command, schema, DQL query, Flow asset, example, plan,
-   and validation script by exact member.
-4. On Node 24, run `npm ci`, `npm run ci`, `git diff --check`, and the acceptance-bundle command.
-5. Land the release commit, create the matching tag, and verify GitHub release archives, checksums, optional signature,
-   SBOM, attestations, Trivy SARIF, and digest-pinned GHCR image.
-6. Replace all release-candidate instructions and `v1.0.0` runtime placeholders with the new verified tag/digest.
-
-Exit: both repositories reference reviewed immutable revisions and the new `forward-dynatrace` release can be
-installed without building from a PR branch.
-
-### 3. Make The Handoff And Install Path Reproducible
-
-1. Choose one primary non-production topology: Kubernetes, systemd, or Docker Compose. Keep the other templates as
-   alternatives, not simultaneous demo paths.
-2. Provision a concrete customer-owned package handoff with immutable package paths, atomic `latest`, HTTPS/read
-   identity, access logs, retention, backup, and optional signature verification.
-3. Wire the Dynatrace package-export action to publish complete package bytes to that handoff; a successful action that
-   leaves bytes only in task output is not scheduled integration acceptance.
-4. Install the Forward-side connector, ServiceNow Flow worker behind private TLS ingress, and optional check-health
-   poller from the digest-pinned release image.
-5. Install or generate the actual Dynatrace on-demand/schedule/problem workflows, not only payload examples.
-6. Install the companion ServiceNow package and assemble/import its Start, Status, Complete, and decision Flow actions.
-7. Choose one status-feedback lane: sanitized handoff polling or direct OpenPipeline event publication. Record the
-   token scope and query-back DQL.
-8. Add a checked, secret-free demo profile or installer automation for any repeated manual step that remains within
-   repository ownership.
-
-Exit: a new operator can install the three-system non-production path from immutable artifacts and produce one
-traceable package/status round trip without ad hoc file movement.
-
-### 4. Govern Change Scope And Identity Mapping
-
-1. Define the source of truth that maps ServiceNow affected CIs/services to Dynatrace service entity IDs, the Forward
-   network, and Forward-resolvable endpoints.
-2. Add a versioned, schema-validated mapping contract with mapping ID, source record IDs, confidence, owner, timestamps,
-   and explicit ambiguity/expiry behavior.
-3. Add a deterministic read-only resolver that emits the existing `serviceEntityIds`/network scope or fails closed.
-4. Keep a reviewed fixed mapping for the showcase; do not present it as automatic CMDB correlation.
-5. Test missing, duplicate, stale, ambiguous, low-confidence, and cross-environment mappings.
-6. Feed the resolved scope into the ServiceNow Flow/worker without exposing credentials or detailed Forward topology.
-
-Exit: the demo no longer depends on an unexplained operator-supplied `service_entity_ids_json`, and production scope
-cannot silently drift across ServiceNow, Dynatrace, or Forward.
-
-### 5. Complete Authoritative Live Acceptance
-
-ServiceNow change assurance:
-
-- [ ] Wake/verify the non-production ServiceNow instance and authoritative Table API authentication.
-- [ ] Exercise one approved and one blocked change in their recorded states/windows.
-- [ ] Capture the approved before snapshot, customer deployment identity, different processed after snapshot, Forward
-  path/reconciliation evidence, and fresh Dynatrace deployment/health context.
-- [ ] Read back the exact ServiceNow ledger row, work-note marker, attachment sys_id, attachment SHA-256, and decision.
-- [ ] Retry the exact bundle and verify the original ledger, attachment, and work-note identifiers are reused.
-- [ ] Query the matching checksum-bound event back from Dynatrace Grail.
-
-Check-health feedback:
-
-- [ ] Baseline managed checks from the installed customer-owned poller with durable protected state.
-- [ ] Verify a fresh-process unchanged poll emits nothing and preserves identity.
-- [ ] Capture one customer-approved real failure and recovery pair with stable transition IDs.
-- [ ] Query both transition events back from Dynatrace.
-
-Security correlation, only if owner-approved for this trial:
-
-- [ ] Obtain approved findings, Forward exposure evidence, identity mappings, sharing/retention policy, and response
-  ownership.
-- [ ] Verify every ranked item traces to exact evidence IDs/timestamps and low-confidence mappings cannot become
-  automatic high severity.
-
-Exit: `docs/validation-matrix.md` records readback/query-back evidence for every enabled lane; a successful POST or
-synthetic portal row alone is insufficient.
-
-### 6. Resolve Ownership And Optional Product Decisions
-
-- [ ] Replace CODEOWNERS placeholders with real teams before enforcing code-owner review.
-- [ ] Assign runtime owner, on-call path, release approver, support boundary, secret-rotation owner, and handoff owner.
-- [ ] Decide whether this remains a field integration kit or becomes an owned product integration.
-- [ ] Approve or decline dynamic NQE preview and persistent Forward-owned query IDs.
-- [ ] Keep changed/stale mutation disabled unless a customer operates the full approval and rollback control set.
-- [ ] Add multi-version Forward API, Dynatrace toolkit, or schema migration coverage only when a second supported target
-  triggers the corresponding technical-debt item.
+1. Publish a release newer than `v1.0.0`; the current tag predates the handoff, check-health, security, and current
+   Dynatrace Workflow assets.
+2. Install the exact release artifacts in a non-production Dynatrace tenant and Forward network.
+3. Run one authoritative customer-owned dependency export through validate-only, reviewed apply, and status readback.
+4. Capture the release tag, commit, checksums, image digest, network and snapshot IDs, package ID, reconciliation counts,
+   Dynatrace event ID, and operator approvals in `docs/validation-matrix.md`.
+5. Confirm the installation and rollback runbooks with customer operators who did not author the integration.
 
 ## Verification
 
-- Both repositories are clean at reviewed commits; CI/test run IDs are recorded.
-- The new release passes Node 24 CI and exact archive-membership smoke.
-- Release checksum, SBOM, attestation, Trivy result, and image digest are verified from downloaded artifacts.
-- The package handoff proves immutable publication, atomic latest, importer read access, and denied unintended access.
-- Installation uses secret stores/auth profiles; no Forward credential reaches Dynatrace or ServiceNow.
-- Scope mapping is schema-valid, fresh, unambiguous, environment-bound, and fail-closed.
-- Reconciliation proves create, unchanged, changed, stale, and bounded failure behavior.
-- Each enabled live lane has authoritative readback or Dynatrace query-back, not only a successful request.
-- Synthetic, live non-production, and live customer evidence remain explicitly distinguishable.
+- Run `npm run ci` on Node 24.
+- Run the credential-free acceptance bundle and confirm it makes no external calls.
+- Verify the exact downloaded release checksum, SBOM, attestation, image scan, and container digest.
+- Verify one live package through validate-only, reviewed apply, and Dynatrace status query-back.
 
 ## Decision Log
 
 | Date | Decision | Reason |
 | --- | --- | --- |
-| 2026-07-13 | Keep this file as the single active cross-repository plan. | Release, ServiceNow companion, runtime, mapping, and live acceptance are one integration outcome. |
-| 2026-07-13 | Treat merged PR `#11` as implementation-complete but not release-complete. | `v1.0.0` and its importer image predate the merged commands and contracts. |
-| 2026-07-13 | Make the companion ServiceNow package the first implementation tranche. | A clean customer install cannot reproduce the bounded ledger/writeback endpoint from committed code today. |
-| 2026-07-13 | Treat explicit scope mapping as core integration glue. | The current Flow requires caller-supplied Dynatrace entity IDs and does not explain ServiceNow-to-Dynatrace identity. |
-| 2026-07-13 | Keep security correlation and NQE out of the base demo gate. | They require broader evidence, credential, retention, and ownership decisions than change assurance. |
-| 2026-07-13 | Keep create-missing-only as the default Forward policy. | The core value does not require update/stale mutation authority. |
-| 2026-07-13 | Make ServiceNow persistence limits part of the public cross-repository schemas. | Evidence accepted by the producer schema must fit the ledger fields without truncation, and the ingress must reject partial or extended documents. |
-| 2026-07-13 | Use `v2.0.0` for the next release. | The Workflow action now requires a customer handoff connection and returns the v2 receipt-bound result, which is intentionally breaking for `v1.0.0` workflows. |
-| 2026-07-13 | Use direct OpenPipeline publication for primary systemd status feedback. | It reuses the bounded event builder and checked DQL, keeps Forward credentials out of Dynatrace, and makes query-back explicit. |
-| 2026-07-13 | Fail before release writes when a tag or versioned image has prior publication state. | Post-release detection is necessary evidence but cannot prevent a reused tag from overwriting assets; partial publication must advance to a new version. |
+| 2026-07-16 | Keep this plan limited to the standalone Dynatrace integration. | Each integration must be installable, testable, and explainable without a sibling repository. |
+| 2026-07-16 | Keep create-missing-only as the default Forward policy. | The core value does not require update or stale-check mutation authority. |
+| 2026-07-17 | Render the integration as `Dynatrace ⇄ Forward`. | Dependency evidence flows to Forward; aggregate path and reconciliation evidence returns to Grail. |
+| 2026-07-17 | Label active containerlab observations as live service probes, not AppMap. | Source fidelity is more important than implying an unavailable OneAgent discovery source. |
 
 ## Evidence To Capture
 
-- repository, branch, commit, PR, review, CI run, and merge commit;
-- release version/tag, archive checksums, signature status, SBOM, attestations, Trivy result, and image digest;
-- ServiceNow package revision, installed application/scope, role, operation, ledger table, and admin-audit result;
-- Dynatrace tenant alias, app/workflow versions, execution ID, event type, correlation/run ID, and query-back count;
-- Forward network ID, before/after snapshot IDs, check IDs, reconciliation run ID, counts, and mutation counts;
-- mapping ID, source record IDs, confidence, owner, observed/expiry timestamps, and resolved service/network scope;
-- handoff package ID, immutable URL/path, manifest checksum, signature status, access-log reference, and retention class;
-- ServiceNow change number/sys_id, deployment ID, ledger/idempotency key, attachment/work-note IDs, checksum, and retry
-  receipt;
-- exact command exit code and live acceptance provenance: live customer, live non-production, or synthetic demo.
+- repository commit, release tag, CI run, and downloaded artifact checksums;
+- SBOM, attestations, image scan result, and container digest;
+- Dynatrace environment alias and event ID without tenant secrets;
+- Forward network, before/after snapshot, package, and reconciliation identifiers;
+- selected dependency and check counts, mutation counts, and operator approval record;
+- installation, rollback, and query-back results.
 
-## Completion Criteria
+## Exit Criteria
 
-This plan is complete only when the companion package and `forward-dynatrace` release are reviewed and immutable, the
-selected runtime/handoff/scope-mapping path is installed, one approved and one blocked ServiceNow change have
-authoritative readback evidence, every enabled feedback lane has query-back proof, and the remaining optional decisions
-are either owned with dates or explicitly declined.
+- The release passes Node 24 CI and exact archive-membership validation.
+- Release checksum, SBOM, attestation, image scan, and digest are verified from downloaded artifacts.
+- Dynatrace stores no Forward credential and the Dynatrace app performs no Forward mutation.
+- Forward reconciliation proves create, unchanged, changed, stale, and bounded failure behavior.
+- The enabled live lanes have authoritative Dynatrace and Forward readback rather than request-success evidence only.
+- The customer can install, operate, audit, and roll back the integration from this repository alone.

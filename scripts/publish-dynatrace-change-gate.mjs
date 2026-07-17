@@ -86,26 +86,6 @@ export const validateChangeGate = (gate) => {
 const severityForDecision = (decision) =>
   decision === "pass" ? "INFO" : decision === "warn" ? "WARN" : "ERROR";
 
-const serviceNowEvidenceProperties = ({
-  serviceNowEvidenceSha256,
-  serviceNowIdempotencyKey,
-}) => {
-  if (serviceNowEvidenceSha256 === undefined && serviceNowIdempotencyKey === undefined) {
-    return {};
-  }
-  if (!/^[a-f0-9]{64}$/.test(serviceNowEvidenceSha256 || "")) {
-    throw new Error("ServiceNow evidence SHA-256 must be 64 lowercase hexadecimal characters.");
-  }
-  const expectedKey = `forward-dynatrace:${serviceNowEvidenceSha256}`;
-  if (serviceNowIdempotencyKey !== expectedKey) {
-    throw new Error("ServiceNow idempotency key must match the evidence SHA-256.");
-  }
-  return {
-    "forward.dynatrace.servicenow_evidence_sha256": serviceNowEvidenceSha256,
-    "forward.dynatrace.servicenow_idempotency_key": serviceNowIdempotencyKey,
-  };
-};
-
 const provenanceProperties = ({ evidenceSource, synthetic }) => {
   if (evidenceSource === undefined && synthetic === undefined) return {};
   if (
@@ -126,8 +106,6 @@ const provenanceProperties = ({ evidenceSource, synthetic }) => {
 export const buildChangeGateEvent = (gate, {
   runId,
   gateSha256,
-  serviceNowEvidenceSha256,
-  serviceNowIdempotencyKey,
   evidenceSource,
   synthetic,
   scopeMapping,
@@ -136,10 +114,6 @@ export const buildChangeGateEvent = (gate, {
   const before = validated.forward.before;
   const after = validated.forward.after;
   const reconciliation = validated.forward.reconciliation;
-  const serviceNow = serviceNowEvidenceProperties({
-    serviceNowEvidenceSha256,
-    serviceNowIdempotencyKey,
-  });
   const provenance = provenanceProperties({ evidenceSource, synthetic });
   const mapping = scopeMapping ? {
     "forward.dynatrace.scope_mapping_id": scopeMapping.mappingId,
@@ -177,7 +151,6 @@ export const buildChangeGateEvent = (gate, {
       "forward.dynatrace.deployment_state": validated.dynatrace?.deploymentState,
       "forward.dynatrace.service_health": validated.dynatrace?.serviceHealth,
       "forward.dynatrace.open_problem_count": integer(validated.dynatrace?.openProblemCount),
-      ...serviceNow,
       ...provenance,
       ...mapping,
     }),

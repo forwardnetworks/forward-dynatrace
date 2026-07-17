@@ -13,6 +13,7 @@ fetch events, from: now() - 7d
     forward.dynatrace.package_id,
     forward.dynatrace.evidence_source,
     forward.dynatrace.synthetic,
+    forward.dynatrace.mode,
     forward.dynatrace.import_state,
     forward.dynatrace.apply_policy,
     forward.dynatrace.signature_status,

@@ -30,44 +30,17 @@ test("builds aggregate change-gate event without detailed path evidence", () => 
   assert.doesNotMatch(JSON.stringify(event), /queryUrl|endpoint|hops|rows/iu);
 });
 
-test("binds a ServiceNow evidence receipt to the same Dynatrace gate event", () => {
-  const evidenceSha256 = "b".repeat(64);
-  const event = buildChangeGateEvent(gate, {
-    runId: "gate-run-1",
-    gateSha256: "a".repeat(64),
-    serviceNowEvidenceSha256: evidenceSha256,
-    serviceNowIdempotencyKey: `forward-dynatrace:${evidenceSha256}`,
-  });
-  assert.equal(
-    event.properties["forward.dynatrace.servicenow_evidence_sha256"],
-    evidenceSha256,
-  );
-  assert.equal(
-    event.properties["forward.dynatrace.servicenow_idempotency_key"],
-    `forward-dynatrace:${evidenceSha256}`,
-  );
-  assert.throws(
-    () => buildChangeGateEvent(gate, {
-      runId: "gate-run-1",
-      gateSha256: "a".repeat(64),
-      serviceNowEvidenceSha256: evidenceSha256,
-      serviceNowIdempotencyKey: "forward-dynatrace:mismatch",
-    }),
-    /must match the evidence SHA-256/,
-  );
-});
-
 test("requires explicit paired provenance when a change event is labeled", () => {
   const event = buildChangeGateEvent(gate, {
     runId: "gate-run-1",
     gateSha256: "a".repeat(64),
-    evidenceSource: "checked-servicenow-demo-rehearsal",
+    evidenceSource: "checked-dynatrace-demo-rehearsal",
     synthetic: true,
   });
   assert.equal(event.properties["forward.dynatrace.synthetic"], true);
   assert.equal(
     event.properties["forward.dynatrace.evidence_source"],
-    "checked-servicenow-demo-rehearsal",
+    "checked-dynatrace-demo-rehearsal",
   );
   assert.throws(
     () => buildChangeGateEvent(gate, {

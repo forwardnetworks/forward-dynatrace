@@ -12,8 +12,6 @@ fetch events, from: now() - 30d
     forward.dynatrace.gate_decision,
     forward.dynatrace.gate_reason_codes,
     forward.dynatrace.gate_sha256,
-    forward.dynatrace.servicenow_evidence_sha256,
-    forward.dynatrace.servicenow_idempotency_key,
     forward.dynatrace.evidence_source,
     forward.dynatrace.synthetic,
     forward.dynatrace.network_id,

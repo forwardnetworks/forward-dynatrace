@@ -9,12 +9,6 @@ const commands = new Map([
   ["forward-check-health", "scripts/forward-check-health-transitions.mjs"],
   ["security-correlate", "scripts/security-exposure-correlation.mjs"],
   ["dynatrace-security-publish", "scripts/publish-dynatrace-security-correlation.mjs"],
-  ["servicenow-change-preflight", "scripts/servicenow-change-preflight.mjs"],
-  ["servicenow-scope-resolve", "scripts/resolve-servicenow-scope.mjs"],
-  ["servicenow-change-feedback", "scripts/servicenow-change-feedback.mjs"],
-  ["servicenow-change-assurance", "scripts/servicenow-change-assurance.mjs"],
-  ["servicenow-change-workflow", "scripts/servicenow-change-workflow.mjs"],
-  ["servicenow-flow-server", "scripts/servicenow-flow-server.mjs"],
 ]);
 
 export const resolveRuntimeCommand = (argv) => {

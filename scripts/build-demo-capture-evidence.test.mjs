@@ -17,7 +17,6 @@ test("builds a complete production-shaped synthetic assurance portal", async (t)
     {
       ingestRows: true,
       networkRows: true,
-      changeRows: true,
       healthRows: true,
       securityRows: true,
     },
@@ -31,10 +30,6 @@ test("builds a complete production-shaped synthetic assurance portal", async (t)
   assert.equal(evidence.networkRows[0]["forward.dynatrace.count.blocked"], 12);
   assert.equal(evidence.networkRows[1]["forward.dynatrace.count.reachable"], 24);
   assert.deepEqual(
-    evidence.changeRows.map((row) => row["forward.dynatrace.gate_decision"]),
-    ["fail", "pass"],
-  );
-  assert.deepEqual(
     evidence.healthRows.map((row) => row["forward.dynatrace.transition"]),
     ["FAIL_TO_PASS", "PASS_TO_FAIL"],
   );
@@ -46,7 +41,7 @@ test("builds a complete production-shaped synthetic assurance portal", async (t)
       assert.equal(row["forward.dynatrace.synthetic"], true);
       assert.equal(
         row["forward.dynatrace.evidence_source"],
-        "checked-servicenow-demo-rehearsal",
+        "checked-dynatrace-demo-rehearsal",
       );
     }
   }

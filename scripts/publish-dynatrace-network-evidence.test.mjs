@@ -46,6 +46,13 @@ const baseEvidence = {
   ],
 };
 
+const liveEvidence = {
+  ...baseEvidence,
+  mode: "execute",
+  modeledReachabilityAssessment: "no-modeled-policy-block",
+  counts: { ...baseEvidence.counts, reachable: 2, blocked: 0 },
+};
+
 test("builds aggregate problem evidence without topology details", () => {
   const event = buildNetworkEvidenceEvent(baseEvidence, {
     problemId: "P-DEMO-001",
@@ -62,6 +69,16 @@ test("builds aggregate problem evidence without topology details", () => {
   const text = JSON.stringify(event);
   assert.equal(text.includes("private-dependency-id"), false);
   assert.equal(text.includes("private-path"), false);
+});
+
+test("marks executed Forward path evidence explicitly live", () => {
+  const event = buildNetworkEvidenceEvent(liveEvidence, {
+    problemId: "FWD-LIVE-SNAPSHOT-1",
+    serviceEntityId: "SERVICE-LIVE",
+    runId: "live-network-run",
+  });
+  assert.equal(event.properties["forward.dynatrace.evidence_source"], "forward-path-search-bulk");
+  assert.equal(event.properties["forward.dynatrace.synthetic"], false);
 });
 
 test("converts and publishes one OpenPipeline event record", async () => {

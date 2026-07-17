@@ -12,9 +12,6 @@ Only active work belongs in `active/`. Update its checkboxes and decision log as
 
 ## Completed
 
-- [2026-07-12 non-production evidence](completed/2026-07-12-non-production-evidence.md): live/synthetic provenance,
-  problem evidence, change validation, and portal query-back tranche.
-
 Completed plans are immutable summaries. Correct factual errors, but do not reuse them for new work.
 
 ## Technical Debt
@@ -32,4 +29,3 @@ Every active plan must state:
 - ordered execution steps and verification;
 - decision log;
 - evidence to capture and completion criteria.
-

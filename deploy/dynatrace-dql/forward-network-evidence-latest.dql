@@ -9,6 +9,8 @@ fetch events, from: now() - 7d
     event.status,
     event.provider,
     forward.dynatrace.evidence_run_id,
+    forward.dynatrace.evidence_source,
+    forward.dynatrace.synthetic,
     forward.dynatrace.problem_id,
     forward.dynatrace.service_entity_id,
     forward.dynatrace.network_assessment,

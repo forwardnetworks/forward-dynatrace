@@ -41,7 +41,7 @@ This model covers the Forward Field Integration reference trust boundary.
 
 - Filesystem handoff publication is implemented and tested; operators must still choose and operate the access-logged,
   restricted storage/HTTPS layer.
-- Connector, ServiceNow worker, and check-health scheduler templates are provided; runtime ownership, monitoring, and
+- Connector and check-health scheduler templates are provided; runtime ownership, monitoring, and
   patching remain customer responsibilities.
 - Update and stale-check automation needs customer-owned approval and runtime ownership before production use.
 - Branch protection and release signing must be configured in GitHub org settings outside this repository.

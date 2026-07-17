@@ -16,12 +16,6 @@ COPY scripts/forward-change-validation-gate.mjs ./scripts/forward-change-validat
 COPY scripts/forward-check-health-transitions.mjs ./scripts/forward-check-health-transitions.mjs
 COPY scripts/security-exposure-correlation.mjs ./scripts/security-exposure-correlation.mjs
 COPY scripts/build-forward-package.mjs ./scripts/build-forward-package.mjs
-COPY scripts/servicenow-change-preflight.mjs ./scripts/servicenow-change-preflight.mjs
-COPY scripts/resolve-servicenow-scope.mjs ./scripts/resolve-servicenow-scope.mjs
-COPY scripts/servicenow-change-feedback.mjs ./scripts/servicenow-change-feedback.mjs
-COPY scripts/servicenow-change-assurance.mjs ./scripts/servicenow-change-assurance.mjs
-COPY scripts/servicenow-change-workflow.mjs ./scripts/servicenow-change-workflow.mjs
-COPY scripts/servicenow-flow-server.mjs ./scripts/servicenow-flow-server.mjs
 COPY scripts/query-dynatrace-dependencies.mjs ./scripts/query-dynatrace-dependencies.mjs
 COPY scripts/normalize-dynatrace-dependencies.mjs ./scripts/normalize-dynatrace-dependencies.mjs
 COPY scripts/publish-forward-status.mjs ./scripts/publish-forward-status.mjs

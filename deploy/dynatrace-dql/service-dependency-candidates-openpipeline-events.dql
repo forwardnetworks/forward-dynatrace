@@ -1,16 +1,18 @@
-// Forward Integration for Dynatrace Field Integration dependency candidate query for OpenPipeline generic events.
-// Use this with npm run dynatrace:query and adapt filters/fields to the tenant's dependency data source.
-// Adjust entity filters, ownership joins, and endpoint mapping fields for the tenant.
+// Explicitly live application dependency candidates from an approved OpenPipeline source.
+// The evidence source remains visible so active probes are not misrepresented as OneAgent AppMap discovery.
 
 fetch events, from: -24h
-| filter event.provider == "forward-dynatrace-demo"
-| filter event.type == "com.forward.demo.dependency"
-| filter `demo.fixture` == "standard-forward-demo"
+| filter event.type == "com.forward.application.dependency"
+| filter `demo.synthetic` == false
 | sort timestamp desc
 | dedup dependency.id
 | fields
     timestamp,
-    `demo.run_id`,
+    `forward.dynatrace.run_id`,
+    `forward.dynatrace.evidence_source`,
+    `forward.dynatrace.problem_id`,
+    `forward.dynatrace.target.network_id`,
+    `forward.dynatrace.target.snapshot_id`,
     `demo.synthetic`,
     dependency.id,
     app.name,

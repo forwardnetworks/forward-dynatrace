@@ -251,31 +251,6 @@ const captureElement = async (locator, fileName) => {
   });
 };
 
-const assertAssuranceCaptureReady = async (page) => {
-  const table = page.locator(".change-comparison-section .evidence-table-wrap");
-  const dimensions = await table.evaluate((element) => ({
-    clientWidth: element.clientWidth,
-    scrollWidth: element.scrollWidth,
-  }));
-  if (dimensions.scrollWidth > dimensions.clientWidth + 1) {
-    throw new Error(
-      `ServiceNow assurance table is horizontally clipped (${dimensions.scrollWidth}px > ${dimensions.clientWidth}px).`,
-    );
-  }
-  const labels = await page.locator(".change-comparison-section .evidence-reason").allTextContents();
-  for (const expected of [
-    "All validation passed",
-    "Blocked paths",
-    "Path regression",
-    "Service unhealthy",
-    "Open problems",
-  ]) {
-    if (!labels.includes(expected)) {
-      throw new Error(`ServiceNow assurance capture is missing the reason label: ${expected}.`);
-    }
-  }
-};
-
 const main = async () => {
   await stat(path.join(uiDir, "index.html")).catch(() => {
     throw new Error("dist/ui/index.html is missing. Run npm run build first.");
@@ -299,7 +274,6 @@ const main = async () => {
     await scrollRootTo(page, 0);
     await page.locator(".app-shell-brand").waitFor({ state: "visible" });
     await page.getByText("Checked replay dependency data", { exact: true }).waitFor();
-    await page.getByRole("button", { name: "Review change assurance" }).waitFor();
     if (await page.getByText(/Live query failed:/u).count()) {
       throw new Error("Overview capture must not contain a failed live query.");
     }
@@ -309,25 +283,7 @@ const main = async () => {
     for (const expected of ["reconciled", "consistent-with-network-policy-block", "FAIL", "FAIL_TO_PASS", "critical"]) {
       await page.getByText(expected, { exact: true }).first().waitFor();
     }
-    for (const expected of [
-      "One evidence contract: safe changes pass, regressions stop",
-      "Validation supports proceed",
-      "Validation blocks promotion",
-    ]) {
-      await page.getByText(expected, { exact: true }).waitFor();
-    }
     await capture(page, "01-overview.jpg");
-
-    await page.getByRole("button", { name: "Review change assurance" }).click();
-    await page.waitForFunction(() => {
-      const root = document.querySelector("[data-capture-scroll-root=true]");
-      const section = document.querySelector(".change-comparison-section");
-      if (!root || !section) return false;
-      const rootRect = root.getBoundingClientRect();
-      const sectionRect = section.getBoundingClientRect();
-      return sectionRect.bottom > rootRect.top && sectionRect.top < rootRect.bottom;
-    });
-    await scrollRootTo(page, 0);
 
     const fields = page.getByRole("textbox");
     await fields.nth(1).fill("https://forward.example.com");
@@ -355,13 +311,6 @@ const main = async () => {
       .getByText("SYNTHETIC DEMO REHEARSAL", { exact: true }).waitFor();
     await captureElement(page.locator(".intent-preview"), "04-intent-check-payload.jpg");
 
-    await scrollToText(page, "ServiceNow → Forward → Dynatrace assurance history", 80);
-    await assertAssuranceCaptureReady(page);
-    await captureElement(
-      page.locator(".change-comparison-section"),
-      "05-servicenow-change-assurance.jpg",
-    );
-
     process.stdout.write(
       JSON.stringify(
         {
@@ -372,7 +321,6 @@ const main = async () => {
             "docs/assets/screenshots/02-export-package-readiness.jpg",
             "docs/assets/screenshots/03-forward-side-api.jpg",
             "docs/assets/screenshots/04-intent-check-payload.jpg",
-            "docs/assets/screenshots/05-servicenow-change-assurance.jpg",
           ],
         },
         null,

@@ -167,6 +167,9 @@ export const buildNetworkEvidenceEvent = (
       "forward.dynatrace.security_outcomes": securityOutcomes.join(","),
       "forward.dynatrace.max_hop_count": maxHopCount,
       "forward.dynatrace.evidence_source": validated.source,
+      ...(validated.mode === "execute"
+        ? { "forward.dynatrace.synthetic": false }
+        : {}),
     },
   };
   assertNoForbiddenContent(event, "Network evidence event");

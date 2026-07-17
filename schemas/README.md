@@ -13,19 +13,7 @@ These JSON Schemas define the public handoff artifacts used by the Forward Dynat
 - `forward-network-evidence-event.schema.json`: publish-safe aggregate Forward path evidence correlated to a Dynatrace problem.
 - `forward-change-context.schema.json`: Dynatrace deployment and service-health input for change validation.
 - `forward-change-validation-gate.schema.json`: deterministic aggregate Forward and Dynatrace change-gate decision.
-- `forward-change-validation-event.schema.json`: publish-safe change decision with optional ServiceNow receipt linkage
-  and explicit live/synthetic provenance.
-- `servicenow-change-preflight.schema.json`: authoritative, sanitized ServiceNow approval/state/window preflight.
-- `servicenow-change-assurance-evidence.schema.json`: checksummed ServiceNow attachment binding preflight, aggregate gate, and lineage.
-- `servicenow-change-feedback.schema.json`: dry-run or applied ServiceNow work-note and attachment receipt.
-- `servicenow-change-assurance.schema.json`: final conductor summary and publication handoff state.
-- `servicenow-change-workflow.schema.json`: v2 resumable baseline/completion state with explicit cross-domain provenance,
-  artifact hashes, and snapshot lineage.
-- `servicenow-change-assurance.schema.json`: v2 finalization summary with the same explicit source and synthetic flag.
-- `servicenow-flow-run.schema.json`: bounded start/status/complete response from the purchase-free Flow worker.
-- `servicenow-scope-mapping.schema.json`: versioned, owned, environment-bound mapping from ServiceNow affected records
-  to Dynatrace services and Forward-resolvable scope.
-- `servicenow-scope-resolution.schema.json`: deterministic protected resolution artifact retained by the Flow worker.
+- `forward-change-validation-event.schema.json`: publish-safe change decision with explicit live/synthetic provenance.
 - `forward-check-health-transitions.schema.json`: sanitized, bounded managed-check transition batch.
 - `forward-security-correlation.schema.json`: read-only ranked investigation queue with separate evidence facts and
   explicit source/synthetic provenance.

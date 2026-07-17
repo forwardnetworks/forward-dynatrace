@@ -52,8 +52,6 @@
         "forward.dynatrace.deployment_state": { "type": "string" },
         "forward.dynatrace.service_health": { "type": "string" },
         "forward.dynatrace.open_problem_count": { "type": "integer", "minimum": 0 },
-        "forward.dynatrace.servicenow_evidence_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-        "forward.dynatrace.servicenow_idempotency_key": { "type": "string", "pattern": "^forward-dynatrace:[a-f0-9]{64}$" },
         "forward.dynatrace.evidence_source": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
         "forward.dynatrace.synthetic": { "type": "boolean" },
         "forward.dynatrace.scope_mapping_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
@@ -62,8 +60,6 @@
         "forward.dynatrace.scope_source_record_count": { "type": "integer", "minimum": 1, "maximum": 100 }
       },
       "dependencies": {
-        "forward.dynatrace.servicenow_evidence_sha256": ["forward.dynatrace.servicenow_idempotency_key"],
-        "forward.dynatrace.servicenow_idempotency_key": ["forward.dynatrace.servicenow_evidence_sha256"],
         "forward.dynatrace.evidence_source": ["forward.dynatrace.synthetic"],
         "forward.dynatrace.synthetic": ["forward.dynatrace.evidence_source"],
         "forward.dynatrace.scope_mapping_id": [

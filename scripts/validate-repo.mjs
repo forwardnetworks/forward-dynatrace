@@ -24,9 +24,6 @@ const requiredFiles = [
   "docs/forward-path-evidence.md",
   "docs/problem-network-evidence.md",
   "docs/change-validation-gate.md",
-  "docs/application-change-assurance.md",
-  "docs/servicenow-flow-worker.md",
-  "docs/servicenow-scope-mapping.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
   "docs/forward-api-compatibility.md",
@@ -46,26 +43,18 @@ const requiredFiles = [
   "docs/package-handoff.md",
   "docs/observability.md",
   "docs/dynatrace-status-dashboard.md",
-  "docs/servicenow-scope-mapping.md",
   "docs/admin-operations.md",
   "docs/release.md",
   "docs/release-provenance.md",
   "docs/governance.md",
-  "docs/customer-acceptance-checklist.md",
-  "docs/customer-one-pager.md",
   "docs/index.md",
   "docs/validation-matrix.md",
   "docs/harness-engineering.md",
   "docs/gitops.md",
   "docs/demo-data.md",
-  "docs/client-trial-plan.md",
-  "docs/live-demo-runbook.md",
-  "docs/prospect-talk-track.md",
-  "docs/execution-roadmap.md",
   "docs/agent-guides/dynatrace-app.md",
   "docs/exec-plans/README.md",
   "docs/exec-plans/active/customer-production-readiness.md",
-  "docs/exec-plans/completed/2026-07-12-non-production-evidence.md",
   "docs/exec-plans/tech-debt-tracker.md",
   "shared/demo-dependencies.json",
   "shared/demo-dynatrace-query-rows.json",
@@ -75,10 +64,6 @@ const requiredFiles = [
   "config/forward-import.approval.example.json",
   "config/forward-nqe-live-smoke.approval.example.json",
   "config/forward-change-context.example.json",
-  "config/servicenow-change-preflight.example.json",
-  "config/servicenow-change-workflow.example.json",
-  "config/servicenow-flow-run.example.json",
-  "config/servicenow-scope-mapping.example.json",
   "api/forward-status.function.ts",
   "api/forward-nqe-preview.function.ts",
   "actions/export-forward-package.action.ts",
@@ -89,7 +74,6 @@ const requiredFiles = [
   "assets/export-forward-package.sample-result.json",
   "ui/app/types/forward-status.ts",
   "ui/app/types/forward-nqe-preview.ts",
-  "ui/app/change-outcomes.ts",
   "ui/app/components/CrossDomainEvidence.tsx",
   "scripts/sign-forward-package.mjs",
   "scripts/sign-release-checksums.mjs",
@@ -118,23 +102,9 @@ const requiredFiles = [
   "scripts/publish-dynatrace-network-evidence.mjs",
   "scripts/publish-dynatrace-network-evidence.test.mjs",
   "scripts/forward-change-validation-gate.mjs",
-  "scripts/servicenow-change-preflight.mjs",
-  "scripts/resolve-servicenow-scope.mjs",
-  "scripts/resolve-servicenow-scope.test.mjs",
-  "scripts/servicenow-change-feedback.mjs",
-  "scripts/servicenow-change-assurance.mjs",
-  "scripts/servicenow-change-workflow.mjs",
-  "scripts/servicenow-flow-server.mjs",
-  "scripts/validate-servicenow-flow-assets.mjs",
   "scripts/runtime-entrypoint.mjs",
   "scripts/install-systemd-runtime.mjs",
   "scripts/forward-change-validation-gate.test.mjs",
-  "scripts/servicenow-change-preflight.mjs",
-  "scripts/servicenow-change-preflight.test.mjs",
-  "scripts/servicenow-change-feedback.test.mjs",
-  "scripts/servicenow-change-assurance.test.mjs",
-  "scripts/servicenow-change-workflow.test.mjs",
-  "scripts/servicenow-flow-server.test.mjs",
   "scripts/runtime-entrypoint.test.mjs",
   "scripts/install-systemd-runtime.test.mjs",
   "scripts/dynatrace-export-action.test.mjs",
@@ -168,11 +138,6 @@ const requiredFiles = [
   "scripts/normalize-dynatrace-dependencies.mjs",
   "scripts/normalize-dynatrace-dependencies.test.mjs",
   "scripts/demo-rehearsal.mjs",
-  "scripts/demo-showcase.mjs",
-  "scripts/demo-showcase.test.mjs",
-  "scripts/servicenow-demo-rehearsal.mjs",
-  "scripts/servicenow-demo-rehearsal.test.mjs",
-  "scripts/change-outcomes.test.mjs",
   "scripts/load-scale-smoke.mjs",
   "scripts/runtime-slo-check.mjs",
   "scripts/runtime-slo-check.test.mjs",
@@ -199,13 +164,11 @@ const requiredFiles = [
   "deploy/dynatrace-workflows/forward-sync-on-demand.payload.example.json",
   "deploy/systemd/forward-dynatrace-connector.service",
   "deploy/systemd/forward-dynatrace-connector.timer",
-  "deploy/systemd/forward-dynatrace-servicenow-flow.service",
   "deploy/systemd/forward-dynatrace-handoff.service",
   "deploy/systemd/forward-dynatrace-check-health.service",
   "deploy/systemd/forward-dynatrace-check-health.timer",
   "deploy/systemd/forward-check-health.env.example",
   "deploy/systemd/forward-dynatrace.env.example",
-  "deploy/systemd/servicenow-flow.env.example",
   "deploy/systemd/forward-handoff.env.example",
   "deploy/systemd/forward-connector.config.example.json",
   "deploy/cron/forward-connector.config.example.json",
@@ -216,17 +179,11 @@ const requiredFiles = [
   "deploy/docker-compose/forward-dynatrace.env.example",
   "deploy/kubernetes/forward-dynatrace-connector-cronjob.yaml",
   "deploy/kubernetes/forward-dynatrace-check-health-cronjob.yaml",
-  "deploy/servicenow-flow",
   "deploy/kubernetes/forward-dynatrace-check-health-cronjob.yaml",
   "deploy/kubernetes/forward-dynatrace-check-health-config.example.yaml",
   "deploy/kubernetes/forward-dynatrace-state-pvc.example.yaml",
   "deploy/kubernetes/forward-dynatrace-configmap.example.yaml",
   "deploy/kubernetes/forward-dynatrace-secret.example.yaml",
-  "deploy/servicenow-flow/forward-change-assurance.flow.example.json",
-  "deploy/servicenow-flow/start-assurance.js",
-  "deploy/servicenow-flow/get-assurance-status.js",
-  "deploy/servicenow-flow/complete-assurance.js",
-  "deploy/servicenow-flow/README.md",
   ".github/workflows/ci.yml",
   ".github/workflows/release.yml",
   ".github/workflows/verify-release.yml",
@@ -241,14 +198,6 @@ const requiredFiles = [
   "schemas/forward-network-evidence-event.schema.json",
   "schemas/forward-change-context.schema.json",
   "schemas/forward-change-validation-gate.schema.json",
-  "schemas/servicenow-change-preflight.schema.json",
-  "schemas/servicenow-change-assurance-evidence.schema.json",
-  "schemas/servicenow-change-feedback.schema.json",
-  "schemas/servicenow-change-assurance.schema.json",
-  "schemas/servicenow-change-workflow.schema.json",
-  "schemas/servicenow-flow-run.schema.json",
-  "schemas/servicenow-scope-mapping.schema.json",
-  "schemas/servicenow-scope-resolution.schema.json",
   "schemas/forward-approval.schema.json",
   "schemas/README.md",
 ];
@@ -258,11 +207,11 @@ const requiredScreenshots = [
   "docs/assets/screenshots/02-export-package-readiness.jpg",
   "docs/assets/screenshots/03-forward-side-api.jpg",
   "docs/assets/screenshots/04-intent-check-payload.jpg",
-  "docs/assets/screenshots/05-servicenow-change-assurance.jpg",
 ];
 
 const skippedDirectories = new Set([
   ".git",
+  ".state",
   ".dt-app",
   "build",
   "dist",
@@ -311,14 +260,6 @@ const secretPatterns = [
   {
     name: "Concrete Forward user export",
     regex: /FORWARD_USER=(?!<user>)[^\s]+/,
-  },
-  {
-    name: "Concrete ServiceNow password export",
-    regex: /SERVICENOW_PASSWORD=(?!<runtime-secret>)[^\s]+/,
-  },
-  {
-    name: "Concrete ServiceNow user export",
-    regex: /SERVICENOW_USER=(?!<read-only-integration-user>)[^\s]+/,
   },
 ];
 
@@ -380,19 +321,14 @@ const publicBrandingFiles = [
   "api/forward-nqe-preview.function.ts",
   "docs/harness-engineering.md",
   "docs/index.md",
-  "docs/execution-roadmap.md",
   "docs/exec-plans/README.md",
   "docs/exec-plans/active/customer-production-readiness.md",
-  "docs/exec-plans/completed/2026-07-12-non-production-evidence.md",
   "docs/exec-plans/tech-debt-tracker.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
   "docs/forward-api-compatibility.md",
   "docs/problem-network-evidence.md",
   "docs/change-validation-gate.md",
-  "docs/application-change-assurance.md",
-  "docs/live-demo-runbook.md",
-  "docs/prospect-talk-track.md",
   "docs/install.md",
   "docs/production-readiness.md",
   "docs/enterprise-hardening.md",
@@ -413,8 +349,6 @@ const publicBrandingFiles = [
   "docs/release.md",
   "docs/release-provenance.md",
   "docs/governance.md",
-  "docs/customer-acceptance-checklist.md",
-  "docs/customer-one-pager.md",
   "docs/screenshots.md",
   "docs/validation-matrix.md",
   "docs/workflow.md",
@@ -557,11 +491,17 @@ for (const requiredArchitectureSection of [
 }
 
 const docsIndex = await readText("docs/index.md");
+const separatelyOrchestratedDocs = new Set();
 const topLevelDocEntries = await readdir(path.join(root, "docs"), {
   withFileTypes: true,
 });
 for (const entry of topLevelDocEntries) {
-  if (!entry.isFile() || path.extname(entry.name) !== ".md" || entry.name === "index.md") {
+  if (
+    !entry.isFile() ||
+    path.extname(entry.name) !== ".md" ||
+    entry.name === "index.md" ||
+    separatelyOrchestratedDocs.has(entry.name)
+  ) {
     continue;
   }
   if (!docsIndex.includes(`(${entry.name})`)) {
@@ -578,7 +518,6 @@ if (!docsIndex.includes("(exec-plans/README.md)")) {
 const executionPlanIndex = await readText("docs/exec-plans/README.md");
 for (const target of [
   "active/customer-production-readiness.md",
-  "completed/2026-07-12-non-production-evidence.md",
   "tech-debt-tracker.md",
 ]) {
   if (!executionPlanIndex.includes(`(${target})`)) {
@@ -609,7 +548,6 @@ for (const requiredPlanContent of [
 for (const [file, requiredReleaseBoundary] of [
   ["README.md", "not included in `v1.0.0`"],
   ["docs/install.md", "not included in `v1.0.0`"],
-  ["docs/customer-one-pager.md", "not included in `v1.0.0`"],
   ["docs/container-runtime.md", "`v1.0.0` digest predates them"],
 ]) {
   if (!(await readText(file)).includes(requiredReleaseBoundary)) {
@@ -690,32 +628,13 @@ for (const requiredVerifierBoundary of [
   }
 }
 
-const customerAcceptanceChecklist = await readText("docs/customer-acceptance-checklist.md");
-for (const requiredAcceptanceLane of [
-  "## 8. ServiceNow Change Assurance",
-  "--verify-servicenow-retry",
-  "query the matching aggregate event",
-  "## 9. Check-Health Feedback",
-  "failure and recovery transition",
-  "## 10. Security Correlation",
-  "low-confidence identity mappings cannot create automatic high severity",
-]) {
-  if (!customerAcceptanceChecklist.includes(requiredAcceptanceLane)) {
-    fail(`Customer acceptance checklist must preserve ${requiredAcceptanceLane}.`);
-  }
-}
-
 const crossDomainEvidence = await readText("ui/app/components/CrossDomainEvidence.tsx");
 for (const requiredProvenanceContract of [
   "`forward.dynatrace.evidence_source`, `forward.dynatrace.synthetic`",
+  "| filter `forward.dynatrace.synthetic` == false",
   "SYNTHETIC DEMO",
   "provenanceLabel(row)",
-  "forward.dynatrace.servicenow_evidence_sha256",
-  "All validation passed",
-  "Blocked paths",
-  "Path regression",
-  "Service unhealthy",
-  "Open problems",
+  "Live Grail network evidence",
 ]) {
   if (!crossDomainEvidence.includes(requiredProvenanceContract)) {
     fail(
@@ -724,23 +643,13 @@ for (const requiredProvenanceContract of [
   }
 }
 
-const serviceNowFeedback = await readText("scripts/servicenow-change-feedback.mjs");
-for (const requiredRetryContract of [
-  "--verify-retry",
-  "ServiceNow retry changed the exact evidence attachment bytes.",
-  "must report existing",
-  "servicenow-change-feedback-retry.json",
+for (const uiFile of [
+  "ui/app/pages/Home.tsx",
+  "ui/app/components/CrossDomainEvidence.tsx",
 ]) {
-  if (!serviceNowFeedback.includes(requiredRetryContract)) {
-    fail(`ServiceNow live retry verifier must contain ${requiredRetryContract}.`);
-  }
-}
-for (const file of [
-  "scripts/servicenow-change-assurance.mjs",
-  "scripts/servicenow-change-workflow.mjs",
-]) {
-  if (!(await readText(file)).includes("--verify-servicenow-retry")) {
-    fail(`${file} must preserve the explicit ServiceNow retry-verification gate.`);
+  const unrelatedProductName = ["service", "now"].join("");
+  if ((await readText(uiFile)).toLowerCase().includes(unrelatedProductName)) {
+    fail(`Dynatrace UI must not contain unrelated product-specific content: ${uiFile}.`);
   }
 }
 if (
@@ -833,13 +742,6 @@ for (const scriptName of [
   "forward:handoff:server:test",
   "forward:cron:test",
   "forward:change-gate:test",
-  "servicenow:change-preflight:test",
-  "servicenow:scope:test",
-  "servicenow:change-feedback:test",
-  "servicenow:change-assurance:test",
-  "servicenow:change-workflow:test",
-  "servicenow:flow-server:test",
-  "servicenow:flow-assets:validate",
   "runtime:entrypoint:test",
   "systemd:install:test",
   "forward:nqe-preview:test",
@@ -857,10 +759,6 @@ for (const scriptName of [
   "dynatrace:workflow:validate",
   "dynatrace:workflow:generate:test",
   "demo:rehearsal",
-  "demo:servicenow",
-  "demo:servicenow:test",
-  "demo:showcase",
-  "demo:showcase:test",
   "load:scale",
   "release:package:smoke",
   "security:audit",
@@ -936,9 +834,6 @@ if (!packageJson.scripts?.["forward:cron"]) {
 if (!packageJson.scripts?.["forward:handoff:server"]) {
   fail("package.json must define npm script forward:handoff:server.");
 }
-if (!packageJson.scripts?.["servicenow:scope:resolve"]) {
-  fail("package.json must define npm script servicenow:scope:resolve.");
-}
 if (!packageJson.scripts?.["forward:change-gate"]) {
   fail("package.json must define npm script forward:change-gate.");
 }
@@ -981,7 +876,6 @@ for (const requiredPackagerText of [
   "forward-ingest-status-attention.dql",
   "forward-ingest-status-dashboard.template.json",
   "forward-sync-on-demand.payload.example.json",
-  "config/servicenow-scope-mapping.example.json",
   "docs/assets/screenshots",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
@@ -990,17 +884,12 @@ for (const requiredPackagerText of [
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
   "docs/forward-api-compatibility.md",
-  "docs/live-demo-runbook.md",
-  "docs/prospect-talk-track.md",
-  "docs/execution-roadmap.md",
   "ARCHITECTURE.md",
   "docs/index.md",
   "docs/harness-engineering.md",
   "docs/exec-plans",
   "docs/release-provenance.md",
   "docs/governance.md",
-  "docs/customer-acceptance-checklist.md",
-  "docs/customer-one-pager.md",
   "docs/dynatrace-status-dashboard.md",
   "schemas",
   "docs/connector-runtime.md",
@@ -1031,24 +920,16 @@ for (const requiredPackagerText of [
   "scripts/forward-change-validation-gate.mjs",
   "scripts/forward-check-health-transitions.mjs",
   "scripts/security-exposure-correlation.mjs",
-  "scripts/servicenow-change-preflight.mjs",
-  "scripts/servicenow-change-feedback.mjs",
-  "scripts/servicenow-change-assurance.mjs",
-  "scripts/servicenow-change-workflow.mjs",
   "scripts/runtime-entrypoint.mjs",
   "scripts/install-systemd-runtime.mjs",
   "scripts/install-systemd-runtime.test.mjs",
   "scripts/publish-dynatrace-change-gate.mjs",
   "scripts/publish-dynatrace-security-correlation.mjs",
-  "scripts/validate-servicenow-flow-assets.mjs",
   "scripts/replay-dynatrace-demo-data.mjs",
   "scripts/live-demo-conductor.mjs",
   "scripts/build-forward-package.mjs",
   "scripts/normalize-dynatrace-dependencies.mjs",
   "scripts/demo-rehearsal.mjs",
-  "scripts/demo-showcase.mjs",
-  "scripts/demo-showcase.test.mjs",
-  "scripts/servicenow-demo-rehearsal.mjs",
   "scripts/load-scale-smoke.mjs",
   "scripts/runtime-slo-check.mjs",
   "forward-dynatrace-sbom-",
@@ -1070,10 +951,6 @@ for (const requiredDockerfileText of [
   "scripts/forward-change-validation-gate.mjs",
   "scripts/forward-check-health-transitions.mjs",
   "scripts/security-exposure-correlation.mjs",
-  "scripts/resolve-servicenow-scope.mjs",
-  "scripts/servicenow-change-feedback.mjs",
-  "scripts/servicenow-change-assurance.mjs",
-  "scripts/servicenow-change-workflow.mjs",
   "scripts/runtime-entrypoint.mjs",
   "scripts/publish-forward-status.mjs",
   "scripts/publish-dynatrace-status-event.mjs",
@@ -1155,6 +1032,15 @@ if (!Array.isArray(dashboardTemplate.queries) || dashboardTemplate.queries.lengt
 const textFiles = await walkTextFiles();
 for (const file of textFiles) {
   const content = await readText(file);
+
+  if (path.extname(file) === ".md" && /forward-snow/iu.test(content)) {
+    fail(`Documentation must not depend on a sibling integration repository: ${file}.`);
+  }
+
+  const unrelatedProductName = ["service", "now"].join("");
+  if (content.toLowerCase().includes(unrelatedProductName)) {
+    fail(`Unrelated product-specific content found in ${file}.`);
+  }
 
   for (const term of legacyTerms) {
     if (content.includes(term)) {

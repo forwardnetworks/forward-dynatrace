@@ -36,8 +36,6 @@ const dockerComposeConfig = JSON.parse(
 const service = await readText("deploy/systemd/forward-dynatrace-connector.service");
 const timer = await readText("deploy/systemd/forward-dynatrace-connector.timer");
 const envExample = await readText("deploy/systemd/forward-dynatrace.env.example");
-const flowService = await readText("deploy/systemd/forward-dynatrace-servicenow-flow.service");
-const flowEnvExample = await readText("deploy/systemd/servicenow-flow.env.example");
 const handoffService = await readText("deploy/systemd/forward-dynatrace-handoff.service");
 const handoffEnvExample = await readText("deploy/systemd/forward-handoff.env.example");
 const checkHealthService = await readText(
@@ -214,21 +212,6 @@ for (const snippet of requiredServiceSnippets) {
 }
 
 for (const snippet of [
-  "Type=simple",
-  "EnvironmentFile=/etc/forward-dynatrace/servicenow-flow.env",
-  "ExecStart=/usr/bin/node /opt/forward-dynatrace/scripts/servicenow-flow-server.mjs",
-  "Restart=on-failure",
-  "NoNewPrivileges=true",
-  "ProtectSystem=strict",
-  "ReadWritePaths=/var/lib/forward-dynatrace",
-  "UMask=0077",
-]) {
-  if (!flowService.includes(snippet)) {
-    fail(`ServiceNow Flow systemd service missing ${snippet}.`);
-  }
-}
-
-for (const snippet of [
   "Type=oneshot",
   "EnvironmentFile=/etc/forward-dynatrace/forward-check-health.env",
   "scripts/forward-check-health-transitions.mjs",
@@ -260,23 +243,6 @@ for (const snippet of [
     fail(`Check-health systemd env example missing ${snippet}.`);
   }
 }
-for (const snippet of [
-  "SERVICENOW_FLOW_USERNAME=<dedicated-flow-user>",
-  "SERVICENOW_FLOW_PASSWORD=<random-runtime-secret>",
-  "SERVICENOW_FLOW_HOST=127.0.0.1",
-  "SERVICENOW_FLOW_RUN_DIR=/var/lib/forward-dynatrace/servicenow-flow",
-  "SERVICENOW_FLOW_MAX_ACTIVE_RUNS=4",
-  "SERVICENOW_FLOW_EVIDENCE_SOURCE=live-customer-dependencies",
-  "SERVICENOW_FLOW_SYNTHETIC=0",
-  "SERVICENOW_FLOW_PUBLISH_SERVICENOW=0",
-  "SERVICENOW_FLOW_VERIFY_RETRY=0",
-  "SERVICENOW_FLOW_PUBLISH_DYNATRACE=0",
-]) {
-  if (!flowEnvExample.includes(snippet)) {
-    fail(`ServiceNow Flow env example missing ${snippet}.`);
-  }
-}
-
 if (!timer.includes("OnUnitActiveSec=15min") || !timer.includes("Persistent=true")) {
   fail("systemd timer must be persistent and run on the expected cadence.");
 }
@@ -410,8 +376,6 @@ for (const content of [
   service,
   timer,
   envExample,
-  flowService,
-  flowEnvExample,
   handoffService,
   handoffEnvExample,
   checkHealthService,

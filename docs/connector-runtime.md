@@ -4,13 +4,8 @@ The connector runtime is the scheduled process that imports a Dynatrace-generate
 Dynatrace, holds Forward credentials, validates the package, reconciles against existing checks, and applies only
 missing checks when `apply` is enabled.
 
-The purchase-free ServiceNow Flow worker is a separate long-running process because this connector remains a scheduled
-one-shot import. Use `deploy/systemd/forward-dynatrace-servicenow-flow.service` with
-`deploy/systemd/servicenow-flow.env.example`; bind it to localhost and place customer-owned TLS ingress in front of it.
-See [servicenow-flow-worker.md](servicenow-flow-worker.md).
-
 The checked primary non-production topology is a single customer-controlled systemd host: handoff ingress,
-ServiceNow Flow worker, scheduled Forward importer, and optional check-health poller run as separate least-privilege
+scheduled Forward importer, and optional check-health poller run as separate least-privilege
 units behind customer TLS. The repo also keeps three alternative connector templates:
 
 - `deploy/docker-compose/`: a small controlled runtime or trial environment.
