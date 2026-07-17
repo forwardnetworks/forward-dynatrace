@@ -168,7 +168,7 @@ const requiredFiles = [
   "deploy/dynatrace-workflows/forward-sync-problem.payload.example.json",
   "deploy/dynatrace-workflows/forward-sync-on-demand.payload.example.json",
   "deploy/dynatrace-guardian/manifest.example.yaml",
-  "deploy/dynatrace-guardian/configs.yaml",
+  "deploy/dynatrace-guardian/project/configs.yaml",
   "deploy/dynatrace-guardian/guardian.json",
   "deploy/dynatrace-guardian/workflow.json",
   "deploy/dynatrace-dql/forward-guardian-validation-latest.dql",

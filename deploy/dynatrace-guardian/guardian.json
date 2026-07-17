@@ -23,9 +23,9 @@
   "objectives": [
     {
       "name": "Forward validation evidence",
-      "description": "Fails closed unless the selected Forward scope has one passing change-validation event in the validation window.",
+      "description": "Fails closed unless the newest change-validation event for the selected Forward scope passed.",
       "objectiveType": "DQL",
-      "dqlQuery": "fetch events\n| filter event.kind == \"SDLC_EVENT\"\n| filter event.provider == \"forward-dynatrace\"\n| filter event.type == \"forward.dynatrace.change.validation\"\n| filter forward.dynatrace.scope_mapping_id == $ScopeMappingId\n| summarize totalEvidence = count(), passingEvidence = countIf(forward.dynatrace.gate_decision == \"pass\")\n| fieldsAdd validEvidence = if(totalEvidence == 1 and passingEvidence == 1, 1, else: 0)\n| fields validEvidence",
+      "dqlQuery": "fetch events\n| filter event.kind == \"SDLC_EVENT\"\n| filter event.provider == \"forward-dynatrace\"\n| filter event.type == \"forward.dynatrace.change.validation\"\n| filter forward.dynatrace.scope_mapping_id == $ScopeMappingId\n| sort timestamp desc\n| limit 1\n| fieldsAdd validEvidence = if(forward.dynatrace.gate_decision == \"pass\", 1, else: 0)\n| fields validEvidence",
       "comparisonOperator": "GREATER_THAN_OR_EQUAL",
       "target": 1,
       "segments": [],
@@ -33,9 +33,9 @@
     },
     {
       "name": "Service telemetry present",
-      "description": "Fails closed when no root service request spans exist for the selected service and evidence window.",
+      "description": "Fails closed when no instrumented server request spans exist for the selected service and evidence window.",
       "objectiveType": "DQL",
-      "dqlQuery": "fetch spans\n| filter dt.smartscape.service == $ServiceEntityId\n| filter request.is_root_span == true\n| summarize requests = count()",
+      "dqlQuery": "fetch spans\n| fieldsAdd serviceEntityId = toString(dt.smartscape.service)\n| filter serviceEntityId == $ServiceEntityId\n| filter span.kind == \"server\"\n| filter forward.observation.method == \"instrumented-transaction\"\n| summarize requests = count()",
       "comparisonOperator": "GREATER_THAN_OR_EQUAL",
       "target": 1,
       "segments": [],
@@ -43,9 +43,9 @@
     },
     {
       "name": "Request availability",
-      "description": "Percentage of root service request spans that Dynatrace did not classify as failed.",
+      "description": "Percentage of instrumented server request spans that Dynatrace did not classify as failed.",
       "objectiveType": "DQL",
-      "dqlQuery": "fetch spans\n| filter dt.smartscape.service == $ServiceEntityId\n| filter request.is_root_span == true\n| summarize total = count(), good = countIf(request.is_failed != true)\n| fieldsAdd successRate = 100.0 * good / total\n| fields successRate",
+      "dqlQuery": "fetch spans\n| fieldsAdd serviceEntityId = toString(dt.smartscape.service)\n| filter serviceEntityId == $ServiceEntityId\n| filter span.kind == \"server\"\n| filter forward.observation.method == \"instrumented-transaction\"\n| summarize total = count(), good = countIf(isNull(span.status_code) or span.status_code != \"error\")\n| fieldsAdd successRate = 100.0 * good / total\n| fields successRate",
       "comparisonOperator": "GREATER_THAN_OR_EQUAL",
       "target": 99,
       "warning": 99.5,
@@ -54,9 +54,9 @@
     },
     {
       "name": "Request performance",
-      "description": "Percentage of root service request spans completed within the reviewed 500 millisecond pilot threshold.",
+      "description": "Percentage of instrumented server request spans completed within the reviewed 500 millisecond pilot threshold.",
       "objectiveType": "DQL",
-      "dqlQuery": "fetch spans\n| filter dt.smartscape.service == $ServiceEntityId\n| filter request.is_root_span == true\n| summarize total = count(), good = countIf(duration <= 500ms)\n| fieldsAdd performanceRate = 100.0 * good / total\n| fields performanceRate",
+      "dqlQuery": "fetch spans\n| fieldsAdd serviceEntityId = toString(dt.smartscape.service)\n| filter serviceEntityId == $ServiceEntityId\n| filter span.kind == \"server\"\n| filter forward.observation.method == \"instrumented-transaction\"\n| summarize total = count(), good = countIf(duration <= 500ms)\n| fieldsAdd performanceRate = 100.0 * good / total\n| fields performanceRate",
       "comparisonOperator": "GREATER_THAN_OR_EQUAL",
       "target": 95,
       "warning": 98,
@@ -67,7 +67,7 @@
       "name": "Request volume",
       "description": "Informational capacity baseline for the selected service and evidence window.",
       "objectiveType": "DQL",
-      "dqlQuery": "fetch spans\n| filter dt.smartscape.service == $ServiceEntityId\n| filter request.is_root_span == true\n| summarize requestCount = count()",
+      "dqlQuery": "fetch spans\n| fieldsAdd serviceEntityId = toString(dt.smartscape.service)\n| filter serviceEntityId == $ServiceEntityId\n| filter span.kind == \"server\"\n| filter forward.observation.method == \"instrumented-transaction\"\n| summarize requestCount = count()",
       "comparisonOperator": "GREATER_THAN_OR_EQUAL",
       "segments": [],
       "links": []

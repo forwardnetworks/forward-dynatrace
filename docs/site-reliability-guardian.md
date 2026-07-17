@@ -27,30 +27,53 @@ with `event.status == "finished"`. The checked package follows those current con
 | Mapping state, confidence, and source count | Mapping owner | Makes ambiguous or incomplete correlation explicit. |
 
 The publisher rejects a context when its change, deployment, service entities, network, or snapshots do not exactly
-match the gate artifact. Guardian trigger mode additionally requires a resolved, high-confidence mapping and explicitly
-non-synthetic evidence. It also rejects windows longer than 24 hours and credential/topology-detail keys. The canonical
-context SHA-256 and `correlationId` are published beside the nested `execution_context`; Guardian result events propagate
-that context.
+match the gate artifact. Guardian trigger mode additionally requires a resolved, high-confidence mapping and
+trace-backed live evidence. It also rejects windows longer than 24 hours and credential/topology-detail keys. The
+canonical context SHA-256 and `correlationId` are published beside the nested `execution_context`.
+
+The enforced correlation join uses the Automation execution: the triggering SDLC event remains in
+`execution.params.event`, including `execution_context`, and the `run_validation` task returns the Guardian validation
+ID, status, summary, and objective details. This is deliberately stronger than assuming the lifecycle validation event
+will retain `execution_context`; current tenants can return that field as null on the finished result event.
 
 ## Install The Guardian And Workflow
 
-The primary enterprise path uses Dynatrace Monaco. The package is in `deploy/dynatrace-guardian/` and includes the
-deployment manifest, settings/workflow configuration, Guardian template, and Workflow template.
+The primary enterprise path uses Dynatrace Monaco. The package is in `deploy/dynatrace-guardian/`; the manifest points
+to the single project definition at `project/configs.yaml`, which references the Guardian and Workflow templates in its
+parent directory.
 
-1. In `deploy/dynatrace-guardian/configs.yaml`, replace every placeholder value for application, environment, owner,
-   criticality, service entity, and scope mapping. Use the same scope mapping ID in the correlation context.
-2. Set `DYNATRACE_ENVIRONMENT_URL` to the Apps URL. Set `DYNATRACE_PLATFORM_TOKEN` in the operator's secret manager or
-   process environment; never write it into this repository or a Monaco file.
+1. Select one reviewed Dynatrace service entity from the trace-backed dependency scope. Use the same scope mapping ID
+   in the Guardian deployment and the correlation context.
+2. Set the following values in the operator's secret manager or process environment; never write them into this
+   repository or a Monaco file:
+
+   ```bash
+   export DYNATRACE_ENVIRONMENT_URL=https://<environment-id>.apps.dynatrace.com/
+   export DYNATRACE_PLATFORM_TOKEN=<protected-platform-token>
+   export FORWARD_GUARDIAN_APPLICATION_ID=<application-id>
+   export FORWARD_GUARDIAN_ENVIRONMENT_ID=<environment-id>
+   export FORWARD_GUARDIAN_OWNER=<owner>
+   export FORWARD_GUARDIAN_SERVICE_ENTITY_ID=<SERVICE-id>
+   export FORWARD_GUARDIAN_SCOPE_MAPPING_ID=<stable-scope-id>
+   ```
 3. From `deploy/dynatrace-guardian/`, run `monaco deploy --dry-run manifest.example.yaml`.
 4. Review the rendered change and then run `monaco deploy manifest.example.yaml`.
 5. Open **Site Reliability Guardian** in Dynatrace. Select **Forward change validation - `<application>` -
    `<environment>`**. Verify **Lifecycle guardian**, the six objectives, the two variables, and all scope tags.
 6. Open **Workflows**. Select **Forward change validation**. Verify the event trigger uses **events**, requires
-   `event.kind == "SDLC_EVENT"`, filters the exact scope mapping ID, and runs **Site Reliability Guardian**.
+   `event.kind == "SDLC_EVENT"`, filters the exact scope mapping ID, and runs **Site Reliability Guardian** after a
+   30-second **Wait before** delay. The delay allows the triggering OpenPipeline record to become queryable before the
+   Forward-evidence objective runs.
 
-The Forward-evidence objective fails closed unless exactly one event for the selected scope mapping appears in the
-validation window and that event passed. This prevents an older passing event from masking a newer failed gate; a busy
-scope with overlapping changes must use distinct mapping IDs or non-overlapping validation windows.
+The Forward-evidence objective sorts matching events newest-first, evaluates exactly the newest record, and passes only
+when that record passed. This prevents an older passing event from masking a newer failed gate. A busy scope with
+overlapping changes must use distinct mapping IDs or non-overlapping validation windows.
+
+In **Workflows > Settings > Authorization**, grant the Workflow identity only the permissions required by the checked
+package: `app-engine:apps:run`, `app-engine:functions:run`, `app-settings:objects:read`,
+`openpipeline:events.sdlc:ingest`, `storage:buckets:read`, `storage:events:read`, `storage:spans:read`, and
+`storage:logs:read`. The publishing identity separately needs SDLC event ingestion. Apply the tenant's normal
+least-privilege and separation-of-duties controls.
 
 The checked static thresholds are conservative pilot defaults, not universal production policy. `Request volume` and
 `Error log count` are informational. Promote either to an enforcing objective only after the tenant owner validates the
@@ -88,10 +111,24 @@ where the tenant's access model allows it.
    action output has a Guardian ID, validation ID, validation URL, and `pass`, `warning`, `fail`, `error`, or `info`.
 2. Open **Site Reliability Guardian**, select the Guardian, and open the same validation ID. Confirm each objective's
    value and evidence window.
-3. In **Notebooks** or **Dashboards**, run
-   `deploy/dynatrace-dql/forward-guardian-validation-latest.dql`. Confirm `execution_context.correlationId` matches the
-   published context and `validation.result` matches the Workflow action.
-4. In the Forward app view, query the existing change-validation evidence by the same correlation ID and confirm the
+3. Query back the Workflow execution and join its trigger context to the Guardian task result:
+
+   ```bash
+   node scripts/query-dynatrace-guardian-execution.mjs \
+     --environment-url https://<environment-id>.apps.dynatrace.com/ \
+     --token-file /secure/tokens/dynatrace-platform.token \
+     --correlation-id GATE-RUN-001 \
+     --expected-status pass \
+     --output /secure/evidence/guardian-readback.json
+   ```
+
+   Confirm that `correlationId`, change/deployment IDs, network/snapshot IDs, Workflow execution ID, validation ID, and
+   validation status are present in the sanitized artifact. The command polls for the terminal execution and never
+   writes the token to the artifact.
+4. In **Notebooks** or **Dashboards**, run
+   `deploy/dynatrace-dql/forward-guardian-validation-latest.dql` and confirm `validation.result` matches the Workflow
+   action. Treat `execution_context` on the result event as optional; correlation authority is the Workflow readback.
+5. In the Forward app view, query the existing change-validation evidence by the same correlation ID and confirm the
    network and snapshot IDs match the retained gate artifact.
 
 ## Acceptance Runs
@@ -100,7 +137,8 @@ where the tenant's access model allows it.
 - Objective failure: use a bounded non-production window with a known failed request or temporarily tighten one
   reviewed static threshold; restore the reviewed value immediately afterward.
 - Missing evidence: manually validate a reviewed test Guardian against a window with no matching Forward event or no
-  root service spans. `Forward validation evidence` or `Service telemetry present` must fail; missing data must not pass.
+  instrumented server spans. `Forward validation evidence` or `Service telemetry present` must fail; missing data must
+  not pass.
 - Correlation failure: alter a context copy so a snapshot or service ID differs from the gate. The publisher must stop
   locally before any Dynatrace call.
 

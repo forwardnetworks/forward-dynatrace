@@ -24,7 +24,7 @@
   "tasks": {
     "run_validation": {
       "action": "dynatrace.site.reliability.guardian:validate-guardian-action",
-      "description": "Run the lifecycle Guardian; the trigger execution_context is propagated to validation events.",
+      "description": "Run the lifecycle Guardian and retain correlation through the Workflow execution readback.",
       "input": {
         "executionId": "{{`{{`}} execution().id {{`}}`}}",
         "objectId": "{{ .guardianid }}",
@@ -39,6 +39,7 @@
         "x": 0,
         "y": 1
       },
+      "waitBefore": 30,
       "predecessors": []
     }
   },

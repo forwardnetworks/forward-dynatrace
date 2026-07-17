@@ -13,22 +13,29 @@ This matrix records executable coverage and current live evidence for the indepe
 | Security correlation | `npm run security:correlate:test` and `npm run dynatrace:security-correlation:publish:test` cover separate evidence facts, traceable identity mappings, bounded queues, and publication. | Customer-approved findings, exposure data, retention, and owner mapping. |
 | Runtime and release | `npm run runtime:validate`, `npm run systemd:install:test`, release signature/ref/immutability tests, `npm run security:audit`, and `npm run release:package:smoke` cover deployment templates and release provenance. | Customer platform hardening and operational ownership. |
 | Dynatrace app | `npm run repo:validate`, `npm run dynatrace:deploy:test`, `npm run lint`, and `npm run build` guard the integration boundary, canonical `Forward` / `com.forward.dynatrace` identity, separate `my.forward` sandbox path, explicit live/synthetic rendering, and production bundle. | Install `my.forward` in a sandbox, then verify the signed `com.forward.dynatrace` archive in non-production. |
-| Site Reliability Guardian | `npm run dynatrace:guardian:validate`, `npm run schemas:validate`, and `npm run dynatrace:change-gate:publish:test` cover the lifecycle Guardian, Monaco Workflow, six DQL objectives, current SDLC event/action/result contracts, bounded execution context, exact gate correlation, non-Guardian compatibility, and the missing-evidence objectives. | Deploy the package and query back one pass, one deliberate objective failure, and one missing-evidence fail-closed run. |
-| High-cardinality evidence | `npm run load:scale` covers 2,500 synthetic dependency rows. The separate change-demo `make scale-profile-validate` gate now renders 49 nodes, 38 Linux endpoints, 11 modeled network devices, 50 observed probe definitions, and 50 deterministic persistent-check previews while preserving the six-flow smoke profile. | Deploy the scale profile in a dedicated network; validate three reset/collect/reconcile cycles, first-create and second-unchanged behavior, 50 Grail rows, path failure/recovery, zero unexplained drift, and timing/resource budgets. |
+| Site Reliability Guardian | `npm run dynatrace:guardian:validate`, `npm run dynatrace:guardian:readback:test`, `npm run schemas:validate`, and `npm run dynatrace:change-gate:publish:test` cover the lifecycle Guardian, Monaco Workflow, six DQL objectives, 30-second event-settling delay, bounded execution context, Automation execution/task join, exact gate correlation, non-Guardian compatibility, and the missing-evidence objectives. | Run one explicit no-event or no-span validation after the final Workflow package is deployed; the live pass and deliberate failure are complete. |
+| High-cardinality evidence | `npm run load:scale` remains a mechanical load fixture and is never accepted as demo evidence. The separate change-demo gate renders and validates 49 live containers, 38 Linux endpoints, 11 modeled network devices, 23 instrumented services, four transaction generators, 50 real HTTP/DNS relationships, and 50 persistent Forward checks. | Repeat the full reset/regression/recovery cycle for timing and resource budgets; the first create, idempotent reconciliation, 50 Grail relationships, path failure/recovery, and zero unexplained drift are complete. |
 
 ## Current Live Evidence
 
-- On 2026-07-17, Forward network `252414` produced processed snapshot `1347038` from the live containerlab network.
-- Six successful containerlab service probes were published as explicit live (`demo.synthetic=false`) dependency events and queried back from Grail. Their source is visibly labeled `containerlab-live-service-probe`; they are not represented as OneAgent AppMap discovery.
-- Six executed Forward path searches returned `6 reachable / 0 blocked / 0 ambiguous / 0 unmapped / 0 failed`.
-- Dynatrace accepted live event `FWD-LIVE-SNAPSHOT-1347038` with `forward.dynatrace.synthetic=false` and queried it back from Grail.
-- Signed package `dynatrace-forward-20260717143241` reconciled idempotently with `6 planned / 6 unchanged / 0 create / 0 changed / 0 stale`; the signature status queried back from Grail is `verified`.
-- App revision `2.0.4-live.1347038` was deployed to the non-production Dynatrace tenant with the live dependency, path, target, package-integrity, and reconciliation sections populated from those three Grail streams.
-- That deployment predates the canonical production app identity. It validates behavior, not installation or upgrade of
-  `com.forward.dynatrace`; the identity migration and signed-install gates remain open.
-- The deployed app queries only explicit live rows in its normal runtime; saved rehearsal data is available only to the checked capture harness.
+- On 2026-07-17, the dedicated live containerlab network produced distinct processed Forward snapshots for baseline,
+  regression, and recovery. Tenant-specific snapshot identifiers remain in the protected acceptance record only.
+- The lab contains 49 running containers: 11 modeled network devices and 38 Linux endpoints. Twenty-three instrumented
+  HTTP services and four transaction generators produced 50 actual HTTP/DNS relationships through the modeled network.
+- Dynatrace queried those relationships from OpenTelemetry client and server spans. The recovered Guardian window
+  contained 119 scoped instrumented server spans; no dashboard rows or replay events supplied the relationship data.
+- Forward evaluated the same 50 relationships: `50/50` reachable at baseline, `4/50` reachable with 46 blocked after
+  the netlab-generated Ansible regression, and `50/50` reachable after the Ansible rollback.
+- Fifty persistent checks were created once, reconciled idempotently, and aligned with the current relationship
+  metadata with zero changed or stale checks.
+- The lifecycle Guardian returned FAIL for the regression and PASS for the recovery. The recovered validation reported
+  four pass, zero warning/fail/error, and two informational objectives. Its single-event Workflow execution waited 31
+  seconds before validation, proving the configured 30-second event-settling behavior.
+- The sanitized Automation readback joins the recovery correlation to the exact Workflow execution,
+  Guardian validation, network, and before/after snapshots without storing the tenant URL or token.
 
-This closes the local demonstration evidence gap. It does not replace the customer-owned live gates in the matrix above.
+This closes the live high-cardinality demo and Guardian pass/failure gates. It does not replace customer-owned sandbox,
+non-production, signing, threshold, or operational-ownership acceptance.
 
 ## Full Gate
 

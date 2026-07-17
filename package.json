@@ -23,6 +23,7 @@
     "dynatrace:workflow:generate": "node scripts/generate-dynatrace-workflows.mjs",
     "dynatrace:workflow:generate:test": "node --test scripts/generate-dynatrace-workflows.test.mjs",
     "dynatrace:guardian:validate": "node scripts/validate-dynatrace-guardian.mjs",
+    "dynatrace:guardian:readback:test": "node --test scripts/query-dynatrace-guardian-execution.test.mjs",
     "dynatrace:action:test": "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/dynatrace-export-action.test.mjs",
     "dynatrace:query": "node scripts/query-dynatrace-dependencies.mjs",
     "dynatrace:deploy": "node scripts/deploy-dynatrace-app.mjs",

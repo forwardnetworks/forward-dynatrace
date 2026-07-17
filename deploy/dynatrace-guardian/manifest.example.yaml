@@ -2,7 +2,7 @@ manifestVersion: 1.0
 
 projects:
   - name: forward-change-guardian
-    path: .
+    path: project
 
 environmentGroups:
   - name: sandbox
@@ -13,4 +13,5 @@ environmentGroups:
           value: DYNATRACE_ENVIRONMENT_URL
         auth:
           platformToken:
+            type: environment
             name: DYNATRACE_PLATFORM_TOKEN

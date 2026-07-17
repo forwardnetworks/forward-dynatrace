@@ -1,5 +1,5 @@
-// Latest lifecycle Guardian results correlated through the propagated execution_context.
-// Filter by dt.srg.id or guardian tags in tenant-owned copies when more than one Guardian is deployed.
+// Latest lifecycle Guardian results. Filter by dt.srg.id or guardian tags in tenant-owned copies.
+// Lifecycle result events may omit execution_context; use the Automation execution readback for an enforced join.
 
 fetch events, from: now() - 30d
 | filter event.kind == "SDLC_EVENT"
