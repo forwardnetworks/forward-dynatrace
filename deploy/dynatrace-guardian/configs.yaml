@@ -1,0 +1,47 @@
+configs:
+  - id: forward-change-guardian
+    config:
+      name: Forward change validation
+      template: guardian.json
+      parameters:
+        applicationId:
+          type: value
+          value: APPLICATION-PLACEHOLDER
+        environmentId:
+          type: value
+          value: ENVIRONMENT-PLACEHOLDER
+        owner:
+          type: value
+          value: TEAM-PLACEHOLDER
+        criticality:
+          type: value
+          value: high
+        serviceEntityId:
+          type: value
+          value: SERVICE-PLACEHOLDER
+        scopeMappingId:
+          type: value
+          value: SCOPE-MAPPING-PLACEHOLDER
+      skip: false
+    type:
+      settings:
+        schema: app:dynatrace.site.reliability.guardian:guardians
+        schemaVersion: 1.8.0
+        scope: environment
+  - id: forward-change-guardian-workflow
+    config:
+      name: Forward change validation
+      template: workflow.json
+      parameters:
+        guardianid:
+          configId: forward-change-guardian
+          configType: app:dynatrace.site.reliability.guardian:guardians
+          property: id
+          type: reference
+        scopeMappingId:
+          type: value
+          value: SCOPE-MAPPING-PLACEHOLDER
+      skip: false
+    type:
+      automation:
+        resource: workflow

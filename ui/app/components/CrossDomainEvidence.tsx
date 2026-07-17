@@ -18,6 +18,8 @@ type CaptureEvidence = {
   networkRows: EvidenceRecord[];
   healthRows: EvidenceRecord[];
   securityRows: EvidenceRecord[];
+  changeRows?: EvidenceRecord[];
+  guardianRows?: EvidenceRecord[];
 };
 
 declare global {
@@ -93,6 +95,37 @@ const SECURITY_QUERY = [
   "| limit 50",
 ].join("\n");
 
+const CHANGE_VALIDATION_QUERY = [
+  "fetch events, from: now() - 24h",
+  "| filter event.type == \"forward.dynatrace.change.validation\"",
+  "| filter `forward.dynatrace.synthetic` == false",
+  "| sort timestamp desc",
+  "| dedup `forward.dynatrace.correlation_id`",
+  "| fields timestamp, severity, `forward.dynatrace.gate_run_id`,",
+  "    `forward.dynatrace.change_id`, `forward.dynatrace.deployment_id`,",
+  "    `forward.dynatrace.gate_decision`, `forward.dynatrace.gate_reason_codes`,",
+  "    `forward.dynatrace.correlation_id`, `forward.dynatrace.correlation_sha256`,",
+  "    `forward.dynatrace.scope_mapping_id`, `forward.dynatrace.evidence_source`,",
+  "    `forward.dynatrace.synthetic`, `forward.dynatrace.network_id`,",
+  "    `forward.dynatrace.before_snapshot_id`, `forward.dynatrace.after_snapshot_id`,",
+  "    `forward.dynatrace.after_reachable`, `forward.dynatrace.after_blocked`,",
+  "    `forward.dynatrace.after_ambiguous`, `forward.dynatrace.after_unmapped`,",
+  "    `forward.dynatrace.after_failed`, `timeframe.from`, `timeframe.to`",
+  "| limit 50",
+].join("\n");
+
+const GUARDIAN_QUERY = [
+  "fetch events, from: now() - 24h",
+  "| filter event.kind == \"SDLC_EVENT\"",
+  "| filter event.provider == \"dynatrace.site.reliability.guardian\"",
+  "| filter event.type == \"validation\"",
+  "| filter event.status == \"finished\"",
+  "| sort timestamp desc",
+  "| dedup task.id",
+  "| fields timestamp, task.id, dt.srg.id, dt.srg.tags, validation.result, execution_context",
+  "| limit 50",
+].join("\n");
+
 const field = (record: EvidenceRecord | undefined, name: string, fallback = "—") => {
   const value = record?.[name];
   if (typeof value === "string") return value || fallback;
@@ -110,6 +143,22 @@ const numberField = (record: EvidenceRecord | undefined, name: string) => {
     if (Number.isFinite(parsed)) return parsed;
   }
   return 0;
+};
+
+const contextField = (record: EvidenceRecord | undefined, name: string, fallback = "—") => {
+  const context = record?.execution_context;
+  if (context && typeof context === "object" && !Array.isArray(context)) {
+    return field(context as EvidenceRecord, name, fallback);
+  }
+  if (typeof context === "string") {
+    try {
+      const parsed = JSON.parse(context) as EvidenceRecord;
+      return field(parsed, name, fallback);
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
 };
 
 const latest = (records: EvidenceRecord[] | undefined) => records?.[0];
@@ -246,24 +295,45 @@ export const CrossDomainEvidence = () => {
     { query: SECURITY_QUERY, maxResultRecords: 50 },
     { enabled: !captureEvidence, staleTime: 0 },
   );
+  const change = useDql<EvidenceRecord>(
+    { query: CHANGE_VALIDATION_QUERY, maxResultRecords: 50 },
+    { enabled: !captureEvidence, staleTime: 0 },
+  );
+  const guardian = useDql<EvidenceRecord>(
+    { query: GUARDIAN_QUERY, maxResultRecords: 50 },
+    { enabled: !captureEvidence, staleTime: 0 },
+  );
 
   const ingestRows = captureEvidence?.ingestRows || ingest.data?.records || [];
   const networkRows = captureEvidence?.networkRows || network.data?.records || [];
   const healthRows = captureEvidence?.healthRows || health.data?.records || [];
   const securityRows = captureEvidence?.securityRows || security.data?.records || [];
+  const changeRows = captureEvidence?.changeRows || change.data?.records || [];
+  const guardianRows = captureEvidence?.guardianRows || guardian.data?.records || [];
   const ingestLatest = latest(ingestRows);
   const networkLatest = latest(networkRows);
   const healthLatest = latest(healthRows);
   const securityLatest = latest(securityRows);
+  const changeLatest = latest(changeRows);
+  const guardianLatest = latest(guardianRows);
   const isFetching = !captureEvidence && (
     ingest.isFetching ||
     network.isFetching ||
     health.isFetching ||
-    security.isFetching
+    security.isFetching ||
+    change.isFetching ||
+    guardian.isFetching
   );
   const errors = captureEvidence
     ? []
-    : [ingest.error, network.error, health.error, security.error].filter(Boolean);
+    : [
+      ingest.error,
+      network.error,
+      health.error,
+      security.error,
+      change.error,
+      guardian.error,
+    ].filter(Boolean);
 
   const refresh = async () => {
     await Promise.allSettled([
@@ -271,6 +341,8 @@ export const CrossDomainEvidence = () => {
       network.forceRefetch(),
       health.forceRefetch(),
       security.forceRefetch(),
+      change.forceRefetch(),
+      guardian.forceRefetch(),
     ]);
   };
 
@@ -320,6 +392,32 @@ export const CrossDomainEvidence = () => {
           ]}
         />
         <EvidenceCard
+          icon={<AutomationEngineIcon />}
+          label="Change validation"
+          status={field(changeLatest, "forward.dynatrace.gate_decision", "not loaded")}
+          detail={changeLatest
+            ? `${field(changeLatest, "forward.dynatrace.change_id")} · ${field(changeLatest, "forward.dynatrace.correlation_id")}`
+            : "No correlated live event"}
+          metrics={[
+            { label: "Before", value: field(changeLatest, "forward.dynatrace.before_snapshot_id") },
+            { label: "After", value: field(changeLatest, "forward.dynatrace.after_snapshot_id") },
+            { label: "Blocked", value: field(changeLatest, "forward.dynatrace.after_blocked", "0") },
+          ]}
+        />
+        <EvidenceCard
+          icon={<AutomationEngineIcon />}
+          label="Site Reliability Guardian"
+          status={field(guardianLatest, "validation.result", "not loaded")}
+          detail={guardianLatest
+            ? `Guardian ${field(guardianLatest, "dt.srg.id")} · ${contextField(guardianLatest, "correlationId")}`
+            : "No lifecycle validation"}
+          metrics={[
+            { label: "Validation", value: field(guardianLatest, "task.id") },
+            { label: "Change", value: contextField(guardianLatest, "changeId") },
+            { label: "Runs", value: String(guardianRows.length) },
+          ]}
+        />
+        <EvidenceCard
           icon={<NetworkIcon />}
           label="Modeled reachability"
           status={field(networkLatest, "forward.dynatrace.network_assessment", "not loaded")}
@@ -342,7 +440,7 @@ export const CrossDomainEvidence = () => {
           metrics={[
             { label: "Network", value: field(networkLatest, "forward.dynatrace.target.network_id") },
             { label: "Snapshot", value: field(networkLatest, "forward.dynatrace.target.snapshot_id") },
-            { label: "Live events", value: String(ingestRows.length + networkRows.length) },
+            { label: "Live events", value: String(ingestRows.length + networkRows.length + changeRows.length + guardianRows.length) },
           ]}
         />
         <EvidenceCard
@@ -392,7 +490,7 @@ export const CrossDomainEvidence = () => {
         )}
       </div>
 
-      {(ingestLatest || networkLatest) && (
+      {(ingestLatest || networkLatest || changeLatest || guardianLatest) && (
         <div className="live-binding-grid" aria-label="Live evidence identity binding">
           <div><span>Network</span><Strong>{field(networkLatest, "forward.dynatrace.target.network_id", field(ingestLatest, "forward.dynatrace.target.network_id"))}</Strong></div>
           <div><span>Snapshot</span><Strong>{field(networkLatest, "forward.dynatrace.target.snapshot_id", field(ingestLatest, "forward.dynatrace.target.snapshot_id"))}</Strong></div>
@@ -400,8 +498,50 @@ export const CrossDomainEvidence = () => {
           <div><span>Reconciliation run</span><Strong>{field(ingestLatest, "forward.dynatrace.run_id")}</Strong></div>
           <div><span>Evidence run</span><Strong>{field(networkLatest, "forward.dynatrace.evidence_run_id")}</Strong></div>
           <div><span>Problem</span><Strong>{field(networkLatest, "forward.dynatrace.problem_id")}</Strong></div>
+          <div><span>Correlation</span><Strong>{field(changeLatest, "forward.dynatrace.correlation_id", contextField(guardianLatest, "correlationId"))}</Strong></div>
+          <div><span>Guardian validation</span><Strong>{field(guardianLatest, "task.id")}</Strong></div>
         </div>
       )}
+
+      <div className="evidence-table-section">
+        <EvidenceHeading
+          title="Change-validation and Guardian results"
+          detail="One correlation identity joins the sanitized Forward decision to the Dynatrace lifecycle validation."
+        />
+        {(changeRows.length > 0 || guardianRows.length > 0) ? (
+          <div className="evidence-table-wrap">
+            <table className="evidence-table change-evidence-table">
+              <thead>
+                <tr><th>Time</th><th>Source</th><th>Result</th><th>Correlation</th><th>Change / validation</th><th>Scope</th><th>Evidence target</th></tr>
+              </thead>
+              <tbody>
+                {changeRows.slice(0, 10).map((row, index) => (
+                  <tr key={`${field(row, "forward.dynatrace.correlation_id")}-${index}`}>
+                    <td>{field(row, "timestamp")}</td>
+                    <td><Strong>Forward change gate</Strong><span className="evidence-subvalue">{provenanceLabel(row)}</span></td>
+                    <td><span className={`evidence-status ${tone(field(row, "forward.dynatrace.gate_decision"))}`}>{field(row, "forward.dynatrace.gate_decision")}</span><span className="evidence-subvalue">{field(row, "forward.dynatrace.gate_reason_codes")}</span></td>
+                    <td>{field(row, "forward.dynatrace.correlation_id")}</td>
+                    <td>{field(row, "forward.dynatrace.change_id")}<span className="evidence-subvalue">{field(row, "forward.dynatrace.gate_run_id")}</span></td>
+                    <td>{field(row, "forward.dynatrace.scope_mapping_id")}</td>
+                    <td>{field(row, "forward.dynatrace.network_id")}<span className="evidence-subvalue">{field(row, "forward.dynatrace.before_snapshot_id")} → {field(row, "forward.dynatrace.after_snapshot_id")}</span></td>
+                  </tr>
+                ))}
+                {guardianRows.slice(0, 10).map((row, index) => (
+                  <tr key={`${field(row, "task.id")}-${index}`}>
+                    <td>{field(row, "timestamp")}</td>
+                    <td><Strong>Dynatrace Guardian</Strong><span className="evidence-subvalue">{field(row, "dt.srg.id")}</span></td>
+                    <td><span className={`evidence-status ${tone(field(row, "validation.result"))}`}>{field(row, "validation.result")}</span></td>
+                    <td>{contextField(row, "correlationId")}</td>
+                    <td>{contextField(row, "changeId")}<span className="evidence-subvalue">{field(row, "task.id")}</span></td>
+                    <td>{contextField(row, "gateRunId")}</td>
+                    <td>{contextField(row, "observedAt")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <EmptyEvidence text="Refresh after a correlated SDLC trigger to load change and Guardian results." />}
+      </div>
 
       <div className="evidence-table-section">
         <EvidenceHeading

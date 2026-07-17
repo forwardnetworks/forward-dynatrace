@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "forward-dynatrace-guardian-context/v1",
+  "correlationId": "CORRELATION-EXAMPLE-001",
+  "gateRunId": "GATE-RUN-EXAMPLE-001",
+  "changeId": "CHG-DEMO-001",
+  "deploymentId": "DEPLOY-DEMO-001",
+  "observedAt": "2026-01-01T00:00:00.000Z",
+  "evidenceWindow": {
+    "from": "2025-12-31T23:45:00.000Z",
+    "to": "2026-01-01T00:00:00.000Z"
+  },
+  "scope": {
+    "mappingId": "SCOPE-MAPPING-EXAMPLE-001",
+    "applicationId": "APPLICATION-EXAMPLE",
+    "environmentId": "ENVIRONMENT-EXAMPLE",
+    "serviceEntityIds": ["SERVICE-DEMO-CHECKOUT"],
+    "locations": ["FAILURE-DOMAIN-EXAMPLE"],
+    "owner": "TEAM-EXAMPLE",
+    "criticality": "high"
+  },
+  "network": {
+    "networkId": "NETWORK-EXAMPLE",
+    "beforeSnapshotId": "SNAPSHOT-BEFORE-EXAMPLE",
+    "afterSnapshotId": "SNAPSHOT-AFTER-EXAMPLE"
+  },
+  "dependencies": [
+    {
+      "protocol": "TCP",
+      "ports": [443]
+    }
+  ],
+  "mapping": {
+    "state": "resolved",
+    "confidence": "high",
+    "sourceRecordCount": 1,
+    "mappingSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "provenance": {
+    "evidenceSource": "PLACEHOLDER-VALIDATION-SOURCE",
+    "synthetic": true
+  }
+}

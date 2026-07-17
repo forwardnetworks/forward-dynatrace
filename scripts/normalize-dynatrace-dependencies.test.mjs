@@ -38,7 +38,9 @@ test("honors explicit dependency mapping state from DQL rows", () => {
       "app.environment": "demo",
       "dt.entity.service": "SERVICE-EXPLICIT",
       "service.name": "checkout",
+      "network.source.label": "branch-01",
       "network.source": "10.0.0.10/32",
+      "network.destination.label": "checkout-api",
       "network.destination": "10.0.0.20/32",
       "network.protocol": "tcp",
       "network.port": "443",
@@ -50,6 +52,8 @@ test("honors explicit dependency mapping state from DQL rows", () => {
 
   assert.equal(dependency.mappingState, "ready");
   assert.equal(dependency.synthetic, true);
+  assert.equal(dependency.sourceLabel, "branch-01");
+  assert.equal(dependency.destinationLabel, "checkout-api");
 });
 
 test("preserves replay provenance and rejects ambiguous synthetic markers", () => {

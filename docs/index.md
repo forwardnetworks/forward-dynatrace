@@ -24,6 +24,7 @@ listing every document.
 
 - [Dynatrace app agent guide](agent-guides/dynatrace-app.md): AppEngine, Strato, SDK, and UI guidance.
 - [Dynatrace workflow trigger](dynatrace-workflow-trigger.md): schedule/problem payload contract.
+- [Site Reliability Guardian](site-reliability-guardian.md): lifecycle Guardian, execution context, Monaco package, and acceptance runs.
 - [Dynatrace status dashboard](dynatrace-status-dashboard.md): status events and DQL views.
 - [Screenshots](screenshots.md): real capture and refresh workflow.
 

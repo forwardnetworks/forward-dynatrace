@@ -27,6 +27,7 @@ const schemaPaths = {
   changeContext: "schemas/forward-change-context.schema.json",
   changeValidationGate: "schemas/forward-change-validation-gate.schema.json",
   changeValidationEvent: "schemas/forward-change-validation-event.schema.json",
+  guardianContext: "schemas/forward-guardian-execution-context.schema.json",
   checkHealthTransitions: "schemas/forward-check-health-transitions.schema.json",
   securityCorrelation: "schemas/forward-security-correlation.schema.json",
   securityCorrelationEventBatch: "schemas/forward-security-correlation-event-batch.schema.json",
@@ -52,6 +53,7 @@ Options:
                            Validate a Forward and Dynatrace gate artifact.
   --change-validation-event path
                            Validate a sanitized change-validation event.
+  --guardian-context path  Validate a lifecycle Guardian execution context.
   --check-health-transitions path
                            Validate a sanitized check-health transition batch.
   --security-correlation path
@@ -80,6 +82,7 @@ const parseArgs = (argv) => {
       value === "--change-context" ||
       value === "--change-validation-gate" ||
       value === "--change-validation-event" ||
+      value === "--guardian-context" ||
       value === "--check-health-transitions" ||
       value === "--security-correlation" ||
       value === "--security-correlation-event-batch"
@@ -134,9 +137,15 @@ const runJson = async (args) =>
 const buildValidator = async () => {
   const ajv = new Ajv({ allErrors: true, allowUnionTypes: true, strict: true });
   addFormats(ajv);
+  const schemas = Object.fromEntries(
+    await Promise.all(
+      Object.entries(schemaPaths).map(async ([name, schemaPath]) => [name, await readJson(schemaPath)]),
+    ),
+  );
+  for (const schema of Object.values(schemas)) ajv.addSchema(schema);
   const validators = {};
-  for (const [name, schemaPath] of Object.entries(schemaPaths)) {
-    validators[name] = ajv.compile(await readJson(schemaPath));
+  for (const [name, schema] of Object.entries(schemas)) {
+    validators[name] = ajv.getSchema(schema.$id);
   }
   return validators;
 };
@@ -225,6 +234,7 @@ const main = async () => {
       args["change-context"] ||
       args["change-validation-gate"] ||
       args["change-validation-event"] ||
+      args["guardian-context"] ||
       args["check-health-transitions"] ||
       args["security-correlation"] ||
       args["security-correlation-event-batch"],
@@ -251,6 +261,12 @@ const main = async () => {
       validators.changeContext,
       "config/forward-change-context.example.json",
       await readJson("config/forward-change-context.example.json"),
+      results,
+    );
+    validate(
+      validators.guardianContext,
+      "config/forward-guardian-execution-context.example.json",
+      await readJson("config/forward-guardian-execution-context.example.json"),
       results,
     );
 
@@ -329,6 +345,14 @@ const main = async () => {
       validators.changeValidationEvent,
       args["change-validation-event"],
       await readJson(args["change-validation-event"]),
+      results,
+    );
+  }
+  if (args["guardian-context"]) {
+    validate(
+      validators.guardianContext,
+      args["guardian-context"],
+      await readJson(args["guardian-context"]),
       results,
     );
   }

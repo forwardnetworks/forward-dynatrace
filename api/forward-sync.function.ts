@@ -13,11 +13,13 @@ interface DependencyCandidate {
   environment: string;
   serviceEntityId: string;
   serviceName: string;
+  sourceLabel?: string;
   source: string;
   sourceFilterType?: ForwardLocationFilterType;
   sourceResolvedValue?: string;
   sourceResolvedFilterType?: ForwardLocationFilterType;
   sourceResolutionStatus?: string;
+  destinationLabel?: string;
   destination: string;
   destinationFilterType?: ForwardLocationFilterType;
   destinationResolvedValue?: string;

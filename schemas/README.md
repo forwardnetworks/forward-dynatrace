@@ -14,6 +14,8 @@ These JSON Schemas define the public handoff artifacts used by Forward for Dynat
 - `forward-change-context.schema.json`: Dynatrace deployment and service-health input for change validation.
 - `forward-change-validation-gate.schema.json`: deterministic aggregate Forward and Dynatrace change-gate decision.
 - `forward-change-validation-event.schema.json`: publish-safe change decision with explicit live/synthetic provenance.
+- `forward-guardian-execution-context.schema.json`: bounded application, service, change, network-snapshot, and
+  protocol/port correlation propagated through lifecycle Guardian validation events.
 - `forward-check-health-transitions.schema.json`: sanitized, bounded managed-check transition batch.
 - `forward-security-correlation.schema.json`: read-only ranked investigation queue with separate evidence facts and
   explicit source/synthetic provenance.

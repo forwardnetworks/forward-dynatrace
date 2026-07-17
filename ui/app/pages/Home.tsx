@@ -61,7 +61,8 @@ fetch events, from: -24h
     \`forward.dynatrace.evidence_source\`, \`forward.dynatrace.problem_id\`,
     \`forward.dynatrace.target.network_id\`, \`forward.dynatrace.target.snapshot_id\`,
     app.name, app.environment, dt.entity.service, service.name,
-    network.source, network.destination, network.protocol, network.port,
+    network.source.label, network.source, network.destination.label,
+    network.destination, network.protocol, network.port,
     owner.team, criticality, dependency.confidence, dependency.mapping_state
 | limit 500
 `;
@@ -135,7 +136,9 @@ const normalizeLiveDependencies = (
     const environment = rowField(row, ["app.environment", "environment"], "unknown");
     const serviceEntityId = rowField(row, ["dt.entity.service", "serviceEntityId"]);
     const serviceName = rowField(row, ["service.name", "serviceName"], serviceEntityId);
+    const sourceLabel = rowField(row, ["network.source.label", "sourceLabel"]);
     const source = rowField(row, ["network.source", "source"]);
+    const destinationLabel = rowField(row, ["network.destination.label", "destinationLabel"]);
     const destination = rowField(row, ["network.destination", "destination"]);
     const rawProtocol = rowField(row, ["network.protocol", "protocol"], "tcp").toLowerCase();
     const protocol: DependencyCandidate["protocol"] = rawProtocol === "udp" ? "udp" : "tcp";
@@ -185,7 +188,9 @@ const normalizeLiveDependencies = (
       environment,
       serviceEntityId,
       serviceName,
+      ...(sourceLabel ? { sourceLabel } : {}),
       source,
+      ...(destinationLabel ? { destinationLabel } : {}),
       destination,
       protocol,
       port,
@@ -439,7 +444,7 @@ export const Home = () => {
     {
       icon: <FlowIcon />,
       label: "Observe",
-      title: liveEvidenceSource === "containerlab-live-service-probe"
+      title: liveEvidenceSource.startsWith("containerlab-live-")
         ? "Live service probes"
         : "Dynatrace application evidence",
       value: `${effectiveDependencies.length}`,
@@ -805,7 +810,7 @@ export const Home = () => {
           <PanelHeader
             icon={<DatabaseIcon />}
             title="Service Dependencies"
-            detail={liveEvidenceSource === "containerlab-live-service-probe"
+            detail={liveEvidenceSource.startsWith("containerlab-live-")
               ? "Live containerlab service observations normalized for Forward"
               : "Dynatrace rows normalized for Forward"}
           />
@@ -838,9 +843,15 @@ export const Home = () => {
                     </td>
                     <td>
                       <span className="path-cell">
-                        {dependency.source}
+                        <span>
+                          {dependency.sourceLabel && <span className="muted">{dependency.sourceLabel}<br /></span>}
+                          {dependency.source}
+                        </span>
                         <span aria-hidden>→</span>
-                        {dependency.destination}
+                        <span>
+                          {dependency.destinationLabel && <span className="muted">{dependency.destinationLabel}<br /></span>}
+                          {dependency.destination}
+                        </span>
                       </span>
                     </td>
                     <td>

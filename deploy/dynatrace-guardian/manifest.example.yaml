@@ -1,0 +1,16 @@
+manifestVersion: 1.0
+
+projects:
+  - name: forward-change-guardian
+    path: .
+
+environmentGroups:
+  - name: sandbox
+    environments:
+      - name: sandbox
+        url:
+          type: environment
+          value: DYNATRACE_ENVIRONMENT_URL
+        auth:
+          platformToken:
+            name: DYNATRACE_PLATFORM_TOKEN

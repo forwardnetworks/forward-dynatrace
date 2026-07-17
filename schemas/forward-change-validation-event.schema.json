@@ -57,7 +57,12 @@
         "forward.dynatrace.scope_mapping_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
         "forward.dynatrace.scope_mapping_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "forward.dynatrace.scope_environment_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
-        "forward.dynatrace.scope_source_record_count": { "type": "integer", "minimum": 1, "maximum": 100 }
+        "forward.dynatrace.scope_source_record_count": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "forward.dynatrace.correlation_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,254}$" },
+        "forward.dynatrace.correlation_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "timeframe.from": { "type": "string", "format": "date-time" },
+        "timeframe.to": { "type": "string", "format": "date-time" },
+        "execution_context": { "$ref": "forward-guardian-execution-context.schema.json" }
       },
       "dependencies": {
         "forward.dynatrace.evidence_source": ["forward.dynatrace.synthetic"],
@@ -69,7 +74,17 @@
         ],
         "forward.dynatrace.scope_mapping_sha256": ["forward.dynatrace.scope_mapping_id"],
         "forward.dynatrace.scope_environment_id": ["forward.dynatrace.scope_mapping_id"],
-        "forward.dynatrace.scope_source_record_count": ["forward.dynatrace.scope_mapping_id"]
+        "forward.dynatrace.scope_source_record_count": ["forward.dynatrace.scope_mapping_id"],
+        "forward.dynatrace.correlation_id": [
+          "forward.dynatrace.correlation_sha256",
+          "timeframe.from",
+          "timeframe.to",
+          "execution_context"
+        ],
+        "forward.dynatrace.correlation_sha256": ["forward.dynatrace.correlation_id"],
+        "timeframe.from": ["forward.dynatrace.correlation_id"],
+        "timeframe.to": ["forward.dynatrace.correlation_id"],
+        "execution_context": ["forward.dynatrace.correlation_id"]
       }
     }
   }

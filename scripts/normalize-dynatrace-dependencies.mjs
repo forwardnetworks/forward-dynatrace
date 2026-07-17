@@ -132,7 +132,9 @@ export const normalizeDynatraceRows = (rows) => {
     const environment = field(row, ["app.environment", "environment", "env"], "unknown");
     const serviceEntityId = field(row, ["dt.entity.service", "serviceEntityId", "service.id"]);
     const serviceName = field(row, ["service.name", "serviceName"], serviceEntityId || "unknown-service");
+    const sourceLabel = field(row, ["network.source.label", "sourceLabel"]);
     const source = field(row, ["network.source", "source", "source.host", "source.ip"]);
+    const destinationLabel = field(row, ["network.destination.label", "destinationLabel"]);
     const destination = field(row, [
       "network.destination",
       "destination",
@@ -170,7 +172,9 @@ export const normalizeDynatraceRows = (rows) => {
       environment,
       serviceEntityId,
       serviceName,
+      ...(sourceLabel ? { sourceLabel } : {}),
       source,
+      ...(destinationLabel ? { destinationLabel } : {}),
       destination,
       protocol,
       port,

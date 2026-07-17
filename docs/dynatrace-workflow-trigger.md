@@ -3,6 +3,10 @@
 Dynatrace Workflow can generate the Forward intent package on a schedule or from an impacted-service problem workflow.
 The workflow should call the app function that produces the package artifacts; it must not call Forward directly.
 
+The separate lifecycle Guardian workflow consumes sanitized Forward change-validation SDLC events and evaluates
+Dynatrace-owned service objectives. See [Site Reliability Guardian](site-reliability-guardian.md). It does not replace
+the dependency-package workflows on this page.
+
 Example payloads live in:
 
 - `deploy/dynatrace-workflows/forward-sync-schedule.payload.example.json`

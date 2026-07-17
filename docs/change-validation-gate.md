@@ -15,6 +15,10 @@ artifact. The command is read-only and does not call or mutate Forward, Dynatrac
 Each input is SHA-256 hashed into the gate artifact. The output contains only aggregate evidence; it does not copy path
 rows, endpoints, devices, check definitions, credentials, or Forward response bodies.
 
+An optional lifecycle Guardian context can add the reviewed application/service scope, evidence window, protocol/port
+sets, and matching Forward network/snapshot IDs. The publisher rejects mismatched evidence before publication. See
+[Site Reliability Guardian](site-reliability-guardian.md).
+
 ## Build The Gate
 
 ```bash
@@ -34,6 +38,10 @@ npm run schemas:validate -- \
 
 Use `--fail-on-non-pass` in a customer-owned deployment job when both `warn` and `fail` should stop promotion. The
 command writes the evidence artifact first, then exits `2` for a non-pass decision.
+
+To trigger the checked lifecycle Guardian after the gate is built, publish the sanitized event with
+`--guardian-context`, `--guardian-trigger`, and an identical `--run-id`. Guardian trigger publication is opt-in so the
+existing batch event path remains backward compatible.
 
 ## Decision Rules
 

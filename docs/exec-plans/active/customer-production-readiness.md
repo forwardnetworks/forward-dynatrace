@@ -31,8 +31,10 @@ Cross-product workflow orchestration and combined demonstrations are intentional
 - [x] Add pre-publish tag immutability, release-provenance, SBOM, attestation, and image-scanning checks.
 - [x] Validate the complete demonstration loop with six explicitly live containerlab service observations, six modeled paths,
   a verified signed package, idempotent reconciliation, Grail query-back, and a populated native Dynatrace app.
-- [x] Replace the retired field identity with display name `Forward`, production ID `com.forward.dynatrace`, and
+- [x] Replace the retired development identity with display name `Forward`, production ID `com.forward.dynatrace`, and
   sandbox ID `my.forward`.
+- [x] Add a Monaco lifecycle Guardian and Workflow package, bounded execution-context schema, fail-closed SDLC trigger,
+  result query, app display, and repository validation.
 
 ## Plan
 
@@ -42,7 +44,9 @@ Cross-product workflow orchestration and combined demonstrations are intentional
 3. Run one authoritative customer-owned dependency export through validate-only, reviewed apply, and status readback.
 4. Capture the release tag, commit, checksums, image digest, network and snapshot IDs, package ID, reconciliation counts,
    Dynatrace event ID, and operator approvals in `docs/validation-matrix.md`.
-5. Confirm the installation and rollback runbooks with customer operators who did not author the integration.
+5. Deploy the Guardian package in the sandbox and query back one pass, one deliberate objective failure, and one
+   missing-evidence fail-closed result.
+6. Confirm the installation and rollback runbooks with customer operators who did not author the integration.
 
 ## Verification
 
@@ -59,7 +63,7 @@ Cross-product workflow orchestration and combined demonstrations are intentional
 | 2026-07-16 | Keep create-missing-only as the default Forward policy. | The core value does not require update or stale-check mutation authority. |
 | 2026-07-17 | Render the integration as `Dynatrace ⇄ Forward`. | Dependency evidence flows to Forward; aggregate path and reconciliation evidence returns to Grail. |
 | 2026-07-17 | Label active containerlab observations as live service probes, not AppMap. | Source fidelity is more important than implying an unavailable OneAgent discovery source. |
-| 2026-07-17 | Use `Forward` as the display name, `com.forward.dynatrace` for signed installs, and `my.forward` only for unsigned sandbox installs. | Production identity must be stable, product-owned, and free of retired company and field-kit branding. |
+| 2026-07-17 | Use `Forward` as the display name, `com.forward.dynatrace` for signed installs, and `my.forward` only for unsigned sandbox installs. | Production identity must be stable, product-owned, and free of retired development branding. |
 
 ## Evidence To Capture
 

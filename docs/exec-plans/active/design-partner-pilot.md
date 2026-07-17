@@ -70,6 +70,10 @@ Owner: Dynatrace observability owners, network owners, and Forward product
 Acceptance: one reviewed mapping document can deterministically select both the Dynatrace health scope and the Forward
 network scope without importing either platform's complete topology into the other.
 
+Implementation status: `schemas/forward-guardian-execution-context.schema.json` now defines the proposed bounded
+contract and the change-event publisher enforces exact change, service, network, snapshot, and run correlation. Design
+partner approval of the field dictionary remains open.
+
 ### 4. Site Reliability Guardian vertical slice
 
 Owner: Dynatrace automation owner with Forward integration engineering
@@ -91,6 +95,10 @@ adaptive thresholds. See [Site Reliability Guardian](https://docs.dynatrace.com/
 Acceptance: a single correlation identity connects the Forward before/after evidence, the guardian execution, every
 objective result, and the app's aggregate display; missing or stale evidence fails closed.
 
+Implementation status: the Monaco lifecycle Guardian and Workflow package, six starter objectives, SDLC trigger mode,
+result DQL, and mechanical validation are checked in. Tenant deployment and the pass/fail/missing-evidence query-back
+remain open.
+
 ### 5. High-cardinality integration evidence
 
 Owner: Forward demo engineering in the separate change-demo repository
@@ -98,7 +106,7 @@ Owner: Forward demo engineering in the separate change-demo repository
 - Add an upstream-native containerlab profile with 40–50 total nodes and at least 24 lightweight Linux client, API,
   application, database, queue, DNS, and shared-service endpoints.
 - Emit at least 50 distinct, source-labeled dependency candidates and resolve at least 40 into persistent Forward intent
-  checks; keep synthetic lab provenance explicit.
+  checks; keep lab provenance explicit and distinguish observed container probes from generated fixtures.
 - Validate first-run create, second-run unchanged reconciliation, read-only path evidence, one bounded failure set, and
   a clean reset to baseline.
 - Add filtering, aggregation, and pagination so the app demonstrates scale without rendering an unreadable table.
@@ -106,6 +114,11 @@ Owner: Forward demo engineering in the separate change-demo repository
 
 Acceptance: the profile survives three reset/collect/reconcile cycles, produces zero unexplained drift, and the app
 remains usable with the full evidence set. The active six-flow profile remains the fast smoke path.
+
+Implementation status: the separate change-demo repository now renders and mechanically validates an isolated 49-node
+profile with 38 Linux endpoints, 11 modeled network devices, 50 observed probe definitions, and 50 deterministic
+`NewNetworkCheck[]` previews. Deployment, three reset/collect/reconcile cycles, timing/resource measurements, and live
+Grail/Forward readback remain open.
 
 ### 6. Non-production promotion
 
@@ -147,6 +160,7 @@ Acceptance: ownership and support decisions are written before general availabil
 | 2026-07-17 | Join evidence through context and tags rather than duplicating full topology maps. | Each product remains authoritative for its own model and avoids stale copies. |
 | 2026-07-17 | Start Site Reliability Guardian with static thresholds. | Auto-adaptive thresholds require validation history before they provide a decision. |
 | 2026-07-17 | Keep the 40–50-node scale profile in the change-demo repository. | This repository stays independently installable and contains no demo-lab orchestration. |
+| 2026-07-17 | Use an opt-in SDLC event publisher mode for Guardian automation. | Lifecycle Guardians require the SDLC stream, while existing batch event consumers must remain compatible. |
 
 ## Evidence To Capture
 
