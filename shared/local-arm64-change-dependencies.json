@@ -9,7 +9,7 @@
     "destination": "172.16.10.10/32",
     "protocol": "tcp",
     "port": "443",
-    "owner": "forward-field-integrations",
+    "owner": "forward-integrations",
     "criticality": "high",
     "confidence": 100,
     "mappingState": "ready"

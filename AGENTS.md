@@ -1,8 +1,8 @@
 # Agent Map
 
-This repository is a Forward Field Integration reference for exporting Forward intent-check packages from Dynatrace
-application dependency evidence. Keep this file as a map; durable knowledge belongs in the linked documents and
-executable checks.
+This repository contains Forward for Dynatrace, a product integration for exporting Forward intent-check packages from
+Dynatrace application dependency evidence. Keep this file as a map; durable knowledge belongs in the linked documents
+and executable checks.
 
 ## Start Here
 
@@ -11,6 +11,7 @@ executable checks.
 - [docs/index.md](docs/index.md): task-oriented knowledge map for all detailed documentation.
 - [docs/exec-plans/README.md](docs/exec-plans/README.md): active plans, completed plans, and technical debt.
 - [docs/exec-plans/active/customer-production-readiness.md](docs/exec-plans/active/customer-production-readiness.md): current execution plan.
+- [docs/exec-plans/active/design-partner-pilot.md](docs/exec-plans/active/design-partner-pilot.md): sandbox, Guardian, scale, and non-production pilot plan.
 - [docs/validation-matrix.md](docs/validation-matrix.md): verified evidence and remaining live-validation gaps.
 - [docs/harness-engineering.md](docs/harness-engineering.md): agent-first working model and repository feedback loops.
 

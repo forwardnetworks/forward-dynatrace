@@ -27,7 +27,7 @@ const ALLOWED_CHECK_TYPES = new Set(["Existential"]);
 const LOCAL_HTTP_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
 
 const usage = `
-Forward Integration for Dynatrace package importer
+Forward for Dynatrace package importer
 
 Required environment:
   FORWARD_BASE_URL       Example: https://forward.example.com

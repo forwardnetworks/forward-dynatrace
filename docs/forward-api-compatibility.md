@@ -1,6 +1,6 @@
 # Forward API Compatibility Notes
 
-These notes pin the Forward API assumptions used by this field integration. Forward source is reference material only;
+These notes pin the Forward API assumptions used by this integration. Forward source is reference material only;
 this repository must not modify Forward source code.
 
 ## Required Base Workflow
@@ -68,7 +68,7 @@ This integration uses the Forward bulk check create path:
 POST /api/snapshots/{snapshotId}/checks?bulk
 ```
 
-Target Forward environments must support this field integration contract before production use. The local Forward API
+Target Forward environments must support this integration contract before production use. The local Forward API
 source also documents single-check creation at `POST /api/snapshots/{snapshotId}/checks`; that is useful for schema
 reference, but this project intentionally uses the bulk path for scalable intent-check creation and does not implement
 a silent fallback. If a target Forward version does not support bulk create, stop and resolve the API/version mismatch

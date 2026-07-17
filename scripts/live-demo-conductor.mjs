@@ -9,7 +9,7 @@ const DEFAULT_SHOWCASE_LIMIT = 12;
 const EVIDENCE_SOURCE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 const usage = `
-Forward Integration for Dynatrace live demo conductor
+Forward for Dynatrace live demo conductor
 
 Usage:
   npm run demo:live -- \\

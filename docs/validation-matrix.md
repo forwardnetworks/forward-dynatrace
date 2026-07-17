@@ -12,7 +12,9 @@ This matrix records executable coverage and current live evidence for the indepe
 | Check-health transitions | `npm run forward:check-health:test` covers quiet baselines, stable transition IDs, restart safety, bounded publication, and retry behavior. | One customer-approved real failure/recovery pair. |
 | Security correlation | `npm run security:correlate:test` and `npm run dynatrace:security-correlation:publish:test` cover separate evidence facts, traceable identity mappings, bounded queues, and publication. | Customer-approved findings, exposure data, retention, and owner mapping. |
 | Runtime and release | `npm run runtime:validate`, `npm run systemd:install:test`, release signature/ref/immutability tests, `npm run security:audit`, and `npm run release:package:smoke` cover deployment templates and release provenance. | Customer platform hardening and operational ownership. |
-| Dynatrace app | `npm run repo:validate`, `npm run lint`, and `npm run build` guard the integration boundary, explicit live/synthetic rendering, and production bundle. | Visual acceptance in the target Dynatrace tenant. |
+| Dynatrace app | `npm run repo:validate`, `npm run dynatrace:deploy:test`, `npm run lint`, and `npm run build` guard the integration boundary, canonical `Forward` / `com.forward.dynatrace` identity, separate `my.forward` sandbox path, explicit live/synthetic rendering, and production bundle. | Install `my.forward` in a sandbox, then verify the signed `com.forward.dynatrace` archive in non-production. |
+| Site Reliability Guardian | The customer-neutral contract and acceptance sequence are defined in `docs/exec-plans/active/design-partner-pilot.md`. | Implement and validate one pass, one failure, and one missing-evidence fail-closed lifecycle-guardian run. |
+| High-cardinality evidence | `npm run load:scale` covers 2,500 synthetic dependency rows and the current live profile validates six source-labeled dependencies and paths. | Validate the separate 40–50-node containerlab profile with at least 50 dependency candidates and 40 persistent checks. |
 
 ## Current Live Evidence
 
@@ -22,6 +24,8 @@ This matrix records executable coverage and current live evidence for the indepe
 - Dynatrace accepted live event `FWD-LIVE-SNAPSHOT-1347038` with `forward.dynatrace.synthetic=false` and queried it back from Grail.
 - Signed package `dynatrace-forward-20260717143241` reconciled idempotently with `6 planned / 6 unchanged / 0 create / 0 changed / 0 stale`; the signature status queried back from Grail is `verified`.
 - App revision `2.0.4-live.1347038` was deployed to the non-production Dynatrace tenant with the live dependency, path, target, package-integrity, and reconciliation sections populated from those three Grail streams.
+- That deployment predates the canonical production app identity. It validates behavior, not installation or upgrade of
+  `com.forward.dynatrace`; the identity migration and signed-install gates remain open.
 - The deployed app queries only explicit live rows in its normal runtime; saved rehearsal data is available only to the checked capture harness.
 
 This closes the local demonstration evidence gap. It does not replace the customer-owned live gates in the matrix above.

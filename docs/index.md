@@ -12,6 +12,7 @@ listing every document.
 ## Install, Package, And Release
 
 - [Install](install.md): supported toolchain, installation, and public-release gate.
+- [App identity migration](app-identity-migration.md): production/sandbox IDs and one-time retired-ID cutover.
 - [Deployment readiness](deployment-readiness.md): validate-only and dry-run gates.
 - [Release](release.md): release workflow and checksum verification.
 - [Release provenance](release-provenance.md): signatures, SBOM, GHCR image, and attestations.
@@ -70,4 +71,5 @@ listing every document.
 
 - [Execution plans](exec-plans/README.md): plan lifecycle and index.
 - [Active customer production-readiness plan](exec-plans/active/customer-production-readiness.md): current prioritized work.
+- [Active design-partner pilot](exec-plans/active/design-partner-pilot.md): sandbox, Guardian, scale, and non-production gates.
 - [Technical debt tracker](exec-plans/tech-debt-tracker.md): deferred structural work with triggers and exits.

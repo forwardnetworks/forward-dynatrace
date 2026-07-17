@@ -1,6 +1,6 @@
 # Artifact Schemas
 
-These JSON Schemas define the public handoff artifacts used by the Forward Dynatrace field integration.
+These JSON Schemas define the public handoff artifacts used by Forward for Dynatrace.
 
 ## Files
 

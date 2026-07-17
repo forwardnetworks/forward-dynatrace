@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 import { packageSigningPayload } from "./forward-import-package.mjs";
 
 const usage = `
-Forward Integration for Dynatrace package signer
+Forward for Dynatrace package signer
 
 Usage:
   node scripts/sign-forward-package.mjs \\

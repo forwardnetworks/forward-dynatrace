@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/forward-package-manifest.schema.json",
-  "title": "Forward Dynatrace package manifest",
+  "title": "Forward for Dynatrace package manifest",
   "type": "object",
   "additionalProperties": true,
   "required": [

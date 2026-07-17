@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/connector-config.schema.json",
-  "title": "Forward Dynatrace connector config",
+  "title": "Forward for Dynatrace connector config",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion"],

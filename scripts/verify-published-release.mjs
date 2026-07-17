@@ -17,7 +17,7 @@ const SLSA_PROVENANCE = "https://slsa.dev/provenance/v1";
 const RELEASE_TAG = /^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/u;
 
 const usage = `
-Verify a published Forward Integration for Dynatrace release
+Verify a published Forward for Dynatrace release
 
 Usage:
   npm run release:published:verify -- \\

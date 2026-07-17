@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/forward-ingest-status-event.schema.json",
-  "title": "Forward Dynatrace status event",
+  "title": "Forward for Dynatrace status event",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "timestamp", "eventType", "severity", "title", "properties"],

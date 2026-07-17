@@ -2,7 +2,7 @@
 
 Status: active
 Owner: repository maintainer plus Dynatrace, Forward runtime, security, and network owners
-Last updated: 2026-07-16
+Last updated: 2026-07-17
 
 ## Objective
 
@@ -31,11 +31,13 @@ Cross-product workflow orchestration and combined demonstrations are intentional
 - [x] Add pre-publish tag immutability, release-provenance, SBOM, attestation, and image-scanning checks.
 - [x] Validate the complete demonstration loop with six explicitly live containerlab service observations, six modeled paths,
   a verified signed package, idempotent reconciliation, Grail query-back, and a populated native Dynatrace app.
+- [x] Replace the retired field identity with display name `Forward`, production ID `com.forward.dynatrace`, and
+  sandbox ID `my.forward`.
 
 ## Plan
 
-1. Publish a release newer than `v1.0.0`; the current tag predates the handoff, check-health, security, and current
-   Dynatrace Workflow assets.
+1. Publish a signed `com.forward.dynatrace` release newer than `v1.0.0`; the current tag predates the handoff,
+   check-health, security, identity, and current Dynatrace Workflow assets.
 2. Install the exact release artifacts in a non-production Dynatrace tenant and Forward network.
 3. Run one authoritative customer-owned dependency export through validate-only, reviewed apply, and status readback.
 4. Capture the release tag, commit, checksums, image digest, network and snapshot IDs, package ID, reconciliation counts,
@@ -57,6 +59,7 @@ Cross-product workflow orchestration and combined demonstrations are intentional
 | 2026-07-16 | Keep create-missing-only as the default Forward policy. | The core value does not require update or stale-check mutation authority. |
 | 2026-07-17 | Render the integration as `Dynatrace ⇄ Forward`. | Dependency evidence flows to Forward; aggregate path and reconciliation evidence returns to Grail. |
 | 2026-07-17 | Label active containerlab observations as live service probes, not AppMap. | Source fidelity is more important than implying an unavailable OneAgent discovery source. |
+| 2026-07-17 | Use `Forward` as the display name, `com.forward.dynatrace` for signed installs, and `my.forward` only for unsigned sandbox installs. | Production identity must be stable, product-owned, and free of retired company and field-kit branding. |
 
 ## Evidence To Capture
 

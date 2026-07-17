@@ -40,7 +40,7 @@ Enterprise install:
 Trial install:
   npm run dynatrace:deploy -- \\
     --environment-url https://your-environment-id.apps.dynatrace.com/ \\
-    --app-id my.forwardnetworks.dynatrace.field.integration \\
+    --app-id my.forward \\
     --no-open --non-interactive
 `;
 
@@ -126,7 +126,7 @@ export const validateDeployArgs = (args, defaultAppId, env = process.env) => {
     throw new Error(
       [
         `App ID ${targetAppId} is outside the my.* namespace.`,
-        "Use --sign-archive for an enterprise install, or pass --app-id my.forwardnetworks.dynatrace.field.integration for an unsigned trial install.",
+        "Use --sign-archive for an enterprise install, or pass --app-id my.forward for an unsigned sandbox install.",
       ].join(" "),
     );
   }

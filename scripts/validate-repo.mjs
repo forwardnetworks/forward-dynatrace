@@ -17,6 +17,7 @@ const requiredFiles = [
   ".dockerignore",
   "Dockerfile.forward-importer",
   "docs/install.md",
+  "docs/app-identity-migration.md",
   "docs/workflow.md",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
@@ -55,6 +56,7 @@ const requiredFiles = [
   "docs/agent-guides/dynatrace-app.md",
   "docs/exec-plans/README.md",
   "docs/exec-plans/active/customer-production-readiness.md",
+  "docs/exec-plans/active/design-partner-pilot.md",
   "docs/exec-plans/tech-debt-tracker.md",
   "shared/demo-dependencies.json",
   "shared/demo-dynatrace-query-rows.json",
@@ -268,6 +270,8 @@ const expectedPublicEnvironmentUrl =
 const expectedNodeVersionFile = "24";
 const expectedNodeEngineRange = ">=24.0.0 <25.0.0";
 const expectedDtAppVersion = "1.11.2";
+const expectedAppId = "com.forward.dynatrace";
+const expectedAppName = "Forward";
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const localMachineUser = process.env.USER || process.env.LOGNAME || "";
@@ -323,6 +327,7 @@ const publicBrandingFiles = [
   "docs/index.md",
   "docs/exec-plans/README.md",
   "docs/exec-plans/active/customer-production-readiness.md",
+  "docs/exec-plans/active/design-partner-pilot.md",
   "docs/exec-plans/tech-debt-tracker.md",
   "docs/forward-nqe-preview.md",
   "docs/forward-nqe-artifacts.md",
@@ -330,6 +335,7 @@ const publicBrandingFiles = [
   "docs/problem-network-evidence.md",
   "docs/change-validation-gate.md",
   "docs/install.md",
+  "docs/app-identity-migration.md",
   "docs/production-readiness.md",
   "docs/enterprise-hardening.md",
   "docs/operations-runbook.md",
@@ -385,6 +391,22 @@ const retiredBrandingPatterns = [
   {
     name: "Retired app title",
     regex: /Forward Network Proof/i,
+  },
+  {
+    name: "Retired field-integration positioning",
+    regex: /\bfield[- ]integration\b/i,
+  },
+  {
+    name: "Retired product name",
+    regex: /Forward Integration for Dynatrace/i,
+  },
+  {
+    name: "Retired production app ID",
+    regex: /com\.forwardnetworks\.dynatrace\.field\.integration/i,
+  },
+  {
+    name: "Retired sandbox app ID",
+    regex: /my\.forwardnetworks\.dynatrace\.field\.integration/i,
   },
 ];
 
@@ -469,6 +491,7 @@ for (const target of [
   "docs/index.md",
   "docs/exec-plans/README.md",
   "docs/exec-plans/active/customer-production-readiness.md",
+  "docs/exec-plans/active/design-partner-pilot.md",
   "docs/validation-matrix.md",
   "docs/harness-engineering.md",
 ]) {
@@ -518,6 +541,7 @@ if (!docsIndex.includes("(exec-plans/README.md)")) {
 const executionPlanIndex = await readText("docs/exec-plans/README.md");
 for (const target of [
   "active/customer-production-readiness.md",
+  "active/design-partner-pilot.md",
   "tech-debt-tracker.md",
 ]) {
   if (!executionPlanIndex.includes(`(${target})`)) {
@@ -525,23 +549,26 @@ for (const target of [
   }
 }
 
-const activeExecutionPlan = await readText(
+for (const planPath of [
   "docs/exec-plans/active/customer-production-readiness.md",
-);
-for (const requiredPlanContent of [
-  "Status: active",
-  "Owner:",
-  "Last updated:",
-  "## Objective",
-  "## Non-Goals",
-  "## Progress",
-  "## Plan",
-  "## Verification",
-  "## Decision Log",
-  "## Evidence To Capture",
+  "docs/exec-plans/active/design-partner-pilot.md",
 ]) {
-  if (!activeExecutionPlan.includes(requiredPlanContent)) {
-    fail(`Active execution plan must contain ${requiredPlanContent}.`);
+  const activeExecutionPlan = await readText(planPath);
+  for (const requiredPlanContent of [
+    "Status: active",
+    "Owner:",
+    "Last updated:",
+    "## Objective",
+    "## Non-Goals",
+    "## Progress",
+    "## Plan",
+    "## Verification",
+    "## Decision Log",
+    "## Evidence To Capture",
+  ]) {
+    if (!activeExecutionPlan.includes(requiredPlanContent)) {
+      fail(`${planPath} must contain ${requiredPlanContent}.`);
+    }
   }
 }
 
@@ -672,6 +699,12 @@ for (const file of publicBrandingFiles) {
 const packageJson = await readJson("package.json");
 const packageLock = await readJson("package-lock.json");
 const appConfig = await readJson("app.config.json");
+if (appConfig.app?.id !== expectedAppId) {
+  fail(`app.config.json app.id must be the production identity ${expectedAppId}.`);
+}
+if (appConfig.app?.name !== expectedAppName) {
+  fail(`app.config.json app.name must be the product display name ${expectedAppName}.`);
+}
 if (packageJson.scripts?.["release:immutability:validate"] !==
     "node scripts/validate-release-immutability.mjs") {
   fail("package.json must expose the checked release immutability command.");

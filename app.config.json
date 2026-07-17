@@ -2,10 +2,10 @@
   "$schema": "./.dt-app/app.config.schema.json",
   "environmentUrl": "https://your-environment-id.apps.dynatrace.com/",
   "app": {
-    "name": "forward.dynatrace",
+    "name": "Forward",
     "version": "2.0.0",
-    "description": "Application dependency and modeled network evidence for Dynatrace and Forward",
-    "id": "com.forwardnetworks.dynatrace.field.integration",
+    "description": "Application dependency evidence and modeled network assurance",
+    "id": "com.forward.dynatrace",
     "scopes": [
       {
         "name": "storage:buckets:read",

@@ -40,12 +40,12 @@ For an unsigned trial or development install, use a `my.*` app ID:
 ```bash
 npm run dynatrace:deploy -- \
   --environment-url https://your-environment-id.apps.dynatrace.com/ \
-  --app-id my.forwardnetworks.dynatrace.field.integration \
+  --app-id my.forward \
   --no-open \
   --non-interactive
 ```
 
-For an enterprise install with the default `com.forwardnetworks.dynatrace.field.integration` app ID, sign the archive:
+For an enterprise install with the default `com.forward.dynatrace` app ID, sign the archive:
 
 ```bash
 export DT_APP_OAUTH_SIGN_CLIENT_ID=<signing-oauth-client-id>
@@ -63,6 +63,10 @@ customer-specific reference. `npm run repo:validate` fails if those values are a
 
 Dynatrace AppEngine rejects unsigned app IDs outside the `my.*` namespace. The wrapper command makes that policy
 explicit before invoking `dt-app`, so trial installs and signed enterprise installs are separate operator choices.
+
+The retired pre-production IDs are not upgrade-compatible with the production identity. Follow
+[`app-identity-migration.md`](app-identity-migration.md) once to remove an older install, regenerate Workflow templates,
+and install either `my.forward` in a sandbox or the signed `com.forward.dynatrace` package.
 
 ## Forward Manual Import
 

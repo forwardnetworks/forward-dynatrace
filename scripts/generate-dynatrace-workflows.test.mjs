@@ -32,7 +32,7 @@ const projection = (prefix = "fetch events") => `${prefix}
 
 test("builds environment-agnostic on-demand, schedule, and problem templates", () => {
   const templates = buildWorkflowTemplates({
-    appConfig: { app: { id: "com.forwardnetworks.dynatrace.field.integration", version: "1.2.0" } },
+    appConfig: { app: { id: "com.forward.dynatrace", version: "1.2.0" } },
     scheduleQuery: projection(),
     problemQuery: projection('data json:"""{{ event()|to_json }}"""'),
   });
@@ -45,12 +45,12 @@ test("builds environment-agnostic on-demand, schedule, and problem templates", (
   assert.equal(schedule.metadata.version, "1.0.0");
   assert.deepEqual(schedule.metadata.inputs, [{
     type: "connection",
-    schema: "app:com.forwardnetworks.dynatrace.field.integration:forward-package-handoff-connection",
+    schema: "app:com.forward.dynatrace:forward-package-handoff-connection",
     targets: ["tasks.export_forward_package.connectionId"],
   }]);
   assert.equal(
     schedule.workflow.tasks.export_forward_package.action,
-    "com.forwardnetworks.dynatrace.field.integration:export-forward-package",
+    "com.forward.dynatrace:export-forward-package",
   );
   assert.match(schedule.workflow.tasks.export_forward_package.input.request, /result\("query_dependencies"\)/u);
   assert.equal(schedule.workflow.trigger.schedule.trigger.intervalMinutes, 15);

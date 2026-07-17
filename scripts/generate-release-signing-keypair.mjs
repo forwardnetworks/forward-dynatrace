@@ -6,7 +6,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const usage = `
-Forward Integration for Dynatrace release signing key generator
+Forward for Dynatrace release signing key generator
 
 Usage:
   node scripts/generate-release-signing-keypair.mjs \\

@@ -1,12 +1,11 @@
-# Forward Integration for Dynatrace Workflow
+# Forward for Dynatrace Workflow
 
 This app uses Dynatrace application dependency mapping to fill Forward intent checks. Dynatrace is the source of
 application dependency evidence; Forward is the system that stores, evaluates, reconciles, and reports the network
 intent.
 
-This repository is a Forward Field Integration reference. It builds Forward-ready payloads and a production API plan,
-but it is not an officially supported Forward product integration. The Dynatrace app must not mutate a Forward tenant.
-Forward-side manual import or a Forward-side connector owns all intent-check writes.
+This repository contains the production-candidate Forward for Dynatrace integration. The Dynatrace app must not mutate
+a Forward tenant. Forward-side manual import or a Forward-side connector owns all intent-check writes.
 
 ## What the Dynatrace App Provides
 
@@ -24,7 +23,7 @@ Forward-side manual import or a Forward-side connector owns all intent-check wri
 ```mermaid
 flowchart LR
     A["Dynatrace problem or schedule"] --> B["Dynatrace Workflow"]
-    B --> C["Forward Integration for Dynatrace app function"]
+    B --> C["Forward for Dynatrace app function"]
     C --> D["Export dependency candidates"]
     D --> E["Manual import script or Forward connector"]
     E --> F["Forward host resolution"]
@@ -41,7 +40,7 @@ flowchart LR
 
 The app starts from Dynatrace application dependencies, not generic infra telemetry.
 
-![Forward Integration for Dynatrace overview](assets/screenshots/01-overview.jpg)
+![Forward for Dynatrace overview](assets/screenshots/01-overview.jpg)
 
 ### 2. Plan Read-Only NQE Evidence
 

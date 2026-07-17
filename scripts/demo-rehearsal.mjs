@@ -10,7 +10,7 @@ import forwardSync from "../api/forward-sync.function.ts";
 import { normalizeDynatraceRows } from "./normalize-dynatrace-dependencies.mjs";
 
 const usage = `
-Forward Integration for Dynatrace demo rehearsal
+Forward for Dynatrace demo rehearsal
 
 Usage:
   node --experimental-strip-types scripts/demo-rehearsal.mjs

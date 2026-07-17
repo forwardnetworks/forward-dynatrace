@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { parseArgs, validateDeployArgs } from "./deploy-dynatrace-app.mjs";
 
-const defaultAppId = "com.forwardnetworks.dynatrace.field.integration";
+const defaultAppId = "com.forward.dynatrace";
 
 describe("deploy-dynatrace-app", () => {
   it("accepts an unsigned trial install in the my namespace", () => {
@@ -11,7 +11,7 @@ describe("deploy-dynatrace-app", () => {
       "--environment-url",
       "https://your-environment-id.apps.dynatrace.com/",
       "--app-id",
-      "my.forwardnetworks.dynatrace.field.integration",
+      "my.forward",
       "--no-open",
       "--non-interactive",
     ]);
@@ -73,7 +73,7 @@ describe("deploy-dynatrace-app", () => {
       "--environment-url",
       "https://your-environment-id.apps.dynatrace.com/",
       "--app-id",
-      "my.forwardnetworks.dynatrace.field.integration",
+      "my.forward",
       "--app-version",
       "1.0.1-demo.1",
     ]);

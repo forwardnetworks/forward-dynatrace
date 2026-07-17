@@ -1,6 +1,6 @@
 # Governance
 
-This repository is run as a PR-only field integration reference. The expected model is that all normal changes land
+This repository is run as a PR-only product integration. The expected model is that all normal changes land
 through review, automated checks, and an auditable release tag. Direct pushes are reserved for emergency maintenance and
 must be followed by a corrective PR or documented post-change review.
 

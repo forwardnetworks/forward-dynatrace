@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/forward-security-correlation-event-batch.schema.json",
-  "title": "Forward Dynatrace security-correlation event batch",
+  "title": "Forward for Dynatrace security-correlation event batch",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "generatedAt", "eventType", "runId", "provenance", "counts", "records"],

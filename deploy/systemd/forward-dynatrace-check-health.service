@@ -1,5 +1,5 @@
 [Unit]
-Description=Forward Integration for Dynatrace check-health transition poll
+Description=Forward for Dynatrace check-health transition poll
 Documentation=https://github.com/forwardnetworks/forward-dynatrace
 Wants=network-online.target
 After=network-online.target
@@ -20,4 +20,3 @@ ReadWritePaths=/var/lib/forward-dynatrace /var/log/forward-dynatrace
 StateDirectory=forward-dynatrace
 LogsDirectory=forward-dynatrace
 UMask=0077
-

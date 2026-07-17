@@ -686,7 +686,7 @@ test("rejects malformed or whitespace-containing tags before Forward apply", () 
   const whitespaceTag = structuredClone(baseCheck);
   whitespaceTag.tags = [
     "dynatrace",
-    "app:Forward Integration for Dynatrace Acceptance",
+    "app:Forward for Dynatrace Acceptance",
     "dynatrace-key:dt:acceptance",
   ];
   const nonArrayTags = structuredClone(baseCheck);

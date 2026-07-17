@@ -1,7 +1,7 @@
 # Production Readiness Checklist
 
-This repository is a Forward Field Integration reference, not an officially supported Forward product integration.
-Use this checklist before enabling Forward-side ingest.
+Forward for Dynatrace is a production candidate. Use this checklist before enabling Forward-side ingest or describing
+the integration as generally available.
 
 ## Security
 

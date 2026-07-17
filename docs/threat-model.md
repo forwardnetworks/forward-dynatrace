@@ -1,6 +1,6 @@
 # Threat Model
 
-This model covers the Forward Field Integration reference trust boundary.
+This model covers the Forward for Dynatrace trust boundary.
 
 ## Assets
 

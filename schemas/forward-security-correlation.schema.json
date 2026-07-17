@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://forwardnetworks.com/schemas/forward-security-correlation.schema.json",
-  "title": "Forward Dynatrace security exposure correlation",
+  "title": "Forward for Dynatrace security exposure correlation",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "generatedAt", "mode", "provenance", "counts", "investigationQueue", "rejectedMappings", "boundaries"],

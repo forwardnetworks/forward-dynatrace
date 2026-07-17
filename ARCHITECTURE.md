@@ -1,6 +1,6 @@
 # Architecture
 
-This is the top-level map of the Forward Integration for Dynatrace. Detailed contracts, runbooks, and plans are indexed
+This is the top-level map of Forward for Dynatrace. Detailed contracts, runbooks, and plans are indexed
 in [docs/index.md](docs/index.md).
 
 ## System Boundary

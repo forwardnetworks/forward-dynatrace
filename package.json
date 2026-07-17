@@ -1,7 +1,7 @@
 {
   "name": "forward-dynatrace",
   "version": "2.0.0",
-  "description": "Forward Field Integration reference for exporting intent-check packages from Dynatrace service dependency evidence",
+  "description": "Forward for Dynatrace application dependency and modeled network assurance",
   "scripts": {
     "build": "dt-app build",
     "start": "dt-app dev",

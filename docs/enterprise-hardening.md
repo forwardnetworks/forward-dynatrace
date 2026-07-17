@@ -4,9 +4,9 @@
 > `docs/exec-plans/active/customer-production-readiness.md`; structural debt is tracked in
 > `docs/exec-plans/tech-debt-tracker.md`.
 
-This tracks what is implemented now and what remains before positioning this Forward Field Integration reference for
-broader enterprise use.
-It remains a field-built reference, not an officially supported Forward product integration.
+This tracks what is implemented now and what remains before Forward for Dynatrace is generally available for
+enterprise use. It is a product integration in production-candidate status; support ownership and a signed release
+remain explicit release gates.
 
 ## P0 Before Wider Use
 
@@ -81,10 +81,9 @@ It remains a field-built reference, not an officially supported Forward product 
 
 ## P2 Productization Path
 
-- External product decision: decide whether this remains a field integration kit or graduates into an owned product
-  integration.
-- External product decision: if it graduates, replace the script runner with an owned service/connector package and
-  formal support policy.
+- Product decision complete: Forward for Dynatrace is an owned product integration, not a field kit.
+- External before general availability: replace or formally own the script runner as a supported connector package and
+  publish its support policy.
 - Done in repo: publish the Forward-side importer image to GHCR on tag releases with image provenance enabled.
 - Future schema work: add upgrade tests when a second schema version exists.
 - Future compatibility work: add compatibility tests against multiple real Forward API versions and Dynatrace App

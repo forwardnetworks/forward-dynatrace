@@ -7,6 +7,8 @@ must have a checked-in plan with progress, decisions, verification, and evidence
 
 - [Customer production readiness](active/customer-production-readiness.md): land the current tranche, install owned
   runtimes, and complete live acceptance.
+- [Design-partner pilot](active/design-partner-pilot.md): install in sandbox, define shared context, validate Guardian
+  automation, exercise scale, and promote a signed build to non-production.
 
 Only active work belongs in `active/`. Update its checkboxes and decision log as work progresses.
 

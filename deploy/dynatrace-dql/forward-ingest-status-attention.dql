@@ -1,4 +1,4 @@
-// Forward Integration for Dynatrace status dashboard: runs that need operator attention.
+// Forward for Dynatrace status dashboard: runs that need operator attention.
 // Use this panel for failed, warning, changed, stale, or drifted Forward-side ingest runs.
 
 fetch events, from: now() - 7d

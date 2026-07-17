@@ -1,7 +1,7 @@
-# Forward Integration for Dynatrace
+# Forward for Dynatrace
 
-Forward Integration for Dynatrace is a standalone Forward Field Integration that turns Dynatrace application dependency
-evidence into Forward-reviewed network intent-check packages and publishes bounded Forward results back to Dynatrace.
+Forward for Dynatrace turns Dynatrace application dependency evidence into Forward-reviewed network intent-check
+packages and publishes bounded Forward results back to Dynatrace.
 
 Forward owns network intent, Dynatrace owns application evidence, and the customer's deployment system owns deployment
 and rollback. The Dynatrace app does not write to Forward and does not store Forward credentials.
@@ -16,7 +16,7 @@ belong in a separate demo or customer automation project, not in this repository
 - Current release-candidate capabilities are not included in `v1.0.0`
 - Runtime: Node.js 24.x
 - Distribution: GitHub release artifacts and GHCR importer image
-- Support model: field integration reference, not an officially supported Forward product integration
+- Product status: production candidate; signed release and support ownership are required before general availability
 - License: ISC
 
 The current `v2.0.0` release-candidate source adds check-health polling, security correlation, authenticated package
@@ -159,12 +159,12 @@ For an unsigned trial or development install, use a `my.*` app ID:
 ```bash
 npm run dynatrace:deploy -- \
   --environment-url https://your-environment-id.apps.dynatrace.com/ \
-  --app-id my.forwardnetworks.dynatrace.field.integration \
+  --app-id my.forward \
   --no-open \
   --non-interactive
 ```
 
-For an enterprise install with the default `com.forwardnetworks.dynatrace.field.integration` app ID, use
+For an enterprise install with the default `com.forward.dynatrace` app ID, use
 `--sign-archive` and provide Dynatrace App Toolkit signing OAuth credentials. Full install details are in
 [docs/install.md](docs/install.md).
 
@@ -288,7 +288,7 @@ These checked, credential-free captures use synthetic rehearsal records and plac
 standalone evidence view labels that provenance; live Grail and customer-owned Forward readback remain the production
 proof sources.
 
-![Forward Integration for Dynatrace overview](docs/assets/screenshots/01-overview.jpg)
+![Forward for Dynatrace overview](docs/assets/screenshots/01-overview.jpg)
 
 ![Forward read-only NQE preview](docs/assets/screenshots/02-export-package-readiness.jpg)
 

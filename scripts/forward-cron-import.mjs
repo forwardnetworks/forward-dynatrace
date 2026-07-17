@@ -11,7 +11,7 @@ const DEFAULT_LOG_DIR = "/var/log/forward-dynatrace";
 const DEFAULT_LOCK_MAX_AGE_MINUTES = 120;
 
 const usage = `
-Forward Integration for Dynatrace cron importer
+Forward for Dynatrace cron importer
 
 Usage:
   node scripts/forward-cron-import.mjs \\

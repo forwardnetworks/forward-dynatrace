@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/forward-network-evidence-event.schema.json",
-  "title": "Forward Dynatrace network evidence event",
+  "title": "Forward for Dynatrace network evidence event",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "timestamp", "eventType", "severity", "title", "properties"],

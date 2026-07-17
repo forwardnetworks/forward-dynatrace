@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://forwardnetworks.com/schemas/forward-check-health-transitions.schema.json",
-  "title": "Forward Dynatrace check-health transition batch",
+  "title": "Forward for Dynatrace check-health transition batch",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "generatedAt", "eventType", "networkId", "snapshotId", "provenance", "counts", "transitions"],
