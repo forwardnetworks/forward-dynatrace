@@ -1,6 +1,6 @@
 export type ForwardImportState =
   | "valid"
-  | "dry-run"
+  | "staged"
   | "applied"
   | "reconciled"
   | "needs-review"
@@ -29,6 +29,16 @@ export interface ForwardIngestStatusArtifact {
     created?: number;
     updated?: number;
     deactivated?: number;
+  };
+  mutationFailure?: {
+    phase?: string;
+    statusCode?: number | null;
+    affectedCount?: number;
+    recoveryRequired?: boolean;
+  } | null;
+  postApplyVerification?: {
+    state?: "not-run" | "pending" | "verified" | "failed" | "unavailable";
+    planned?: number;
   };
   counts?: {
     create?: number;

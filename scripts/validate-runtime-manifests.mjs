@@ -9,9 +9,6 @@ const failures = [];
 const readText = (relativePath) => readFile(path.join(root, relativePath), "utf8");
 const fail = (message) => failures.push(message);
 
-const verifiedImporterImage =
-  "ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:7f884e44a2b54303d7da708bc805f0e16c1d19b192f95a90e94a63aad66bb7c6";
-
 const cronJob = await readText("deploy/kubernetes/forward-dynatrace-connector-cronjob.yaml");
 const checkHealthCronJob = await readText(
   "deploy/kubernetes/forward-dynatrace-check-health-cronjob.yaml",
@@ -61,9 +58,8 @@ const requiredCronJobSnippets = [
   "runAsNonRoot: true",
   "readOnlyRootFilesystem: true",
   "allowPrivilegeEscalation: false",
-  "secretKeyRef:",
-  "forward-user",
-  "forward-password",
+  "forward-authorization",
+  "defaultMode: 0440",
   "handoff-read-token",
   "forward-connector.config.json",
   "/etc/forward-dynatrace-secrets",
@@ -107,7 +103,7 @@ for (const snippet of [
     fail(`Handoff systemd service missing ${snippet}.`);
   }
 }
-if (!checkHealthCronJob.includes("<forward-dynatrace-importer-image@sha256:digest>")) {
+if (!checkHealthCronJob.includes("ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:<verified-64-hex-digest>")) {
   fail("Kubernetes check-health CronJob must require a digest-pinned importer image.");
 }
 for (const snippet of [
@@ -148,8 +144,8 @@ for (const snippet of [
   }
 }
 
-if (!cronJob.includes(verifiedImporterImage)) {
-  fail("Kubernetes CronJob must default to the verified digest-pinned GHCR importer image.");
+if (!cronJob.includes("ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:<verified-64-hex-digest>")) {
+  fail("Kubernetes CronJob must require an operator-supplied verified image digest.");
 }
 
 for (const forbidden of [
@@ -175,14 +171,10 @@ if (!kubernetesConfigMap.includes("schemaVersion")) {
 if (!kubernetesConfigMap.includes("/var/lib/forward-dynatrace/forward-import-report.json")) {
   fail("Kubernetes config example must write reports to the mounted output directory.");
 }
-if (!/forward-password:\s*["']?<password-or-token>["']?/i.test(kubernetesSecret)) {
-  fail("Kubernetes Secret example must not contain a concrete Forward password.");
-}
 for (const snippet of [
   "kind: Secret",
   "name: forward-dynatrace-credentials",
-  'forward-user: "<user>"',
-  'forward-password: "<password-or-token>"',
+  'forward-authorization: "Basic <base64-user-colon-secret>"',
   'handoff-read-token: "<dedicated-handoff-read-token>"',
   'dynatrace-platform-token: "<platform-token>"',
 ]) {
@@ -198,7 +190,7 @@ const requiredServiceSnippets = [
   "ExecStartPost=/usr/bin/node /opt/forward-dynatrace/scripts/publish-forward-status.mjs",
   "ExecStartPost=/usr/bin/node /opt/forward-dynatrace/scripts/publish-dynatrace-status-event.mjs",
   "--token-file /etc/forward-dynatrace/dynatrace-platform.token --apply",
-  "ReadOnlyPaths=/etc/forward-dynatrace/handoff-read-token /etc/forward-dynatrace/dynatrace-platform.token",
+  "ReadOnlyPaths=/etc/forward-dynatrace/forward-authorization.header /etc/forward-dynatrace/handoff-read-token /etc/forward-dynatrace/dynatrace-platform.token",
   "NoNewPrivileges=true",
   "ProtectSystem=strict",
   "ReadWritePaths=/var/lib/forward-dynatrace /var/log/forward-dynatrace",
@@ -235,8 +227,7 @@ if (
 for (const snippet of [
   "FORWARD_BASE_URL=https://forward.example.com",
   "FORWARD_NETWORK_ID=<network-id>",
-  "FORWARD_USER=<user>",
-  "FORWARD_PASSWORD=<password-or-token>",
+  "FORWARD_AUTHORIZATION_FILE=/etc/forward-dynatrace/forward-authorization.header",
   "DYNATRACE_ENVIRONMENT_URL=https://your-environment-id.apps.dynatrace.com/",
 ]) {
   if (!checkHealthEnv.includes(snippet)) {
@@ -247,11 +238,8 @@ if (!timer.includes("OnUnitActiveSec=15min") || !timer.includes("Persistent=true
   fail("systemd timer must be persistent and run on the expected cadence.");
 }
 
-if (!envExample.includes("FORWARD_USER=<user>")) {
-  fail("systemd env example must contain a placeholder Forward user.");
-}
-if (!envExample.includes("FORWARD_PASSWORD=<password-or-token>")) {
-  fail("systemd env example must contain a placeholder Forward password.");
+if (!envExample.includes("FORWARD_AUTHORIZATION_FILE=/etc/forward-dynatrace/forward-authorization.header")) {
+  fail("systemd env example must point to a protected Forward authorization file.");
 }
 if (!envExample.includes("DYNATRACE_ENVIRONMENT_URL=https://your-environment-id.apps.dynatrace.com/")) {
   fail("systemd env example must contain the Dynatrace environment placeholder.");
@@ -285,11 +273,8 @@ for (const snippet of [
 if (cronSchedule.includes("--allow-apply")) {
   fail("cron schedule must not enable Forward apply by default.");
 }
-if (!cronEnv.includes("FORWARD_USER=<user>")) {
-  fail("cron env example must contain a placeholder Forward user.");
-}
-if (!cronEnv.includes("FORWARD_PASSWORD=<password-or-token>")) {
-  fail("cron env example must contain a placeholder Forward password.");
+if (!cronEnv.includes("FORWARD_AUTHORIZATION_FILE=/etc/forward-dynatrace/forward-authorization.header")) {
+  fail("cron env example must point to a protected Forward authorization file.");
 }
 if (cronConfig.schemaVersion !== "forward-dynatrace-connector/v1") {
   fail("cron connector config example must use the connector schema version.");
@@ -316,28 +301,25 @@ for (const snippet of [
   "services:",
   "forward-dynatrace-importer:",
   "Dockerfile.forward-importer",
-  "FORWARD_USER:",
-  "FORWARD_PASSWORD:",
+  "forward-authorization:",
   "read_only: true",
   "cap_drop:",
   "no-new-privileges:true",
   "/config/forward-connector.config.json:ro",
   "handoff-read-token:",
   "FORWARD_HANDOFF_READ_TOKEN_FILE",
+  "FORWARD_AUTHORIZATION_FILE",
   "forward-dynatrace-state:",
 ]) {
   if (!dockerCompose.includes(snippet)) {
     fail(`Docker Compose example missing ${snippet}.`);
   }
 }
-if (!dockerCompose.includes(verifiedImporterImage)) {
-  fail("Docker Compose must default to the verified digest-pinned GHCR importer image.");
+if (!dockerCompose.includes("FORWARD_DYNATRACE_IMPORTER_IMAGE:?set an immutable verified image digest")) {
+  fail("Docker Compose must require an operator-supplied verified image digest.");
 }
-if (!dockerComposeEnv.includes("FORWARD_USER=<user>")) {
-  fail("Docker Compose env example must contain a placeholder Forward user.");
-}
-if (!dockerComposeEnv.includes("FORWARD_PASSWORD=<password-or-token>")) {
-  fail("Docker Compose env example must contain a placeholder Forward password.");
+if (!dockerComposeEnv.includes("FORWARD_AUTHORIZATION_FILE=/secure/path/forward-authorization.header")) {
+  fail("Docker Compose env example must point to the protected Forward authorization file.");
 }
 if (!dockerComposeEnv.includes("FORWARD_HANDOFF_READ_TOKEN_FILE=/secure/path/handoff-read-token")) {
   fail("Docker Compose env example must point to the protected handoff read-token file.");

@@ -20,7 +20,6 @@ Usage:
     --output-dir /tmp/forward-dynatrace-live-demo
 
 Options:
-  --apply                       Apply missing Forward checks after reconciliation.
   --dynatrace-environment-url   Dynatrace Apps environment URL.
   --dynatrace-query-file        Customer-owned DQL file. Omit only for the checked replay query.
   --dynatrace-token-file        Platform Token file outside the repo.
@@ -33,7 +32,8 @@ Options:
   --help                        Show this help.
 
 Required Forward environment:
-  FORWARD_BASE_URL, FORWARD_USER, FORWARD_PASSWORD, FORWARD_NETWORK_ID
+  FORWARD_BASE_URL, FORWARD_AUTHORIZATION_FILE, FORWARD_NETWORK_ID,
+  FORWARD_DYNATRACE_SOURCE_INSTANCE_ID
 
 The conductor queries live Grail evidence, selects a concise showcase, resolves
 its endpoints in Forward, evaluates modeled paths, builds the governed package,
@@ -46,7 +46,6 @@ export const parseArgs = (argv) => {
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
     if (
-      value === "--apply" ||
       value === "--help" ||
       value === "--publish-dynatrace-status" ||
       value === "--skip-path-evidence" ||
@@ -115,13 +114,6 @@ const conductorProvenanceFromArgs = (args) => validateConductorProvenance({
   },
   queryFile: args["dynatrace-query-file"],
 });
-
-export const forwardReadOnlyAuthorization = (env) =>
-  env.FORWARD_PATH_SEARCH_AUTHORIZATION?.trim() ||
-  env.FORWARD_HOST_RESOLUTION_AUTHORIZATION?.trim() ||
-  env.FORWARD_READONLY_AUTHORIZATION?.trim() ||
-  env.FORWARD_AUTHORIZATION?.trim() ||
-  `Basic ${Buffer.from(`${env.FORWARD_USER}:${env.FORWARD_PASSWORD}`).toString("base64")}`;
 
 const positiveInteger = (value, fallback, label) => {
   const parsed = Number.parseInt(value || String(fallback), 10);
@@ -228,9 +220,9 @@ const run = (args, options = {}) =>
 const requireForwardEnvironment = () => {
   const required = [
     "FORWARD_BASE_URL",
-    "FORWARD_USER",
-    "FORWARD_PASSWORD",
+    "FORWARD_AUTHORIZATION_FILE",
     "FORWARD_NETWORK_ID",
+    "FORWARD_DYNATRACE_SOURCE_INSTANCE_ID",
   ];
   const missing = required.filter((name) => !process.env[name]?.trim());
   if (missing.length > 0) {
@@ -272,7 +264,7 @@ const main = async () => {
   const packageDir = path.join(outputDir, "forward-package");
   const reportPath = path.join(
     outputDir,
-    args.apply ? "forward-apply-report.json" : "forward-dry-run-report.json",
+    "forward-dry-run-report.json",
   );
   const statusPath = path.join(outputDir, "forward-ingest-status.json");
   const statusHandoffDir = path.join(outputDir, "dynatrace-status-handoff");
@@ -308,7 +300,7 @@ const main = async () => {
   const showcase = selectShowcaseDependencies(dependencies, showcaseLimit);
   if (showcase.length === 0) {
     const blockedSummary = buildNoShowcaseSummary({
-      applyRequested: Boolean(args.apply),
+      applyRequested: false,
       dependenciesPath,
       dependencyCount: dependencies.length,
       environmentUrl,
@@ -323,11 +315,6 @@ const main = async () => {
   }
   await writeFile(showcasePath, `${JSON.stringify(showcase, null, 2)}\n`);
 
-  const readOnlyForwardEnvironment = {
-    ...process.env,
-    FORWARD_READONLY_AUTHORIZATION: forwardReadOnlyAuthorization(process.env),
-  };
-
   await run(
     [
       "scripts/forward-resolve-hosts.mjs",
@@ -338,8 +325,9 @@ const main = async () => {
       resolvedShowcasePath,
       "--report",
       hostResolutionReportPath,
+      "--authorization-file",
+      process.env.FORWARD_AUTHORIZATION_FILE,
     ],
-    { env: readOnlyForwardEnvironment },
   );
   const hostResolution = JSON.parse(await readFile(hostResolutionReportPath, "utf8"));
   const resolvedShowcase = JSON.parse(await readFile(resolvedShowcasePath, "utf8"));
@@ -361,8 +349,9 @@ const main = async () => {
         hostResolution.target.snapshotId,
         "--output",
         pathEvidencePath,
+        "--authorization-file",
+        process.env.FORWARD_AUTHORIZATION_FILE,
       ],
-      { env: readOnlyForwardEnvironment },
     );
     pathEvidence = JSON.parse(await readFile(pathEvidencePath, "utf8"));
   }
@@ -375,6 +364,8 @@ const main = async () => {
     packageDir,
     "--sync-mode",
     "manual-import",
+    "--source-instance-id",
+    process.env.FORWARD_DYNATRACE_SOURCE_INSTANCE_ID,
   ]);
 
   await run([
@@ -387,7 +378,6 @@ const main = async () => {
     reportPath,
     "--status-artifact",
     statusPath,
-    ...(args.apply ? ["--apply"] : []),
   ]);
 
   const report = JSON.parse(await readFile(reportPath, "utf8"));
@@ -428,7 +418,7 @@ const main = async () => {
   );
   const summary = {
     status: "ok",
-    mode: args.apply ? "apply" : "dry-run",
+    mode: "dry-run",
     provenance,
     dynatrace: {
       environmentUrl,

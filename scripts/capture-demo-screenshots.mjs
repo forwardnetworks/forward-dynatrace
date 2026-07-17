@@ -68,45 +68,12 @@ const loadFunctions = async () => {
   return {
     forwardSync: forwardSync.default,
     forwardStatus: forwardStatus.default,
-    forwardNqePreview: forwardNqePreview.buildForwardNqePreview,
+    forwardNqePreview: forwardNqePreview.default,
   };
-};
-
-const fakeForwardNqeFetch = async (_url, init) => {
-  const body = JSON.parse(String(init?.body || "{}"));
-  const parameters = body.parameters || {};
-  const source = parameters.source || "source";
-  const destination = parameters.destination || "destination";
-  return new Response(
-    JSON.stringify({
-      snapshotId: "snapshot-demo",
-      totalNumItems: 2,
-      items: [
-        {
-          endpointRole: "source",
-          endpoint: source,
-          matchCount: 1,
-          status: "resolved",
-        },
-        {
-          endpointRole: "destination",
-          endpoint: destination,
-          matchCount: 1,
-          status: "resolved",
-        },
-      ],
-    }),
-    {
-      headers: { "Content-Type": "application/json" },
-      status: 200,
-    },
-  );
 };
 
 const startDemoServer = async () => {
   const functions = await loadFunctions();
-  process.env.FORWARD_NQE_ALLOWED_QUERY_IDS = demoQueryId;
-  process.env.FORWARD_NQE_READONLY_AUTHORIZATION = "Basic demo-read-only";
 
   const server = createServer(async (request, response) => {
     try {
@@ -124,11 +91,7 @@ const startDemoServer = async () => {
           return;
         }
         if (url.pathname === "/api/forward-nqe-preview") {
-          sendJson(
-            response,
-            200,
-            await functions.forwardNqePreview(payload, fakeForwardNqeFetch),
-          );
+          sendJson(response, 200, await functions.forwardNqePreview(payload));
           return;
         }
       }

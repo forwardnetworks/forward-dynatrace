@@ -4,6 +4,9 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { loadForwardAuthorization } from "../lib/forward-authorization.mjs";
+import { executeForwardNqePreview } from "./forward-nqe-executor.mjs";
+
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 
 const usage = `
@@ -32,9 +35,9 @@ Options:
   --execute                    Run the NQE request. Omit for plan-only validation.
   --output path                Write sanitized smoke report JSON.
 
-Authorization can also be supplied by FORWARD_NQE_READONLY_AUTHORIZATION or
-FORWARD_READONLY_AUTHORIZATION. This command never writes to Forward; it uses
-the app preview function and calls only POST /api/nqe when --execute is set.
+Authorization is accepted only from --authorization-file. This command never
+writes to Forward; its Forward-side executor calls only POST /api/nqe when
+--execute is set.
 `;
 
 const multiValueArgs = new Set(["allow-query-id"]);
@@ -84,14 +87,6 @@ const forbiddenApprovalTextPatterns = [
   /FORWARD_PASSWORD/i,
   /dt0[a-z0-9]{2,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{20,}/i,
 ];
-
-const readAuthorizationFile = async (filePath) => {
-  const value = (await readFile(path.resolve(filePath), "utf8")).trim();
-  if (!value) {
-    throw new Error("Authorization file is empty.");
-  }
-  return value;
-};
 
 const normalizeBaseUrl = (value) => value.replace(/\/+$/, "");
 
@@ -170,21 +165,10 @@ const parsePositiveInteger = (value, fallback) => {
   return parsed;
 };
 
-const setQueryIdAllowlist = (args) => {
-  const allowed = new Set([
-    ...(process.env.FORWARD_NQE_ALLOWED_QUERY_IDS || "")
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean),
-    ...((args["allow-query-id"] || []).map((value) => value.trim()).filter(Boolean)),
-  ]);
-  if (args["query-id"]) {
-    allowed.add(args["query-id"].trim());
-  }
-  if (allowed.size > 0) {
-    process.env.FORWARD_NQE_ALLOWED_QUERY_IDS = [...allowed].join(",");
-  }
-};
+const queryIdAllowlist = (args) =>
+  [...new Set(
+    (args["allow-query-id"] || []).map((value) => value.trim()).filter(Boolean),
+  )];
 
 const writeJson = async (filePath, value) => {
   const outputPath = path.resolve(filePath);
@@ -208,8 +192,6 @@ const main = async () => {
     templateId: args["template-id"] || "endpoint-inventory-smoke",
     ...(args["query-id"] ? { queryId: args["query-id"] } : {}),
     maxRows: parsePositiveInteger(args["max-rows"], 1),
-    execute: Boolean(args.execute),
-    includeResultSample: Boolean(args["include-result-sample"]),
   };
   const approval = args["approval-file"]
     ? validateLiveSmokeApproval(await readJsonFile(args["approval-file"]), request)
@@ -217,17 +199,22 @@ const main = async () => {
   if (args.execute && !approval) {
     throw new Error("--approval-file is required when --execute is supplied.");
   }
-  if (args["authorization-file"] && !process.env.FORWARD_NQE_READONLY_AUTHORIZATION) {
-    process.env.FORWARD_NQE_READONLY_AUTHORIZATION = await readAuthorizationFile(
-      args["authorization-file"],
-    );
+  if (args.execute && !args["authorization-file"]) {
+    throw new Error("--authorization-file is required when --execute is supplied.");
   }
-  setQueryIdAllowlist(args);
 
   const moduleUrl = pathToFileURL(path.join(root, "api/forward-nqe-preview.function.ts")).href;
   const { buildForwardNqePreview } = await import(moduleUrl);
-
-  const result = await buildForwardNqePreview(request);
+  const planned = await buildForwardNqePreview(request);
+  const result = args.execute
+    ? await executeForwardNqePreview({
+        request,
+        planned,
+        authorization: await loadForwardAuthorization(args["authorization-file"]),
+        allowedQueryIds: queryIdAllowlist(args),
+        includeResultSample: Boolean(args["include-result-sample"]),
+      })
+    : planned;
 
   const report = {
     schemaVersion: "forward-dynatrace-nqe-live-smoke/v1",

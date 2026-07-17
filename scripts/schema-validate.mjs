@@ -19,6 +19,7 @@ const queryId = "FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const schemaPaths = {
   connectorConfig: "schemas/connector-config.schema.json",
   approval: "schemas/forward-approval.schema.json",
+  importPlan: "schemas/forward-import-plan.schema.json",
   manifest: "schemas/forward-package-manifest.schema.json",
   intentChecks: "schemas/forward-intent-checks.schema.json",
   ingestStatus: "schemas/forward-ingest-status.schema.json",
@@ -43,6 +44,7 @@ Usage:
 Options:
   --approval path          Validate an approval artifact.
   --connector-config path  Validate a connector config artifact.
+  --import-plan path       Validate an immutable Forward import plan.
   --package-dir path       Validate forward-dynatrace-manifest.json and forward-intent-checks.json.
   --status path            Validate a Forward ingest status artifact.
   --status-event path      Validate a Dynatrace status event artifact.
@@ -75,6 +77,7 @@ const parseArgs = (argv) => {
     if (
       value === "--approval" ||
       value === "--connector-config" ||
+      value === "--import-plan" ||
       value === "--package-dir" ||
       value === "--status" ||
       value === "--status-event" ||
@@ -187,6 +190,8 @@ const buildDemoArtifacts = async () => {
     "shared/demo-dependencies.json",
     "--output-dir",
     outputDir,
+    "--source-instance-id",
+    "dt-schema-validation",
     "--nqe-query-id",
     queryId,
     "--nqe-diff-query-id",
@@ -227,6 +232,7 @@ const main = async () => {
   const hasExplicitArtifacts = Boolean(
     args.approval ||
       args["connector-config"] ||
+      args["import-plan"] ||
       args["package-dir"] ||
       args.status ||
       args["status-event"] ||
@@ -301,6 +307,14 @@ const main = async () => {
   }
   if (args.approval) {
     validate(validators.approval, args.approval, await readJson(args.approval), results);
+  }
+  if (args["import-plan"]) {
+    validate(
+      validators.importPlan,
+      args["import-plan"],
+      await readJson(args["import-plan"]),
+      results,
+    );
   }
   if (args["package-dir"]) {
     await validatePackageDir(validators, args["package-dir"], results);

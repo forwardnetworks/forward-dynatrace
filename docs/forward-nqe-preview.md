@@ -1,9 +1,10 @@
 # Read-Only NQE Preview
 
-The `forward-nqe-preview` app function adds the optional Phase 3 workflow from the execution roadmap: Dynatrace can
-ask Forward for read-only network evidence before exporting persistent intent-check packages.
+The `forward-nqe-preview` app function adds the optional preflight workflow from the execution roadmap: Dynatrace can
+plan a read-only network-evidence request before exporting persistent intent-check packages.
 
-This path does not write to Forward. It calls only `POST /api/nqe`, and the UI does not collect Forward credentials.
+The Dynatrace app makes no Forward network call and does not collect Forward credentials. A separate Forward-controlled
+runtime may execute the planned request and return only sanitized aggregate evidence.
 
 ## Modes
 
@@ -16,24 +17,27 @@ Plan mode is the default:
 - includes dependency parameters when an approved optional query ID is used
 - performs no network call
 
-Execute mode is optional:
+Execute mode exists only in the standalone `forward:nqe-live-smoke` Forward-side helper. The Dynatrace app function
+rejects it. Forward-side execution:
 
-- requires `execute: true`
+- requires the explicit `--execute` operator flag
 - requires Forward URL metadata and a network ID
 - requires a runtime-supplied read-only authorization header
 - requires query IDs to be allowlisted when `queryId` is used
 - returns sanitized aggregate evidence: row count, returned count, columns, and optionally a small row sample
 
-## Runtime Settings
+## Forward-Side Runtime Settings
 
-Use runtime secret injection for execution:
+Mount one protected file containing the complete read-only `Authorization` header. Pass the file explicitly to the
+Forward-side helper:
 
 ```bash
-FORWARD_NQE_READONLY_AUTHORIZATION=<read-only-forward-authorization-header>
-FORWARD_NQE_ALLOWED_QUERY_IDS=FQ_<forward-owned-query-id>,FQ_<another-forward-owned-query-id>
+--authorization-file /secure/path/read-only-forward-auth-header
+--allow-query-id FQ_<forward-owned-query-id>
 ```
 
-Do not store Forward credentials in Dynatrace app settings, browser state, package artifacts, screenshots, or committed
+The file must be a regular file inaccessible to group and other users. The helper does not accept authorization through
+environment variables, command-line values, app settings, browser state, package artifacts, screenshots, or committed
 config files.
 
 ## Templates
@@ -91,7 +95,6 @@ Forward-resolvable `HostFilter`, `SubnetLocationFilter`, or `DeviceFilter` value
   "forwardNetworkId": "123",
   "templateId": "approved-endpoint-resolution",
   "queryId": "FQ_<forward-owned-query-id>",
-  "execute": false,
   "dependency": {
     "appName": "Checkout",
     "environment": "prod",
@@ -112,8 +115,8 @@ Forward-resolvable `HostFilter`, `SubnetLocationFilter`, or `DeviceFilter` value
 - Do not block package export when NQE preview fails.
 - Do not let Dynatrace commit NQE Library content.
 - Keep persistent Forward writes in the manual importer or Forward-side connector.
-- Use a Forward-side proxy instead of Dynatrace-hosted execution if customer policy requires Forward credentials to stay
-  entirely outside Dynatrace.
+- Execute the approved request from a Forward-controlled runtime; never inject Forward credentials into the Dynatrace
+  app runtime.
 
 ## Validation
 
@@ -123,8 +126,8 @@ Run:
 npm run forward:nqe-preview:test
 ```
 
-The test covers target-free credential-free plan mode, target and authorization fail-closed execution, query-ID
-allowlisting, and the read-only `POST /api/nqe` execution path.
+The test covers target-free credential-free plan mode, the Dynatrace execute-mode block, target and authorization
+fail-closed standalone execution, query-ID allowlisting, and the read-only `POST /api/nqe` Forward-side path.
 
 For a customer-approved live credential smoke, run plan mode first:
 
@@ -135,7 +138,7 @@ npm run forward:nqe-live-smoke -- \
   --output /tmp/forward-nqe-live-smoke-plan.json
 ```
 
-Then execute only with a read-only Forward authorization header supplied by secret file or runtime secret:
+Then execute only with a read-only Forward authorization header supplied by the protected file:
 
 ```bash
 npm run forward:nqe-live-smoke -- \
@@ -147,9 +150,9 @@ npm run forward:nqe-live-smoke -- \
   --output /tmp/forward-nqe-live-smoke.json
 ```
 
-The live smoke calls only `POST /api/nqe`, uses the `endpoint-inventory-smoke` template by default, and emits a
-sanitized JSON report. Query-ID templates remain optional and require `--query-id` plus `--allow-query-id` or
-`FORWARD_NQE_ALLOWED_QUERY_IDS`.
+The Forward-side live smoke calls only `POST /api/nqe`, uses the `endpoint-inventory-smoke` template by default, and
+emits a sanitized JSON report. Query-ID templates remain optional and require both `--query-id` and the matching
+`--allow-query-id`.
 
 The approval file must use `forward-dynatrace-nqe-preview-approval/v1`; see
 `config/forward-nqe-live-smoke.approval.example.json`. Execution refuses to run without approval, refuses expired or

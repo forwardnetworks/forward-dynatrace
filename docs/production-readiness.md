@@ -19,7 +19,7 @@ the integration as generally available.
 
 - Require source, destination, protocol, port, service entity ID, app, and environment.
 - Do not create checks for `needs-map` rows.
-- Reject packages with missing or duplicate `dynatrace-key:*` tags.
+- Reject packages with missing, malformed, incomplete, or duplicate ownership tuples and source keys.
 - Reject packages with duplicate generated check names.
 - Reject packages when manifest checksum does not match the intent-check payload.
 - Reject unsupported check types before contacting Forward.
@@ -29,7 +29,7 @@ the integration as generally available.
 ## Forward-Side Write Safety
 
 - Read existing checks before writes.
-- Dedupe by exact check name and `dynatrace-key:*` tag.
+- Reconcile only by complete ownership tuple and source key; reject name collisions.
 - Fingerprint generated fields so result/status/timestamp fields do not cause false drift.
 - Create missing checks only with `POST /api/snapshots/{snapshotId}/checks?bulk`.
 - Chunk large `NewNetworkCheck[]` imports and report per-batch status.
@@ -78,7 +78,7 @@ the integration as generally available.
 - Unit test `needs-map` rejection.
 - Unit test intent check JSON shape.
 - Unit test package validation failures before Forward API calls.
-- Unit test importer dedupe by name and `dynatrace-key:*` tag.
+- Unit test tuple-scoped reconciliation, name collision rejection, and no implicit adoption.
 - Unit test importer reconciliation for create, unchanged, changed, and stale cases.
 - Integration test against a non-production Forward network.
 - Dry-run comparison: same input twice should produce identical payloads.

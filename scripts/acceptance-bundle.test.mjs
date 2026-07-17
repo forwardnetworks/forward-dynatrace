@@ -19,6 +19,8 @@ const runBundle = async (outputDir) =>
         "shared/demo-dependencies.json",
         "--output-dir",
         outputDir,
+        "--source-instance-id",
+        "dt-acceptance-test",
         "--sync-mode",
         "data-connector",
         "--nqe-query-id",

@@ -1,6 +1,6 @@
 type ForwardImportState =
   | "valid"
-  | "dry-run"
+  | "staged"
   | "applied"
   | "reconciled"
   | "needs-review"
@@ -26,6 +26,16 @@ interface ForwardIngestStatusArtifact {
     created?: number;
     updated?: number;
     deactivated?: number;
+  };
+  mutationFailure?: {
+    phase?: string;
+    statusCode?: number | null;
+    affectedCount?: number;
+    recoveryRequired?: boolean;
+  } | null;
+  postApplyVerification?: {
+    state?: "not-run" | "pending" | "verified" | "failed" | "unavailable";
+    planned?: number;
   };
   plannedChecks?: number;
   plannedNqeChecks?: number;
@@ -111,15 +121,18 @@ export default async function (payload?: ForwardStatusRequest): Promise<ForwardS
   }
 
   const state = artifact.importState || "failed";
+  const failed = state === "failed" || Boolean(artifact.mutationFailure);
   const needsReview = state === "needs-review" || Boolean(
     (artifact.counts?.changed ?? 0) > 0 || (artifact.counts?.stale ?? 0) > 0,
   );
 
   return {
     status: "ready",
-    summary: needsReview
-      ? "Forward-side ingest completed with reviewable drift."
-      : "Forward-side ingest status is ready for Dynatrace display.",
+    summary: failed
+      ? "Forward-side apply stopped and requires reconciliation before restaging."
+      : needsReview
+        ? "Forward-side ingest completed with reviewable drift."
+        : "Forward-side ingest status is ready for Dynatrace display.",
     rows: [
       { label: "Import state", value: state },
       { label: "Mode", value: artifact.mode || "unknown" },
@@ -135,10 +148,27 @@ export default async function (payload?: ForwardStatusRequest): Promise<ForwardS
       { label: "Stale", value: countValue(artifact, "stale") },
       { label: "Updated", value: String(artifact.mutationCounts?.updated ?? 0) },
       { label: "Deactivated", value: String(artifact.mutationCounts?.deactivated ?? 0) },
+      {
+        label: "Apply verification",
+        value: artifact.postApplyVerification?.state || "not-run",
+      },
+      { label: "Failure phase", value: artifact.mutationFailure?.phase || "none" },
+      {
+        label: "Failure status",
+        value: artifact.mutationFailure?.statusCode
+          ? String(artifact.mutationFailure.statusCode)
+          : "none",
+      },
       { label: "Signature", value: artifact.packageSignature?.status || "not-provided" },
       { label: "Network", value: artifact.target?.networkId || "unknown" },
     ],
-    nextSteps: needsReview
+    nextSteps: failed
+      ? [
+          "Reconcile the target snapshot before attempting another write.",
+          "Stage and approve a new immutable import plan after reconciliation.",
+          "Retain the private importer report as the mutation audit record.",
+        ]
+      : needsReview
       ? [
           "Review changed and stale Dynatrace-managed checks in Forward.",
           "Keep update and retirement actions under Forward-side policy.",

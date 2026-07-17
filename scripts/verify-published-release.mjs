@@ -21,8 +21,8 @@ Verify a published Forward for Dynatrace release
 
 Usage:
   npm run release:published:verify -- \\
-    --release-name v2.0.0 \\
-    --output-dir /secure/evidence/forward-dynatrace-v2.0.0
+    --release-name v1.1.0 \\
+    --output-dir /secure/evidence/forward-dynatrace-v1.1.0
 
 Options:
   --release-name value  Exact published tag to verify.

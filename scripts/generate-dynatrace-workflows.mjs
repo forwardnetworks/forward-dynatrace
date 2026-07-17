@@ -33,11 +33,14 @@ Usage:
   npm run dynatrace:workflow:generate -- \\
     --schedule-query /secure/queries/customer-dependencies.dql \\
     --problem-query /secure/queries/customer-problem-dependencies.dql \\
+    --source-instance-id dt-env-opaque-id \\
     --output-dir /secure/generated-workflows
 
 Options:
   --schedule-query path  Customer-owned DQL for scheduled and on-demand dependency export.
   --problem-query path   Customer-owned DQL bound to the triggering event with event().
+  --source-instance-id id
+                         Stable opaque Dynatrace environment/source identifier.
   --output-dir path      Destination for three workflow templates and a checksum manifest.
   --help                 Show help.
 
@@ -64,7 +67,7 @@ const parseArgs = (argv) => {
       args.help = true;
       continue;
     }
-    if (!new Set(["--schedule-query", "--problem-query", "--output-dir"]).has(value)) {
+    if (!new Set(["--schedule-query", "--problem-query", "--source-instance-id", "--output-dir"]).has(value)) {
       throw new Error(`Unsupported option: ${value}`);
     }
     const next = argv[index + 1];
@@ -94,14 +97,23 @@ export const validateWorkflowQuery = (query, { problem = false } = {}) => {
   return text;
 };
 
-const requestExpression = (syncMode) =>
-  `{{ {"syncMode": "${syncMode}", "dependencies": result("query_dependencies")["records"]} | to_json }}`;
+const normalizedSourceInstanceId = (value) => {
+  const normalized = requiredString(value, "--source-instance-id", 128).toLowerCase();
+  if (!/^[a-z0-9][a-z0-9._:-]{2,127}$/u.test(normalized)) {
+    throw new Error("--source-instance-id must be a publish-safe opaque identifier.");
+  }
+  return normalized;
+};
+
+const requestExpression = (syncMode, sourceInstanceId) =>
+  `{{ {"sourceInstanceId": "${sourceInstanceId}", "syncMode": "${syncMode}", "dependencies": result("query_dependencies")["records"]} | to_json }}`;
 
 const workflowTemplate = ({
   title,
   description,
   query,
   syncMode,
+  sourceInstanceId,
   appId,
   appVersion,
   trigger,
@@ -137,7 +149,7 @@ const workflowTemplate = ({
         action: `${appId}:${ACTION_NAME}`,
         input: {
           connectionId: "",
-          request: requestExpression(syncMode),
+          request: requestExpression(syncMode, sourceInstanceId),
         },
         position: { x: 0, y: 2 },
         predecessors: ["query_dependencies"],
@@ -147,17 +159,24 @@ const workflowTemplate = ({
   },
 });
 
-export const buildWorkflowTemplates = ({ appConfig, scheduleQuery, problemQuery }) => {
+export const buildWorkflowTemplates = ({
+  appConfig,
+  scheduleQuery,
+  problemQuery,
+  sourceInstanceId: requestedSourceInstanceId,
+}) => {
   const appId = requiredString(appConfig?.app?.id, "app.config.json app.id", 255);
   const appVersion = requiredString(appConfig?.app?.version, "app.config.json app.version", 64);
   const scheduleDql = validateWorkflowQuery(scheduleQuery);
   const problemDql = validateWorkflowQuery(problemQuery, { problem: true });
+  const sourceInstanceId = normalizedSourceInstanceId(requestedSourceInstanceId);
   return {
     "forward-package-on-demand.template.json": workflowTemplate({
       title: "Forward dependency package - on demand",
       description: "Query reviewed customer dependency evidence and publish a Forward intent package on demand.",
       query: scheduleDql,
       syncMode: "manual-import",
+      sourceInstanceId,
       appId,
       appVersion,
     }),
@@ -166,6 +185,7 @@ export const buildWorkflowTemplates = ({ appConfig, scheduleQuery, problemQuery 
       description: "Query reviewed customer dependency evidence every 15 minutes and publish a Forward intent package.",
       query: scheduleDql,
       syncMode: "data-connector",
+      sourceInstanceId,
       appId,
       appVersion,
       trigger: { schedule: { trigger: { type: "interval", intervalMinutes: 15 } } },
@@ -175,6 +195,7 @@ export const buildWorkflowTemplates = ({ appConfig, scheduleQuery, problemQuery 
       description: "Resolve the triggering Dynatrace problem to reviewed dependencies and publish a bounded package.",
       query: problemDql,
       syncMode: "data-connector",
+      sourceInstanceId,
       appId,
       appVersion,
       trigger: {
@@ -200,13 +221,23 @@ export const buildWorkflowTemplates = ({ appConfig, scheduleQuery, problemQuery 
   };
 };
 
-export const generateWorkflowTemplates = async ({ scheduleQueryPath, problemQueryPath, outputDir }) => {
+export const generateWorkflowTemplates = async ({
+  scheduleQueryPath,
+  problemQueryPath,
+  sourceInstanceId,
+  outputDir,
+}) => {
   const [appConfig, scheduleQuery, problemQuery] = await Promise.all([
     readFile(path.join(root, "app.config.json"), "utf8").then(JSON.parse),
     readFile(path.resolve(scheduleQueryPath), "utf8"),
     readFile(path.resolve(problemQueryPath), "utf8"),
   ]);
-  const templates = buildWorkflowTemplates({ appConfig, scheduleQuery, problemQuery });
+  const templates = buildWorkflowTemplates({
+    appConfig,
+    scheduleQuery,
+    problemQuery,
+    sourceInstanceId,
+  });
   const destination = path.resolve(outputDir);
   await mkdir(destination, { recursive: true, mode: 0o700 });
   const artifacts = [];
@@ -239,6 +270,7 @@ export const run = async (argv = process.argv.slice(2)) => {
   const manifest = await generateWorkflowTemplates({
     scheduleQueryPath: requiredString(args["schedule-query"], "--schedule-query"),
     problemQueryPath: requiredString(args["problem-query"], "--problem-query"),
+    sourceInstanceId: normalizedSourceInstanceId(args["source-instance-id"]),
     outputDir: requiredString(args["output-dir"], "--output-dir"),
   });
   process.stdout.write(canonicalJson(manifest));

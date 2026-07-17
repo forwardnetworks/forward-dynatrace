@@ -4,6 +4,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { loadForwardAuthorization } from "../lib/forward-authorization.mjs";
+
 const DEFAULT_MAX_RETRIES = 2;
 const TRANSIENT_STATUS_CODES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
 const FORWARD_HOSTS_ENDPOINT = "GET /api/networks/{networkId}/hosts/{hostSpecifier}";
@@ -35,9 +37,8 @@ Options:
   --output path                Write resolved dependency candidates JSON.
   --report path                Write host-resolution report JSON.
 
-Authorization can also be supplied by FORWARD_HOST_RESOLUTION_AUTHORIZATION,
-FORWARD_READONLY_AUTHORIZATION, or FORWARD_AUTHORIZATION. This command is read-only:
-it calls latestProcessed when needed and GET /api/networks/{networkId}/hosts/{hostSpecifier}.
+Authorization is accepted only from --authorization-file. This command is read-only: it
+calls latestProcessed when needed and GET /api/networks/{networkId}/hosts/{hostSpecifier}.
 `;
 
 const parseArgs = (argv) => {
@@ -113,25 +114,6 @@ const parsePositiveInteger = (value, fallback, label) => {
 
 const readJson = async (filePath) =>
   JSON.parse(await readFile(path.resolve(filePath), "utf8"));
-
-const readAuthorizationFile = async (filePath) => {
-  const value = (await readFile(path.resolve(filePath), "utf8")).trim();
-  if (!value) {
-    throw new Error("Authorization file is empty.");
-  }
-  return value;
-};
-
-const runtimeAuthorization = async (args) => {
-  if (args["authorization-file"]) {
-    return readAuthorizationFile(args["authorization-file"]);
-  }
-  const value =
-    process.env.FORWARD_HOST_RESOLUTION_AUTHORIZATION ||
-    process.env.FORWARD_READONLY_AUTHORIZATION ||
-    process.env.FORWARD_AUTHORIZATION;
-  return value?.trim() || "";
-};
 
 const writeJson = async (filePath, value) => {
   const outputPath = path.resolve(filePath);
@@ -548,6 +530,9 @@ const main = async () => {
     if (!forwardNetworkId) {
       throw new Error("Missing --forward-network-id or FORWARD_NETWORK_ID for --execute.");
     }
+    if (!args["authorization-file"]) {
+      throw new Error("--authorization-file is required for --execute.");
+    }
   }
 
   const result = await resolveDependencyCandidates({
@@ -555,7 +540,9 @@ const main = async () => {
     forwardBaseUrl,
     forwardNetworkId,
     snapshotId,
-    authorization: await runtimeAuthorization(args),
+    authorization: execute
+      ? await loadForwardAuthorization(args["authorization-file"])
+      : "",
     execute,
     maxRetries: parsePositiveInteger(args["max-retries"], DEFAULT_MAX_RETRIES, "--max-retries"),
   });

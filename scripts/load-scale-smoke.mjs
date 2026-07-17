@@ -2,16 +2,20 @@
 
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { generateKeyPairSync, sign } from "node:crypto";
 import { createServer } from "node:http";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { packageSigningPayload } from "./forward-import-package.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const importerPath = path.join(root, "scripts/forward-import-package.mjs");
 const dependencyRows = 2500;
 const batchSize = 400;
+const sourceInstanceId = "dt-load-scale-smoke";
 
 const run = async (args, env = {}) =>
   new Promise((resolve, reject) => {
@@ -153,6 +157,11 @@ const main = async () => {
   const packageDir = path.join(workdir, "package");
   const checksPath = path.join(packageDir, "forward-intent-checks.json");
   const manifestPath = path.join(packageDir, "forward-dynatrace-manifest.json");
+  const publicKeyPath = path.join(workdir, "forward-dynatrace-public.pem");
+  const signaturePath = path.join(workdir, "forward-dynatrace-package.sig");
+  const authorizationPath = path.join(workdir, "forward-authorization.header");
+  const planPath = path.join(workdir, "forward-import-plan.json");
+  const approvalPath = path.join(workdir, "forward-import-approval.json");
 
   await writeFile(rowsPath, JSON.stringify(makeRows(dependencyRows), null, 2) + "\n");
 
@@ -189,6 +198,8 @@ const main = async () => {
     packageDir,
     "--sync-mode",
     "data-connector",
+    "--source-instance-id",
+    sourceInstanceId,
   ]);
 
   assert.equal(buildResult.dependencies, dependencyRows);
@@ -203,6 +214,28 @@ const main = async () => {
   assert.equal(manifest.dependencyRows.rejectedRowCount, rejectedDependencies);
   assert.equal(manifest.intentChecks.count, exportableDependencies.length);
   assert.equal(checks.length, exportableDependencies.length);
+  const checksText = await readFile(checksPath, "utf8");
+  const manifestText = await readFile(manifestPath, "utf8");
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  await writeFile(
+    publicKeyPath,
+    publicKey.export({ format: "pem", type: "spki" }),
+    { mode: 0o600 },
+  );
+  await writeFile(
+    signaturePath,
+    `${sign(
+      null,
+      Buffer.from(packageSigningPayload({ checksText, manifestText }), "utf8"),
+      privateKey,
+    ).toString("base64")}\n`,
+    { mode: 0o600 },
+  );
+  await writeFile(
+    authorizationPath,
+    `Basic ${Buffer.from("scale-user:scale-password").toString("base64")}\n`,
+    { mode: 0o600 },
+  );
 
   const validation = await runJson([
     importerPath,
@@ -225,18 +258,70 @@ const main = async () => {
   const { server, port } = await startFakeForward(state);
   const env = {
     FORWARD_BASE_URL: `http://127.0.0.1:${port}`,
-    FORWARD_USER: "scale-user",
-    FORWARD_PASSWORD: "scale-password",
+    FORWARD_AUTHORIZATION_FILE: authorizationPath,
     FORWARD_NETWORK_ID: "scale-network",
   };
 
   try {
+    const stage = await runJson([
+      importerPath,
+      "--checks",
+      checksPath,
+      "--manifest",
+      manifestPath,
+      "--require-signature",
+      "--signature",
+      signaturePath,
+      "--public-key",
+      publicKeyPath,
+      "--stage-plan",
+      planPath,
+      "--batch-size",
+      String(batchSize),
+    ], env);
+    assert.equal(stage.mode, "stage");
+    const plan = await readJson(planPath);
+    const approvedAt = new Date();
+    await writeFile(
+      approvalPath,
+      `${JSON.stringify(
+        {
+          schemaVersion: "forward-dynatrace-import-approval/v1",
+          planId: plan.planId,
+          planSha256: plan.planSha256,
+          packageId: plan.package.packageId,
+          networkId: plan.target.networkId,
+          snapshotId: plan.target.snapshotId,
+          approvedAt: approvedAt.toISOString(),
+          expiresAt: new Date(approvedAt.getTime() + 60 * 60 * 1000).toISOString(),
+          approvedBy: "load-scale-smoke",
+          reason: "approve the exact immutable scale-smoke import plan",
+          actions: {
+            createMissing: true,
+            updateSourceKeys: [],
+            retireSourceKeys: [],
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      { mode: 0o600 },
+    );
     const apply = await runJson([
       importerPath,
       "--checks",
       checksPath,
       "--manifest",
       manifestPath,
+      "--require-signature",
+      "--signature",
+      signaturePath,
+      "--public-key",
+      publicKeyPath,
+      "--apply-plan",
+      planPath,
+      "--require-approval-file",
+      approvalPath,
       "--apply",
       "--batch-size",
       String(batchSize),

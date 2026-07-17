@@ -128,14 +128,38 @@ export const evaluateRuntimeSlo = (
 
   const unresolvedChanged = report.unresolvedCounts?.changed ?? report.counts?.changed ?? 0;
   const unresolvedStale = report.unresolvedCounts?.stale ?? report.counts?.stale ?? 0;
+  const collisions = report.counts?.collision ?? 0;
   numeric(unresolvedChanged, "unresolved changed count", errors);
   numeric(unresolvedStale, "unresolved stale count", errors);
+  numeric(collisions, "collision count", errors);
+  if (collisions > 0) {
+    errors.push(`managed identity collisions must be zero; found ${collisions}.`);
+  } else {
+    checks.push("no-managed-identity-collisions");
+  }
   if (!allowDrift && (unresolvedChanged > 0 || unresolvedStale > 0)) {
     errors.push(
       `unresolved drift exceeds SLO: changed=${unresolvedChanged}, stale=${unresolvedStale}.`,
     );
   } else {
     checks.push(allowDrift ? "drift-allowed" : "no-unresolved-drift");
+  }
+
+  if (report.mutationFailure) {
+    errors.push(
+      `mutation failure requires reconciliation: phase=${report.mutationFailure.phase || "unknown"}.`,
+    );
+  } else {
+    checks.push("no-mutation-failure");
+  }
+
+  if (
+    report.mode === "apply" &&
+    report.postApplyVerification?.state !== "verified"
+  ) {
+    errors.push("apply requires a verified post-apply reconciliation.");
+  } else if (report.mode === "apply") {
+    checks.push("post-apply-reconciliation-verified");
   }
 
   if (requireSignature && report.packageSignature?.status !== "verified") {

@@ -44,10 +44,10 @@ test("rejects inconsistent package, lockfile, and app versions", async (t) => {
   const fixtureRoot = await mkdtemp(path.join(tmpdir(), "forward-dynatrace-release-ref-"));
   t.after(() => rm(fixtureRoot, { recursive: true, force: true }));
   await Promise.all([
-    writeFile(path.join(fixtureRoot, "package.json"), JSON.stringify({ version: "2.0.0" })),
+    writeFile(path.join(fixtureRoot, "package.json"), JSON.stringify({ version: "1.1.0" })),
     writeFile(
       path.join(fixtureRoot, "package-lock.json"),
-      JSON.stringify({ version: "2.0.0", packages: { "": { version: "2.0.0" } } }),
+      JSON.stringify({ version: "1.1.0", packages: { "": { version: "1.1.0" } } }),
     ),
     writeFile(
       path.join(fixtureRoot, "app.config.json"),
@@ -55,7 +55,7 @@ test("rejects inconsistent package, lockfile, and app versions", async (t) => {
     ),
   ]);
 
-  const result = runValidator(["--release-name", "v2.0.0", "--root", fixtureRoot]);
+  const result = runValidator(["--release-name", "v1.1.0", "--root", fixtureRoot]);
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Release version mismatch/u);

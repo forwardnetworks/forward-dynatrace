@@ -117,11 +117,7 @@ test("CLI captures importer failure in a protected log and releases its lock", a
       {
         cwd: process.cwd(),
         encoding: "utf8",
-        env: {
-          ...process.env,
-          FORWARD_USER: "test-user",
-          FORWARD_PASSWORD: "test-password",
-        },
+        env: process.env,
       },
     );
     assert.equal(result.status, 1);

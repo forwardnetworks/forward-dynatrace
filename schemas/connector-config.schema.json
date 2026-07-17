@@ -8,6 +8,7 @@
   "properties": {
     "schemaVersion": { "const": "forward-dynatrace-connector/v1" },
     "apply": { "type": "boolean" },
+    "applyPlanPath": { "$ref": "#/definitions/nonEmptyString" },
     "applyUpdates": { "type": "boolean" },
     "approvalFile": { "$ref": "#/definitions/nonEmptyString" },
     "batchSize": { "type": "integer", "minimum": 1 },
@@ -17,9 +18,11 @@
     "deactivateStale": { "type": "boolean" },
     "failOnDrift": { "type": "boolean" },
     "forwardBaseUrl": { "$ref": "#/definitions/httpsUrl" },
+    "forwardAuthorizationFile": { "$ref": "#/definitions/nonEmptyString" },
     "forwardNetworkId": { "$ref": "#/definitions/nonEmptyString" },
     "manifest": { "$ref": "#/definitions/nonEmptyString" },
     "manifestUrl": { "$ref": "#/definitions/httpsUrl" },
+    "lockPath": { "$ref": "#/definitions/nonEmptyString" },
     "maxDeactivations": { "type": "integer", "minimum": 0 },
     "maxPackageAgeMinutes": { "type": "integer", "minimum": 1 },
     "maxRetries": { "type": "integer", "minimum": 0 },
@@ -39,6 +42,7 @@
     "signature": { "$ref": "#/definitions/nonEmptyString" },
     "signatureUrl": { "$ref": "#/definitions/httpsUrl" },
     "statusArtifactPath": { "$ref": "#/definitions/nonEmptyString" },
+    "stagePlanPath": { "$ref": "#/definitions/nonEmptyString" },
     "validateOnly": { "type": "boolean" }
   },
   "definitions": {

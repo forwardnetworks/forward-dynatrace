@@ -12,7 +12,17 @@ import {
   publishTransitions,
 } from "./forward-check-health-transitions.mjs";
 
-const check = (key, status, tags = []) => ({ status, tags: ["dynatrace", `dynatrace-key:${key}`, ...tags] });
+const check = (key, status, tags = []) => ({
+  status,
+  tags: [
+    "dynatrace",
+    "managed-by:com.forward.dynatrace",
+    "contract-version:1",
+    "source-instance:dt-test-environment",
+    `source-key:sha256:${key.repeat(64).slice(0, 64)}`,
+    ...tags,
+  ],
+});
 
 test("baselines managed checks without emitting events", () => {
   const inventory = normalizeManagedInventory([check("a", "PASS"), { status: "FAIL", tags: ["other"] }]);
@@ -24,7 +34,7 @@ test("baselines managed checks without emitting events", () => {
 test("rejects duplicate managed identities and state from another network", () => {
   assert.throws(
     () => normalizeManagedInventory([check("a", "PASS"), check("a", "FAIL")]),
-    /duplicate dynatrace-key/,
+    /duplicate source-key/,
   );
   const baseline = computeTransitions(null, normalizeManagedInventory([check("a", "PASS")]), {
     generatedAt: "2026-01-01T00:00:00Z", networkId: "n1", snapshotId: "s1",

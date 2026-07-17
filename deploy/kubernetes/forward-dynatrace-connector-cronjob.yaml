@@ -29,22 +29,11 @@ spec:
               type: RuntimeDefault
           containers:
             - name: importer
-              image: ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:7f884e44a2b54303d7da708bc805f0e16c1d19b192f95a90e94a63aad66bb7c6
+              image: "ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:<verified-64-hex-digest>"
               imagePullPolicy: IfNotPresent
               args:
                 - "--config"
                 - "/etc/forward-dynatrace/forward-connector.config.json"
-              env:
-                - name: FORWARD_USER
-                  valueFrom:
-                    secretKeyRef:
-                      name: forward-dynatrace-credentials
-                      key: forward-user
-                - name: FORWARD_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: forward-dynatrace-credentials
-                      key: forward-password
               volumeMounts:
                 - name: config
                   mountPath: /etc/forward-dynatrace
@@ -70,5 +59,8 @@ spec:
                 items:
                   - key: handoff-read-token
                     path: handoff-read-token
+                  - key: forward-authorization
+                    path: forward-authorization
+                defaultMode: 0440
             - name: output
               emptyDir: {}

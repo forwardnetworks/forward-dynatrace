@@ -6,6 +6,8 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { buildImportPlan } from "./forward-import-plan.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const runSchemaValidate = async (args = []) =>
@@ -58,6 +60,41 @@ test("rejects connector configs that contain secret-shaped keys", async () => {
     runSchemaValidate(["--connector-config", configPath]),
     /failed schema validation/,
   );
+});
+
+test("validates the sole v1 immutable import-plan contract", async () => {
+  const tempDir = await mkdtemp(path.join(tmpdir(), "forward-import-plan-schema-"));
+  const planPath = path.join(tempDir, "plan.json");
+  const sourceKey = `source-key:sha256:${"a".repeat(64)}`;
+  const plan = buildImportPlan({
+    createdAt: "2026-07-17T12:00:00.000Z",
+    manifest: {
+      packageId: "package-1",
+      integrity: { intentChecksSha256: "b".repeat(64) },
+      source: { instanceTag: "source-instance:dt-schema-validation" },
+    },
+    manifestText: "{}\n",
+    packageSignatureStatus: "verified",
+    networkId: "network-1",
+    snapshotId: "snapshot-1",
+    reconciliation: {
+      create: [{ key: sourceKey, fingerprint: "c".repeat(64) }],
+      unchanged: [],
+      changed: [],
+      stale: [],
+      collision: [],
+    },
+    policy: {
+      applyUpdates: false,
+      deactivateStale: false,
+      maxUpdates: 0,
+      maxDeactivations: 0,
+    },
+  });
+  await writeFile(planPath, `${JSON.stringify(plan, null, 2)}\n`);
+
+  const result = await runSchemaValidate(["--import-plan", planPath]);
+  assert.deepEqual(result.artifacts, [planPath]);
 });
 
 test("validates sanitized problem network-evidence events", async () => {

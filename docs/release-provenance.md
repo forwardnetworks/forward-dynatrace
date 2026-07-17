@@ -70,9 +70,8 @@ CycloneDX component/version, and verifies every artifact and GHCR attestation ag
 downloads the Trivy-authored SARIF from that exact run, requires zero HIGH/CRITICAL results, and writes
 `published-release-verification.json`. Use `--require-signature` when absence of the optional signature must fail.
 
-The historical `v1.0.0` tag is a known negative case: successful release runs `28696639370`, `28696863169`, and
-`28709783362` used three different commits. Its individual artifacts remain inspectable, but the checked verifier
-correctly refuses to issue an immutable-release report for that tag. Do not move or reuse `v2.0.0` or later tags.
+Release tags are immutable. Never move or reuse a tag; the checked verifier refuses to issue an immutable-release
+report when release evidence identifies more than one source commit.
 
 The `verify-release` workflow runs the same command automatically after a successful tag workflow and retains the
 bounded report as a workflow artifact. The manual commands below remain useful for independent investigation.
@@ -126,6 +125,7 @@ npm run schemas:validate
 npm run acceptance:bundle -- \
   --dependencies shared/demo-dependencies.json \
   --output-dir out/acceptance \
+  --source-instance-id dt-release-acceptance \
   --release-dir ..
 ```
 

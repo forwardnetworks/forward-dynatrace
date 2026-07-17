@@ -11,24 +11,23 @@ belong in a separate demo or customer automation project, not in this repository
 
 ## Status
 
-- Latest published base-workflow release: `v1.0.0`
-- Next release candidate: `v2.0.0`, not tagged or published yet
-- Current release-candidate capabilities are not included in `v1.0.0`
+- Contract: sole production `v1`
+- Application version: `1.0.0`
+- Release state: replacement `v1` candidate; use a reviewed commit until an immutable replacement tag is published
 - Runtime: Node.js 24.x
 - Distribution: GitHub release artifacts and GHCR importer image
 - Product status: production candidate; signed release and support ownership are required before general availability
 - License: ISC
 
-The current `v2.0.0` release-candidate source adds check-health polling, security correlation, authenticated package
-handoff, generated Dynatrace Workflow templates, and associated runtime commands. Do not combine those docs or
-templates with the published `v1.0.0` importer image; use a reviewed exact `v2.0.0` release-candidate commit for a
-controlled demo, or wait for the matching tag and verify its artifacts.
+This repository has one contract. Packages, plans, approvals, status artifacts, Workflow payloads, and managed Forward
+checks all use their strict `v1` schema. Clean installation is required; there is no compatibility runtime.
 
 ## What It Does
 
 - Reads Dynatrace service dependency evidence: application, environment, source, destination, protocol, port, owner,
   criticality, confidence, and mapping state.
-- Builds deterministic Forward `NewNetworkCheck[]` intent-check packages with `dynatrace-key:*` reconciliation tags.
+- Builds deterministic Forward `NewNetworkCheck[]` intent-check packages with a complete product, contract,
+  source-instance, and opaque source-key ownership tuple.
 - Exposes package generation as a deployable Dynatrace custom Workflow action.
 - Publishes validated package bytes to immutable filesystem handoff paths with an atomic `latest` pointer.
 - Holds unresolved or ambiguous dependencies before Forward writes.
@@ -65,18 +64,19 @@ The production path remains Forward-centric at the write boundary. Dynatrace sup
 evidence; Forward validates the target network snapshot before persistent checks are created. The integration reports
 bounded results but never deploys or rolls back.
 
-## Release-Candidate Quick Start
+## Quick Start
 
 ```bash
 git clone https://github.com/forwardnetworks/forward-dynatrace.git
 cd forward-dynatrace
-# Check out the exact reviewed v2.0.0 release-candidate commit; do not use v1.0.0 for the integrated flow.
-git checkout <reviewed-v2.0.0-release-commit>
+# Use an exact reviewed commit or a verified immutable replacement release.
+git checkout <reviewed-commit>
 npm ci
 npm run ci
 npm run acceptance:bundle -- \
   --dependencies shared/demo-dependencies.json \
   --output-dir out/acceptance \
+  --source-instance-id dt-acceptance-rehearsal \
   --sync-mode data-connector
 ```
 
@@ -104,9 +104,9 @@ reconciliation, and creates a sanitized status handoff for Dynatrace.
 
 ```bash
 export FORWARD_BASE_URL=https://forward.example.com
-export FORWARD_USER=<user>
-export FORWARD_PASSWORD=<password-or-token>
+export FORWARD_AUTHORIZATION_FILE=/secure/path/forward-authorization.header
 export FORWARD_NETWORK_ID=<network-id>
+export FORWARD_DYNATRACE_SOURCE_INSTANCE_ID=<stable-opaque-dynatrace-source-id>
 
 npm run demo:live -- \
   --dynatrace-environment-url https://<trial-sandbox-id>.apps.dynatrace.com/ \
@@ -119,7 +119,7 @@ npm run demo:live -- \
 The checked default DQL reads replay events, so `--synthetic` is mandatory for this path. For customer-owned evidence,
 supply `--dynatrace-query-file /secure/queries/customer-dependencies.dql`, set a truthful `--evidence-source`, and omit
 `--synthetic`; replay markers fail closed before any Forward call. The default is a Forward dry-run; no checks are
-created. Add `--apply` only after reviewing the report. Add
+created. Persistent writes use the separate signed stage/approve/apply importer workflow. Add
 `--publish-dynatrace-status` to send the aggregate reconciliation event back to Dynatrace. Path analysis is read-only
 and enabled by default for the demo; `--skip-path-evidence` is the explicit fallback when that permission is not
 available. See [docs/live-demo-runbook.md](docs/live-demo-runbook.md) for rehearsal and meeting steps.
@@ -223,8 +223,7 @@ the package.
 
    ```bash
    export FORWARD_BASE_URL=https://forward.example.com
-   export FORWARD_USER=<user>
-   export FORWARD_PASSWORD=<password-or-token>
+   export FORWARD_AUTHORIZATION_FILE=/secure/path/forward-authorization.header
    export FORWARD_NETWORK_ID=<network-id>
 
    npm run forward:import -- \
@@ -233,13 +232,27 @@ the package.
      --report forward-import-report.json
    ```
 
-8. Review create, unchanged, changed, stale, blocked, and failed rows.
-9. Apply missing checks only after approval:
+8. Review create, unchanged, changed, stale, collision, blocked, and failed rows.
+9. Stage a signed, snapshot-bound import plan. Have a Forward operator approve that exact plan, then apply it:
 
    ```bash
    npm run forward:import -- \
      --checks out/forward-package/forward-intent-checks.json \
      --manifest out/forward-package/forward-dynatrace-manifest.json \
+     --require-signature \
+     --signature out/forward-package/forward-dynatrace-package.sig \
+     --public-key /secure/path/forward-dynatrace-public.pem \
+     --stage-plan /secure/approvals/import-plan.json
+
+   # After an operator creates approval.json for that exact plan:
+   npm run forward:import -- \
+     --checks out/forward-package/forward-intent-checks.json \
+     --manifest out/forward-package/forward-dynatrace-manifest.json \
+     --require-signature \
+     --signature out/forward-package/forward-dynatrace-package.sig \
+     --public-key /secure/path/forward-dynatrace-public.pem \
+     --apply-plan /secure/approvals/import-plan.json \
+     --require-approval-file /secure/approvals/approval.json \
      --apply
    ```
 
@@ -249,34 +262,24 @@ Dynatrace. See [docs/forward-importer.md](docs/forward-importer.md) and
 
 ## Release Verification
 
-The commands below inspect the published `v1.0.0` base-workflow artifacts. Historical Actions evidence now proves that
-the tag was reused across three commits, so it does not satisfy the immutable-release gate and the checked verifier
-fails closed on it. The pinned digest below is retained only as a reproducible legacy base-workflow reference from run
-`28696863169`; it is not release proof for the post-merge integration. The repository version is now the unpublished
-`2.0.0` release candidate because the handoff-backed Workflow action is intentionally a breaking contract. Before
-installing the integration, land the candidate, publish a new immutable `v2.0.0` tag, run the checked verifier, and
-substitute that verified tag and image digest in every command below.
+Do not install an artifact solely because its tag starts with `v1`. Use only the replacement immutable release named by
+the release owner, and verify its checksums, signature, attestations, source commit, and image digest.
 
 Before installing or running any tagged release artifacts, verify the release:
 
 ```bash
-gh release download v1.0.0 --repo forwardnetworks/forward-dynatrace
+export RELEASE_TAG=<verified-replacement-v1-tag>
+gh release download "${RELEASE_TAG}" --repo forwardnetworks/forward-dynatrace
 sha256sum -c SHA256SUMS
 npm run release:sign -- \
   --verify \
   --checksums SHA256SUMS \
   --public-key SHA256SUMS.pub \
   --signature SHA256SUMS.sig
-gh attestation verify forward-dynatrace-importer-v1.0.0.tgz \
+gh attestation verify "forward-dynatrace-importer-${RELEASE_TAG}.tgz" \
   --repo forwardnetworks/forward-dynatrace
-gh attestation verify oci://ghcr.io/forwardnetworks/forward-dynatrace-importer:v1.0.0 \
+gh attestation verify "oci://ghcr.io/forwardnetworks/forward-dynatrace-importer:${RELEASE_TAG}" \
   --owner forwardnetworks
-```
-
-Legacy run-pinned importer image:
-
-```text
-ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:7f884e44a2b54303d7da708bc805f0e16c1d19b192f95a90e94a63aad66bb7c6
 ```
 
 Release provenance, SBOM, Trivy scan evidence, and digest pinning guidance are in

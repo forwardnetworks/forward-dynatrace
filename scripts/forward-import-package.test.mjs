@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { loadForwardAuthorization } from "../lib/forward-authorization.mjs";
 import {
+  acquireApplyLock,
   fingerprintCheck,
   loadPackageAccess,
   packageRequestHeaders,
@@ -21,6 +23,53 @@ import {
   validatePlannedChecks,
   verifyPackageSignature,
 } from "./forward-import-package.mjs";
+
+const sourceInstanceId = "dt-test-environment";
+const sourceInstanceTag = `source-instance:${sourceInstanceId}`;
+const sourceKey = `source-key:sha256:${"a".repeat(64)}`;
+const staleSourceKey = `source-key:sha256:${"d".repeat(64)}`;
+const ownershipTags = (key = sourceKey) => [
+  "managed-by:com.forward.dynatrace",
+  "contract-version:1",
+  sourceInstanceTag,
+  key,
+];
+const approvalPlan = {
+  planId: "forward-dynatrace-plan-0123456789abcdef01234567",
+  planSha256: "1".repeat(64),
+  actions: {
+    create: [],
+    update: [{ sourceKey }],
+    retire: [{ sourceKey: staleSourceKey }],
+    collision: [],
+  },
+};
+const approvalArtifact = ({ updateSourceKeys = [], retireSourceKeys = [] } = {}) => ({
+  schemaVersion: "forward-dynatrace-import-approval/v1",
+  planId: approvalPlan.planId,
+  planSha256: approvalPlan.planSha256,
+  packageId: "dynatrace-forward-test",
+  networkId: "network-1",
+  snapshotId: "snapshot-1",
+  changeWindowId: "CHG-123",
+  approvedAt: "2026-01-01T00:00:00.000Z",
+  expiresAt: "2026-01-02T00:00:00.000Z",
+  approvedBy: "forward-operator@example.com",
+  reason: "approved immutable import plan",
+  actions: {
+    createMissing: true,
+    updateSourceKeys,
+    retireSourceKeys,
+  },
+});
+const approvalContext = {
+  plan: approvalPlan,
+  packageId: "dynatrace-forward-test",
+  networkId: "network-1",
+  snapshotId: "snapshot-1",
+  changeWindowId: "CHG-123",
+  now: new Date("2026-01-01T00:00:00.000Z"),
+};
 
 const baseCheck = {
   definition: {
@@ -46,10 +95,10 @@ const baseCheck = {
   priority: "HIGH",
   tags: [
     "dynatrace",
+    ...ownershipTags(),
     "app:Checkout",
     "environment:prod",
     "owner:commerce-platform",
-    "dynatrace-key:dt:checkout:prod:service-123:checkout-vip:orders-db:tcp:443",
   ],
 };
 
@@ -70,7 +119,9 @@ const baseManifest = (checks = [baseCheck]) => ({
   requestedIngestPath: "manual-import",
   source: {
     platform: "dynatrace",
-    app: "forward-dynatrace",
+    app: "com.forward.dynatrace",
+    instanceId: sourceInstanceId,
+    instanceTag: sourceInstanceTag,
     writePolicy: "dynatrace-never-writes-forward",
   },
   artifacts: {
@@ -89,16 +140,23 @@ const baseManifest = (checks = [baseCheck]) => ({
     payloadShape: "NewNetworkCheck[]",
     bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk",
     dedupeRequiredBeforePost: true,
+    dedupe: "managed-source-key",
   },
   validation: {
-    requiredTagPrefix: "dynatrace-key:",
-    requiredTagsPerCheck: 1,
+    managedByTag: "managed-by:com.forward.dynatrace",
+    contractVersionTag: "contract-version:1",
+    sourceInstanceTagPrefix: "source-instance:",
+    sourceKeyTagPrefix: "source-key:sha256:",
+    ownershipTagsPerCheck: 4,
+    identityPolicy: "strict-ownership-tuple",
     credentialPolicy: "no-forward-credentials-in-dynatrace",
   },
   reconciliation: {
+    strategy: "source-scoped-desired-state",
     defaultApplyPolicy: "create-missing-only",
     changedChecks: "report-only",
     staleChecks: "report-only",
+    collisionPolicy: "reject",
   },
 });
 
@@ -118,9 +176,9 @@ const baseNqeCheck = {
   tags: [
     "dynatrace",
     "nqe",
+    ...ownershipTags(`source-key:sha256:${"b".repeat(64)}`),
     "app:checkout",
     "environment:prod",
-    "dynatrace-key:dt:nqe:checkout:prod:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   ],
 };
 
@@ -138,13 +196,13 @@ const baseNqeDiffRequest = {
     limit: 1000,
   },
   templateId: "app-environment-policy",
-  dynatraceKey: "dynatrace-key:dt:nqe:checkout:prod:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:diff",
+  sourceKey: `source-key:sha256:${"c".repeat(64)}`,
   tags: [
     "dynatrace",
     "nqe-diff",
+    ...ownershipTags(`source-key:sha256:${"c".repeat(64)}`),
     "app:checkout",
     "environment:prod",
-    "dynatrace-key:dt:nqe:checkout:prod:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:diff",
   ],
 };
 
@@ -177,7 +235,7 @@ const manifestWithNqeArtifacts = ({
     payloadShape: "NewNetworkCheck[]",
     bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk",
     dedupeRequiredBeforePost: true,
-    dedupe: "name-or-dynatrace-key-tag",
+    dedupe: "managed-source-key",
     queryIdPolicy: "forward-owned-allowlist",
     parameterSource: "dynatrace-app-environment",
   },
@@ -191,10 +249,10 @@ const manifestWithNqeArtifacts = ({
   },
 });
 
-test("uses the dynatrace-key tag as the reconciliation key", () => {
+test("uses the fully owned source-key tag as the reconciliation key", () => {
   assert.equal(
     reconciliationKey(baseCheck),
-    "dynatrace-key:dt:checkout:prod:service-123:checkout-vip:orders-db:tcp:443",
+    sourceKey,
   );
 });
 
@@ -205,9 +263,52 @@ test("ignores Forward result-only fields when comparing fingerprints", () => {
 test("allows historical snapshot dry-run but forbids historical apply", () => {
   assert.doesNotThrow(() => validatePolicyArgs({ "snapshot-id": "snapshot-before" }));
   assert.throws(
-    () => validatePolicyArgs({ "snapshot-id": "snapshot-before", apply: true }),
+    () =>
+      validatePolicyArgs({
+        "snapshot-id": "snapshot-before",
+        apply: true,
+        "apply-plan": "plan.json",
+        "require-approval-file": "approval.json",
+        "require-signature": true,
+      }),
     /dry-run only/,
   );
+});
+
+test("serializes apply runs with a source and network scoped lock", async () => {
+  const workdir = await mkdtemp(path.join(tmpdir(), "forward-dynatrace-lock-test-"));
+  const lockPath = path.join(workdir, "apply.lock");
+  const first = await acquireApplyLock({
+    networkId: "network-1",
+    sourceInstanceTag,
+    lockPath,
+  });
+  await assert.rejects(
+    acquireApplyLock({ networkId: "network-1", sourceInstanceTag, lockPath }),
+    /Another Forward apply holds/,
+  );
+  await first.release();
+  const second = await acquireApplyLock({
+    networkId: "network-1",
+    sourceInstanceTag,
+    lockPath,
+  });
+  await second.release();
+});
+
+test("loads Forward authorization only from a protected mounted file", async () => {
+  const workdir = await mkdtemp(path.join(tmpdir(), "forward-authorization-test-"));
+  const authorizationPath = path.join(workdir, "authorization.header");
+  await writeFile(authorizationPath, "Bearer abcdefghijklmnopqrstuvwxyz\n", { mode: 0o600 });
+  assert.equal(
+    await loadForwardAuthorization(authorizationPath),
+    "Bearer abcdefghijklmnopqrstuvwxyz",
+  );
+  await chmod(authorizationPath, 0o604);
+  await assert.rejects(loadForwardAuthorization(authorizationPath), /accessible by other users/);
+  await chmod(authorizationPath, 0o600);
+  await writeFile(authorizationPath, "not-an-authorization-value\n", { mode: 0o600 });
+  await assert.rejects(loadForwardAuthorization(authorizationPath), /exactly one valid/);
 });
 
 test("treats Forward-normalized host subnets as unchanged", () => {
@@ -260,81 +361,117 @@ test("classifies same-key definition drift as changed", () => {
 });
 
 test("classifies managed checks missing from the package as stale", () => {
-  const result = reconcileChecks([], [withResultFields(baseCheck), { name: "user-owned" }]);
+  const result = reconcileChecks(
+    [],
+    [withResultFields(baseCheck), { name: "user-owned" }],
+    { sourceInstanceTag },
+  );
 
   assert.equal(result.stale.length, 1);
   assert.equal(result.stale[0].id, "check-1");
 });
 
-test("accepts valid exact-key approval for changed and stale mutations", () => {
-  const approval = validateApprovalFile(
-    {
-      schemaVersion: "forward-dynatrace-approval/v1",
-      packageId: "dynatrace-forward-test",
-      changeWindowId: "CHG-123",
-      expiresAt: "2026-01-02T00:00:00.000Z",
-      approvedBy: "forward-operator@example.com",
-      reason: "approved dependency refresh",
-      approvedChangedKeys: [
-        "dynatrace-key:dt:checkout:prod:service-123:checkout-vip:orders-db:tcp:443",
-      ],
-      approvedStaleKeys: ["dynatrace-key:dt:stale:demo"],
-    },
-    {
-      packageId: "dynatrace-forward-test",
-      changeWindowId: "CHG-123",
-      now: new Date("2026-01-01T00:00:00.000Z"),
-    },
-  );
+test("never adopts an existing check by display name", () => {
+  const unrelated = {
+    id: "user-check-1",
+    name: baseCheck.name,
+    tags: ["customer-owned"],
+    definition: structuredClone(baseCheck.definition),
+  };
+  const result = reconcileChecks([baseCheck], [unrelated]);
 
-  assert.equal(approval.approvedChangedKeys.length, 1);
-  assert.equal(approval.approvedStaleKeys.length, 1);
+  assert.equal(result.create.length, 0);
+  assert.equal(result.unchanged.length, 0);
+  assert.equal(result.collision.length, 1);
+  assert.equal(
+    result.collision[0].reason,
+    "name-already-exists-with-different-source-key",
+  );
 });
 
-test("rejects stale or mismatched approval files", () => {
-  const validApproval = {
-    schemaVersion: "forward-dynatrace-approval/v1",
-    packageId: "dynatrace-forward-test",
-    changeWindowId: "CHG-123",
-    expiresAt: "2026-01-02T00:00:00.000Z",
-    approvedChangedKeys: [
-      "dynatrace-key:dt:checkout:prod:service-123:checkout-vip:orders-db:tcp:443",
-    ],
-    approvedStaleKeys: [],
+test("rejects a name collision even when the source key also matches", () => {
+  const managed = withResultFields(baseCheck);
+  const unrelated = {
+    id: "user-check-2",
+    name: baseCheck.name,
+    tags: ["customer-owned"],
+    definition: structuredClone(baseCheck.definition),
   };
+  const result = reconcileChecks([baseCheck], [managed, unrelated]);
+
+  assert.equal(result.unchanged.length, 0);
+  assert.equal(result.changed.length, 0);
+  assert.equal(result.collision.length, 1);
+  assert.deepEqual(result.collision[0].existingIds, ["user-check-2"]);
+});
+
+test("rejects a source-key attached to an incomplete ownership tuple", () => {
+  const incomplete = withResultFields({
+    ...structuredClone(baseCheck),
+    tags: [sourceKey],
+  });
+  const result = reconcileChecks([baseCheck], [incomplete]);
+
+  assert.equal(result.changed.length, 0);
+  assert.equal(result.collision.length, 1);
+  assert.equal(
+    result.collision[0].reason,
+    "source-key-owned-by-incompatible-check",
+  );
+});
+
+test("accepts valid exact-key approval for changed and stale mutations", () => {
+  const approval = validateApprovalFile(
+    approvalArtifact({ updateSourceKeys: [sourceKey], retireSourceKeys: [staleSourceKey] }),
+    approvalContext,
+  );
+
+  assert.equal(approval.approvedUpdateSourceKeys.length, 1);
+  assert.equal(approval.approvedRetireSourceKeys.length, 1);
+});
+
+test("rejects stale, overlong, incomplete, or mismatched approval files", () => {
+  const validApproval = approvalArtifact({
+    updateSourceKeys: [sourceKey],
+    retireSourceKeys: [staleSourceKey],
+  });
 
   assert.throws(
     () =>
       validateApprovalFile(
         { ...validApproval, packageId: "wrong-package" },
-        {
-          packageId: "dynatrace-forward-test",
-          changeWindowId: "CHG-123",
-          now: new Date("2026-01-01T00:00:00.000Z"),
-        },
+        approvalContext,
       ),
     /packageId must match manifest packageId/,
   );
   assert.throws(
     () =>
-      validateApprovalFile(validApproval, {
-        packageId: "dynatrace-forward-test",
-        changeWindowId: "CHG-999",
-        now: new Date("2026-01-01T00:00:00.000Z"),
-      }),
+      validateApprovalFile(validApproval, { ...approvalContext, changeWindowId: "CHG-999" }),
     /changeWindowId must match CHG-999/,
   );
   assert.throws(
     () =>
       validateApprovalFile(
         { ...validApproval, expiresAt: "2025-12-31T23:59:59.000Z" },
-        {
-          packageId: "dynatrace-forward-test",
-          changeWindowId: "CHG-123",
-          now: new Date("2026-01-01T00:00:00.000Z"),
-        },
+        approvalContext,
       ),
     /expiresAt must be in the future/,
+  );
+  assert.throws(
+    () =>
+      validateApprovalFile(
+        { ...validApproval, expiresAt: "2026-01-02T00:00:00.001Z" },
+        approvalContext,
+      ),
+    /lifetime must not exceed 24 hours/,
+  );
+  assert.throws(
+    () =>
+      validateApprovalFile(
+        approvalArtifact({ updateSourceKeys: [sourceKey] }),
+        approvalContext,
+      ),
+    /retireSourceKeys must exactly match the staged plan/,
   );
 });
 
@@ -346,23 +483,17 @@ test("plans only approved update and stale deactivation mutations", () => {
     {
       ...structuredClone(baseCheck),
       name: "[Dynatrace] Stale demo check",
-      tags: ["dynatrace", "dynatrace-key:dt:stale:demo"],
+      tags: ["dynatrace", ...ownershipTags(staleSourceKey)],
     },
     98,
   );
   const reconciliation = reconcileChecks([baseCheck], [existingChanged, staleExisting]);
   const approval = validateApprovalFile(
-    {
-      schemaVersion: "forward-dynatrace-approval/v1",
-      packageId: "dynatrace-forward-test",
-      expiresAt: "2026-01-02T00:00:00.000Z",
-      approvedChangedKeys: [reconciliation.changed[0].key],
-      approvedStaleKeys: [reconciliation.stale[0].key],
-    },
-    {
-      packageId: "dynatrace-forward-test",
-      now: new Date("2026-01-01T00:00:00.000Z"),
-    },
+    approvalArtifact({
+      updateSourceKeys: [reconciliation.changed[0].key],
+      retireSourceKeys: [reconciliation.stale[0].key],
+    }),
+    approvalContext,
   );
 
   const mutations = planApprovedMutations(reconciliation, approval, {
@@ -388,7 +519,7 @@ test("plans only approved update and stale deactivation mutations", () => {
     () =>
       planApprovedMutations(
         reconciliation,
-        { ...approval, approvedChangedKeys: ["dynatrace-key:dt:not-current"] },
+        { ...approval, approvedUpdateSourceKeys: [`source-key:sha256:${"e".repeat(64)}`] },
         {
           applyUpdates: true,
           maxUpdates: 1,
@@ -575,6 +706,36 @@ test("status artifact marks changed or stale drift for review", () => {
   );
 });
 
+test("status artifact reports only a sanitized mutation failure", () => {
+  const sourceKey = `source-key:sha256:${"f".repeat(64)}`;
+  const status = toStatusArtifact({
+    mode: "apply",
+    runId: "forward-dynatrace-20260101000000",
+    finishedAt: "2026-01-01T00:00:02.000Z",
+    durationMs: 2000,
+    plannedChecks: 1,
+    counts: { create: 1, unchanged: 0, changed: 0, stale: 0, collision: 0 },
+    mutationFailure: {
+      phase: "create-missing",
+      statusCode: 503,
+      affectedCount: 1,
+      sourceKeys: [sourceKey],
+      existingCheckIds: ["private-check-id"],
+      recoveryRequired: true,
+    },
+  });
+
+  assert.equal(status.importState, "failed");
+  assert.deepEqual(status.mutationFailure, {
+    phase: "create-missing",
+    statusCode: 503,
+    affectedCount: 1,
+    recoveryRequired: true,
+  });
+  assert.equal(JSON.stringify(status).includes(sourceKey), false);
+  assert.equal(JSON.stringify(status).includes("private-check-id"), false);
+});
+
 test("verifies a detached package signature", () => {
   const { privateKey, publicKey } = generateKeyPairSync("ed25519");
   const checksText = JSON.stringify([baseCheck], null, 2) + "\n";
@@ -669,16 +830,16 @@ test("rejects stale manifests before contacting Forward", () => {
   );
 });
 
-test("rejects package entries without exactly one dynatrace reconciliation key", () => {
+test("rejects package entries without the complete managed ownership tuple", () => {
   const missingKey = { ...baseCheck, tags: ["dynatrace"] };
   const duplicateKey = {
     ...baseCheck,
-    tags: [...baseCheck.tags, "dynatrace-key:duplicate"],
+    tags: [...baseCheck.tags, `source-key:sha256:${"f".repeat(64)}`],
   };
 
   assert.throws(
     () => validatePlannedChecks([missingKey, duplicateKey]),
-    /tags must contain exactly one dynatrace-key:\* tag/,
+    /requires exactly one managed-by:com\.forward\.dynatrace tag|requires exactly one source-key/,
   );
 });
 
@@ -687,7 +848,7 @@ test("rejects malformed or whitespace-containing tags before Forward apply", () 
   whitespaceTag.tags = [
     "dynatrace",
     "app:Forward for Dynatrace Acceptance",
-    "dynatrace-key:dt:acceptance",
+    ...ownershipTags(),
   ];
   const nonArrayTags = structuredClone(baseCheck);
   nonArrayTags.tags = "dynatrace";
@@ -702,7 +863,7 @@ test("rejects malformed or whitespace-containing tags before Forward apply", () 
   );
 });
 
-test("rejects duplicate generated check names and dynatrace keys", () => {
+test("rejects duplicate generated check names and source keys", () => {
   const duplicate = structuredClone(baseCheck);
 
   assert.throws(

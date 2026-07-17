@@ -322,7 +322,7 @@ test("CLI resolves hosts before executing Forward bulk path search", async () =>
         2,
       )}\n`,
     );
-    await writeFile(authorizationPath, "Bearer readonly-token\n");
+    await writeFile(authorizationPath, "Bearer readonly-token\n", { mode: 0o600 });
 
     const evidence = await runJson([
       "scripts/forward-path-evidence.mjs",

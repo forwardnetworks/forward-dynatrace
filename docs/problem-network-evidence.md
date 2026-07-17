@@ -29,10 +29,10 @@ file in the Forward-controlled runtime, then run:
 ```bash
 export FORWARD_BASE_URL=https://forward.example.com
 export FORWARD_NETWORK_ID=<network-id>
-export FORWARD_READONLY_AUTHORIZATION='Bearer <read-only-token>'
 
 npm run forward:path-evidence -- \
   --dependencies /secure/handoff/problem-dependencies.json \
+  --authorization-file /secure/path/read-only-forward-auth-header \
   --resolve-hosts \
   --execute \
   --output /tmp/forward-problem-path-evidence.json

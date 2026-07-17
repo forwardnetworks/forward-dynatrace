@@ -258,7 +258,7 @@ export const createExportForwardPackageAction = ({
   });
   const receipt = await publishHandoff({ connection, publication, fetchImpl });
   return {
-    schemaVersion: "forward-dynatrace-workflow-action/v2",
+    schemaVersion: "forward-dynatrace-workflow-action/v1",
     status: result.status,
     packageId: manifest.packageId,
     generatedAt: result.generatedAt,

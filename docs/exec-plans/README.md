@@ -18,7 +18,7 @@ Completed plans are immutable summaries. Correct factual errors, but do not reus
 
 ## Technical Debt
 
-- [Technical debt tracker](tech-debt-tracker.md): deferred structural or compatibility work with an explicit trigger,
+- [Technical debt tracker](tech-debt-tracker.md): deferred structural or future-version work with an explicit trigger,
   owner, and exit condition.
 
 ## Required Plan Shape

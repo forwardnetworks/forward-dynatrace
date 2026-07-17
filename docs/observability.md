@@ -106,7 +106,8 @@ Start with these thresholds, then tune per deployment:
 | Package staleness | Manifest age exceeds the configured `maxPackageAgeMinutes`. |
 | Changed drift | Any changed check when `--fail-on-drift` is enabled. |
 | Stale drift | Any stale check when `--fail-on-drift` is enabled. |
-| Partial write | Any apply run that exits non-zero after creating at least one batch. |
+| Partial write | Any status with `mutationFailure.recoveryRequired = true`, regardless of completed mutation count. |
+| Unverified apply | Any apply run where `postApplyVerification.state` is not `verified`. |
 | Repeated transient errors | Three consecutive runs with `429` or `5xx` retries. |
 | Missing signature | Any production run where `packageSignature.status` is not `verified`. |
 
@@ -122,8 +123,9 @@ node scripts/runtime-slo-check.mjs \
   --require-signature
 ```
 
-The gate fails on excessive runtime duration, unresolved changed/stale drift unless `--allow-drift` is supplied,
-missing verified signature when required, or metrics that do not match the JSON report.
+The gate fails on excessive runtime duration, any collision or mutation failure, an apply without verified post-apply
+reconciliation, unresolved changed/stale drift unless `--allow-drift` is supplied, a missing verified signature when
+required, or metrics that do not match the JSON report.
 
 ## Evidence Retention
 

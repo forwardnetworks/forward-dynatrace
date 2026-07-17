@@ -271,6 +271,9 @@ export const Home = () => {
   const [showcaseMode, setShowcaseMode] = useState(false);
   const [showAllDependencies, setShowAllDependencies] = useState(false);
   const [problemId, setProblemId] = useState("P-000000");
+  const [sourceInstanceId, setSourceInstanceId] = useState(
+    captureMode ? "dt-capture-rehearsal" : "",
+  );
   const [forwardBaseUrl, setForwardBaseUrl] = useState("");
   const [forwardNetworkId, setForwardNetworkId] = useState("");
   const [endpointQueryId, setEndpointQueryId] = useState("");
@@ -537,12 +540,14 @@ export const Home = () => {
       captureMode ||
       !isLiveSource ||
       syncRequest ||
+      !sourceInstanceId ||
       !forwardNetworkId ||
       effectiveDependencies.length === 0
     ) {
       return;
     }
     setSyncRequest({
+      sourceInstanceId,
       forwardBaseUrl,
       forwardNetworkId,
       syncMode: "data-connector",
@@ -555,6 +560,7 @@ export const Home = () => {
     forwardBaseUrl,
     forwardNetworkId,
     isLiveSource,
+    sourceInstanceId,
     syncRequest,
   ]);
 
@@ -578,7 +584,6 @@ export const Home = () => {
       forwardNetworkId,
       templateId: "endpoint-inventory-smoke",
       maxRows: 25,
-      execute: false,
       dependency: {
         appName: dependency.appName,
         environment: dependency.environment,
@@ -593,7 +598,7 @@ export const Home = () => {
     });
   }
 
-  function checkEndpointMapping(dependency = activeDependency) {
+  function planEndpointMapping(dependency = activeDependency) {
     if (!dependency) return;
     setActiveDependencyId(dependency.id);
     setNqePreviewDependencyId(dependency.id);
@@ -603,7 +608,6 @@ export const Home = () => {
       templateId: "approved-endpoint-resolution",
       queryId: endpointQueryId,
       maxRows: 25,
-      execute: true,
       dependency: {
         appName: dependency.appName,
         environment: dependency.environment,
@@ -620,6 +624,7 @@ export const Home = () => {
 
   function buildExportPackage() {
     setSyncRequest({
+      sourceInstanceId,
       forwardBaseUrl,
       forwardNetworkId,
       syncMode,
@@ -676,11 +681,11 @@ export const Home = () => {
             </Button.Prefix>
             Build package
           </Button>
-          <Button color="primary" variant="emphasized" onClick={() => checkEndpointMapping()}>
+          <Button color="primary" variant="emphasized" onClick={() => planEndpointMapping()}>
             <Button.Prefix>
               <NetworkIcon />
             </Button.Prefix>
-            Check mapping
+            Plan mapping
           </Button>
         </div>
       </section>
@@ -883,13 +888,13 @@ export const Home = () => {
                           color="primary"
                           size="condensed"
                           onClick={() => {
-                            checkEndpointMapping(dependency);
+                            planEndpointMapping(dependency);
                           }}
                         >
                           <Button.Prefix>
                             <NetworkIcon />
                           </Button.Prefix>
-                          Check
+                          Plan mapping
                         </Button>
                       </div>
                     </td>
@@ -921,6 +926,14 @@ export const Home = () => {
             detail="Dependency candidates and package metadata"
           />
           <div className="field-grid">
+            <label>
+              <span>Source instance ID</span>
+              <TextInput
+                value={sourceInstanceId}
+                onChange={setSourceInstanceId}
+                placeholder="dt-production-us"
+              />
+            </label>
             <label>
               <span>Dynatrace problem</span>
               <TextInput
@@ -1008,11 +1021,11 @@ export const Home = () => {
             </Button.Prefix>
             Build resolved package
           </Button>
-          <Button color="primary" variant="accent" onClick={() => checkEndpointMapping()}>
+          <Button color="primary" variant="accent" onClick={() => planEndpointMapping()}>
             <Button.Prefix>
               <NetworkIcon />
             </Button.Prefix>
-            Check endpoint mapping
+            Plan endpoint mapping
           </Button>
         </section>
       </main>

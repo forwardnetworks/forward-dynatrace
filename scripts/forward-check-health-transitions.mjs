@@ -5,6 +5,8 @@ import { mkdir, open, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { loadForwardAuthorization } from "../lib/forward-authorization.mjs";
+import { inspectManagedIdentity } from "../lib/managed-check-identity.mjs";
 import { readToken, toOpenPipelineApiBaseUrl } from "./publish-dynatrace-status-event.mjs";
 
 const STATE_SCHEMA = "forward-dynatrace-check-health-state/v1";
@@ -32,9 +34,9 @@ Options:
   --synthetic               Explicitly label saved demo inventory transitions.
   --help                    Show help.
 
-Live polling uses FORWARD_BASE_URL, FORWARD_USER, FORWARD_PASSWORD, and
-FORWARD_NETWORK_ID. Only checks tagged dynatrace plus exactly one dynatrace-key
-are tracked. No Forward or Dynatrace object is modified.
+Live polling uses FORWARD_BASE_URL, FORWARD_AUTHORIZATION_FILE, and
+FORWARD_NETWORK_ID. Only checks with the complete Forward for Dynatrace managed
+ownership tuple are tracked. No Forward or Dynatrace object is modified.
 `;
 
 export const parseArgs = (argv) => {
@@ -89,14 +91,11 @@ export const normalizeManagedInventory = (checks) => {
   const seenIdentities = new Set();
   for (const check of checks) {
     const tags = Array.isArray(check.tags) ? check.tags.filter((tag) => typeof tag === "string") : [];
-    const keys = tags.filter((tag) => tag.startsWith("dynatrace-key:"));
-    if (!tags.includes("dynatrace") || keys.length !== 1) continue;
-    if (!keys[0].slice("dynatrace-key:".length)) {
-      throw new Error("Managed Forward check has an empty dynatrace-key tag.");
-    }
-    const identityHash = hash(keys[0]);
+    const managedIdentity = inspectManagedIdentity({ tags });
+    if (!managedIdentity.managed) continue;
+    const identityHash = hash(managedIdentity.sourceKey);
     if (seenIdentities.has(identityHash)) {
-      throw new Error("Managed Forward check inventory contains a duplicate dynatrace-key tag.");
+      throw new Error("Managed Forward check inventory contains a duplicate source-key tag.");
     }
     seenIdentities.add(identityHash);
     const status = String(check.status || "ERROR").toUpperCase();
@@ -225,17 +224,17 @@ export const acquirePollLock = async (statePath) => {
   };
 };
 
-const forwardClient = ({ baseUrl, user, password, fetchImpl = globalThis.fetch }) => async (pathname) => {
+const forwardClient = ({ baseUrl, authorization, fetchImpl = globalThis.fetch }) => async (pathname) => {
   const response = await fetchImpl(`${baseUrl.replace(/\/$/, "")}${pathname}`, {
-    headers: { Accept: "application/json", Authorization: `Basic ${Buffer.from(`${user}:${password}`).toString("base64")}` },
+    headers: { Accept: "application/json", Authorization: authorization },
   });
   const text = await response.text();
   if (!response.ok) throw new Error(`Forward read failed with ${response.status}: ${text.slice(0, 300)}`);
   return JSON.parse(text);
 };
 
-export const pollForwardInventory = async ({ baseUrl, user, password, networkId, fetchImpl }) => {
-  const get = forwardClient({ baseUrl, user, password, fetchImpl });
+export const pollForwardInventory = async ({ baseUrl, authorization, networkId, fetchImpl }) => {
+  const get = forwardClient({ baseUrl, authorization, fetchImpl });
   const snapshot = await get(`/api/networks/${networkId}/snapshots/latestProcessed`);
   const checks = await get(`/api/snapshots/${snapshot.id}/checks?type=Existential`);
   return { checks, snapshotId: String(snapshot.id) };
@@ -314,8 +313,12 @@ export const run = async (argv = process.argv.slice(2)) => {
     } else {
       ({ checks, snapshotId } = await pollForwardInventory({
         baseUrl: required(process.env.FORWARD_BASE_URL, "environment: FORWARD_BASE_URL"),
-        user: required(process.env.FORWARD_USER, "environment: FORWARD_USER"),
-        password: required(process.env.FORWARD_PASSWORD, "environment: FORWARD_PASSWORD"),
+        authorization: await loadForwardAuthorization(
+          required(
+            process.env.FORWARD_AUTHORIZATION_FILE,
+            "environment: FORWARD_AUTHORIZATION_FILE",
+          ),
+        ),
         networkId: required(process.env.FORWARD_NETWORK_ID, "environment: FORWARD_NETWORK_ID"),
       }));
     }

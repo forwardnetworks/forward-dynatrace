@@ -21,6 +21,7 @@ const PLAN_SCHEMA = "forward-dynatrace-systemd-install-plan/v1";
 const RUNTIME_SOURCE_ENTRIES = [
   "package.json",
   "package-lock.json",
+  "lib",
   "scripts",
   "schemas",
   "config",
@@ -51,6 +52,7 @@ const DIRECTORIES = [
 ];
 
 const REQUIRED_OPERATOR_INPUTS = [
+  { path: "/etc/forward-dynatrace/forward-authorization.header", kind: "secret-file", mode: "0600" },
   { path: "/etc/forward-dynatrace/handoff-write-token", kind: "secret-file", mode: "0600" },
   { path: "/etc/forward-dynatrace/handoff-read-token", kind: "secret-file", mode: "0600" },
   { path: "/etc/forward-dynatrace/dynatrace-platform.token", kind: "secret-file", mode: "0600" },

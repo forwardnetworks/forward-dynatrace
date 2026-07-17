@@ -17,7 +17,7 @@ const requiredFiles = [
   ".dockerignore",
   "Dockerfile.forward-importer",
   "docs/install.md",
-  "docs/app-identity-migration.md",
+  "docs/app-identities.md",
   "docs/workflow.md",
   "docs/dynatrace-workflow-trigger.md",
   "docs/site-reliability-guardian.md",
@@ -70,6 +70,8 @@ const requiredFiles = [
   "config/forward-guardian-execution-context.example.json",
   "api/forward-status.function.ts",
   "api/forward-nqe-preview.function.ts",
+  "lib/managed-check-identity.mjs",
+  "lib/forward-authorization.mjs",
   "actions/export-forward-package.action.ts",
   "actions/export-forward-package.logic.mjs",
   "actions/export-forward-package.widget.tsx",
@@ -131,10 +133,13 @@ const requiredFiles = [
   "scripts/forward-path-evidence.test.mjs",
   "scripts/forward-nqe-live-smoke.mjs",
   "scripts/forward-nqe-live-smoke.test.mjs",
+  "scripts/forward-nqe-executor.mjs",
   "scripts/forward-nqe-artifacts.mjs",
   "scripts/forward-nqe-artifacts.test.mjs",
   "scripts/forward-nqe-preview.test.mjs",
   "scripts/forward-package.test.mjs",
+  "scripts/forward-import-plan.mjs",
+  "scripts/forward-import-plan.test.mjs",
   "scripts/forward-status.test.mjs",
   "scripts/forward-cron-import.mjs",
   "scripts/forward-cron-import.test.mjs",
@@ -211,6 +216,7 @@ const requiredFiles = [
   "schemas/forward-change-validation-event.schema.json",
   "schemas/forward-guardian-execution-context.schema.json",
   "schemas/forward-approval.schema.json",
+  "schemas/forward-import-plan.schema.json",
   "schemas/README.md",
 ];
 
@@ -345,7 +351,7 @@ const publicBrandingFiles = [
   "docs/problem-network-evidence.md",
   "docs/change-validation-gate.md",
   "docs/install.md",
-  "docs/app-identity-migration.md",
+  "docs/app-identities.md",
   "docs/production-readiness.md",
   "docs/enterprise-hardening.md",
   "docs/operations-runbook.md",
@@ -583,9 +589,9 @@ for (const planPath of [
 }
 
 for (const [file, requiredReleaseBoundary] of [
-  ["README.md", "not included in `v1.0.0`"],
-  ["docs/install.md", "not included in `v1.0.0`"],
-  ["docs/container-runtime.md", "`v1.0.0` digest predates them"],
+  ["README.md", "Application version: `1.0.0`"],
+  ["docs/install.md", "one production `v1` contract"],
+  ["docs/container-runtime.md", "operator to supply the digest"],
 ]) {
   if (!(await readText(file)).includes(requiredReleaseBoundary)) {
     fail(`${file} must preserve the published-release versus release-candidate boundary.`);
@@ -781,6 +787,7 @@ for (const scriptName of [
   "schemas:validate",
   "schemas:validate:test",
   "acceptance:bundle:test",
+  "forward:import-plan:test",
   "forward:handoff:test",
   "forward:handoff:server:test",
   "forward:cron:test",
@@ -882,6 +889,21 @@ if (!packageJson.scripts?.["forward:change-gate"]) {
 }
 
 const releaseWorkflow = await readText(".github/workflows/release.yml");
+
+const nqeAppFunction = await readText("api/forward-nqe-preview.function.ts");
+for (const forbiddenAppExecutionText of [
+  "Authorization",
+  "FORWARD_NQE_READONLY_AUTHORIZATION",
+  "FORWARD_READONLY_AUTHORIZATION",
+  "fetch(",
+]) {
+  if (nqeAppFunction.includes(forbiddenAppExecutionText)) {
+    fail(
+      `Dynatrace NQE app function must remain plan-only; found ${forbiddenAppExecutionText}.`,
+    );
+  }
+}
+
 for (const requiredReleaseWorkflowText of [
   "artifact-metadata: write",
   "npm run ci",
@@ -960,6 +982,7 @@ for (const requiredPackagerText of [
   "scripts/forward-cron-import.mjs",
   "scripts/forward-resolve-hosts.mjs",
   "scripts/forward-path-evidence.mjs",
+  "scripts/forward-nqe-executor.mjs",
   "scripts/forward-change-validation-gate.mjs",
   "scripts/forward-check-health-transitions.mjs",
   "scripts/security-exposure-correlation.mjs",
@@ -986,11 +1009,15 @@ for (const requiredPackagerText of [
 const importerDockerfile = await readText("Dockerfile.forward-importer");
 for (const requiredDockerfileText of [
   "scripts/forward-import-package.mjs",
+  "scripts/forward-import-plan.mjs",
+  "lib/managed-check-identity.mjs",
+  "lib/forward-authorization.mjs",
   "scripts/publish-forward-package.mjs",
   "scripts/forward-handoff-server.mjs",
   "scripts/forward-cron-import.mjs",
   "scripts/forward-resolve-hosts.mjs",
   "scripts/forward-path-evidence.mjs",
+  "scripts/forward-nqe-executor.mjs",
   "scripts/forward-change-validation-gate.mjs",
   "scripts/forward-check-health-transitions.mjs",
   "scripts/security-exposure-correlation.mjs",

@@ -4,7 +4,6 @@ import { test } from "node:test";
 
 import {
   buildNoShowcaseSummary,
-  forwardReadOnlyAuthorization,
   noShowcaseDependenciesMessage,
   parseArgs,
   selectShowcaseDependencies,
@@ -47,14 +46,12 @@ test("runs read-only path evidence by default and supports an explicit skip", ()
   assert.equal(shouldRunPathEvidence(parseArgs(["--skip-path-evidence"])), false);
 });
 
-test("parses explicit mutation and Dynatrace status publication gates", () => {
+test("parses Dynatrace status publication without a mutation bypass", () => {
   assert.deepEqual(parseArgs([
-    "--apply",
     "--publish-dynatrace-status",
     "--evidence-source", "trial-replay",
     "--synthetic",
   ]), {
-    apply: true,
     "publish-dynatrace-status": true,
     "evidence-source": "trial-replay",
     synthetic: true,
@@ -84,24 +81,6 @@ test("requires honest query and dependency provenance before any Forward work", 
       queryFile: "/secure/queries/customer-dependencies.dql",
     }),
     /returned replay\/seeded evidence/,
-  );
-});
-
-test("prefers dedicated read-only Forward authorization", () => {
-  assert.equal(
-    forwardReadOnlyAuthorization({
-      FORWARD_USER: "write-user",
-      FORWARD_PASSWORD: "write-password",
-      FORWARD_READONLY_AUTHORIZATION: "Bearer readonly-token",
-    }),
-    "Bearer readonly-token",
-  );
-  assert.equal(
-    forwardReadOnlyAuthorization({
-      FORWARD_USER: "demo-user",
-      FORWARD_PASSWORD: "demo-password",
-    }),
-    `Basic ${Buffer.from("demo-user:demo-password").toString("base64")}`,
   );
 });
 

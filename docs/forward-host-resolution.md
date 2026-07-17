@@ -54,11 +54,13 @@ Use the resolved dependency file as package-builder input:
 ```bash
 npm run forward:package -- \
   --dependencies resolved-dependencies.json \
+  --source-instance-id <stable-opaque-dynatrace-source-id> \
   --output-dir out/package \
   --eligibility-report out/package/forward-dependency-eligibility.json
 ```
 
-The generated `forward-intent-checks.json` keeps the original Dynatrace identity in the `dynatrace-key:*` tag, but the Forward check location values use the resolved Forward values when available:
+The generated `forward-intent-checks.json` hashes the stable Dynatrace identity into an opaque, source-scoped key; the
+Forward check location values use the resolved Forward values when available:
 
 ```json
 {
@@ -73,7 +75,10 @@ The generated `forward-intent-checks.json` keeps the original Dynatrace identity
     }
   },
   "tags": [
-    "dynatrace-key:dt:checkout:prod:service-checkout:checkout-vip:orders-db:tcp:443"
+    "managed-by:com.forward.dynatrace",
+    "contract-version:1",
+    "source-instance:dt-production-1",
+    "source-key:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   ]
 }
 ```

@@ -32,8 +32,6 @@ export interface ForwardNqePreviewRequest {
   commitId?: string;
   parameters?: Record<string, unknown>;
   maxRows?: number;
-  execute?: boolean;
-  includeResultSample?: boolean;
   dependency?: NqeDependencyContext;
 }
 

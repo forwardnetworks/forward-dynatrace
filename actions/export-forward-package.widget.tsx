@@ -13,6 +13,7 @@ interface ExportForwardPackageWidgetInput {
 
 const defaultRequest = JSON.stringify(
   {
+    sourceInstanceId: "<dynatrace-source-instance-id>",
     syncMode: "data-connector",
     forwardNetworkId: "<network-id>",
     dependencies: [],

@@ -21,7 +21,7 @@ remain explicit release gates.
 - Done in repo: Forward importer container packaging.
 - Done in repo: systemd and Kubernetes scheduler templates for the Forward-side connector runtime.
 - Done in repo: checked Dynatrace Workflow schedule and problem-trigger payload examples for the export function.
-- Done in repo: schema versioning and migration policy.
+- Done in repo: one strict production `v1` schema with no alternate-version or migration runtime.
 - Done in repo: data handling rules for screenshots, examples, package artifacts, and committed docs.
 - Done in repo: RBAC model for package generation, review, apply, signing keys, and runtime administration.
 - Done in repo: package handoff blueprint for retention, immutability, access logs, and publish order.
@@ -38,8 +38,8 @@ remain explicit release gates.
 - Done in repo: GitHub release workflow that builds app/importer archives, publishes release SBOM, optionally
   self-signs `SHA256SUMS`, emits artifact attestations, publishes the GHCR importer image, and publishes tag releases.
 - Done in repo: weekly Dependabot checks for npm and GitHub Actions.
-- Done in repo: synthetic 1001-check bulk import, chunk sizing, and transient retry coverage.
-- Done in repo: load and scale smoke for 2500 synthetic Dynatrace dependency rows through normalization, package build,
+- Done in repo: deterministic 1001-check test coverage for bulk import, chunk sizing, and transient retries.
+- Done in repo: load and scale smoke for 2500 generated dependency rows through normalization, package build,
   validate-only import, batched fake Forward apply, and unchanged rerun.
 - Done in repo: runtime SLO gate for importer reports and metrics, including duration, unresolved drift, signature
   requirements, and metric/report consistency.
@@ -47,14 +47,22 @@ remain explicit release gates.
   approver, and customer handoff owner.
 - Done in repo: provide scheduled-job runtime templates for systemd and Kubernetes; external before wider use: choose
   which runtime the deployment will actually operate.
-- External before wider use: store Forward credentials only in that Forward-side runtime, backed by a secrets manager
-  with rotation and audit logs.
+- Done in repo: reject username/password environment variables and load one Basic or Bearer Authorization header only
+  from a protected regular file mounted into the Forward-side runtime.
+- External before wider use: provision a dedicated least-privilege Forward runtime identity, render its Authorization
+  header from a secrets manager, and operate rotation and access auditing.
 - External before wider use: assign actual identities or groups to the RBAC roles in `docs/rbac.md`.
 - External before wider use: provision signing keys if checksum-only integrity is not sufficient for the deployment
   trust model.
-- Done in repo: pin package schema contract and migration rules for future `schemaVersion` changes.
-- Done in repo: default apply policy is `create-missing-only`; optional update/stale automation requires signed package
-  verification, exact approval artifact, and mutation budgets.
+- Done in repo: pin the package, ownership, import-plan, approval, and status contracts to the sole `v1` release.
+- Done in repo: default apply policy is `create-missing-only`; every write requires signed-package verification, a fresh
+  reconciliation, an immutable staged plan, an exact approval no more than 24 hours long, and mutation budgets.
+- Done in repo: serialize apply by source instance and Forward network, reject every identity/name collision, and never
+  adopt or mutate an existing check by display name.
+- Done in repo: stop on the first failed write, preserve per-source-key mutation outcomes in the private report,
+  publish only a bounded failure summary, and require fresh reconciliation plus a new plan after partial apply.
+- Done in repo: re-read the target snapshot after every apply and fail unless the observed check state reconciles to
+  the approved plan.
 - Done in repo: customer-safe runbook and acceptance checklist for release intake, install, generate package,
   validate-only, dry-run, apply, rollback, drift review, status feedback, and evidence collection.
 - Done in repo: incident runbook for importer failure, partial bulk create, stale package, auth failure, rate limit, bad
@@ -85,9 +93,8 @@ remain explicit release gates.
 - External before general availability: replace or formally own the script runner as a supported connector package and
   publish its support policy.
 - Done in repo: publish the Forward-side importer image to GHCR on tag releases with image provenance enabled.
-- Future schema work: add upgrade tests when a second schema version exists.
-- Future compatibility work: add compatibility tests against multiple real Forward API versions and Dynatrace App
-  Toolkit versions.
+- Future version work begins only after product owners intentionally introduce a second supported contract; this
+  release contains no dormant multi-version or migration behavior.
 - Done in repo: synthetic end-to-end harness publishes a package, pulls it, imports it, verifies fake Forward checks,
   and reruns the same package to confirm idempotency.
 - External after policy decision: operate the approval process for update/stale automation and decide whether it is

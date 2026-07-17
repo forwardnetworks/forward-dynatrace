@@ -31,8 +31,6 @@ interface ForwardNqePreviewRequest {
   commitId?: string;
   parameters?: Record<string, unknown>;
   maxRows?: number;
-  execute?: boolean;
-  includeResultSample?: boolean;
   dependency?: DependencyContext;
 }
 
@@ -78,27 +76,6 @@ const DEFAULT_MAX_ROWS = 25;
 const MAX_RESULT_SAMPLE_ROWS = 5;
 
 const missing = (value: string | undefined): boolean => !value?.trim();
-
-const normalizeBaseUrl = (value: string): string => value.replace(/\/+$/, "");
-
-const runtimeEnvironment = (): Record<string, string | undefined> =>
-  (
-    globalThis as unknown as {
-      process?: { env?: Record<string, string | undefined> };
-    }
-  ).process?.env || {};
-
-const runtimeAuthorization = (): string | undefined =>
-  runtimeEnvironment().FORWARD_NQE_READONLY_AUTHORIZATION?.trim() ||
-  runtimeEnvironment().FORWARD_READONLY_AUTHORIZATION?.trim();
-
-const allowedQueryIds = (): Set<string> =>
-  new Set(
-    (runtimeEnvironment().FORWARD_NQE_ALLOWED_QUERY_IDS || "")
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean),
-  );
 
 const isForwardQueryId = (value: string): boolean => /^FQ_[A-Fa-f0-9]{40}$/.test(value);
 
@@ -178,7 +155,7 @@ const baseEvidence = (
   templateId: NqeTemplateId,
 ): Array<{ label: string; value: string }> => [
   { label: "Template", value: templateId },
-  { label: "Mode", value: payload.execute ? "execute" : "plan" },
+  { label: "Mode", value: "plan" },
   { label: "Forward network", value: payload.forwardNetworkId || "not supplied" },
   { label: "Snapshot", value: payload.snapshotId || "latest via network ID" },
   { label: "Query ID", value: payload.queryId || "raw allowlisted template" },
@@ -511,10 +488,9 @@ const blocked = (
   nextSteps,
 });
 
-export const buildForwardNqePreview = async (
+export const buildForwardNqePreview = (
   payload: ForwardNqePreviewRequest | undefined,
-  fetchImpl: typeof fetch = fetch,
-): Promise<ForwardNqePreviewResponse> => {
+): ForwardNqePreviewResponse => {
   const generatedAt = new Date().toISOString();
   const request = payload || {};
   const templateId = request.templateId || DEFAULT_TEMPLATE_ID;
@@ -532,191 +508,93 @@ export const buildForwardNqePreview = async (
       body,
       [
         "Create and commit the query in Forward NQE Library.",
-        "Add the query ID to the allowlist used by the runtime.",
+        "Add the query ID to the Forward-side runtime allowlist.",
         "Rerun the preview with queryId and dependency parameters.",
       ],
     );
   }
 
-  if (request.queryId) {
-    const queryId = request.queryId.trim();
-    if (!isForwardQueryId(queryId)) {
-      return blocked(
-        "Forward NQE query IDs must use the FQ_<40 hex chars> form.",
-        { ...request, templateId },
-        body,
-        ["Use a committed Forward NQE Library query ID."],
-      );
-    }
-    if (!allowedQueryIds().has(queryId)) {
-      return blocked(
-        "The supplied Forward NQE query ID is not in the runtime allowlist.",
-        { ...request, templateId },
-        body,
-        [
-          "Add the query ID to FORWARD_NQE_ALLOWED_QUERY_IDS in the runtime secret/config layer.",
-          "Keep query authoring and commit ownership inside Forward.",
-        ],
-      );
-    }
-  }
-
-  if (!request.execute) {
-    const targetSupplied = !missing(request.forwardBaseUrl) && !missing(request.forwardNetworkId);
-    return {
-      status: "planned",
-      summary: targetSupplied
-        ? "Read-only Forward NQE preview request is planned but not executed."
-        : "Read-only Forward NQE preview is planned. Add Forward URL metadata and a network ID before execution.",
-      generatedAt,
-      templateId,
-      requestPreview,
-      evidence: baseEvidence(request, templateId),
-      nextSteps: [
-        ...(targetSupplied ? [] : ["Add Forward URL and network ID metadata before execution."]),
-        "Review the NQE request body and dependency parameters.",
-        "Execute only from a runtime with read-only Forward NQE permission.",
-        "Use preview results to mark Dynatrace rows ready, review, or needs-map.",
-      ],
-    };
-  }
-
-  if (missing(request.forwardBaseUrl) || missing(request.forwardNetworkId)) {
+  if (request.queryId && !isForwardQueryId(request.queryId.trim())) {
     return blocked(
-      "Forward NQE execution requires Forward URL metadata and a network ID.",
+      "Forward NQE query IDs must use the FQ_<40 hex chars> form.",
       { ...request, templateId },
       body,
-      [
-        "Add Forward URL and network ID metadata.",
-        "Keep Forward write credentials out of Dynatrace.",
-        "Use read-only NQE execution permission only for this preview path.",
-      ],
+      ["Use a committed Forward NQE Library query ID."],
     );
   }
 
-  const authorization = runtimeAuthorization();
-  if (!authorization) {
-    return blocked(
-      "Execution requires a runtime-supplied read-only Forward authorization header.",
-      { ...request, templateId },
-      body,
-      [
-        "Inject FORWARD_NQE_READONLY_AUTHORIZATION from a secret store.",
-        "Do not put Forward credentials in browser state, app settings, or package artifacts.",
-        "Use a Forward-side proxy if the customer does not permit Dynatrace-hosted NQE execution.",
-      ],
-    );
-  }
-
-  try {
-    const response = await fetchImpl(
-      `${normalizeBaseUrl(request.forwardBaseUrl || "")}${requestPreview.path}`,
-      {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          Authorization: authorization,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      },
-    );
-    const text = await response.text();
-    const parsed: unknown = text ? JSON.parse(text) : {};
-    const parsedRecord = isRecord(parsed) ? parsed : {};
-    const resultRows = Array.isArray(parsedRecord.items)
-      ? parsedRecord.items.filter(
-          (item): item is Record<string, unknown> =>
-            Boolean(item) && typeof item === "object" && !Array.isArray(item),
-        )
-      : [];
-    const sanitized = sanitizeRows(
-      parsedRecord.items,
-      request.includeResultSample,
-    );
-    const totalNumItems = parsedRecord.totalNumItems;
-
-    if (!response.ok) {
-      return {
-        status: "failed",
-        summary: `Forward NQE preview failed with HTTP ${response.status}.`,
-        generatedAt,
-        templateId,
-        requestPreview,
-        evidence: [
-          ...baseEvidence(request, templateId),
-          { label: "HTTP status", value: String(response.status) },
-        ],
-        nextSteps: [
-          "Confirm the read-only credential can execute NQE.",
-          "Validate the query ID/template against the target Forward instance.",
-          "Do not block package export; lower mapping confidence or mark the dependency for review.",
-        ],
-      };
-    }
-
-    const result = {
-      snapshotId:
-        typeof parsedRecord.snapshotId === "string"
-          ? parsedRecord.snapshotId
-          : undefined,
-      ...sanitized,
-      totalRows: typeof totalNumItems === "number" && Number.isInteger(totalNumItems)
-        ? totalNumItems
-        : sanitized?.totalRows || 0,
-    };
-    const endpointResolution = analyzeEndpointResolution(
-      templateId,
-      request.dependency,
-      resultRows,
-    );
-
-    return {
-      status: "ready",
-      summary: endpointResolution?.summary ||
-        "Forward NQE preview completed with sanitized aggregate evidence.",
-      generatedAt,
-      templateId,
-      requestPreview,
-      evidence: [
-        ...baseEvidence(request, templateId),
-        { label: "Rows", value: String(result.totalRows) },
-        { label: "Columns", value: result.columns.join(", ") || "none" },
-        ...(endpointResolution
-          ? [
-              { label: "Source mapping", value: endpointResolution.source.status },
-              { label: "Destination mapping", value: endpointResolution.destination.status },
-              { label: "Export state", value: endpointResolution.mappingState },
-            ]
-          : []),
-      ],
-      result,
-      ...(endpointResolution ? { endpointResolution } : {}),
-      nextSteps: [
-        endpointResolution?.mappingState === "needs-map"
-          ? "Mark unresolved dependencies as needs-map before exporting an apply package."
-          : "Use aggregate evidence to improve Dynatrace-to-Forward mapping confidence.",
-        "Keep persistent Forward writes in the importer or Forward-side connector.",
-      ],
-    };
-  } catch (error) {
-    return {
-      status: "failed",
-      summary: `Forward NQE preview failed: ${error instanceof Error ? error.message : "unknown error"}`,
-      generatedAt,
-      templateId,
-      requestPreview,
-      evidence: baseEvidence(request, templateId),
-      nextSteps: [
-        "Confirm Forward URL, network ID, and runtime authorization.",
-        "Treat preview failure as non-blocking for package export.",
-      ],
-    };
-  }
+  const targetSupplied = !missing(request.forwardBaseUrl) && !missing(request.forwardNetworkId);
+  return {
+    status: "planned",
+    summary: targetSupplied
+      ? "Read-only Forward NQE request is planned for Forward-side execution."
+      : "Read-only Forward NQE request is planned. Add Forward URL metadata and a network ID before Forward-side execution.",
+    generatedAt,
+    templateId,
+    requestPreview,
+    evidence: baseEvidence(request, templateId),
+    nextSteps: [
+      ...(targetSupplied ? [] : ["Add Forward URL and network ID metadata before execution."]),
+      "Review the NQE request body and dependency parameters.",
+      "Execute only from a Forward-controlled runtime with read-only NQE permission.",
+      "Return only sanitized aggregate evidence to Dynatrace.",
+    ],
+  };
 };
 
-export default async function (
+export const summarizeForwardNqeResponse = (
+  payload: ForwardNqePreviewRequest | undefined,
+  parsed: unknown,
+  includeResultSample = false,
+): Pick<ForwardNqePreviewResponse, "result" | "endpointResolution"> => {
+  const request = payload || {};
+  const templateId = request.templateId || DEFAULT_TEMPLATE_ID;
+  const parsedRecord = isRecord(parsed) ? parsed : {};
+  const resultRows = Array.isArray(parsedRecord.items)
+    ? parsedRecord.items.filter(
+        (item): item is Record<string, unknown> =>
+          Boolean(item) && typeof item === "object" && !Array.isArray(item),
+      )
+    : [];
+  const sanitized = sanitizeRows(parsedRecord.items, includeResultSample);
+  const totalNumItems = parsedRecord.totalNumItems;
+  const result = {
+    snapshotId:
+      typeof parsedRecord.snapshotId === "string"
+        ? parsedRecord.snapshotId
+        : undefined,
+    ...sanitized,
+    totalRows: typeof totalNumItems === "number" && Number.isInteger(totalNumItems)
+      ? totalNumItems
+      : sanitized?.totalRows || 0,
+  };
+  const endpointResolution = analyzeEndpointResolution(
+    templateId,
+    request.dependency,
+    resultRows,
+  );
+  return {
+    result,
+    ...(endpointResolution ? { endpointResolution } : {}),
+  };
+};
+
+export default function (
   payload?: ForwardNqePreviewRequest,
-): Promise<ForwardNqePreviewResponse> {
+): ForwardNqePreviewResponse {
+  if (isRecord(payload) && payload.execute === true) {
+    const planned = buildForwardNqePreview(payload);
+    return {
+      ...planned,
+      status: "blocked",
+      summary:
+        "The Dynatrace app function is plan-only. Execute approved NQE evidence from a Forward-controlled runtime.",
+      nextSteps: [
+        "Export the planned request metadata to the Forward-side workflow.",
+        "Execute only from a Forward-controlled runtime with a customer-approved read-only credential.",
+        "Return sanitized aggregate evidence to Dynatrace after execution.",
+      ],
+    };
+  }
   return buildForwardNqePreview(payload);
 }

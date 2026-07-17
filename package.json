@@ -1,6 +1,6 @@
 {
   "name": "forward-dynatrace",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Forward for Dynatrace application dependency and modeled network assurance",
   "scripts": {
     "build": "dt-app build",
@@ -62,6 +62,7 @@
     "forward:handoff:server:test": "node --test scripts/forward-handoff-server.test.mjs",
     "forward:import": "node scripts/forward-import-package.mjs",
     "forward:import:test": "node --test scripts/forward-import-package.test.mjs",
+    "forward:import-plan:test": "node --test scripts/forward-import-plan.test.mjs",
     "forward:cron": "node scripts/forward-cron-import.mjs",
     "forward:cron:test": "node --test scripts/forward-cron-import.test.mjs",
     "forward:change-gate": "node scripts/forward-change-validation-gate.mjs",
@@ -98,9 +99,9 @@
     "security:correlate:test": "node --test scripts/security-exposure-correlation.test.mjs",
     "sbom:check": "npm sbom --omit=dev --sbom-format=cyclonedx > /tmp/forward-dynatrace-sbom.cdx.json",
     "whitespace:check": "git diff --check",
-    "test": "npm run forward:import:test && npm run release:checksums:test",
+    "test": "npm run forward:import-plan:test && npm run forward:import:test && npm run release:checksums:test",
     "lint": "eslint .",
-    "ci": "npm run repo:validate && npm run whitespace:check && npm run schemas:validate && npm run schemas:validate:test && npm run acceptance:bundle:test && npm run forward:import:test && npm run forward:handoff:test && npm run forward:handoff:server:test && npm run forward:cron:test && npm run forward:change-gate:test && npm run demo:capture-evidence:test && npm run runtime:entrypoint:test && npm run forward:check-health:test && npm run security:correlate:test && npm run forward:nqe-artifacts:test && npm run forward:nqe-preview:test && npm run forward:nqe-live-smoke:test && npm run forward:resolve-hosts:test && npm run forward:path-evidence:test && npm run forward:package:test && npm run forward:readiness:test && npm run forward:status:test && npm run forward:status:publish:test && npm run dynatrace:status:publish:test && npm run dynatrace:network-evidence:publish:test && npm run dynatrace:change-gate:publish:test && npm run dynatrace:security-correlation:publish:test && npm run dynatrace:normalize:test && npm run dynatrace:replay-demo:test && npm run dynatrace:deploy:test && npm run dynatrace:action:test && npm run demo:live:test && npm run release:checksums:test && npm run release:sign:test && npm run release:signing-key:test && npm run release:ref:test && npm run release:immutability:test && npm run release:published:test && npm run workflow:smoke && npm run load:scale && npm run runtime:validate && npm run systemd:install:test && npm run runtime:slo:test && npm run dynatrace:workflow:validate && npm run dynatrace:workflow:generate:test && npm run dynatrace:guardian:validate && npm run demo:rehearsal && npm run security:audit && npm run sbom:check && npm run lint && npm run build && npm run release:package:smoke"
+    "ci": "npm run repo:validate && npm run whitespace:check && npm run schemas:validate && npm run schemas:validate:test && npm run acceptance:bundle:test && npm run forward:import-plan:test && npm run forward:import:test && npm run forward:handoff:test && npm run forward:handoff:server:test && npm run forward:cron:test && npm run forward:change-gate:test && npm run demo:capture-evidence:test && npm run runtime:entrypoint:test && npm run forward:check-health:test && npm run security:correlate:test && npm run forward:nqe-artifacts:test && npm run forward:nqe-preview:test && npm run forward:nqe-live-smoke:test && npm run forward:resolve-hosts:test && npm run forward:path-evidence:test && npm run forward:package:test && npm run forward:readiness:test && npm run forward:status:test && npm run forward:status:publish:test && npm run dynatrace:status:publish:test && npm run dynatrace:network-evidence:publish:test && npm run dynatrace:change-gate:publish:test && npm run dynatrace:security-correlation:publish:test && npm run dynatrace:normalize:test && npm run dynatrace:replay-demo:test && npm run dynatrace:deploy:test && npm run dynatrace:action:test && npm run demo:live:test && npm run release:checksums:test && npm run release:sign:test && npm run release:signing-key:test && npm run release:ref:test && npm run release:immutability:test && npm run release:published:test && npm run workflow:smoke && npm run load:scale && npm run runtime:validate && npm run systemd:install:test && npm run runtime:slo:test && npm run dynatrace:workflow:validate && npm run dynatrace:workflow:generate:test && npm run dynatrace:guardian:validate && npm run demo:rehearsal && npm run security:audit && npm run sbom:check && npm run lint && npm run build && npm run release:package:smoke"
   },
   "engines": {
     "node": ">=24.0.0 <25.0.0"

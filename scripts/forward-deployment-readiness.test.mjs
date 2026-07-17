@@ -66,6 +66,8 @@ const buildPackage = async () => {
     dependenciesPath,
     "--output-dir",
     outputDir,
+    "--source-instance-id",
+    "dt-readiness-test",
   ]);
   assert.equal(buildResult.code, 0, buildResult.stderr);
 
@@ -104,8 +106,7 @@ test("fails Forward dry-run readiness when runtime credentials are missing", asy
     ...process.env,
     FORWARD_BASE_URL: "https://forward.example.com",
     FORWARD_NETWORK_ID: "network-1",
-    FORWARD_USER: "",
-    FORWARD_PASSWORD: "",
+    FORWARD_AUTHORIZATION_FILE: "",
   };
   const result = await runJson(
     [
@@ -127,7 +128,7 @@ test("fails Forward dry-run readiness when runtime credentials are missing", asy
   );
   assert.match(
     result.json.gates.find((gate) => gate.id === "forward-connectivity")?.summary,
-    /FORWARD_USER/,
+    /FORWARD_AUTHORIZATION_FILE/,
   );
 });
 

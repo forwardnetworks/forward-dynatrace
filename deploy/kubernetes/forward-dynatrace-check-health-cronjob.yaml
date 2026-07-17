@@ -29,7 +29,7 @@ spec:
               type: RuntimeDefault
           containers:
             - name: check-health
-              image: <forward-dynatrace-importer-image@sha256:digest>
+              image: "ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:<verified-64-hex-digest>"
               imagePullPolicy: IfNotPresent
               args:
                 - "forward-check-health"
@@ -58,16 +58,8 @@ spec:
                     configMapKeyRef:
                       name: forward-dynatrace-check-health-config
                       key: dynatrace-environment-url
-                - name: FORWARD_USER
-                  valueFrom:
-                    secretKeyRef:
-                      name: forward-dynatrace-credentials
-                      key: forward-user
-                - name: FORWARD_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: forward-dynatrace-credentials
-                      key: forward-password
+                - name: FORWARD_AUTHORIZATION_FILE
+                  value: /var/run/secrets/forward-dynatrace/forward-authorization
               volumeMounts:
                 - name: state
                   mountPath: /var/lib/forward-dynatrace
@@ -90,4 +82,6 @@ spec:
                 items:
                   - key: dynatrace-platform-token
                     path: platform-token
-
+                  - key: forward-authorization
+                    path: forward-authorization
+                defaultMode: 0440

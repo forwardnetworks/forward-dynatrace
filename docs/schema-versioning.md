@@ -7,14 +7,13 @@ contract for manifests, generated checks, connector configs, approval artifacts,
 importer remains the enforcement point for runtime controls such as age limits, checksums, signatures, query ID
 allowlists, and mutation budgets.
 
-## Compatibility Rules
+## Sole-Version Rules
 
-- `forward-dynatrace/v1` remains backward compatible for additive optional fields.
-- Required field changes require a new schema version.
-- Changed meaning for an existing field requires a new schema version.
-- Removing a field requires a new schema version.
-- The importer must reject unknown major schema versions before contacting Forward.
-- Migration tests must cover every supported previous schema version before release.
+- This release reads and writes only `forward-dynatrace/v1`.
+- `v1` is strict: unknown fields and unsupported schema versions are rejected before any Forward call.
+- There is no alternate reader, compatibility mode, conversion path, or migration code.
+- Any future contract requires an explicit product decision and a new execution plan before code is added. It does not
+  silently extend or reinterpret `v1`.
 
 ## Current Required Contract
 
@@ -35,14 +34,18 @@ allowlists, and mutation budgets.
 - `intentChecks.payloadShape = NewNetworkCheck[]`
 - `intentChecks.bulkEndpoint = /api/snapshots/{snapshotId}/checks?bulk`
 - `intentChecks.dedupeRequiredBeforePost = true`
-- `validation.requiredTagPrefix = dynatrace-key:`
-- `validation.requiredTagsPerCheck = 1`
+- `validation.managedByTag = managed-by:com.forward.dynatrace`
+- `validation.contractVersionTag = contract-version:1`
+- `validation.sourceInstanceTagPrefix = source-instance:`
+- `validation.sourceKeyTagPrefix = source-key:sha256:`
+- `validation.ownershipTagsPerCheck = 4`
+- `validation.identityPolicy = strict-ownership-tuple`
 - `validation.credentialPolicy = no-forward-credentials-in-dynatrace`
 - `reconciliation.defaultApplyPolicy = create-missing-only`
 - `reconciliation.changedChecks = report-only`
 - `reconciliation.staleChecks = report-only`
 
-`forward-dynatrace/v1` also allows additive optional fields:
+`forward-dynatrace/v1` includes these explicitly modeled optional artifacts:
 
 - `artifacts.nqeChecks = forward-nqe-checks.json`
 - `integrity.nqeChecksSha256`
@@ -59,14 +62,8 @@ allowlists, and mutation budgets.
 - `nqeDiffRequests.queryIdPolicy = forward-owned-allowlist`
 - `nqeDiffRequests.executionPolicy = read-only-forward-side-optional`
 
-## Migration Checklist
+## Future Version Gate
 
-For any future schema version:
-
-1. Add an example manifest.
-2. Add importer validation for the new version.
-3. Add rejection tests for unsupported versions.
-4. Add migration tests from the previous version.
-5. Update `docs/forward-ingest-contract.md`.
-6. Update `docs/validation-matrix.md`.
-7. Keep old versions readable until the release notes explicitly retire them.
+A second version is not part of this release. If product owners approve one later, first define its support window,
+upgrade ownership, downgrade behavior, audit evidence, and removal criteria in a dedicated execution plan. Until that
+decision is complete, the importer continues to reject every version other than `v1`.

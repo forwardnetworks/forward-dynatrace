@@ -70,6 +70,7 @@ export const buildDemoPackageRehearsal = async (outputDir) => {
     rows.map((row) => ({ ...row, "demo.synthetic": true })),
   );
   const result = forwardSync({
+    sourceInstanceId: "dt-demo-rehearsal",
     syncMode: "data-connector",
     dependencies: dependencies.filter((dependency) => dependency.mappingState !== "needs-map"),
   });

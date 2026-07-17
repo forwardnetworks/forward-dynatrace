@@ -17,6 +17,7 @@ npm run forward:resolve-hosts -- \
 
 npm run forward:package -- \
   --dependencies resolved-dependencies.json \
+  --source-instance-id <stable-opaque-dynatrace-source-id> \
   --output-dir out/forward-package
 ```
 
@@ -36,8 +37,7 @@ Optional inputs:
 
 ```bash
 export FORWARD_BASE_URL=https://forward.example.com
-export FORWARD_USER=<user>
-export FORWARD_PASSWORD=<password-or-token>
+export FORWARD_AUTHORIZATION_FILE=/secure/path/forward-authorization.header
 export FORWARD_NETWORK_ID=<network-id>
 ```
 
@@ -54,15 +54,16 @@ The dry run:
 1. Validates the package before contacting Forward:
    - payload must be a JSON array
    - manifest checksum must match the exact `forward-intent-checks.json` bytes when a manifest is supplied
-   - every check must have exactly one `dynatrace-key:*` tag
-   - names and `dynatrace-key:*` tags must be unique
+   - every check must have exactly one tag for product ownership, contract version, source instance, and opaque source key
+   - names and source keys must be unique within a package
    - check type must be `Existential`
    - optional NQE artifacts must reference query IDs in the Forward-side allowlist
 2. Reads the latest processed snapshot:
    `GET /api/networks/{networkId}/snapshots/latestProcessed`
 3. Reads existing Forward intent checks:
    `GET /api/snapshots/{snapshotId}/checks?type=Existential`
-4. Matches planned checks by exact `name` or `dynatrace-key:*` tag.
+4. Matches planned checks only by the complete managed ownership tuple and opaque source key. A name match without the
+   same complete tuple is a collision, never adoption.
 5. Computes canonical SHA-256 fingerprints for the generated check fields.
 6. Reports checks to create, unchanged checks, changed checks, and stale Dynatrace-managed checks.
 
@@ -98,16 +99,35 @@ npm run forward:readiness -- \
 
 Use `--dry-run` on the readiness command after Forward credentials and network ID are configured.
 
-## Apply Checks
+## Stage, Approve, And Apply
 
 ```bash
 npm run forward:import -- \
   --checks forward-intent-checks.json \
   --manifest forward-dynatrace-manifest.json \
+  --require-signature \
+  --signature forward-dynatrace-package.sig \
+  --public-key /secure/path/forward-dynatrace-public.pem \
+  --stage-plan /secure/approvals/import-plan.json
+```
+
+Staging performs live reconciliation but no Forward write. The immutable plan binds the signed package digests,
+source instance, target network and snapshot, policy, budgets, counts, and exact actions. An operator creates an
+approval for that exact plan. Apply then re-runs reconciliation and fails closed if any input or Forward state changed:
+
+```bash
+npm run forward:import -- \
+  --checks forward-intent-checks.json \
+  --manifest forward-dynatrace-manifest.json \
+  --require-signature \
+  --signature forward-dynatrace-package.sig \
+  --public-key /secure/path/forward-dynatrace-public.pem \
+  --apply-plan /secure/approvals/import-plan.json \
+  --require-approval-file /secure/approvals/approval.json \
   --apply
 ```
 
-The default apply run posts only missing checks:
+Create-missing apply posts:
 
 ```text
 POST /api/snapshots/{snapshotId}/checks?bulk
@@ -168,7 +188,7 @@ Persistent NQE checks:
 
 - must use `definition.checkType = "NQE"`
 - must reference a committed Forward NQE Library `queryId`
-- must have exactly one `dynatrace-key:*` tag
+- must have the same complete managed ownership tuple as intent checks
 - are reconciled with the same create/unchanged/changed/stale model as intent checks
 - are created only through the Forward-side importer or connector
 
@@ -191,22 +211,32 @@ Required gates:
 - `--require-approval-file approval.json`
 - explicit mutation budgets with `--max-updates` and `--max-deactivations`
 
-Approval files name exact `dynatrace-key:*` values from the current dry-run report:
+Approval files bind the exact immutable plan and must repeat the complete update/retire source-key action sets already
+present in that plan. `approvedAt` records issuance and `expiresAt` must be later, still in the future, and no more than
+24 hours after issuance:
 
 ```json
 {
-  "schemaVersion": "forward-dynatrace-approval/v1",
+  "schemaVersion": "forward-dynatrace-import-approval/v1",
+  "planId": "forward-dynatrace-plan-0123456789abcdef01234567",
+  "planSha256": "1111111111111111111111111111111111111111111111111111111111111111",
   "packageId": "dynatrace-forward-20260703120000",
+  "networkId": "network-123",
+  "snapshotId": "snapshot-456",
   "changeWindowId": "CHG-12345",
-  "expiresAt": "2026-07-10T23:59:59.000Z",
+  "approvedAt": "2026-07-17T18:00:00.000Z",
+  "expiresAt": "2026-07-17T19:00:00.000Z",
   "approvedBy": "forward-operator@example.com",
   "reason": "Approved app dependency refresh",
-  "approvedChangedKeys": [
-    "dynatrace-key:dt:checkout:prod:service-123:checkout-vip:orders-db:tcp:443"
-  ],
-  "approvedStaleKeys": [
-    "dynatrace-key:dt:checkout:prod:service-456:old-vip:orders-db:tcp:443"
-  ]
+  "actions": {
+    "createMissing": true,
+    "updateSourceKeys": [
+      "source-key:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ],
+    "retireSourceKeys": [
+      "source-key:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    ]
+  }
 }
 ```
 
@@ -219,6 +249,7 @@ npm run forward:import -- \
   --signature forward-dynatrace-package.sig \
   --public-key /secure/path/forward-dynatrace-public.pem \
   --require-signature \
+  --apply-plan /secure/approvals/import-plan.json \
   --require-approval-file approval.json \
   --change-window-id CHG-12345 \
   --apply \
@@ -246,6 +277,14 @@ DELETE /api/snapshots/{snapshotId}/checks/{checkId}
 Approval files are intentionally exact and short-lived. Unknown keys, package ID mismatches, change window mismatches,
 expired approvals, missing signatures, or budget overages fail before mutation.
 
+Apply writes are recorded per source key. Changed-check replacement is serialized as delete then single-check create so
+a failure has one exact recovery scope. If any write fails, the importer stops further mutations, writes the private
+report and sanitized failed status when those paths are configured, exits non-zero, and requires reconciliation plus a
+new staged plan before retry. The private report records the failed phase and whether an existing check had already
+been deleted; the Dynatrace-safe status exposes only phase, HTTP status, affected count, and recovery-required state.
+After every apply, the importer reads the checks again and fails unless missing, changed, collision, and approved stale
+retirement counts reconcile to the plan.
+
 ## Reconciliation Report
 
 Write the report to disk with:
@@ -266,14 +305,19 @@ The report includes:
 - `unchanged`: package checks already present with the same generated fingerprint.
 - `changed`: same key/name exists, but generated fields differ.
 - `stale`: Dynatrace-managed Forward checks no longer present in the package.
+- `collision`: a name or source key conflicts with a check outside the exact ownership tuple.
+- `mutationOutcomes` and `mutationFailure`: per-key completed writes and the bounded recovery scope for a stopped
+  apply. These remain in the private Forward-side report.
+- `postApplyVerification`: the aggregate readback reconciliation proving whether the apply reached its approved state.
 
 The metrics file includes planned-check count, reconciliation counts, mutation counts, duration, and signature
 verification state in Prometheus text format.
 
 The status artifact is a sanitized `forward-dynatrace-status/v1` JSON summary intended for read-only display in
 Dynatrace after Forward-side ingest. It includes run ID, package ID, mode, import state, signature status, target IDs,
-counts, planned-check count, optional NQE counts, and duration. It does not include check names, hostnames, dependency
-rows, credentials, or Forward API response bodies.
+counts, planned-check count, optional NQE counts, duration, post-apply verification state, and a sanitized
+mutation-failure summary. It does not
+include source keys, check IDs, check names, hostnames, dependency rows, credentials, or Forward API response bodies.
 
 Use `--fail-on-drift` in automation when changed or stale checks should block the run:
 

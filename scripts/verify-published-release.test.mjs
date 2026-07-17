@@ -25,18 +25,18 @@ const imageDigest = `sha256:${"b".repeat(64)}`;
 const repository = "forwardnetworks/forward-dynatrace";
 
 const releaseMetadata = {
-  tagName: "v2.0.0",
+  tagName: "v1.1.0",
   isDraft: false,
   isPrerelease: false,
   publishedAt: "2026-07-15T18:30:00.000Z",
-  url: "https://github.com/forwardnetworks/forward-dynatrace/releases/tag/v2.0.0",
+  url: "https://github.com/forwardnetworks/forward-dynatrace/releases/tag/v1.1.0",
   targetCommitish: "main",
 };
 
 const releaseRun = {
   databaseId: 123456,
   headSha: commitSha,
-  headBranch: "v2.0.0",
+  headBranch: "v1.1.0",
   status: "completed",
   conclusion: "success",
   url: "https://github.com/forwardnetworks/forward-dynatrace/actions/runs/123456",
@@ -54,9 +54,9 @@ const attestationResults = ({
       certificate: {
         sourceRepositoryURI: `https://github.com/${repository}`,
         sourceRepositoryDigest: sourceDigest,
-        sourceRepositoryRef: "refs/tags/v2.0.0",
+        sourceRepositoryRef: "refs/tags/v1.1.0",
         buildSignerURI:
-          `https://github.com/${repository}/.github/workflows/release.yml@refs/tags/v2.0.0`,
+          `https://github.com/${repository}/.github/workflows/release.yml@refs/tags/v1.1.0`,
         runnerEnvironment: "github-hosted",
         runInvocationURI: `https://github.com/${repository}/actions/runs/${runId}/attempts/1`,
       },
@@ -72,15 +72,15 @@ const attestationResults = ({
 }];
 
 test("validates release metadata, workflow identity, image digest, SBOM, and empty SARIF", () => {
-  assert.equal(validateReleaseMetadata(releaseMetadata, "v2.0.0").tagName, "v2.0.0");
-  assert.equal(selectReleaseRun([releaseRun], { releaseName: "v2.0.0", commitSha }).databaseId, 123456);
+  assert.equal(validateReleaseMetadata(releaseMetadata, "v1.1.0").tagName, "v1.1.0");
+  assert.equal(selectReleaseRun([releaseRun], { releaseName: "v1.1.0", commitSha }).databaseId, 123456);
   assert.equal(parseImageDigest(`Name: image\nDigest: ${imageDigest}\n`), imageDigest);
   assert.deepEqual(validateSbom({
     bomFormat: "CycloneDX",
     specVersion: "1.5",
-    metadata: { component: { name: "forward-dynatrace", version: "2.0.0" } },
+    metadata: { component: { name: "forward-dynatrace", version: "1.1.0" } },
     components: [{}],
-  }, "2.0.0"), { format: "CycloneDX", specVersion: "1.5", components: 1 });
+  }, "1.1.0"), { format: "CycloneDX", specVersion: "1.5", components: 1 });
   assert.deepEqual(validateTrivySarif({
     version: "2.1.0",
     runs: [{ tool: { driver: { name: "Trivy" } }, results: [] }],
@@ -92,13 +92,13 @@ test("validates release metadata, workflow identity, image digest, SBOM, and emp
 });
 
 test("binds attestations to the exact release workflow run, source, and subject digest", () => {
-  const subjectName = "forward-dynatrace-app-v2.0.0.tgz";
+  const subjectName = "forward-dynatrace-app-v1.1.0.tgz";
   const subjectDigest = "c".repeat(64);
   const results = attestationResults({ subjectName, subjectDigest });
   assert.equal(validateAttestationResults(results, {
     repository,
     commitSha,
-    releaseName: "v2.0.0",
+    releaseName: "v1.1.0",
     workflowRunId: releaseRun.databaseId,
     subjectName,
     subjectDigest,
@@ -107,7 +107,7 @@ test("binds attestations to the exact release workflow run, source, and subject 
   assert.throws(() => validateAttestationResults(results, {
     repository,
     commitSha,
-    releaseName: "v2.0.0",
+    releaseName: "v1.1.0",
     workflowRunId: 999999,
     subjectName,
     subjectDigest,
@@ -115,7 +115,7 @@ test("binds attestations to the exact release workflow run, source, and subject 
   assert.throws(() => validateAttestationResults(results, {
     repository,
     commitSha,
-    releaseName: "v2.0.0",
+    releaseName: "v1.1.0",
     workflowRunId: releaseRun.databaseId,
     subjectName,
     subjectDigest: "d".repeat(64),
@@ -124,25 +124,25 @@ test("binds attestations to the exact release workflow run, source, and subject 
 
 test("fails closed on draft releases, mismatched runs, malformed checksums, and vulnerability results", () => {
   assert.throws(
-    () => validateReleaseMetadata({ ...releaseMetadata, isDraft: true }, "v2.0.0"),
+    () => validateReleaseMetadata({ ...releaseMetadata, isDraft: true }, "v1.1.0"),
     /still a draft/u,
   );
   assert.throws(
-    () => selectReleaseRun([{ ...releaseRun, headBranch: "main" }], { releaseName: "v2.0.0", commitSha }),
+    () => selectReleaseRun([{ ...releaseRun, headBranch: "main" }], { releaseName: "v1.1.0", commitSha }),
     /found 0/u,
   );
   assert.throws(
     () => selectReleaseRun([
       releaseRun,
       { ...releaseRun, databaseId: 123455, headSha: "f".repeat(40) },
-    ], { releaseName: "v2.0.0", commitSha }),
+    ], { releaseName: "v1.1.0", commitSha }),
     /tag immutability is violated/u,
   );
   assert.throws(
     () => selectReleaseRun(Array.from({ length: 100 }, (_, index) => ({
       ...releaseRun,
       databaseId: index + 1,
-    })), { releaseName: "v2.0.0", commitSha }),
+    })), { releaseName: "v1.1.0", commitSha }),
     /reached the bounded query limit/u,
   );
   assert.throws(() => parseChecksums(`${"a".repeat(64)} *artifact.tgz\n`), /Invalid SHA256SUMS/u);
@@ -163,8 +163,8 @@ test("fails closed on draft releases, mismatched runs, malformed checksums, and 
   assert.throws(
     () => validateReleaseMetadata({
       ...releaseMetadata,
-      url: "https://github.com/other/repository/releases/tag/v2.0.0",
-    }, "v2.0.0", repository),
+      url: "https://github.com/other/repository/releases/tag/v1.1.0",
+    }, "v1.1.0", repository),
     /does not match the requested repository and tag/u,
   );
 });
@@ -196,13 +196,13 @@ test("rejects a non-empty output directory and malformed release tag before netw
     throw new Error("runner must not be called");
   };
   await assert.rejects(
-    verifyPublishedRelease({ releaseName: "v2.0.0", outputDir, runner }),
+    verifyPublishedRelease({ releaseName: "v1.1.0", outputDir, runner }),
     /must be new or empty/u,
   );
 
   const emptyOutputDir = await mkdtemp(path.join(tmpdir(), "published-release-verification-"));
   await assert.rejects(
-    verifyPublishedRelease({ releaseName: "release-2.0.0", outputDir: emptyOutputDir, runner }),
+    verifyPublishedRelease({ releaseName: "release-1.1.0", outputDir: emptyOutputDir, runner }),
     /--release-name is invalid/u,
   );
 });
@@ -243,9 +243,9 @@ test("orchestrates published release verification and writes bounded evidence", 
     }
     if (command === "gh" && args[0] === "release" && args[1] === "download") {
       const names = [
-        "forward-dynatrace-app-v2.0.0.tgz",
-        "forward-dynatrace-importer-v2.0.0.tgz",
-        "forward-dynatrace-sbom-v2.0.0.cdx.json",
+        "forward-dynatrace-app-v1.1.0.tgz",
+        "forward-dynatrace-importer-v1.1.0.tgz",
+        "forward-dynatrace-sbom-v1.1.0.cdx.json",
       ];
       const contents = [
         Buffer.from("app archive"),
@@ -253,7 +253,7 @@ test("orchestrates published release verification and writes bounded evidence", 
         Buffer.from(JSON.stringify({
           bomFormat: "CycloneDX",
           specVersion: "1.5",
-          metadata: { component: { name: "forward-dynatrace", version: "2.0.0" } },
+          metadata: { component: { name: "forward-dynatrace", version: "1.1.0" } },
           components: [{}],
         })),
       ];
@@ -304,7 +304,7 @@ test("orchestrates published release verification and writes bounded evidence", 
   };
 
   const { report, reportPath } = await verifyPublishedRelease({
-    releaseName: "v2.0.0",
+    releaseName: "v1.1.0",
     outputDir,
     runner,
     commandAttempts: 2,
@@ -332,12 +332,12 @@ test("orchestrates published release verification and writes bounded evidence", 
     assert.ok(call.includes("--deny-self-hosted-runners"));
     assert.ok(call.includes("--source-digest"));
     assert.ok(call.includes(commitSha));
-    assert.ok(call.includes("refs/tags/v2.0.0"));
+    assert.ok(call.includes("refs/tags/v1.1.0"));
     assert.ok(call.includes(`${repository}/.github/workflows/release.yml`));
   }
   const runListCall = calls.find((call) => call[0] === "gh" && call[1] === "run" && call[2] === "list");
   assert.ok(runListCall.includes("--branch"));
-  assert.ok(runListCall.includes("v2.0.0"));
+  assert.ok(runListCall.includes("v1.1.0"));
   assert.ok(!runListCall.includes("--commit"));
   assert.ok(runListCall.includes("100"));
   const releaseDownloadCall = calls.find((call) =>

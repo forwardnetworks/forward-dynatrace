@@ -27,20 +27,9 @@ docker image inspect ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag> \
   --format '{{index .RepoDigests 0}}'
 ```
 
-For production or customer pilots, deploy a digest-pinned image rather than `latest`. The following digest is retained
-only as the reproducible legacy base-workflow image from release run `28696863169`:
-
-```text
-ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:7f884e44a2b54303d7da708bc805f0e16c1d19b192f95a90e94a63aad66bb7c6
-```
-
-The checked Docker Compose and Kubernetes examples default to this legacy digest until `v2.0.0` is published. The
-historical `v1.0.0` tag was reused across three commits, so this digest does not constitute immutable release proof.
-Override it only with the output of the checked verifier for a new immutable release after verifying checksums,
-attestations, SBOM, and Trivy SARIF.
-
-The new handoff/check-health/security/Flow commands require the next release image; the `v1.0.0` digest predates them.
-Check-health templates therefore require an explicitly replaced digest placeholder until that release exists.
+For production or customer pilots, deploy a digest-pinned image rather than `latest`. The checked Docker Compose and
+Kubernetes examples require the operator to supply the digest from a replacement immutable release after verifying
+checksums, attestations, SBOM, and image-scan evidence. No image is supplied as an implicit default.
 
 Release provenance, SBOM, and signature verification details are in
 [release-provenance.md](release-provenance.md).
@@ -74,13 +63,12 @@ docker run --rm \
 
 ## Connector Mode
 
-Mount a non-secret connector config and inject Forward credentials from the runtime secret store:
+Mount a non-secret connector config and a protected authorization-header file from the runtime secret store:
 
 ```bash
 docker run --rm \
-  -e FORWARD_USER=<user> \
-  -e FORWARD_PASSWORD=<password-or-token> \
   -v "/secure/path/forward-connector.config.json:/config/forward-connector.config.json:ro" \
+  -v "/secure/path/forward-authorization.header:/run/secrets/forward-authorization:ro" \
   forward-dynatrace-importer:local \
   --config /config/forward-connector.config.json
 ```

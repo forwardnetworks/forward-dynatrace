@@ -74,9 +74,9 @@ test("workflow action publishes exact package bytes through a selected write-onl
   const { action, requests } = harness();
   const result = await action({
     connectionId: "connection-1",
-    request: { syncMode: "data-connector", dependencies: [dependency] },
+    request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [dependency] },
   });
-  assert.equal(result.schemaVersion, "forward-dynatrace-workflow-action/v2");
+  assert.equal(result.schemaVersion, "forward-dynatrace-workflow-action/v1");
   assert.equal(result.status, "ready");
   assert.equal(result.intentCheckCount, 1);
   assert.equal(result.boundary, "dynatrace-never-writes-forward");
@@ -104,7 +104,7 @@ test("workflow action accepts expression-resolved JSON text", async () => {
   const { action } = harness();
   const result = await action({
     connectionId: "connection-1",
-    request: JSON.stringify({ syncMode: "manual-import", dependencies: [dependency] }),
+    request: JSON.stringify({ sourceInstanceId: "dt-test-environment", syncMode: "manual-import", dependencies: [dependency] }),
   });
   assert.equal(result.intentCheckCount, 1);
   assert.equal(result.handoff.retentionClass, "nonproduction-30d");
@@ -133,11 +133,11 @@ test("builds deterministic complete publication bytes", () => {
 test("workflow action rejects empty scope, missing connection, and unsafe connection URLs", async () => {
   const { action } = harness();
   await assert.rejects(
-    action({ connectionId: "connection-1", request: { syncMode: "data-connector", dependencies: [] } }),
+    action({ connectionId: "connection-1", request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [] } }),
     /No dependency rows selected/,
   );
   await assert.rejects(
-    action({ request: { syncMode: "data-connector", dependencies: [dependency] } }),
+    action({ request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [dependency] } }),
     /connectionId.*non-empty string/,
   );
   const unsafeAction = createExportForwardPackageAction({
@@ -149,7 +149,7 @@ test("workflow action rejects empty scope, missing connection, and unsafe connec
   await assert.rejects(
     unsafeAction({
       connectionId: "connection-1",
-      request: { syncMode: "data-connector", dependencies: [dependency] },
+      request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [dependency] },
     }),
     /must use HTTPS/,
   );
@@ -162,7 +162,7 @@ test("workflow action rejects empty scope, missing connection, and unsafe connec
   await assert.rejects(
     weakTokenAction({
       connectionId: "connection-1",
-      request: { syncMode: "data-connector", dependencies: [dependency] },
+      request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [dependency] },
     }),
     /at least 16 characters/,
   );
@@ -175,7 +175,7 @@ test("workflow action rejects empty scope, missing connection, and unsafe connec
   await assert.rejects(
     extendedConnectionAction({
       connectionId: "connection-1",
-      request: { syncMode: "data-connector", dependencies: [dependency] },
+      request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [dependency] },
     }),
     /unsupported fields: unexpected/,
   );
@@ -207,7 +207,7 @@ test("workflow action fails closed on a mismatched handoff receipt", async () =>
   await assert.rejects(
     action({
       connectionId: "connection-1",
-      request: { syncMode: "data-connector", dependencies: [dependency] },
+      request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [dependency] },
     }),
     /receipt changed the package ID/,
   );
@@ -216,7 +216,7 @@ test("workflow action fails closed on a mismatched handoff receipt", async () =>
 test("workflow action rejects inconsistent or extended receipts and does not echo failure bodies", async () => {
   const request = {
     connectionId: "connection-1",
-    request: { syncMode: "data-connector", dependencies: [dependency] },
+    request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [dependency] },
   };
   const receiptAction = ({ status = 200, receiptOverrides = {} } = {}) =>
     createExportForwardPackageAction({

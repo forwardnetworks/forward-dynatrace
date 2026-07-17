@@ -29,10 +29,12 @@
     "source": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["platform", "app", "writePolicy"],
+      "required": ["platform", "app", "instanceId", "instanceTag", "writePolicy"],
       "properties": {
         "platform": { "const": "dynatrace" },
-        "app": { "const": "forward-dynatrace" },
+        "app": { "const": "com.forward.dynatrace" },
+        "instanceId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{2,127}$" },
+        "instanceTag": { "type": "string", "pattern": "^source-instance:[a-z0-9][a-z0-9._:-]{2,127}$" },
         "writePolicy": { "const": "dynatrace-never-writes-forward" }
       }
     },
@@ -92,8 +94,50 @@
         "bulkEndpoint": { "const": "/api/snapshots/{snapshotId}/checks?bulk" }
       }
     },
-    "validation": { "type": "object", "additionalProperties": true },
-    "reconciliation": { "type": "object", "additionalProperties": true },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "managedByTag",
+        "contractVersionTag",
+        "sourceInstanceTagPrefix",
+        "sourceKeyTagPrefix",
+        "ownershipTagsPerCheck",
+        "identityPolicy",
+        "duplicatePolicy",
+        "allowedCheckTypes",
+        "credentialPolicy"
+      ],
+      "properties": {
+        "managedByTag": { "const": "managed-by:com.forward.dynatrace" },
+        "contractVersionTag": { "const": "contract-version:1" },
+        "sourceInstanceTagPrefix": { "const": "source-instance:" },
+        "sourceKeyTagPrefix": { "const": "source-key:sha256:" },
+        "ownershipTagsPerCheck": { "const": 4 },
+        "identityPolicy": { "const": "strict-ownership-tuple" },
+        "duplicatePolicy": { "const": "reject-package" },
+        "allowedCheckTypes": { "const": ["Existential"] },
+        "credentialPolicy": { "const": "no-forward-credentials-in-dynatrace" }
+      }
+    },
+    "reconciliation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy",
+        "defaultApplyPolicy",
+        "changedChecks",
+        "staleChecks",
+        "collisionPolicy"
+      ],
+      "properties": {
+        "strategy": { "const": "source-scoped-desired-state" },
+        "defaultApplyPolicy": { "const": "create-missing-only" },
+        "changedChecks": { "const": "report-only" },
+        "staleChecks": { "const": "report-only" },
+        "collisionPolicy": { "const": "reject" }
+      }
+    },
     "bulkPolicy": { "type": "object", "additionalProperties": true },
     "workflowOptions": {
       "type": "array",

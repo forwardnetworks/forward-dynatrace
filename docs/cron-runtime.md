@@ -34,8 +34,7 @@ Edit the connector config to set the package URL, Forward URL, and network ID. P
 local secret manager:
 
 ```bash
-FORWARD_USER=<user>
-FORWARD_PASSWORD=<password-or-token>
+FORWARD_AUTHORIZATION_FILE=/etc/forward-dynatrace/forward-authorization.header
 ```
 
 Do not put credentials in the connector config or crontab.

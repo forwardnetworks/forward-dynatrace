@@ -19,10 +19,14 @@ const baseReport = {
     unchanged: 42,
     changed: 0,
     stale: 0,
+    collision: 0,
   },
   unresolvedCounts: {
     changed: 0,
     stale: 0,
+  },
+  postApplyVerification: {
+    state: "verified",
   },
 };
 
@@ -80,6 +84,32 @@ test("rejects missing signature when required", () => {
 
   assert.equal(result.status, "failed");
   assert.match(result.errors.join("\n"), /signature must be verified/);
+});
+
+test("rejects collisions and partial mutation failures", () => {
+  const collision = evaluateRuntimeSlo({
+    ...baseReport,
+    counts: { ...baseReport.counts, collision: 1 },
+  });
+  assert.equal(collision.status, "failed");
+  assert.match(collision.errors.join("\n"), /collisions must be zero/u);
+
+  const partialApply = evaluateRuntimeSlo({
+    ...baseReport,
+    mutationFailure: {
+      phase: "replace-create",
+      recoveryRequired: true,
+    },
+  });
+  assert.equal(partialApply.status, "failed");
+  assert.match(partialApply.errors.join("\n"), /requires reconciliation/u);
+
+  const missingReadback = evaluateRuntimeSlo({
+    ...baseReport,
+    postApplyVerification: { state: "unavailable" },
+  });
+  assert.equal(missingReadback.status, "failed");
+  assert.match(missingReadback.errors.join("\n"), /post-apply reconciliation/u);
 });
 
 test("checks metrics match report", () => {

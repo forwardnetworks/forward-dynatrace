@@ -22,6 +22,7 @@ Usage:
 
 Options:
   --dependencies path             Normalized dependency candidates JSON.
+  --source-instance-id id         Stable opaque Dynatrace environment/source ID. Required.
   --forward-base-url URL          Optional Forward URL metadata only.
   --forward-network-id id         Optional Forward network ID metadata only.
   --nqe-query-id FQ_...           Optional Forward-owned query ID for persistent NQE checks.
@@ -151,6 +152,9 @@ const main = async () => {
   if (!args.dependencies) {
     throw new Error("Missing required --dependencies path.");
   }
+  if (!args["source-instance-id"]) {
+    throw new Error("Missing required --source-instance-id.");
+  }
 
   const syncMode = args["sync-mode"] || "manual-import";
   if (!validSyncModes.has(syncMode)) {
@@ -170,6 +174,7 @@ const main = async () => {
   );
 
   const result = forwardSync({
+    sourceInstanceId: args["source-instance-id"],
     forwardBaseUrl: args["forward-base-url"],
     forwardNetworkId: args["forward-network-id"],
     syncMode,
@@ -192,6 +197,7 @@ const main = async () => {
   if (args["nqe-query-id"]) {
     nqeChecks = buildNqeChecksFromDependencies(selectedDependencies, {
       queryId: args["nqe-query-id"],
+      sourceInstanceId: args["source-instance-id"],
     });
     validateNqeChecks(nqeChecks, {
       allowedQueryIds: new Set([args["nqe-query-id"]]),
@@ -206,7 +212,7 @@ const main = async () => {
       payloadShape: "NewNetworkCheck[]",
       bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk",
       dedupeRequiredBeforePost: true,
-      dedupe: "name-or-dynatrace-key-tag",
+      dedupe: "managed-source-key",
       queryIdPolicy: "forward-owned-allowlist",
       parameterSource: "dynatrace-app-environment",
     };
@@ -219,6 +225,7 @@ const main = async () => {
   ) {
     nqeDiffRequests = buildNqeDiffRequestsFromDependencies(selectedDependencies, {
       queryId: args["nqe-diff-query-id"],
+      sourceInstanceId: args["source-instance-id"],
       beforeSnapshotId: args["nqe-diff-before-snapshot-id"],
       afterSnapshotId: args["nqe-diff-after-snapshot-id"],
     });

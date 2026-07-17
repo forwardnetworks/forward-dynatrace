@@ -25,8 +25,7 @@ Validate package plus live Forward dry-run:
 
 ```bash
 export FORWARD_BASE_URL=https://forward.example.com
-export FORWARD_USER=<user>
-export FORWARD_PASSWORD=<password-or-token>
+export FORWARD_AUTHORIZATION_FILE=/secure/path/forward-authorization.header
 export FORWARD_NETWORK_ID=<network-id>
 
 npm run forward:readiness -- \
@@ -58,7 +57,7 @@ npm run forward:readiness -- \
 | Gate | Owner | Result Meaning |
 | --- | --- | --- |
 | Connector mutation policy | Forward operator | Fails if the connector config has `apply`, `applyUpdates`, or `deactivateStale` enabled. Readiness is non-mutating. |
-| Package validation | Shared | Validates schema, manifest, checksums, required `dynatrace-key:*` tags, uniqueness, supported check types, and optional NQE artifacts. |
+| Package validation | Shared | Validates schema, manifest, checksums, required `source-key:sha256:*` tags, uniqueness, supported check types, and optional NQE artifacts. |
 | Package signature | Forward operator | Passes when a detached package signature verifies. Skips when not required. Fails when `--require-signature` is supplied and verification is missing. |
 | Forward connectivity | Forward operator | With `--dry-run`, verifies Forward URL, credentials, network ID, latest processed snapshot, and check inventory access. |
 | Forward reconciliation | Forward operator | Reports `create`, `unchanged`, `changed`, and `stale`. Changed/stale results require Forward review before update or retirement automation. |

@@ -14,7 +14,9 @@ Dynatrace application mapping can say “service A depends on service B,” but 
 4. Optionally run `forward:path-evidence` before import to show the current Forward path result for each ready row.
 5. Import intent checks from the Forward side only after review or approval.
 
-The same `sourceResolvedValue` and `destinationResolvedValue` fields are used by both path evidence and intent-check creation. Original Dynatrace names remain in the `dynatrace-key:*` reconciliation tag, so iterative imports can diff and reconcile without depending on mutable resolved IP details.
+The same `sourceResolvedValue` and `destinationResolvedValue` fields are used by both path evidence and intent-check
+creation. Stable Dynatrace identity is hashed into an opaque, source-scoped key, so iterative imports reconcile without
+depending on mutable resolved IP details or exposing identity fields in ownership tags.
 
 ## Command
 
@@ -69,6 +71,7 @@ Intent-check package generation reads the same resolved dependency file:
 ```bash
 npm run forward:package -- \
   --dependencies resolved-dependencies.json \
+  --source-instance-id <stable-opaque-dynatrace-source-id> \
   --output-dir out/forward-package
 ```
 
@@ -77,6 +80,6 @@ For each ready dependency:
 - `definition.filters.from.location.value` uses `sourceResolvedValue` when present.
 - `definition.filters.to.location.value` uses `destinationResolvedValue` when present.
 - `definition.filters.*.location.type` uses the resolved filter type when present.
-- `dynatrace-key:*` still uses the original Dynatrace source and destination names for stable reconciliation.
+- the opaque source key hashes stable original Dynatrace identity and does not change with resolved Forward addresses.
 
 This is the key production behavior: Forward creates intent checks only for dependencies that map cleanly to Forward locations, and review/unmapped rows stay out of automatic writes unless an operator explicitly overrides policy.

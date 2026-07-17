@@ -8,7 +8,7 @@ artifacts.
 - Synthetic service names, app names, owners, and dependency rows.
 - Placeholder Forward URLs such as `https://forward.example.com`.
 - Placeholder Dynatrace Apps URLs such as `https://your-environment-id.apps.dynatrace.com/`.
-- Generated `dynatrace-key:*` values derived from synthetic rows.
+- Generated `source-key:sha256:*` values derived from synthetic rows.
 - Forward query ID placeholders such as `FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`.
 - Import reports from synthetic or sanitized non-production runs.
 

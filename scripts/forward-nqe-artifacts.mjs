@@ -25,13 +25,6 @@ export const toSlug = (value) =>
 
 const toTagValue = (value) => toSlug(value) || "unknown";
 
-const toQueryToken = (queryId) => queryId.toLowerCase().replace(/^fq_/, "");
-
-const toNqeKey = ({ appName, environment, queryId }) =>
-  ["dt", "nqe", toSlug(appName), toSlug(environment), toQueryToken(queryId)]
-    .filter(Boolean)
-    .join(":");
-
 const toPriorityRank = (criticality) => {
   if (criticality === "critical") {
     return 3;
@@ -86,6 +79,7 @@ export const buildNqeChecksFromDependencies = (
   dependencies,
   {
     queryId,
+    sourceInstanceId,
     templateId = "app-environment-policy",
   } = {},
 ) => {
@@ -93,7 +87,21 @@ export const buildNqeChecksFromDependencies = (
     throw new Error("NQE query ID must use the FQ_<40 hex chars> form.");
   }
 
-  return groupByAppEnvironment(dependencies).map((group) => ({
+  if (!sourceInstanceId) {
+    throw new Error("NQE check generation requires sourceInstanceId.");
+  }
+
+  return groupByAppEnvironment(dependencies).map((group) => {
+    const sourceKey = sourceKeyTag({
+      sourceInstanceId,
+      identity: {
+        kind: "nqe",
+        queryId,
+        serviceEntityIds: [...group.serviceEntityIds].filter(Boolean).sort(),
+        templateId,
+      },
+    });
+    return ({
     definition: {
       checkType: "NQE",
       queryId,
@@ -115,18 +123,20 @@ export const buildNqeChecksFromDependencies = (
     tags: [
       "dynatrace",
       "nqe",
+      ...requiredOwnershipTags({ sourceInstanceId, sourceKey }),
       `app:${toTagValue(group.appName)}`,
       `environment:${toTagValue(group.environment)}`,
       `owner:${toTagValue(group.owner)}`,
-      `dynatrace-key:${toNqeKey({ ...group, queryId })}`,
     ],
-  }));
+    });
+  });
 };
 
 export const buildNqeDiffRequestsFromDependencies = (
   dependencies,
   {
     queryId,
+    sourceInstanceId,
     beforeSnapshotId,
     afterSnapshotId,
     templateId = "app-environment-policy",
@@ -138,9 +148,22 @@ export const buildNqeDiffRequestsFromDependencies = (
   if (!requireString(beforeSnapshotId) || !requireString(afterSnapshotId)) {
     throw new Error("NQE diff requests require before and after snapshot IDs.");
   }
+  if (!sourceInstanceId) {
+    throw new Error("NQE diff generation requires sourceInstanceId.");
+  }
 
   return groupByAppEnvironment(dependencies).map((group) => {
-    const dynatraceKey = `dynatrace-key:${toNqeKey({ ...group, queryId })}:diff`;
+    const sourceKey = sourceKeyTag({
+      sourceInstanceId,
+      identity: {
+        beforeSnapshotId,
+        afterSnapshotId,
+        kind: "nqe-diff",
+        queryId,
+        serviceEntityIds: [...group.serviceEntityIds].filter(Boolean).sort(),
+        templateId,
+      },
+    });
     return {
       name: `[Dynatrace] ${group.appName} ${group.environment}: NQE diff`,
       queryId,
@@ -155,13 +178,13 @@ export const buildNqeDiffRequestsFromDependencies = (
         limit: 1000,
       },
       templateId,
-      dynatraceKey,
+      sourceKey,
       tags: [
         "dynatrace",
         "nqe-diff",
+        ...requiredOwnershipTags({ sourceInstanceId, sourceKey }),
         `app:${toTagValue(group.appName)}`,
         `environment:${toTagValue(group.environment)}`,
-        dynatraceKey,
       ],
     };
   });
@@ -184,17 +207,14 @@ const validateTags = (tags, label, errors) => {
     errors.push(`${label}.tags must be an array.`);
     return [];
   }
-  const dynatraceKeys = [];
   tags.forEach((tag, index) => {
     if (!requireString(tag)) {
       errors.push(`${label}.tags[${index}] must be a non-empty string.`);
     } else if (hasWhitespace(tag)) {
       errors.push(`${label}.tags[${index}] must not contain whitespace.`);
-    } else if (tag.startsWith("dynatrace-key:")) {
-      dynatraceKeys.push(tag);
     }
   });
-  return dynatraceKeys;
+  return inspectManagedIdentity({ tags });
 };
 
 export const validateNqeChecks = (
@@ -246,13 +266,14 @@ export const validateNqeChecks = (
       }
     }
 
-    const dynatraceKeys = validateTags(check.tags, label, errors);
-    if (dynatraceKeys.length !== 1) {
-      errors.push(`${label}.tags must contain exactly one dynatrace-key:* tag.`);
-    } else if (keys.has(dynatraceKeys[0])) {
-      errors.push(`${label} dynatrace-key duplicates nqeCheck[${keys.get(dynatraceKeys[0])}].`);
-    } else {
-      keys.set(dynatraceKeys[0], index);
+    const identity = validateTags(check.tags, label, errors);
+    for (const identityError of identity.errors) {
+      errors.push(`${label}.tags ${identityError}.`);
+    }
+    if (identity.sourceKey && keys.has(identity.sourceKey)) {
+      errors.push(`${label} source-key duplicates nqeCheck[${keys.get(identity.sourceKey)}].`);
+    } else if (identity.managed) {
+      keys.set(identity.sourceKey, index);
     }
   });
 
@@ -316,14 +337,20 @@ export const validateNqeDiffRequests = (
     ) {
       errors.push(`${label}.options must be an object when supplied.`);
     }
-    if (!requireString(request.dynatraceKey) || !request.dynatraceKey.startsWith("dynatrace-key:")) {
-      errors.push(`${label}.dynatraceKey must be a dynatrace-key:* string.`);
-    } else if (keys.has(request.dynatraceKey)) {
-      errors.push(`${label}.dynatraceKey duplicates nqeDiffRequest[${keys.get(request.dynatraceKey)}].`);
+    if (!requireString(request.sourceKey) || !request.sourceKey.startsWith("source-key:sha256:")) {
+      errors.push(`${label}.sourceKey must be a source-key:sha256:* string.`);
+    } else if (keys.has(request.sourceKey)) {
+      errors.push(`${label}.sourceKey duplicates nqeDiffRequest[${keys.get(request.sourceKey)}].`);
     } else {
-      keys.set(request.dynatraceKey, index);
+      keys.set(request.sourceKey, index);
     }
-    validateTags(request.tags || [request.dynatraceKey], label, errors);
+    const identity = validateTags(request.tags || [], label, errors);
+    for (const identityError of identity.errors) {
+      errors.push(`${label}.tags ${identityError}.`);
+    }
+    if (identity.sourceKey && identity.sourceKey !== request.sourceKey) {
+      errors.push(`${label}.sourceKey must match the managed source-key tag.`);
+    }
   });
 
   validateAllowlist(queryIds, allowedQueryIds, errors, "NQE diff requests");
@@ -334,3 +361,8 @@ export const validateNqeDiffRequests = (
     );
   }
 };
+import {
+  inspectManagedIdentity,
+  requiredOwnershipTags,
+  sourceKeyTag,
+} from "../lib/managed-check-identity.mjs";

@@ -35,11 +35,26 @@ Cross-product workflow orchestration and combined demonstrations are intentional
   sandbox ID `my.forward`.
 - [x] Add a Monaco lifecycle Guardian and Workflow package, bounded execution-context schema, fail-closed SDLC trigger,
   result query, app display, and repository validation.
+- [x] Reset the product contract to a single production `v1` at application version `1.0.0`; no prior schema,
+  identity migration, or compatibility runtime remains.
+- [x] Replace name-based adoption with the complete managed ownership tuple: product owner, contract version, source
+  instance, and deterministic source key. Name and partial-identity conflicts fail closed as collisions.
+- [x] Require a verified signed package, fresh Forward reconciliation, immutable staged plan, exact short-lived approval,
+  bounded mutation policy, and source/network-scoped apply lock for every write.
+- [x] Remove username/password and raw authorization environment inputs. Every Forward-side read or write path accepts
+  only a protected mounted Authorization header file and never exposes that value to Dynatrace, reports, or command
+  arguments.
+- [x] Make the Dynatrace NQE app function plan-only. It contains no Forward credential reader or network client; the
+  optional approved executor exists only in the Forward-side operator runtime.
+- [x] Emit per-source-key private mutation outcomes, stop at the first failed write, publish a sanitized failure state,
+  and require reconciliation plus a new staged plan after partial apply.
+- [x] Re-read the target snapshot after every apply and require observed Forward state to reconcile to the approved
+  plan before reporting success.
 
 ## Plan
 
-1. Publish a signed `com.forward.dynatrace` release newer than `v1.0.0`; the current tag predates the handoff,
-   check-health, security, identity, and current Dynatrace Workflow assets.
+1. Publish the signed reset release from the verified `main` commit. The app and package version is `1.0.0`; release
+   engineering must audit existing tags before choosing or replacing a public tag.
 2. Install the exact release artifacts in a non-production Dynatrace tenant and Forward network.
 3. Run one authoritative customer-owned dependency export through validate-only, reviewed apply, and status readback.
 4. Capture the release tag, commit, checksums, image digest, network and snapshot IDs, package ID, reconciliation counts,
@@ -64,6 +79,9 @@ Cross-product workflow orchestration and combined demonstrations are intentional
 | 2026-07-17 | Render the integration as `Dynatrace ⇄ Forward`. | Dependency evidence flows to Forward; aggregate path and reconciliation evidence returns to Grail. |
 | 2026-07-17 | Label active containerlab observations as live service probes, not AppMap. | Source fidelity is more important than implying an unavailable OneAgent discovery source. |
 | 2026-07-17 | Use `Forward` as the display name, `com.forward.dynatrace` for signed installs, and `my.forward` only for unsigned sandbox installs. | Production identity must be stable, product-owned, and free of retired development branding. |
+| 2026-07-17 | Reset the production design as the sole `v1`. | There are no customer deployments to migrate, so compatibility would add risk without value. |
+| 2026-07-17 | Treat an immutable reconciliation plan as the approval object. | An operator must approve the exact package, snapshot, policy, and source-key action set that is later applied. |
+| 2026-07-17 | Accept Forward authorization only from a protected mounted file. | Dedicated runtime credentials remain outside Dynatrace, process arguments, environment dumps, and repository config. |
 
 ## Evidence To Capture
 
@@ -78,7 +96,7 @@ Cross-product workflow orchestration and combined demonstrations are intentional
 
 - The release passes Node 24 CI and exact archive-membership validation.
 - Release checksum, SBOM, attestation, image scan, and digest are verified from downloaded artifacts.
-- Dynatrace stores no Forward credential and the Dynatrace app performs no Forward mutation.
+- Dynatrace stores no Forward credential and the Dynatrace app performs no Forward network call.
 - Forward reconciliation proves create, unchanged, changed, stale, and bounded failure behavior.
 - The enabled live lanes have authoritative Dynatrace and Forward readback rather than request-success evidence only.
 - The customer can install, operate, audit, and roll back the integration from this repository alone.

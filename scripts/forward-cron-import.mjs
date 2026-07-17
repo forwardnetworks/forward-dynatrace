@@ -28,8 +28,8 @@ Options:
   --status-handoff-dir path    Optionally publish sanitized status after a successful import.
   --help                       Show this help.
 
-FORWARD_USER and FORWARD_PASSWORD must come from the cron environment or a
-root-readable environment file. Config apply defaults to false. A config with
+FORWARD_AUTHORIZATION_FILE must point to a mounted, protected authorization-header
+file. Config apply defaults to false. A config with
 apply=true is rejected unless --allow-apply or
 FORWARD_DYNATRACE_ALLOW_APPLY=true is explicitly supplied.
 `;

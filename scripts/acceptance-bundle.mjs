@@ -17,6 +17,7 @@ Usage:
 Options:
   --dependencies path                Normalized Dynatrace dependency candidates.
   --output-dir path                  Directory for generated evidence.
+  --source-instance-id id           Stable opaque Dynatrace source ID. Required.
   --forward-base-url url             Optional Forward URL metadata only; no network calls.
   --forward-network-id id            Optional Forward network ID metadata only; no network calls.
   --include-review                   Include mappingState=review rows in generated artifacts.
@@ -201,6 +202,7 @@ const main = async () => {
 
   const dependencies = required(args, "dependencies");
   const outputDir = required(args, "output-dir");
+  const sourceInstanceId = required(args, "source-instance-id");
   const packageDir = path.join(outputDir, "package");
   const statusDir = path.join(outputDir, "dynatrace-status");
   const eligibilityReport = path.join(packageDir, "forward-eligibility-report.json");
@@ -218,6 +220,8 @@ const main = async () => {
     dependencies,
     "--output-dir",
     packageDir,
+    "--source-instance-id",
+    sourceInstanceId,
     "--eligibility-report",
     eligibilityReport,
     "--sync-mode",

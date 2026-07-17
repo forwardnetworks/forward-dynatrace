@@ -267,7 +267,7 @@ test("CLI resolver output feeds intent-check package generation", async () => {
       dependenciesPath,
       `${JSON.stringify([dependency(), dependency({ id: "ambiguous", source: "shared-name" })], null, 2)}\n`,
     );
-    await writeFile(authorizationPath, "Bearer readonly-token\n");
+    await writeFile(authorizationPath, "Bearer readonly-token\n", { mode: 0o600 });
 
     const report = await runJson(
       [
@@ -300,6 +300,8 @@ test("CLI resolver output feeds intent-check package generation", async () => {
       resolvedPath,
       "--output-dir",
       workdir,
+      "--source-instance-id",
+      "dt-host-resolution-test",
     ]);
 
     const checks = JSON.parse(
@@ -309,8 +311,8 @@ test("CLI resolver output feeds intent-check package generation", async () => {
     assert.equal(checks[0].definition.filters.from.location.value, "10.10.10.10");
     assert.equal(checks[0].definition.filters.to.location.value, "10.20.20.20/32");
     assert.match(
-      checks[0].tags.find((tag) => tag.startsWith("dynatrace-key:")),
-      /checkout-vip:orders-db/,
+      checks[0].tags.find((tag) => tag.startsWith("source-key:sha256:")),
+      /^source-key:sha256:[a-f0-9]{64}$/u,
     );
   } finally {
     await new Promise((resolve, reject) => {

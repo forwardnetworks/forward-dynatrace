@@ -4,11 +4,15 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY scripts/forward-import-package.mjs ./scripts/forward-import-package.mjs
+COPY scripts/forward-import-plan.mjs ./scripts/forward-import-plan.mjs
+COPY lib/managed-check-identity.mjs ./lib/managed-check-identity.mjs
+COPY lib/forward-authorization.mjs ./lib/forward-authorization.mjs
 COPY scripts/publish-forward-package.mjs ./scripts/publish-forward-package.mjs
 COPY scripts/forward-handoff-server.mjs ./scripts/forward-handoff-server.mjs
 COPY scripts/forward-cron-import.mjs ./scripts/forward-cron-import.mjs
 COPY scripts/forward-deployment-readiness.mjs ./scripts/forward-deployment-readiness.mjs
 COPY scripts/forward-nqe-artifacts.mjs ./scripts/forward-nqe-artifacts.mjs
+COPY scripts/forward-nqe-executor.mjs ./scripts/forward-nqe-executor.mjs
 COPY scripts/forward-nqe-live-smoke.mjs ./scripts/forward-nqe-live-smoke.mjs
 COPY scripts/forward-resolve-hosts.mjs ./scripts/forward-resolve-hosts.mjs
 COPY scripts/forward-path-evidence.mjs ./scripts/forward-path-evidence.mjs

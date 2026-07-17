@@ -4,6 +4,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { loadForwardAuthorization } from "../lib/forward-authorization.mjs";
+
 import {
   isIpOrSubnet,
   latestProcessedSnapshotId,
@@ -48,9 +50,7 @@ Options:
   --max-seconds n              Defaults to 30.
   --output path                Write aggregate path evidence JSON.
 
-Authorization can also be supplied by FORWARD_PATH_SEARCH_AUTHORIZATION,
-FORWARD_HOST_RESOLUTION_AUTHORIZATION, FORWARD_READONLY_AUTHORIZATION, or
-FORWARD_AUTHORIZATION. This command is read-only.
+Authorization is accepted only from --authorization-file. This command is read-only.
 `;
 
 const parseArgs = (argv) => {
@@ -111,27 +111,6 @@ const parseNonNegativeInteger = (value, fallback, label) => {
 
 const readJson = async (filePath) =>
   JSON.parse(await readFile(path.resolve(filePath), "utf8"));
-
-const readAuthorizationFile = async (filePath) => {
-  const value = (await readFile(path.resolve(filePath), "utf8")).trim();
-  if (!value) {
-    throw new Error("Authorization file is empty.");
-  }
-  return value;
-};
-
-const runtimeAuthorization = async (args) => {
-  if (args["authorization-file"]) {
-    return readAuthorizationFile(args["authorization-file"]);
-  }
-  return (
-    process.env.FORWARD_PATH_SEARCH_AUTHORIZATION ||
-    process.env.FORWARD_HOST_RESOLUTION_AUTHORIZATION ||
-    process.env.FORWARD_READONLY_AUTHORIZATION ||
-    process.env.FORWARD_AUTHORIZATION ||
-    ""
-  ).trim();
-};
 
 const writeJson = async (filePath, value) => {
   const outputPath = path.resolve(filePath);
@@ -417,6 +396,9 @@ const main = async () => {
     if (!forwardNetworkId) {
       throw new Error("Missing --forward-network-id or FORWARD_NETWORK_ID for --execute.");
     }
+    if (!args["authorization-file"]) {
+      throw new Error("--authorization-file is required for --execute.");
+    }
   }
 
   const evidence = await buildPathEvidence({
@@ -424,7 +406,9 @@ const main = async () => {
     forwardBaseUrl,
     forwardNetworkId,
     snapshotId,
-    authorization: await runtimeAuthorization(args),
+    authorization: execute
+      ? await loadForwardAuthorization(args["authorization-file"])
+      : "",
     execute,
     resolveHosts: Boolean(args["resolve-hosts"]),
     maxRetries: parsePositiveInteger(args["max-retries"], DEFAULT_MAX_RETRIES, "--max-retries"),

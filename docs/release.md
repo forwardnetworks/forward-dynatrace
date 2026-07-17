@@ -10,7 +10,7 @@ Actions. It is not published to PyPI.
 
    ```bash
    npm run ci
-   npm run acceptance:bundle -- --dependencies shared/demo-dependencies.json --output-dir out/acceptance
+   npm run acceptance:bundle -- --dependencies shared/demo-dependencies.json --output-dir out/acceptance --source-instance-id dt-acceptance-rehearsal
    git diff --check
    ```
 

@@ -38,14 +38,17 @@ const allowedTopLevelFields = new Set([
   "durationMs",
   "generatedAt",
   "importState",
+  "importPlan",
   "mode",
   "mutationCounts",
+  "mutationFailure",
   "packageId",
   "packageIntegrity",
   "packageSignature",
   "plannedChecks",
   "plannedNqeChecks",
   "plannedNqeDiffRequests",
+  "postApplyVerification",
   "runId",
   "schemaVersion",
   "target",
@@ -163,6 +166,7 @@ export const sanitizeStatusArtifact = (artifact) => {
       unchanged: 0,
       changed: 0,
       stale: 0,
+      collision: 0,
     },
     unresolvedCounts: artifact.unresolvedCounts || {
       changed: artifact.counts?.changed || 0,
@@ -173,6 +177,32 @@ export const sanitizeStatusArtifact = (artifact) => {
       updated: 0,
       deactivated: 0,
     },
+    mutationFailure: artifact.mutationFailure
+      ? {
+          phase: artifact.mutationFailure.phase || "unknown",
+          statusCode: artifact.mutationFailure.statusCode ?? null,
+          affectedCount: artifact.mutationFailure.affectedCount || 0,
+          recoveryRequired: true,
+      }
+      : null,
+    postApplyVerification: artifact.postApplyVerification
+      ? {
+          state: artifact.postApplyVerification.state || "unavailable",
+          planned: artifact.postApplyVerification.planned || 0,
+          counts: artifact.postApplyVerification.counts || null,
+        }
+      : {
+          state: "not-run",
+          planned: artifact.plannedChecks || 0,
+          counts: null,
+        },
+    importPlan: artifact.importPlan
+      ? {
+          planId: artifact.importPlan.planId || null,
+          planSha256: artifact.importPlan.planSha256 || null,
+          state: artifact.importPlan.state || null,
+        }
+      : null,
     plannedChecks: artifact.plannedChecks || 0,
     plannedNqeChecks: artifact.plannedNqeChecks || 0,
     plannedNqeDiffRequests: artifact.plannedNqeDiffRequests || 0,
@@ -201,11 +231,20 @@ export const toDynatraceStatusEvent = (artifact, provenance = null) => ({
     "forward.dynatrace.count.unchanged": artifact.counts.unchanged,
     "forward.dynatrace.count.changed": artifact.counts.changed,
     "forward.dynatrace.count.stale": artifact.counts.stale,
+    "forward.dynatrace.count.collision": artifact.counts.collision || 0,
+    "forward.dynatrace.plan_id": artifact.importPlan?.planId || null,
+    "forward.dynatrace.plan_state": artifact.importPlan?.state || null,
     "forward.dynatrace.unresolved.changed": artifact.unresolvedCounts.changed,
     "forward.dynatrace.unresolved.stale": artifact.unresolvedCounts.stale,
     "forward.dynatrace.mutation.created": artifact.mutationCounts.created,
     "forward.dynatrace.mutation.updated": artifact.mutationCounts.updated,
     "forward.dynatrace.mutation.deactivated": artifact.mutationCounts.deactivated,
+    "forward.dynatrace.mutation.failure_phase": artifact.mutationFailure?.phase || null,
+    "forward.dynatrace.mutation.failure_status": artifact.mutationFailure?.statusCode || null,
+    "forward.dynatrace.mutation.recovery_required":
+      artifact.mutationFailure?.recoveryRequired || false,
+    "forward.dynatrace.verification.state": artifact.postApplyVerification.state,
+    "forward.dynatrace.verification.planned": artifact.postApplyVerification.planned,
     ...(provenance
       ? {
           "forward.dynatrace.evidence_source": provenance.evidenceSource,

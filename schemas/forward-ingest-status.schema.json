@@ -22,7 +22,7 @@
     "runId": { "$ref": "#/definitions/nullableString" },
     "packageId": { "$ref": "#/definitions/nullableString" },
     "mode": { "$ref": "#/definitions/nullableString" },
-    "importState": { "enum": ["valid", "reconciled", "needs-review", "applied", "failed", null] },
+    "importState": { "enum": ["valid", "staged", "reconciled", "needs-review", "applied", "failed", null] },
     "applyPolicy": { "$ref": "#/definitions/nullableString" },
     "packageIntegrity": { "type": ["object", "null"], "additionalProperties": true },
     "packageSignature": {
@@ -60,7 +60,34 @@
         "deactivated": { "$ref": "#/definitions/nonNegativeInteger" }
       }
     },
+    "mutationFailure": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["phase", "statusCode", "affectedCount", "recoveryRequired"],
+      "properties": {
+        "phase": { "type": "string", "minLength": 1 },
+        "statusCode": { "type": ["integer", "null"], "minimum": 100, "maximum": 599 },
+        "affectedCount": { "$ref": "#/definitions/nonNegativeInteger" },
+        "recoveryRequired": { "const": true }
+      }
+    },
+    "postApplyVerification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "planned", "counts"],
+      "properties": {
+        "state": { "enum": ["not-run", "pending", "verified", "failed", "unavailable"] },
+        "planned": { "$ref": "#/definitions/nonNegativeInteger" },
+        "counts": {
+          "anyOf": [
+            { "$ref": "#/definitions/reconciliationCounts" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
     "approval": { "type": ["object", "null"], "additionalProperties": true },
+    "importPlan": { "type": ["object", "null"], "additionalProperties": true },
     "plannedChecks": { "$ref": "#/definitions/nonNegativeInteger" },
     "plannedNqeChecks": { "$ref": "#/definitions/nonNegativeInteger" },
     "plannedNqeDiffRequests": { "$ref": "#/definitions/nonNegativeInteger" },
@@ -72,12 +99,13 @@
     "reconciliationCounts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["create", "unchanged", "changed", "stale"],
+      "required": ["create", "unchanged", "changed", "stale", "collision"],
       "properties": {
         "create": { "$ref": "#/definitions/nonNegativeInteger" },
         "unchanged": { "$ref": "#/definitions/nonNegativeInteger" },
         "changed": { "$ref": "#/definitions/nonNegativeInteger" },
-        "stale": { "$ref": "#/definitions/nonNegativeInteger" }
+        "stale": { "$ref": "#/definitions/nonNegativeInteger" },
+        "collision": { "$ref": "#/definitions/nonNegativeInteger" }
       }
     }
   }

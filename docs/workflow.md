@@ -11,8 +11,8 @@ a Forward tenant. Forward-side manual import or a Forward-side connector owns al
 
 - A focused view of Dynatrace application dependencies that are candidates for Forward intent.
 - A path preview action that turns a Dynatrace service/problem context into a Forward path query.
-- An optional read-only NQE preview action that plans or executes approved `POST /api/nqe` requests without Forward
-  writes.
+- An optional read-only NQE preview action that plans approved `POST /api/nqe` requests without Forward credentials or
+  Forward network calls in Dynatrace.
 - An export action that stages Forward-side ingest input:
   - dependency candidates with source, destination, protocol, port, ownership, confidence, and mapping state.
   - optional NQE metadata when the customer enables the query-ID artifact path.
@@ -28,10 +28,12 @@ flowchart LR
     D --> E["Manual import script or Forward connector"]
     E --> F["Forward host resolution"]
     F --> G["Build manifest + NewNetworkCheck[]"]
-    G --> H["Validate package"]
+    G --> H["Sign and validate package"]
     H --> I["Forward reconcile"]
-    I --> J["Forward /checks?bulk"]
-    J --> K["Forward verify results"]
+    I --> P["Stage immutable plan"]
+    P --> Q["Forward operator approval"]
+    Q --> J["Forward /checks?bulk"]
+    J --> K["Post-apply reconciliation"]
 ```
 
 ## Screenshots
@@ -74,8 +76,8 @@ Forward-side ingest.
    Rows become `ready` only when both sides resolve to a single usable Forward host/subnet. Ambiguous rows stay
    `review`; unresolved rows become `needs-map`.
 
-4. Forward-side tooling builds `forward-intent-checks.json`, `forward-dynatrace-manifest.json`, and deterministic
-   `dynatrace-key:*` values from the resolved dependency file.
+4. Forward-side tooling builds `forward-intent-checks.json`, `forward-dynatrace-manifest.json`, and a complete
+   four-tag ownership tuple. The source key is an opaque SHA-256 identity scoped to one stable source instance.
 5. Optional path evidence evaluates the same resolved rows before approval:
 
    `POST /api/networks/{networkId}/paths-bulk?snapshotId={snapshotId}`
@@ -90,21 +92,26 @@ Forward-side ingest.
 
    `GET /api/snapshots/{snapshotId}/checks?type=Existential`
 
-   Match by deterministic check name or `dynatrace-key:*` tag.
+   Match only by the complete ownership tuple and source key. A name match with different ownership is a collision.
 
 9. Forward-side ingest fingerprints generated fields and produces a reconciliation report:
    - `create`
    - `unchanged`
    - `changed`
    - `stale`
+   - `collision`
 
-10. Forward-side ingest creates missing persistent intent checks in bulk:
+10. The Forward-side runtime verifies the package signature and stages an immutable plan containing the package,
+    snapshot, policy, budgets, counts, and exact source-key actions. A Forward operator issues a matching approval for
+    no more than 24 hours.
+11. Forward-side ingest creates missing persistent intent checks in bulk:
 
    `POST /api/snapshots/{snapshotId}/checks?bulk`
 
    Body is `NewNetworkCheck[]`. Persistence defaults to true in Forward's API.
 
-11. Forward-side ingest reads back status:
+12. Forward-side ingest reads the target snapshot again and requires post-apply reconciliation to match the approved
+    plan. A mismatch or unavailable readback fails the run and requires a new plan:
 
    `GET /api/snapshots/{snapshotId}/checks?type=Existential`
 
@@ -114,13 +121,18 @@ Before export, the app can plan a read-only Forward NQE request for the selected
 mapping confidence only:
 
 - plan mode builds the request and performs no network call
-- execute mode calls only `POST /api/nqe`
+- the Dynatrace app function rejects execute mode
+- an approved Forward-side runtime may execute only `POST /api/nqe` and return sanitized aggregate evidence
 - raw-query templates are the default read-only preview path
 - query-ID templates are optional and require a Forward-owned query ID in the runtime allowlist
-- runtime authorization must come from a secret store, not from a UI field or package artifact
+- runtime authorization remains in the Forward-controlled runtime, never a Dynatrace app setting, UI field, or package
+  artifact
 - preview failures should lower confidence or mark the row for review, not block package export
 
 See `docs/forward-nqe-preview.md` for the execution contract.
+
+Every package also requires one stable opaque `sourceInstanceId`. Configure a distinct value for each Dynatrace source
+environment and keep it unchanged across runs; it scopes managed-check identity and stale reconciliation.
 
 ## Iterative Reconciliation
 
@@ -128,7 +140,7 @@ The automated workflow should treat every export as desired state from Dynatrace
 
 Each connector or importer run should compute:
 
-- `new`: `dynatrace-key:*` exists in the package but not in Forward. Create it.
+- `new`: a fully owned source key exists in the package but not in Forward. Create it after plan approval.
 - `unchanged`: key and generated fingerprint match. Skip it.
 - `changed`: same key, different generated fingerprint. Replace only through the optional approval-gated policy, or
   report for review.
@@ -156,12 +168,15 @@ Forward operator deliberately enables the review-row override.
   "priority": "HIGH",
   "tags": [
     "dynatrace",
+    "managed-by:com.forward.dynatrace",
+    "contract-version:1",
+    "source-instance:dt-production-1",
+    "source-key:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "app:Checkout",
     "environment:prod",
-    "owner:commerce-platform",
-    "dynatrace-key:dt:checkout:prod:service-1234567890:checkout-vip:orders-db:tcp:443"
+    "owner:commerce-platform"
   ],
-  "note": "Generated from Dynatrace service checkout-api; serviceEntityId=SERVICE-1234567890; integrationKey=dt:checkout:prod:service-1234567890:checkout-vip:orders-db:tcp:443",
+  "note": "Generated from Dynatrace service checkout-api; serviceEntityId=SERVICE-1234567890; owner=commerce-platform",
   "definition": {
     "checkType": "Existential",
     "filters": {
@@ -188,8 +203,8 @@ Forward operator deliberately enables the review-row override.
 }
 ```
 
-The original Dynatrace endpoint names remain in `name`, `note`, and `dynatrace-key:*`. The resolved Forward endpoint
-values are what make the check eligible for bulk creation.
+Human-readable Dynatrace context remains in `name` and `note`; the source key is intentionally opaque and immutable.
+The resolved Forward endpoint values are what make the check eligible for bulk creation.
 
 Use `Reachability` checks when the dependency must be delivered to the destination host or prefix. Use optional `NQE`
 checks when the question is broader than one path, such as snapshot-wide compliance or segmentation drift. NQE checks
@@ -199,8 +214,8 @@ Rows with `needs-map` status should not create Forward checks. Reject them from 
 source/destination mapping is complete.
 
 Forward endpoint mappings must resolve in the target snapshot. `HostFilter` is the default for application host/IP
-dependencies. When host resolution finds a single host subnet, the generated check keeps the original Dynatrace source
-and destination in the reconciliation key but uses the resolved Forward value in the check filter. Packages can also
+dependencies. When host resolution finds a single host subnet, the generated check keeps a stable hash of the original
+Dynatrace identity as its source key and uses the resolved Forward value in the check filter. Packages can also
 use `SubnetLocationFilter` or `DeviceFilter` when the mapping process has explicitly resolved a dependency to those
 Forward location types.
 
@@ -217,9 +232,8 @@ Forward location types.
    `npm run forward:import -- --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json`
 
 4. Forward operator reviews the reconciliation report.
-5. Forward operator applies:
-
-   `npm run forward:import -- --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json --apply`
+5. Forward operator stages a signed immutable plan, approves that exact plan, and applies it with `--apply-plan` plus
+   `--require-approval-file`. See `docs/forward-importer.md`.
 
 ## Workflow Option B: Forward-Side Connector Pull
 
@@ -235,10 +249,10 @@ and create checks. The Dynatrace app still never pushes changes into Forward.
    - row/check counts
    - required fields
    - allowed check type and tag shape
-   - unique check names and `dynatrace-key:*` tags
+   - unique check names and complete managed ownership tuples
 4. Connector resolves the Forward network and latest processed snapshot.
 5. Connector reads existing Forward intent checks.
-6. Connector dedupes by exact check name or `dynatrace-key:*` tag.
+6. Connector reconciles only by complete ownership tuple and source key; conflicting names fail closed.
 7. Connector fingerprints generated fields and computes create/unchanged/changed/stale.
 8. Connector posts only missing checks to `/api/snapshots/{snapshotId}/checks?bulk`.
 9. Connector reports changed and stale checks according to policy.

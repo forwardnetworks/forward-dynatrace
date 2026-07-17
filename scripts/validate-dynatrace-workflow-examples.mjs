@@ -59,13 +59,14 @@ for (const example of examples) {
   const manifest = JSON.parse(result.exportManifestPreview);
   const checks = JSON.parse(result.intentChecksPreview);
   assert.equal(manifest.schemaVersion, "forward-dynatrace/v1");
+  assert.equal(manifest.source.instanceId, payload.sourceInstanceId);
   assert.equal(manifest.source.writePolicy, "dynatrace-never-writes-forward");
   assert.equal(manifest.intentChecks.count, checks.length);
   for (const check of checks) {
     assert.equal(
-      check.tags.filter((tag) => tag.startsWith("dynatrace-key:")).length,
+      check.tags.filter((tag) => tag.startsWith("source-key:sha256:")).length,
       1,
-      `${example} generated a check without exactly one dynatrace-key tag`,
+      `${example} generated a check without exactly one source-key tag`,
     );
     for (const tag of check.tags) {
       assert.equal(/\s/.test(tag), false, `${example} generated whitespace tag ${tag}`);
@@ -86,7 +87,7 @@ assert.ok(
 const sampleResult = JSON.parse(
   await readFile("assets/export-forward-package.sample-result.json", "utf8"),
 );
-assert.equal(sampleResult.schemaVersion, "forward-dynatrace-workflow-action/v2");
+assert.equal(sampleResult.schemaVersion, "forward-dynatrace-workflow-action/v1");
 assert.equal(sampleResult.boundary, "dynatrace-never-writes-forward");
 assert.equal(sampleResult.handoff.schemaVersion, "forward-dynatrace-handoff-receipt/v1");
 assert.equal(sampleResult.handoff.manifestSha256.length, 64);

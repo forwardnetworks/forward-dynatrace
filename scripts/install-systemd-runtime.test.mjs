@@ -48,7 +48,7 @@ test("stages a secret-free, idempotent systemd runtime", async () => {
 
   assert.equal(plan.schemaVersion, "forward-dynatrace-systemd-install-plan/v1");
   assert.equal(plan.status, "planned");
-  assert.equal(plan.sourceVersion, "2.0.0");
+  assert.equal(plan.sourceVersion, "1.0.0");
   assert.equal(plan.activationReady, false);
   assert.equal(plan.configurationStatus, "placeholders-require-operator-review");
   assert.ok(plan.files.length > 100);

@@ -1,4 +1,5 @@
 {
+  "sourceInstanceId": "dt-environment-demo",
   "syncMode": "data-connector",
   "forwardBaseUrl": "https://forward.example.com",
   "forwardNetworkId": "<network-id>",

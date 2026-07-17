@@ -23,7 +23,8 @@ bounded results through shared context and tags.
 
 - [x] Build and validate the native Dynatrace app, package export, Forward reconciliation, and sanitized readback.
 - [x] Select production identity `com.forward.dynatrace` and sandbox identity `my.forward`.
-- [x] Define the one-time migration from retired pre-production app IDs.
+- [x] Define clean installation under the production or sandbox identity; experimental installs are removed, not
+  migrated.
 - [ ] Publish a signed release candidate and verify its checksum, SBOM, attestations, and signer.
 - [ ] Install the unsigned sandbox identity and complete the smoke checklist.
 - [ ] Agree on the minimum dependency and execution-context tagging contract.
@@ -38,7 +39,7 @@ bounded results through shared context and tags.
 Owner: Forward engineering and product
 
 - Publish the exact signed `com.forward.dynatrace` release candidate.
-- Provide `my.forward` sandbox installation instructions and the retired-ID migration procedure.
+- Provide `my.forward` sandbox clean-install instructions and signed `com.forward.dynatrace` production instructions.
 - Publish required Dynatrace scopes, package-handoff requirements, checksums, SBOM, attestations, and rollback steps.
 - Assign production support, release approval, and escalation ownership.
 
@@ -160,7 +161,7 @@ Acceptance: ownership and support decisions are written before general availabil
 | 2026-07-17 | Join evidence through context and tags rather than duplicating full topology maps. | Each product remains authoritative for its own model and avoids stale copies. |
 | 2026-07-17 | Start Site Reliability Guardian with static thresholds. | Auto-adaptive thresholds require validation history before they provide a decision. |
 | 2026-07-17 | Keep the 40–50-node scale profile in the change-demo repository. | This repository stays independently installable and contains no demo-lab orchestration. |
-| 2026-07-17 | Use an opt-in SDLC event publisher mode for Guardian automation. | Lifecycle Guardians require the SDLC stream, while existing batch event consumers must remain compatible. |
+| 2026-07-17 | Use an opt-in SDLC event publisher mode for Guardian automation. | Lifecycle Guardians require the SDLC stream, while existing batch event consumers remain unchanged. |
 
 ## Evidence To Capture
 

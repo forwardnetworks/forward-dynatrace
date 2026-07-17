@@ -1,10 +1,22 @@
 #!/usr/bin/env node
 
 import { createHash, verify as verifySignature } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { open, readFile, unlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
+import {
+  CONTRACT_VERSION_TAG,
+  MANAGED_BY_TAG,
+  SOURCE_INSTANCE_TAG_PREFIX,
+  SOURCE_KEY_TAG_PREFIX,
+  inspectManagedIdentity,
+  managedSourceKey,
+  sourceInstanceTag,
+} from "../lib/managed-check-identity.mjs";
+import { loadForwardAuthorization } from "../lib/forward-authorization.mjs";
 import {
   DEFAULT_NQE_CHECKS_PATH,
   DEFAULT_NQE_DIFF_REQUESTS_PATH,
@@ -12,6 +24,11 @@ import {
   validateNqeChecks,
   validateNqeDiffRequests,
 } from "./forward-nqe-artifacts.mjs";
+import {
+  assertImportPlanMatches,
+  buildImportPlan,
+  validateImportPlan,
+} from "./forward-import-plan.mjs";
 
 const DEFAULT_CHECKS_PATH = "forward-intent-checks.json";
 const DEFAULT_MANIFEST_FILE_NAME = "forward-dynatrace-manifest.json";
@@ -21,7 +38,7 @@ const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_MAX_PACKAGE_AGE_MINUTES = 24 * 60;
 const PACKAGE_SCHEMA_VERSION = "forward-dynatrace/v1";
 const PACKAGE_TYPE = "forward-intent-import";
-const APPROVAL_SCHEMA_VERSION = "forward-dynatrace-approval/v1";
+const APPROVAL_SCHEMA_VERSION = "forward-dynatrace-import-approval/v1";
 const TRANSIENT_STATUS_CODES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
 const ALLOWED_CHECK_TYPES = new Set(["Existential"]);
 const LOCAL_HTTP_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
@@ -31,18 +48,22 @@ Forward for Dynatrace package importer
 
 Required environment:
   FORWARD_BASE_URL       Example: https://forward.example.com
-  FORWARD_USER           Forward username
-  FORWARD_PASSWORD       Forward password or token accepted by the tenant
+  FORWARD_AUTHORIZATION_FILE
+                         Protected file containing one Basic or Bearer Authorization value
   FORWARD_NETWORK_ID     Target Forward network ID
 
 Usage:
   node scripts/forward-import-package.mjs --config config/forward-connector.config.json
   node scripts/forward-import-package.mjs --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json
-  node scripts/forward-import-package.mjs --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json --apply
+  node scripts/forward-import-package.mjs --checks forward-intent-checks.json --manifest forward-dynatrace-manifest.json --require-signature --signature forward-dynatrace-package.sig --public-key forward-dynatrace-public.pem --stage-plan import-plan.json
   node scripts/forward-import-package.mjs --package-url https://package.example.com/dynatrace-forward/latest/ --report forward-import-report.json
 
 Options:
-  --apply              Create missing checks.
+  --stage-plan path     Write an immutable, snapshot-bound import plan. Requires
+                       a verified package signature and performs no Forward writes.
+  --apply              Apply an immutable approved plan. Requires --apply-plan,
+                       --require-approval-file, and --require-signature.
+  --apply-plan path     Previously staged immutable plan to verify before apply.
   --apply-updates      Replace approved changed generated checks. Requires --apply,
                        --require-signature, and --require-approval-file.
   --batch-size 500     Batch size for /checks?bulk.
@@ -55,6 +76,8 @@ Options:
   --fail-on-drift      Exit non-zero when changed or stale Dynatrace-managed checks are found.
   --manifest path      Validate the package manifest before importing.
   --manifest-url url    Pull forward-dynatrace-manifest.json from a read-only HTTPS URL.
+  --lock-path path      Apply lock file. Defaults to a source/network-scoped file in
+                       the operating-system runtime directory.
   --max-deactivations 0
                        Maximum approved stale checks to deactivate.
   --max-package-age-minutes 1440
@@ -77,7 +100,7 @@ Options:
   --public-key path     Verify detached Ed25519 package signature with PEM public key.
   --public-key-url url   Pull detached-signature public key from HTTPS URL.
   --require-approval-file path
-                       Approval artifact for exact changed/stale dynatrace keys.
+                       Approval artifact bound to the exact immutable plan.
   --require-signature   Reject package unless signature and public key are supplied.
   --report path        Write the reconciliation report to a JSON file.
   --signature path      Verify detached package signature.
@@ -96,6 +119,7 @@ package URLs must use HTTPS.
 const SUPPORTED_ARGS = new Set([
   "_",
   "apply",
+  "apply-plan",
   "apply-updates",
   "batch-size",
   "change-window-id",
@@ -107,6 +131,7 @@ const SUPPORTED_ARGS = new Set([
   "help",
   "manifest",
   "manifest-url",
+  "lock-path",
   "max-deactivations",
   "max-package-age-minutes",
   "max-retries",
@@ -128,6 +153,7 @@ const SUPPORTED_ARGS = new Set([
   "signature-url",
   "snapshot-id",
   "status-artifact",
+  "stage-plan",
   "validate-only",
 ]);
 
@@ -198,28 +224,35 @@ const validateArgs = (args) => {
 
 export const validatePolicyArgs = (args) => {
   const hasMutationFlag = Boolean(args["apply-updates"] || args["deactivate-stale"]);
-  if (hasMutationFlag && !args.apply) {
-    throw new Error("--apply-updates and --deactivate-stale require --apply.");
-  }
-  if (hasMutationFlag && !args["require-signature"]) {
-    throw new Error("--apply-updates and --deactivate-stale require --require-signature.");
-  }
-  if (hasMutationFlag && !args["require-approval-file"]) {
+  const staging = Boolean(args["stage-plan"]);
+  if (hasMutationFlag && !args.apply && !staging) {
     throw new Error(
-      "--apply-updates and --deactivate-stale require --require-approval-file.",
+      "--apply-updates and --deactivate-stale require --stage-plan or --apply.",
     );
+  }
+  if ((args.apply || staging) && !args["require-signature"]) {
+    throw new Error("Staging and apply require --require-signature.");
+  }
+  if (args.apply && !args["apply-plan"]) {
+    throw new Error("--apply requires --apply-plan.");
+  }
+  if (args.apply && !args["require-approval-file"]) {
+    throw new Error(
+      "--apply requires --require-approval-file.",
+    );
+  }
+  if (args["apply-plan"] && !args.apply) {
+    throw new Error("--apply-plan requires --apply.");
+  }
+  if (staging && args.apply) {
+    throw new Error("Use --stage-plan and --apply as separate runs.");
+  }
+  if (staging && args["validate-only"]) {
+    throw new Error("--stage-plan requires live Forward reconciliation, not --validate-only.");
   }
   if (args["snapshot-id"] && args.apply) {
     throw new Error("--snapshot-id is dry-run only; Forward apply always targets latest processed.");
   }
-};
-
-const requiredEnv = (name) => {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
 };
 
 const requiredRuntimeValue = (envName, configValue) => {
@@ -326,6 +359,7 @@ const readJsonFromLocator = async (locator, label, requestHeaders = {}) => {
 const CONNECTOR_CONFIG_SCHEMA_VERSION = "forward-dynatrace-connector/v1";
 const CONNECTOR_CONFIG_KEYS = new Set([
   "apply",
+  "applyPlanPath",
   "applyUpdates",
   "approvalFile",
   "batchSize",
@@ -335,9 +369,11 @@ const CONNECTOR_CONFIG_KEYS = new Set([
   "deactivateStale",
   "failOnDrift",
   "forwardBaseUrl",
+  "forwardAuthorizationFile",
   "forwardNetworkId",
   "manifest",
   "manifestUrl",
+  "lockPath",
   "maxDeactivations",
   "maxPackageAgeMinutes",
   "maxRetries",
@@ -358,9 +394,13 @@ const CONNECTOR_CONFIG_KEYS = new Set([
   "signature",
   "signatureUrl",
   "statusArtifactPath",
+  "stagePlanPath",
   "validateOnly",
 ]);
 const FORBIDDEN_CONNECTOR_CONFIG_KEYS = new Set([
+  "authorization",
+  "authorizationHeader",
+  "forwardAuthorization",
   "forwardPassword",
   "forwardToken",
   "forwardUser",
@@ -403,8 +443,10 @@ export const validateConnectorConfig = (config) => {
   for (const [key, value] of Object.entries({
     checks: config.checks,
     approvalFile: config.approvalFile,
+    applyPlanPath: config.applyPlanPath,
     changeWindowId: config.changeWindowId,
     manifest: config.manifest,
+    lockPath: config.lockPath,
     metricsPath: config.metricsPath,
     nqeChecks: config.nqeChecks,
     nqeChecksUrl: config.nqeChecksUrl,
@@ -412,11 +454,13 @@ export const validateConnectorConfig = (config) => {
     nqeDiffRequestsUrl: config.nqeDiffRequestsUrl,
     nqeQueryIdAllowlist: config.nqeQueryIdAllowlist,
     packageTokenFile: config.packageTokenFile,
+    forwardAuthorizationFile: config.forwardAuthorizationFile,
     forwardNetworkId: config.forwardNetworkId,
     publicKey: config.publicKey,
     reportPath: config.reportPath,
     signature: config.signature,
     statusArtifactPath: config.statusArtifactPath,
+    stagePlanPath: config.stagePlanPath,
   })) {
     if (value !== undefined && !requireString(value)) {
       errors.push(`${key} must be a non-empty string when supplied.`);
@@ -461,6 +505,7 @@ export const validateConnectorConfig = (config) => {
 
 const toArgsFromConnectorConfig = (config) => ({
   ...(config.apply ? { apply: true } : {}),
+  ...(config.applyPlanPath ? { "apply-plan": config.applyPlanPath } : {}),
   ...(config.applyUpdates ? { "apply-updates": true } : {}),
   ...(config.approvalFile ? { "require-approval-file": config.approvalFile } : {}),
   ...(config.batchSize !== undefined ? { "batch-size": String(config.batchSize) } : {}),
@@ -471,6 +516,7 @@ const toArgsFromConnectorConfig = (config) => ({
   ...(config.failOnDrift ? { "fail-on-drift": true } : {}),
   ...(config.manifest ? { manifest: config.manifest } : {}),
   ...(config.manifestUrl ? { "manifest-url": config.manifestUrl } : {}),
+  ...(config.lockPath ? { "lock-path": config.lockPath } : {}),
   ...(config.maxDeactivations !== undefined
     ? { "max-deactivations": String(config.maxDeactivations) }
     : {}),
@@ -498,6 +544,7 @@ const toArgsFromConnectorConfig = (config) => ({
   ...(config.signature ? { signature: config.signature } : {}),
   ...(config.signatureUrl ? { "signature-url": config.signatureUrl } : {}),
   ...(config.statusArtifactPath ? { "status-artifact": config.statusArtifactPath } : {}),
+  ...(config.stagePlanPath ? { "stage-plan": config.stagePlanPath } : {}),
   ...(config.validateOnly ? { "validate-only": true } : {}),
 });
 
@@ -541,6 +588,22 @@ const toMetricsText = (report) => {
   for (const [mutation, value] of Object.entries(report.mutationCounts || {})) {
     lines.push(toMetricLine("forward_dynatrace_import_mutation_count", value, { mutation }));
   }
+  lines.push(
+    "# HELP forward_dynatrace_import_mutation_failure Whether an apply stopped during a Forward write.",
+    "# TYPE forward_dynatrace_import_mutation_failure gauge",
+    toMetricLine(
+      "forward_dynatrace_import_mutation_failure",
+      report.mutationFailure ? 1 : 0,
+      { phase: report.mutationFailure?.phase || "none" },
+    ),
+    "# HELP forward_dynatrace_import_post_apply_verified Whether post-apply reconciliation matched the approved plan.",
+    "# TYPE forward_dynatrace_import_post_apply_verified gauge",
+    toMetricLine(
+      "forward_dynatrace_import_post_apply_verified",
+      report.postApplyVerification?.state === "verified" ? 1 : 0,
+      { state: report.postApplyVerification?.state || "not-run" },
+    ),
+  );
 
   lines.push(
     "# HELP forward_dynatrace_import_duration_ms Import runtime duration in milliseconds.",
@@ -562,9 +625,15 @@ const toImportState = (report) => {
   if (report.status === "valid") {
     return "valid";
   }
+  if (report.mutationFailure) {
+    return "failed";
+  }
+  if (report.mode === "stage") {
+    return report.counts?.collision > 0 ? "needs-review" : "staged";
+  }
   const unresolvedChanged = report.unresolvedCounts?.changed ?? report.counts?.changed ?? 0;
   const unresolvedStale = report.unresolvedCounts?.stale ?? report.counts?.stale ?? 0;
-  if (unresolvedChanged > 0 || unresolvedStale > 0) {
+  if (unresolvedChanged > 0 || unresolvedStale > 0 || (report.counts?.collision || 0) > 0) {
     return "needs-review";
   }
   if (
@@ -582,13 +651,18 @@ const toApprovalSummary = (approval) =>
   approval
     ? {
         schemaVersion: approval.schemaVersion,
+        planId: approval.planId,
+        planSha256: approval.planSha256,
         packageId: approval.packageId,
+        networkId: approval.networkId,
+        snapshotId: approval.snapshotId,
         changeWindowId: approval.changeWindowId,
+        approvedAt: approval.approvedAt,
         expiresAt: approval.expiresAt,
         approvedBy: approval.approvedBy,
         reason: approval.reason,
-        approvedChangedCount: approval.approvedChangedKeys.length,
-        approvedStaleCount: approval.approvedStaleKeys.length,
+        approvedUpdateCount: approval.approvedUpdateSourceKeys.length,
+        approvedRetireCount: approval.approvedRetireSourceKeys.length,
       }
     : null;
 
@@ -613,6 +687,7 @@ export const toStatusArtifact = (report) => ({
     unchanged: 0,
     changed: 0,
     stale: 0,
+    collision: 0,
   },
   unresolvedCounts: report.unresolvedCounts || {
     changed: report.counts?.changed || 0,
@@ -623,14 +698,43 @@ export const toStatusArtifact = (report) => ({
     updated: 0,
     deactivated: 0,
   },
+  mutationFailure: report.mutationFailure
+    ? {
+        phase: report.mutationFailure.phase,
+        statusCode: report.mutationFailure.statusCode,
+        affectedCount: report.mutationFailure.affectedCount,
+        recoveryRequired: true,
+      }
+    : null,
+  postApplyVerification: report.postApplyVerification
+    ? {
+        state: report.postApplyVerification.state,
+        planned: report.postApplyVerification.planned,
+        counts: report.postApplyVerification.counts,
+      }
+    : {
+        state: "not-run",
+        planned: report.plannedChecks || 0,
+        counts: null,
+      },
   approval: report.approval
     ? {
         schemaVersion: report.approval.schemaVersion,
+        planId: report.approval.planId,
+        planSha256: report.approval.planSha256,
         packageId: report.approval.packageId,
         changeWindowId: report.approval.changeWindowId,
+        approvedAt: report.approval.approvedAt,
         expiresAt: report.approval.expiresAt,
-        approvedChangedCount: report.approval.approvedChangedCount,
-        approvedStaleCount: report.approval.approvedStaleCount,
+        approvedUpdateCount: report.approval.approvedUpdateCount,
+        approvedRetireCount: report.approval.approvedRetireCount,
+      }
+    : null,
+  importPlan: report.importPlan
+    ? {
+        planId: report.importPlan.planId,
+        planSha256: report.importPlan.planSha256,
+        state: report.importPlan.state,
       }
     : null,
   plannedChecks: report.plannedChecks,
@@ -770,12 +874,12 @@ const retryDelayMs = (attempt, retryAfter) => {
   return Math.min(250 * 2 ** attempt, 4000);
 };
 
-export const dynatraceKeys = (check) =>
+export const sourceKeys = (check) =>
   (Array.isArray(check.tags) ? check.tags : []).filter((tag) =>
-    tag.startsWith("dynatrace-key:"),
+    tag.startsWith(SOURCE_KEY_TAG_PREFIX),
   );
 
-export const reconciliationKey = (check) => dynatraceKeys(check)[0] || check.name || "";
+export const reconciliationKey = (check) => managedSourceKey(check) || "";
 
 const sortedTags = (check) => [...(check.tags || [])].sort();
 
@@ -825,11 +929,16 @@ const indexExistingChecks = (existingChecks) => {
   const byName = new Map();
 
   for (const check of existingChecks) {
-    for (const key of dynatraceKeys(check)) {
-      byKey.set(key, check);
+    const identity = inspectManagedIdentity(check);
+    if (identity.sourceKey) {
+      const matches = byKey.get(identity.sourceKey) || [];
+      matches.push({ check, identity });
+      byKey.set(identity.sourceKey, matches);
     }
     if (check.name) {
-      byName.set(check.name, check);
+      const matches = byName.get(check.name) || [];
+      matches.push(check);
+      byName.set(check.name, matches);
     }
   }
 
@@ -843,23 +952,79 @@ const summarizeCheck = (check) => ({
   name: check.name || "",
 });
 
-export const reconcileChecks = (plannedChecks, existingChecks) => {
+export const reconcileChecks = (plannedChecks, existingChecks, options = {}) => {
   const { byKey, byName } = indexExistingChecks(existingChecks);
   const plannedKeys = new Set();
-  const plannedNames = new Set();
+  const plannedSourceInstances = new Set(
+    plannedChecks
+      .map((check) => inspectManagedIdentity(check).sourceInstance)
+      .filter(Boolean),
+  );
+  if (options.sourceInstanceTag) plannedSourceInstances.add(options.sourceInstanceTag);
   const create = [];
   const unchanged = [];
   const changed = [];
+  const collision = [];
 
   for (const planned of plannedChecks) {
     const key = reconciliationKey(planned);
-    const existing = (key && byKey.get(key)) || (planned.name && byName.get(planned.name));
+    const plannedIdentity = inspectManagedIdentity(planned);
+    const keyMatches = key ? byKey.get(key) || [] : [];
+    const nameMatches = planned.name ? byName.get(planned.name) || [] : [];
+    let existing = null;
 
     if (key) {
       plannedKeys.add(key);
     }
-    if (planned.name) {
-      plannedNames.add(planned.name);
+
+    if (keyMatches.length > 1) {
+      collision.push({
+        key,
+        name: planned.name || "",
+        reason: "duplicate-source-key",
+        existingIds: keyMatches.map(({ check }) => check.id).filter(Boolean),
+      });
+      continue;
+    }
+    if (keyMatches.length === 1) {
+      const match = keyMatches[0];
+      if (
+        !match.identity.managed ||
+        match.identity.sourceInstance !== plannedIdentity.sourceInstance
+      ) {
+        collision.push({
+          key,
+          name: planned.name || "",
+          reason: "source-key-owned-by-incompatible-check",
+          existingIds: [match.check.id].filter(Boolean),
+        });
+        continue;
+      }
+      const conflictingNameMatches = nameMatches.filter(
+        (check) =>
+          check !== match.check &&
+          (!check.id || !match.check.id || String(check.id) !== String(match.check.id)),
+      );
+      if (conflictingNameMatches.length > 0) {
+        collision.push({
+          key,
+          name: planned.name || "",
+          reason: "name-already-exists-with-different-source-key",
+          existingIds: conflictingNameMatches
+            .map((check) => check.id)
+            .filter(Boolean),
+        });
+        continue;
+      }
+      existing = match.check;
+    } else if (nameMatches.length > 0) {
+      collision.push({
+        key,
+        name: planned.name || "",
+        reason: "name-already-exists-with-different-source-key",
+        existingIds: nameMatches.map((check) => check.id).filter(Boolean),
+      });
+      continue;
     }
 
     if (!existing) {
@@ -894,17 +1059,15 @@ export const reconcileChecks = (plannedChecks, existingChecks) => {
   }
 
   const stale = existingChecks
-    .filter((check) => dynatraceKeys(check).length > 0)
+    .map((check) => ({ check, identity: inspectManagedIdentity(check) }))
+    .filter(({ identity }) => identity.managed)
+    .filter(({ identity }) => plannedSourceInstances.has(identity.sourceInstance))
     .filter((check) => {
-      const keys = dynatraceKeys(check);
-      return (
-        keys.every((key) => !plannedKeys.has(key)) &&
-        (!check.name || !plannedNames.has(check.name))
-      );
+      return !plannedKeys.has(check.identity.sourceKey);
     })
-    .map(summarizeCheck);
+    .map(({ check }) => summarizeCheck(check));
 
-  return { create, unchanged, changed, stale };
+  return { create, unchanged, changed, stale, collision };
 };
 
 const annotateReconciliation = (reconciliation, artifactType) => ({
@@ -912,6 +1075,7 @@ const annotateReconciliation = (reconciliation, artifactType) => ({
   unchanged: reconciliation.unchanged.map((item) => ({ ...item, artifactType })),
   changed: reconciliation.changed.map((item) => ({ ...item, artifactType })),
   stale: reconciliation.stale.map((item) => ({ ...item, artifactType })),
+  collision: reconciliation.collision.map((item) => ({ ...item, artifactType })),
 });
 
 const mergeReconciliations = (...reconciliations) => ({
@@ -919,6 +1083,15 @@ const mergeReconciliations = (...reconciliations) => ({
   unchanged: reconciliations.flatMap((reconciliation) => reconciliation.unchanged),
   changed: reconciliations.flatMap((reconciliation) => reconciliation.changed),
   stale: reconciliations.flatMap((reconciliation) => reconciliation.stale),
+  collision: reconciliations.flatMap((reconciliation) => reconciliation.collision),
+});
+
+const reconciliationCounts = (reconciliation) => ({
+  create: reconciliation.create.length,
+  unchanged: reconciliation.unchanged.length,
+  changed: reconciliation.changed.length,
+  stale: reconciliation.stale.length,
+  collision: reconciliation.collision.length,
 });
 
 const validateNoCrossArtifactDuplicates = (intentChecks, nqeChecks) => {
@@ -934,7 +1107,7 @@ const validateNoCrossArtifactDuplicates = (intentChecks, nqeChecks) => {
   if (duplicateNames.length > 0 || duplicateKeys.length > 0) {
     throw new Error(
       [
-        "Optional NQE checks must not duplicate intent-check names or dynatrace keys.",
+        "Optional NQE checks must not duplicate intent-check names or managed source keys.",
         duplicateNames.length > 0 ? `Duplicate names: ${duplicateNames.join(", ")}` : "",
         duplicateKeys.length > 0 ? `Duplicate keys: ${duplicateKeys.join(", ")}` : "",
       ]
@@ -944,8 +1117,7 @@ const validateNoCrossArtifactDuplicates = (intentChecks, nqeChecks) => {
   }
 };
 
-const makeClient = ({ baseUrl, user, password, maxRetries }) => {
-  const auth = Buffer.from(`${user}:${password}`).toString("base64");
+const makeClient = ({ baseUrl, authorization, maxRetries }) => {
   const root = baseUrl.replace(/\/+$/, "");
 
   return async (method, path, options = {}) => {
@@ -953,7 +1125,7 @@ const makeClient = ({ baseUrl, user, password, maxRetries }) => {
       const response = await fetch(`${root}${path}`, {
         method,
         headers: {
-          Authorization: `Basic ${auth}`,
+          Authorization: authorization,
           Accept: "application/json",
           ...(options.body ? { "Content-Type": "application/json" } : {}),
           ...options.headers,
@@ -1016,7 +1188,7 @@ const requireObject = (value, label, errors) => {
   return true;
 };
 
-const exactDynatraceKeyArray = (approval, key, errors) => {
+const exactSourceKeyArray = (approval, key, errors) => {
   const value = approval[key] === undefined ? [] : approval[key];
   if (!Array.isArray(value)) {
     errors.push(`${key} must be an array when supplied.`);
@@ -1027,8 +1199,8 @@ const exactDynatraceKeyArray = (approval, key, errors) => {
   value.forEach((item, index) => {
     if (!requireString(item)) {
       errors.push(`${key}[${index}] must be a non-empty string.`);
-    } else if (!item.startsWith("dynatrace-key:")) {
-      errors.push(`${key}[${index}] must start with dynatrace-key:.`);
+    } else if (!/^source-key:sha256:[a-f0-9]{64}$/u.test(item)) {
+      errors.push(`${key}[${index}] must be a source-key:sha256:<64 hex> value.`);
     } else if (hasWhitespace(item)) {
       errors.push(`${key}[${index}] must not contain whitespace.`);
     } else if (seen.has(item)) {
@@ -1043,7 +1215,10 @@ const exactDynatraceKeyArray = (approval, key, errors) => {
 export const validateApprovalFile = (
   approval,
   {
+    plan,
     packageId,
+    networkId,
+    snapshotId,
     changeWindowId,
     now = new Date(),
   } = {},
@@ -1057,13 +1232,17 @@ export const validateApprovalFile = (
 
   const allowedKeys = new Set([
     "approvedBy",
-    "approvedChangedKeys",
-    "approvedStaleKeys",
+    "approvedAt",
+    "actions",
     "changeWindowId",
     "expiresAt",
+    "networkId",
     "packageId",
+    "planId",
+    "planSha256",
     "reason",
     "schemaVersion",
+    "snapshotId",
   ]);
   for (const key of Object.keys(approval)) {
     if (!allowedKeys.has(key)) {
@@ -1079,17 +1258,52 @@ export const validateApprovalFile = (
   } else if (packageId && approval.packageId !== packageId) {
     errors.push(`packageId must match manifest packageId ${packageId}.`);
   }
+  if (!requireString(approval.planId)) {
+    errors.push("planId is required.");
+  } else if (plan && approval.planId !== plan.planId) {
+    errors.push(`planId must match staged plan ${plan.planId}.`);
+  }
+  if (!/^[a-f0-9]{64}$/u.test(approval.planSha256 || "")) {
+    errors.push("planSha256 must be a SHA-256 digest.");
+  } else if (plan && approval.planSha256 !== plan.planSha256) {
+    errors.push("planSha256 must match the staged plan digest.");
+  }
+  if (!requireString(approval.networkId)) {
+    errors.push("networkId is required.");
+  } else if (networkId && String(approval.networkId) !== String(networkId)) {
+    errors.push(`networkId must match ${networkId}.`);
+  }
+  if (!requireString(approval.snapshotId)) {
+    errors.push("snapshotId is required.");
+  } else if (snapshotId && String(approval.snapshotId) !== String(snapshotId)) {
+    errors.push(`snapshotId must match ${snapshotId}.`);
+  }
   if (changeWindowId && approval.changeWindowId !== changeWindowId) {
     errors.push(`changeWindowId must match ${changeWindowId}.`);
   }
   if (approval.changeWindowId !== undefined && !requireString(approval.changeWindowId)) {
     errors.push("changeWindowId must be a non-empty string when supplied.");
   }
-  if (approval.approvedBy !== undefined && !requireString(approval.approvedBy)) {
-    errors.push("approvedBy must be a non-empty string when supplied.");
+  if (!requireString(approval.approvedBy)) {
+    errors.push("approvedBy is required.");
   }
-  if (approval.reason !== undefined && !requireString(approval.reason)) {
-    errors.push("reason must be a non-empty string when supplied.");
+  if (!requireString(approval.reason)) {
+    errors.push("reason is required.");
+  }
+
+  const nowMs = now.getTime();
+  const maxClockSkewMs = 5 * 60 * 1000;
+  const maxApprovalLifetimeMs = 24 * 60 * 60 * 1000;
+  let approvedAtMs = Number.NaN;
+  if (!requireString(approval.approvedAt)) {
+    errors.push("approvedAt is required.");
+  } else {
+    approvedAtMs = Date.parse(approval.approvedAt);
+    if (!Number.isFinite(approvedAtMs)) {
+      errors.push("approvedAt must be an ISO timestamp.");
+    } else if (approvedAtMs > nowMs + maxClockSkewMs) {
+      errors.push("approvedAt must not be more than five minutes in the future.");
+    }
   }
 
   if (!requireString(approval.expiresAt)) {
@@ -1098,21 +1312,53 @@ export const validateApprovalFile = (
     const expiresAtMs = Date.parse(approval.expiresAt);
     if (!Number.isFinite(expiresAtMs)) {
       errors.push("expiresAt must be an ISO timestamp.");
-    } else if (expiresAtMs <= now.getTime()) {
+    } else if (expiresAtMs <= nowMs) {
       errors.push("expiresAt must be in the future.");
+    } else if (Number.isFinite(approvedAtMs) && expiresAtMs <= approvedAtMs) {
+      errors.push("expiresAt must be later than approvedAt.");
+    } else if (
+      Number.isFinite(approvedAtMs) &&
+      expiresAtMs - approvedAtMs > maxApprovalLifetimeMs
+    ) {
+      errors.push("Approval lifetime must not exceed 24 hours.");
     }
   }
 
-  const approvedChangedKeys = exactDynatraceKeyArray(
-    approval,
-    "approvedChangedKeys",
+  const actions = requireObject(approval.actions, "actions", errors)
+    ? approval.actions
+    : {};
+  const actionKeys = new Set(["createMissing", "updateSourceKeys", "retireSourceKeys"]);
+  for (const key of Object.keys(actions)) {
+    if (!actionKeys.has(key)) errors.push(`Unsupported approval action: ${key}.`);
+  }
+  if (actions.createMissing !== true) {
+    errors.push("actions.createMissing must be true.");
+  }
+  const approvedUpdateSourceKeys = exactSourceKeyArray(
+    actions,
+    "updateSourceKeys",
     errors,
   );
-  const approvedStaleKeys = exactDynatraceKeyArray(
-    approval,
-    "approvedStaleKeys",
+  const approvedRetireSourceKeys = exactSourceKeyArray(
+    actions,
+    "retireSourceKeys",
     errors,
   );
+
+  if (plan) {
+    const plannedUpdateSourceKeys = (plan.actions?.update || [])
+      .map((item) => item.sourceKey)
+      .sort();
+    const plannedRetireSourceKeys = (plan.actions?.retire || [])
+      .map((item) => item.sourceKey)
+      .sort();
+    if (JSON.stringify([...approvedUpdateSourceKeys].sort()) !== JSON.stringify(plannedUpdateSourceKeys)) {
+      errors.push("actions.updateSourceKeys must exactly match the staged plan.");
+    }
+    if (JSON.stringify([...approvedRetireSourceKeys].sort()) !== JSON.stringify(plannedRetireSourceKeys)) {
+      errors.push("actions.retireSourceKeys must exactly match the staged plan.");
+    }
+  }
 
   if (errors.length > 0) {
     throw new Error(
@@ -1124,13 +1370,18 @@ export const validateApprovalFile = (
 
   return {
     schemaVersion: APPROVAL_SCHEMA_VERSION,
+    planId: approval.planId,
+    planSha256: approval.planSha256,
     packageId: approval.packageId,
+    networkId: approval.networkId,
+    snapshotId: approval.snapshotId,
     changeWindowId: approval.changeWindowId || null,
+    approvedAt: approval.approvedAt,
     expiresAt: approval.expiresAt,
-    approvedBy: approval.approvedBy || null,
-    reason: approval.reason || null,
-    approvedChangedKeys,
-    approvedStaleKeys,
+    approvedBy: approval.approvedBy,
+    reason: approval.reason,
+    approvedUpdateSourceKeys,
+    approvedRetireSourceKeys,
   };
 };
 
@@ -1153,31 +1404,31 @@ export const planApprovedMutations = (
     maxDeactivations = 0,
   } = {},
 ) => {
-  const approvedChangedKeys = new Set(approval?.approvedChangedKeys || []);
-  const approvedStaleKeys = new Set(approval?.approvedStaleKeys || []);
+  const approvedUpdateSourceKeys = new Set(approval?.approvedUpdateSourceKeys || []);
+  const approvedRetireSourceKeys = new Set(approval?.approvedRetireSourceKeys || []);
   const currentChangedKeys = new Set(reconciliation.changed.map((item) => item.key));
   const currentStaleKeys = new Set(reconciliation.stale.map((item) => item.key));
 
   if (applyUpdates) {
     assertApprovalKeysMatchCurrentDrift(
-      [...approvedChangedKeys],
+      [...approvedUpdateSourceKeys],
       currentChangedKeys,
       "Changed-check",
     );
   }
   if (deactivateStale) {
     assertApprovalKeysMatchCurrentDrift(
-      [...approvedStaleKeys],
+      [...approvedRetireSourceKeys],
       currentStaleKeys,
       "Stale-check",
     );
   }
 
   const update = applyUpdates
-    ? reconciliation.changed.filter((item) => approvedChangedKeys.has(item.key))
+    ? reconciliation.changed.filter((item) => approvedUpdateSourceKeys.has(item.key))
     : [];
   const deactivate = deactivateStale
-    ? reconciliation.stale.filter((item) => approvedStaleKeys.has(item.key))
+    ? reconciliation.stale.filter((item) => approvedRetireSourceKeys.has(item.key))
     : [];
 
   if (update.length > maxUpdates) {
@@ -1228,7 +1479,7 @@ export const validatePlannedChecks = (checks) => {
       );
     }
 
-    const keyTags = dynatraceKeys(check);
+    const identity = inspectManagedIdentity(check);
     if (!Array.isArray(check.tags)) {
       errors.push(`${prefix}.tags must be an array.`);
     } else {
@@ -1241,12 +1492,21 @@ export const validatePlannedChecks = (checks) => {
       });
     }
 
-    if (keyTags.length !== 1) {
-      errors.push(`${prefix}.tags must contain exactly one dynatrace-key:* tag.`);
-    } else if (keys.has(keyTags[0])) {
-      errors.push(`${prefix} dynatrace-key duplicates check[${keys.get(keyTags[0])}].`);
-    } else {
-      keys.set(keyTags[0], index);
+    for (const identityError of identity.errors) {
+      errors.push(`${prefix}.tags ${identityError}.`);
+    }
+    if (identity.sourceKey && keys.has(identity.sourceKey)) {
+      errors.push(`${prefix} source-key duplicates check[${keys.get(identity.sourceKey)}].`);
+    } else if (identity.managed) {
+      keys.set(identity.sourceKey, index);
+    }
+    if (
+      identity.managed &&
+      !check.tags.includes(
+        sourceInstanceTag(identity.sourceInstance.slice(SOURCE_INSTANCE_TAG_PREFIX.length)),
+      )
+    ) {
+      errors.push(`${prefix}.tags contains a non-canonical source-instance tag.`);
     }
   });
 
@@ -1309,6 +1569,21 @@ export const validateManifest = (
   if (requireObject(manifest.source, "manifest.source", errors)) {
     if (manifest.source.platform !== "dynatrace") {
       errors.push("manifest.source.platform must be dynatrace.");
+    }
+    if (manifest.source.app !== "com.forward.dynatrace") {
+      errors.push("manifest.source.app must be com.forward.dynatrace.");
+    }
+    if (!requireString(manifest.source.instanceId)) {
+      errors.push("manifest.source.instanceId is required.");
+    } else {
+      try {
+        const expectedTag = sourceInstanceTag(manifest.source.instanceId);
+        if (manifest.source.instanceTag !== expectedTag) {
+          errors.push(`manifest.source.instanceTag must be ${expectedTag}.`);
+        }
+      } catch (error) {
+        errors.push(error.message);
+      }
     }
     if (manifest.source.writePolicy !== "dynatrace-never-writes-forward") {
       errors.push("manifest.source.writePolicy must be dynatrace-never-writes-forward.");
@@ -1392,6 +1667,9 @@ export const validateManifest = (
     if (manifest.intentChecks.dedupeRequiredBeforePost !== true) {
       errors.push("manifest.intentChecks.dedupeRequiredBeforePost must be true.");
     }
+    if (manifest.intentChecks.dedupe !== "managed-source-key") {
+      errors.push("manifest.intentChecks.dedupe must be managed-source-key.");
+    }
   }
 
   if (manifest.nqeChecks || nqeChecks.length > 0) {
@@ -1412,6 +1690,9 @@ export const validateManifest = (
       }
       if (manifest.nqeChecks.dedupeRequiredBeforePost !== true) {
         errors.push("manifest.nqeChecks.dedupeRequiredBeforePost must be true.");
+      }
+      if (manifest.nqeChecks.dedupe !== "managed-source-key") {
+        errors.push("manifest.nqeChecks.dedupe must be managed-source-key.");
       }
       if (manifest.nqeChecks.queryIdPolicy !== "forward-owned-allowlist") {
         errors.push("manifest.nqeChecks.queryIdPolicy must be forward-owned-allowlist.");
@@ -1454,11 +1735,29 @@ export const validateManifest = (
   }
 
   if (requireObject(manifest.validation, "manifest.validation", errors)) {
-    if (manifest.validation.requiredTagPrefix !== "dynatrace-key:") {
-      errors.push("manifest.validation.requiredTagPrefix must be dynatrace-key:.");
+    if (manifest.validation.managedByTag !== MANAGED_BY_TAG) {
+      errors.push(`manifest.validation.managedByTag must be ${MANAGED_BY_TAG}.`);
     }
-    if (manifest.validation.requiredTagsPerCheck !== 1) {
-      errors.push("manifest.validation.requiredTagsPerCheck must be 1.");
+    if (manifest.validation.contractVersionTag !== CONTRACT_VERSION_TAG) {
+      errors.push(
+        `manifest.validation.contractVersionTag must be ${CONTRACT_VERSION_TAG}.`,
+      );
+    }
+    if (manifest.validation.sourceInstanceTagPrefix !== SOURCE_INSTANCE_TAG_PREFIX) {
+      errors.push(
+        `manifest.validation.sourceInstanceTagPrefix must be ${SOURCE_INSTANCE_TAG_PREFIX}.`,
+      );
+    }
+    if (manifest.validation.sourceKeyTagPrefix !== SOURCE_KEY_TAG_PREFIX) {
+      errors.push(
+        `manifest.validation.sourceKeyTagPrefix must be ${SOURCE_KEY_TAG_PREFIX}.`,
+      );
+    }
+    if (manifest.validation.ownershipTagsPerCheck !== 4) {
+      errors.push("manifest.validation.ownershipTagsPerCheck must be 4.");
+    }
+    if (manifest.validation.identityPolicy !== "strict-ownership-tuple") {
+      errors.push("manifest.validation.identityPolicy must be strict-ownership-tuple.");
     }
     if (manifest.validation.credentialPolicy !== "no-forward-credentials-in-dynatrace") {
       errors.push("manifest.validation.credentialPolicy must be no-forward-credentials-in-dynatrace.");
@@ -1466,6 +1765,11 @@ export const validateManifest = (
   }
 
   if (requireObject(manifest.reconciliation, "manifest.reconciliation", errors)) {
+    if (manifest.reconciliation.strategy !== "source-scoped-desired-state") {
+      errors.push(
+        "manifest.reconciliation.strategy must be source-scoped-desired-state.",
+      );
+    }
     if (manifest.reconciliation.defaultApplyPolicy !== "create-missing-only") {
       errors.push("manifest.reconciliation.defaultApplyPolicy must be create-missing-only.");
     }
@@ -1475,11 +1779,73 @@ export const validateManifest = (
     if (manifest.reconciliation.staleChecks !== "report-only") {
       errors.push("manifest.reconciliation.staleChecks must be report-only.");
     }
+    if (manifest.reconciliation.collisionPolicy !== "reject") {
+      errors.push("manifest.reconciliation.collisionPolicy must be reject.");
+    }
+  }
+
+  const expectedSourceInstanceTag = manifest.source?.instanceTag;
+  if (expectedSourceInstanceTag) {
+    plannedChecks.forEach((check, index) => {
+      const identity = inspectManagedIdentity(check);
+      if (identity.managed && identity.sourceInstance !== expectedSourceInstanceTag) {
+        errors.push(
+          `check[${index}] source-instance does not match manifest.source.instanceTag.`,
+        );
+      }
+    });
   }
 
   if (errors.length > 0) {
     throw invalidManifestError(errors);
   }
+};
+
+export const acquireApplyLock = async ({
+  networkId,
+  sourceInstanceTag: scopedSourceInstanceTag,
+  lockPath,
+  now = new Date(),
+}) => {
+  const scope = `${String(networkId)}\n${String(scopedSourceInstanceTag)}`;
+  const resolvedPath = lockPath || path.join(
+    tmpdir(),
+    `forward-dynatrace-apply-${sha256Hex(scope).slice(0, 24)}.lock`,
+  );
+  let handle;
+  try {
+    handle = await open(resolvedPath, "wx", 0o600);
+  } catch (error) {
+    if (error?.code === "EEXIST") {
+      throw new Error(
+        `Another Forward apply holds the source/network lock ${resolvedPath}. Wait for it to finish or investigate the stale lock before retrying.`,
+      );
+    }
+    throw error;
+  }
+  await handle.writeFile(
+    `${JSON.stringify(
+      {
+        schemaVersion: "forward-dynatrace-apply-lock/v1",
+        acquiredAt: now.toISOString(),
+        processId: process.pid,
+        networkId: String(networkId),
+        sourceInstanceTag: scopedSourceInstanceTag,
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  return {
+    path: resolvedPath,
+    async release() {
+      await handle.close();
+      await unlink(resolvedPath).catch((error) => {
+        if (error?.code !== "ENOENT") throw error;
+      });
+    },
+  };
 };
 
 const main = async () => {
@@ -1582,11 +1948,8 @@ const main = async () => {
       maxPackageAgeMinutes,
     });
   }
-  const approval = args["require-approval-file"]
-    ? validateApprovalFile(await readJson(args["require-approval-file"]), {
-        packageId: manifest?.packageId,
-        changeWindowId: args["change-window-id"],
-      })
+  const approvalDocument = args["require-approval-file"]
+    ? await readJson(args["require-approval-file"])
     : null;
   const signatureLocators = resolveSignatureLocators(args);
   const signatureRequired = Boolean(args["require-signature"]);
@@ -1652,7 +2015,7 @@ const main = async () => {
         publicKeySource: signatureLocators.publicKey || null,
         signatureSource: signatureLocators.signature || null,
       },
-      approval: toApprovalSummary(approval),
+      approval: null,
       checksSource: locators.checks,
       manifestSource: locators.manifest || null,
       nqeChecksSource: optionalLocators.nqeChecks || null,
@@ -1683,11 +2046,24 @@ const main = async () => {
   );
   const api = makeClient({
     baseUrl: requiredRuntimeValue("FORWARD_BASE_URL", connectorConfig.forwardBaseUrl),
-    user: requiredEnv("FORWARD_USER"),
-    password: requiredEnv("FORWARD_PASSWORD"),
+    authorization: await loadForwardAuthorization(
+      requiredRuntimeValue(
+        "FORWARD_AUTHORIZATION_FILE",
+        connectorConfig.forwardAuthorizationFile,
+      ),
+    ),
     maxRetries,
   });
 
+  const applyLock = apply
+    ? await acquireApplyLock({
+        networkId,
+        sourceInstanceTag: manifest?.source?.instanceTag,
+        lockPath: args["lock-path"],
+      })
+    : null;
+
+  try {
   let snapshotId;
   if (args["snapshot-id"]) {
     const snapshots = await api(
@@ -1719,14 +2095,62 @@ const main = async () => {
       ? await api("GET", `/api/snapshots/${snapshotId}/checks?type=NQE`)
       : [];
   const intentReconciliation = annotateReconciliation(
-    reconcileChecks(plannedChecks, existingChecks),
+    reconcileChecks(plannedChecks, existingChecks, {
+      sourceInstanceTag: manifest?.source?.instanceTag,
+    }),
     "intentChecks",
   );
   const nqeReconciliation = annotateReconciliation(
-    reconcileChecks(plannedNqeChecks, existingNqeChecks),
+    reconcileChecks(plannedNqeChecks, existingNqeChecks, {
+      sourceInstanceTag: manifest?.source?.instanceTag,
+    }),
     "nqeChecks",
   );
   const reconciliation = mergeReconciliations(intentReconciliation, nqeReconciliation);
+  if (!manifest || !manifestText) {
+    throw new Error("Reconciliation requires a validated package manifest.");
+  }
+  const storedPlan = args["apply-plan"]
+    ? validateImportPlan(await readJson(args["apply-plan"]))
+    : null;
+  const importPlan = buildImportPlan({
+    createdAt: storedPlan?.createdAt || startedAt,
+    manifest,
+    manifestText,
+    packageSignatureStatus: signatureStatus,
+    networkId,
+    snapshotId,
+    reconciliation,
+    policy: {
+      applyUpdates: Boolean(args["apply-updates"]),
+      deactivateStale: Boolean(args["deactivate-stale"]),
+      maxUpdates,
+      maxDeactivations,
+    },
+  });
+  if (storedPlan) {
+    assertImportPlanMatches(storedPlan, importPlan);
+  }
+  if (args["stage-plan"]) {
+    await writeFile(args["stage-plan"], `${JSON.stringify(importPlan, null, 2)}\n`, {
+      flag: "wx",
+      mode: 0o600,
+    });
+  }
+  const approval = approvalDocument
+    ? validateApprovalFile(approvalDocument, {
+        plan: importPlan,
+        packageId: manifest.packageId,
+        networkId,
+        snapshotId,
+        changeWindowId: args["change-window-id"],
+      })
+    : null;
+  if (apply && reconciliation.collision.length > 0) {
+    throw new Error(
+      `Forward apply rejected ${reconciliation.collision.length} managed identity or name collision(s). Run dry-run and resolve every collision before apply.`,
+    );
+  }
   const approvedMutations = planApprovedMutations(reconciliation, approval, {
     applyUpdates: Boolean(args["apply-updates"]),
     deactivateStale: Boolean(args["deactivate-stale"]),
@@ -1734,39 +2158,155 @@ const main = async () => {
     maxDeactivations,
   });
 
-  let createdCount = 0;
-  let updatedCount = 0;
-  let deactivatedCount = 0;
+  const mutationOutcomes = {
+    created: [],
+    updated: [],
+    deactivated: [],
+  };
+  let mutationFailure = null;
+  let mutationError = null;
+  let activeMutation = null;
+  let postApplyVerification = {
+    state: apply ? "pending" : "not-run",
+    planned: plannedChecks.length + plannedNqeChecks.length,
+    counts: null,
+  };
   if (apply) {
-    for (const batch of chunk(reconciliation.create.map((item) => item.check), batchSize)) {
-      await api("POST", `/api/snapshots/${snapshotId}/checks?bulk`, {
-        body: batch,
-      });
-      createdCount += batch.length;
-    }
+    try {
+      for (const batch of chunk(reconciliation.create, batchSize)) {
+        activeMutation = {
+          phase: "create-missing",
+          sourceKeys: batch.map((item) => item.key),
+          existingCheckIds: [],
+          existingCheckDeleted: false,
+        };
+        await api("POST", `/api/snapshots/${snapshotId}/checks?bulk`, {
+          body: batch.map((item) => item.check),
+        });
+        mutationOutcomes.created.push(
+          ...batch.map((item) => ({ sourceKey: item.key, status: "created" })),
+        );
+      }
 
-    for (const item of approvedMutations.update) {
-      await api("DELETE", `/api/snapshots/${snapshotId}/checks/${item.existingId}`);
-    }
-    for (const batch of chunk(
-      approvedMutations.update.map((item) => item.planned.check),
-      batchSize,
-    )) {
-      await api("POST", `/api/snapshots/${snapshotId}/checks?bulk`, {
-        body: batch,
-      });
-      updatedCount += batch.length;
-    }
+      for (const item of approvedMutations.update) {
+        activeMutation = {
+          phase: "replace-delete",
+          sourceKeys: [item.key],
+          existingCheckIds: [String(item.existingId)],
+          existingCheckDeleted: false,
+        };
+        await api("DELETE", `/api/snapshots/${snapshotId}/checks/${item.existingId}`);
+        activeMutation.existingCheckDeleted = true;
+        activeMutation.phase = "replace-create";
+        await api("POST", `/api/snapshots/${snapshotId}/checks?bulk`, {
+          body: [item.planned.check],
+        });
+        mutationOutcomes.updated.push({
+          sourceKey: item.key,
+          existingCheckId: String(item.existingId),
+          status: "replaced",
+        });
+      }
 
-    for (const item of approvedMutations.deactivate) {
-      await api("DELETE", `/api/snapshots/${snapshotId}/checks/${item.id}`);
-      deactivatedCount += 1;
+      for (const item of approvedMutations.deactivate) {
+        activeMutation = {
+          phase: "retire-stale",
+          sourceKeys: [item.key],
+          existingCheckIds: [String(item.id)],
+          existingCheckDeleted: false,
+        };
+        await api("DELETE", `/api/snapshots/${snapshotId}/checks/${item.id}`);
+        activeMutation.existingCheckDeleted = true;
+        mutationOutcomes.deactivated.push({
+          sourceKey: item.key,
+          existingCheckId: String(item.id),
+          status: "retired",
+        });
+      }
+    } catch (error) {
+      mutationError = error;
+      const statusMatch = String(error?.message || "").match(/failed with (\d{3})/u);
+      mutationFailure = {
+        phase: activeMutation?.phase || "unknown",
+        category: "forward-api-request-failed",
+        statusCode: statusMatch ? Number.parseInt(statusMatch[1], 10) : null,
+        affectedCount: activeMutation?.sourceKeys.length || 0,
+        sourceKeys: activeMutation?.sourceKeys || [],
+        existingCheckIds: activeMutation?.existingCheckIds || [],
+        existingCheckDeleted: Boolean(activeMutation?.existingCheckDeleted),
+        recoveryRequired: true,
+      };
+    }
+  }
+
+  if (apply) {
+    try {
+      const verifiedIntentChecks = await api(
+        "GET",
+        `/api/snapshots/${snapshotId}/checks?type=Existential`,
+      );
+      const verifiedNqeChecks =
+        plannedNqeChecks.length > 0
+          ? await api("GET", `/api/snapshots/${snapshotId}/checks?type=NQE`)
+          : [];
+      const verifiedReconciliation = mergeReconciliations(
+        reconcileChecks(plannedChecks, verifiedIntentChecks, {
+          sourceInstanceTag: manifest.source.instanceTag,
+        }),
+        reconcileChecks(plannedNqeChecks, verifiedNqeChecks, {
+          sourceInstanceTag: manifest.source.instanceTag,
+        }),
+      );
+      const verifiedCounts = reconciliationCounts(verifiedReconciliation);
+      const unexpectedCount =
+        verifiedCounts.create +
+        verifiedCounts.changed +
+        verifiedCounts.collision +
+        (args["deactivate-stale"] ? verifiedCounts.stale : 0);
+      postApplyVerification = {
+        state: unexpectedCount === 0 ? "verified" : "failed",
+        planned: plannedChecks.length + plannedNqeChecks.length,
+        counts: verifiedCounts,
+      };
+      if (unexpectedCount > 0 && !mutationFailure) {
+        mutationError = new Error("Post-apply reconciliation did not match the approved plan.");
+        mutationFailure = {
+          phase: "post-apply-verification",
+          category: "reconciliation-mismatch",
+          statusCode: null,
+          affectedCount: unexpectedCount,
+          sourceKeys: [],
+          existingCheckIds: [],
+          existingCheckDeleted: false,
+          recoveryRequired: true,
+        };
+      }
+    } catch (error) {
+      postApplyVerification = {
+        state: "unavailable",
+        planned: plannedChecks.length + plannedNqeChecks.length,
+        counts: null,
+      };
+      if (!mutationFailure) {
+        mutationError = error;
+        const statusMatch = String(error?.message || "").match(/failed with (\d{3})/u);
+        mutationFailure = {
+          phase: "post-apply-verification",
+          category: "forward-api-request-failed",
+          statusCode: statusMatch ? Number.parseInt(statusMatch[1], 10) : null,
+          affectedCount: plannedChecks.length + plannedNqeChecks.length,
+          sourceKeys: [],
+          existingCheckIds: [],
+          existingCheckDeleted: false,
+          recoveryRequired: true,
+        };
+      }
     }
   }
 
   const finishedAt = new Date().toISOString();
   const report = {
-    mode: apply ? "apply" : "dry-run",
+    mode: apply ? "apply" : args["stage-plan"] ? "stage" : "dry-run",
     runId,
     startedAt,
     finishedAt,
@@ -1796,6 +2336,18 @@ const main = async () => {
       changeWindowId: args["change-window-id"] || null,
     },
     approval: toApprovalSummary(approval),
+    importPlan: {
+      planId: importPlan.planId,
+      planSha256: importPlan.planSha256,
+      path: args["stage-plan"] || args["apply-plan"] || null,
+      state: mutationFailure
+        ? "failed"
+        : apply
+          ? "applied"
+          : args["stage-plan"]
+            ? "staged"
+            : "preview",
+    },
     networkId,
     snapshotId,
     plannedChecks: plannedChecks.length,
@@ -1804,7 +2356,7 @@ const main = async () => {
     existingDynatraceManagedChecks: [
       ...existingChecks,
       ...existingNqeChecks,
-    ].filter((check) => dynatraceKeys(check).length > 0).length,
+    ].filter((check) => inspectManagedIdentity(check).managed).length,
     artifactCounts: {
       intentChecks: {
         planned: plannedChecks.length,
@@ -1812,6 +2364,7 @@ const main = async () => {
         unchanged: intentReconciliation.unchanged.length,
         changed: intentReconciliation.changed.length,
         stale: intentReconciliation.stale.length,
+        collision: intentReconciliation.collision.length,
       },
       nqeChecks: {
         planned: plannedNqeChecks.length,
@@ -1819,26 +2372,25 @@ const main = async () => {
         unchanged: nqeReconciliation.unchanged.length,
         changed: nqeReconciliation.changed.length,
         stale: nqeReconciliation.stale.length,
+        collision: nqeReconciliation.collision.length,
       },
       nqeDiffRequests: {
         planned: plannedNqeDiffRequests.length,
       },
     },
-    counts: {
-      create: reconciliation.create.length,
-      unchanged: reconciliation.unchanged.length,
-      changed: reconciliation.changed.length,
-      stale: reconciliation.stale.length,
-    },
+    counts: reconciliationCounts(reconciliation),
     unresolvedCounts: {
-      changed: reconciliation.changed.length - approvedMutations.update.length,
-      stale: reconciliation.stale.length - approvedMutations.deactivate.length,
+      changed: reconciliation.changed.length - mutationOutcomes.updated.length,
+      stale: reconciliation.stale.length - mutationOutcomes.deactivated.length,
     },
     mutationCounts: {
-      created: createdCount,
-      updated: updatedCount,
-      deactivated: deactivatedCount,
+      created: mutationOutcomes.created.length,
+      updated: mutationOutcomes.updated.length,
+      deactivated: mutationOutcomes.deactivated.length,
     },
+    mutationOutcomes,
+    mutationFailure,
+    postApplyVerification,
     create: reconciliation.create.map(({ check: _check, ...item }) => item),
     unchanged: reconciliation.unchanged,
     changed: reconciliation.changed.map(({ planned, existing, ...item }) => ({
@@ -1847,6 +2399,7 @@ const main = async () => {
       existingFingerprint: existing.fingerprint,
     })),
     stale: reconciliation.stale,
+    collision: reconciliation.collision,
     mutations: {
       updated: approvedMutations.update.map(({ planned, existing, ...item }) => ({
         ...item,
@@ -1869,11 +2422,26 @@ const main = async () => {
 
   process.stdout.write(JSON.stringify(report, null, 2) + "\n");
 
+  if (mutationError) {
+    process.stderr.write(
+      `Forward apply stopped during ${mutationFailure.phase}; inspect the private import report and reconcile the target snapshot before staging a new plan.\n`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   if (
     args["fail-on-drift"] &&
-    (report.unresolvedCounts.changed > 0 || report.unresolvedCounts.stale > 0)
+    (
+      report.unresolvedCounts.changed > 0 ||
+      report.unresolvedCounts.stale > 0 ||
+      report.counts.collision > 0
+    )
   ) {
     process.exitCode = 2;
+  }
+  } finally {
+    await applyLock?.release();
   }
 };
 

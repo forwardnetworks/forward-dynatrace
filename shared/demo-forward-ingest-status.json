@@ -18,6 +18,7 @@
     "create": 0,
     "unchanged": 100,
     "changed": 0,
-    "stale": 0
+    "stale": 0,
+    "collision": 0
   }
 }

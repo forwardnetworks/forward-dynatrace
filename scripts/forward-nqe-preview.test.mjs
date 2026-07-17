@@ -2,35 +2,15 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 
+import { executeForwardNqePreview } from "./forward-nqe-executor.mjs";
+
 const moduleUrl = pathToFileURL(
   new URL("../api/forward-nqe-preview.function.ts", import.meta.url).pathname,
 ).href;
-const { buildForwardNqePreview } = await import(moduleUrl);
+const { buildForwardNqePreview, default: forwardNqePreviewAppFunction } =
+  await import(moduleUrl);
 
-const withEnv = async (env, fn) => {
-  const previous = {};
-  for (const key of Object.keys(env)) {
-    previous[key] = process.env[key];
-    if (env[key] === undefined) {
-      delete process.env[key];
-    } else {
-      process.env[key] = env[key];
-    }
-  }
-
-  try {
-    return await fn();
-  } finally {
-    for (const [key, value] of Object.entries(previous)) {
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    }
-  }
-};
-
+const queryId = "FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const baseRequest = {
   forwardBaseUrl: "https://forward.example.com",
   forwardNetworkId: "network-1",
@@ -47,17 +27,19 @@ const baseRequest = {
   },
 };
 
-test("plans read-only NQE request without runtime credentials", async () => {
-  const result = await withEnv(
-    {
-      FORWARD_NQE_READONLY_AUTHORIZATION: undefined,
-      FORWARD_READONLY_AUTHORIZATION: undefined,
-      FORWARD_NQE_ALLOWED_QUERY_IDS: undefined,
-    },
-    () => buildForwardNqePreview(baseRequest, async () => {
-      throw new Error("fetch should not be called in plan mode");
-    }),
-  );
+const execute = async (request, fetchImpl, allowedQueryIds = []) => {
+  const planned = await buildForwardNqePreview(request);
+  return executeForwardNqePreview({
+    request,
+    planned,
+    authorization: "Basic read-only-demo",
+    allowedQueryIds,
+    fetchImpl,
+  });
+};
+
+test("plans a credential-free read-only NQE request", async () => {
+  const result = await buildForwardNqePreview(baseRequest);
 
   assert.equal(result.status, "planned");
   assert.equal(result.requestPreview.method, "POST");
@@ -66,123 +48,106 @@ test("plans read-only NQE request without runtime credentials", async () => {
   assert.equal(JSON.stringify(result.evidence).includes("checkout-api"), true);
 });
 
-test("plans a credential-free request before Forward target metadata is supplied", async () => {
-  const result = await withEnv(
-    {
-      FORWARD_NQE_READONLY_AUTHORIZATION: undefined,
-      FORWARD_READONLY_AUTHORIZATION: undefined,
-      FORWARD_NQE_ALLOWED_QUERY_IDS: undefined,
-    },
-    () => buildForwardNqePreview(
-      {
-        dependency: baseRequest.dependency,
-        templateId: "endpoint-inventory-smoke",
-      },
-      async () => {
-        throw new Error("fetch should not be called in plan mode");
-      },
-    ),
-  );
+test("Dynatrace app function blocks execute mode", async () => {
+  const result = await forwardNqePreviewAppFunction({
+    ...baseRequest,
+    execute: true,
+  });
+
+  assert.equal(result.status, "blocked");
+  assert.match(result.summary, /Dynatrace app function is plan-only/);
+  assert.equal(result.evidence.find((item) => item.label === "Mode")?.value, "plan");
+});
+
+test("plans before Forward target metadata is supplied", async () => {
+  const result = await buildForwardNqePreview({
+    dependency: baseRequest.dependency,
+    templateId: "endpoint-inventory-smoke",
+  });
 
   assert.equal(result.status, "planned");
   assert.equal(result.requestPreview.path, "/api/nqe");
-  assert.match(result.summary, /Add Forward URL metadata and a network ID before execution/);
-  assert.equal(
-    result.nextSteps.includes("Add Forward URL and network ID metadata before execution."),
-    true,
-  );
+  assert.match(result.summary, /Add Forward URL metadata and a network ID/);
 });
 
-test("still blocks execution when Forward target metadata is missing", async () => {
-  const result = await buildForwardNqePreview(
-    {
-      dependency: baseRequest.dependency,
-      templateId: "endpoint-inventory-smoke",
-      execute: true,
-    },
-    async () => {
-      throw new Error("fetch should not be called without a target");
-    },
-  );
+test("rejects malformed Forward query IDs during planning", async () => {
+  const result = await buildForwardNqePreview({
+    ...baseRequest,
+    templateId: "approved-endpoint-resolution",
+    queryId: "not-a-forward-query-id",
+  });
 
   assert.equal(result.status, "blocked");
-  assert.match(result.summary, /execution requires Forward URL metadata and a network ID/);
+  assert.match(result.summary, /FQ_<40 hex chars>/);
 });
 
-test("blocks execution when read-only runtime authorization is absent", async () => {
-  const result = await withEnv(
-    {
-      FORWARD_NQE_READONLY_AUTHORIZATION: undefined,
-      FORWARD_READONLY_AUTHORIZATION: undefined,
-      FORWARD_NQE_ALLOWED_QUERY_IDS: undefined,
-    },
-    () => buildForwardNqePreview(
-      {
-        ...baseRequest,
-        execute: true,
-      },
-      async () => {
-        throw new Error("fetch should not be called without authorization");
-      },
-    ),
-  );
+test("Forward-side executor requires target metadata", async () => {
+  const request = { templateId: "endpoint-inventory-smoke" };
+  const planned = await buildForwardNqePreview(request);
 
-  assert.equal(result.status, "blocked");
-  assert.match(result.summary, /read-only Forward authorization header/);
-});
-
-test("rejects query IDs that are not allowlisted", async () => {
-  const queryId = "FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-  const result = await withEnv(
-    {
-      FORWARD_NQE_ALLOWED_QUERY_IDS: "FQ_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    },
-    () => buildForwardNqePreview({
-      ...baseRequest,
-      templateId: "approved-endpoint-resolution",
-      queryId,
+  await assert.rejects(
+    executeForwardNqePreview({
+      request,
+      planned,
+      authorization: "Basic read-only-demo",
     }),
+    /Forward URL metadata and a network ID/,
   );
-
-  assert.equal(result.status, "blocked");
-  assert.match(result.summary, /not in the runtime allowlist/);
 });
 
-test("executes only POST /api/nqe and returns sanitized aggregate evidence", async () => {
-  const queryId = "FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-  const calls = [];
+test("Forward-side executor requires explicit authorization", async () => {
+  const planned = await buildForwardNqePreview(baseRequest);
 
-  const result = await withEnv(
-    {
-      FORWARD_NQE_READONLY_AUTHORIZATION: "Basic read-only-demo",
-      FORWARD_NQE_ALLOWED_QUERY_IDS: queryId,
+  await assert.rejects(
+    executeForwardNqePreview({ request: baseRequest, planned }),
+    /valid read-only Authorization value/,
+  );
+});
+
+test("Forward-side executor rejects query IDs outside its allowlist", async () => {
+  const request = {
+    ...baseRequest,
+    templateId: "approved-endpoint-resolution",
+    queryId,
+  };
+  const planned = await buildForwardNqePreview(request);
+
+  await assert.rejects(
+    executeForwardNqePreview({
+      request,
+      planned,
+      authorization: "Basic read-only-demo",
+      allowedQueryIds: [],
+    }),
+    /not in the Forward-side runtime allowlist/,
+  );
+});
+
+test("Forward-side executor calls only POST /api/nqe and sanitizes results", async () => {
+  const calls = [];
+  const request = {
+    ...baseRequest,
+    templateId: "approved-endpoint-resolution",
+    queryId,
+    snapshotId: "snapshot-1",
+  };
+  const result = await execute(
+    request,
+    async (url, init) => {
+      calls.push({ url, init });
+      return new Response(
+        JSON.stringify({
+          snapshotId: "snapshot-1",
+          totalNumItems: 2,
+          items: [
+            { Status: "mapped", Confidence: 95, Device: "leaf-1" },
+            { Status: "mapped", Confidence: 90, Device: "leaf-2" },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
     },
-    () => buildForwardNqePreview(
-      {
-        ...baseRequest,
-        templateId: "approved-endpoint-resolution",
-        queryId,
-        snapshotId: "snapshot-1",
-        execute: true,
-      },
-      async (url, init) => {
-        calls.push({ url, init });
-        return new Response(
-          JSON.stringify({
-            snapshotId: "snapshot-1",
-            totalNumItems: 2,
-            items: [
-              { Status: "mapped", Confidence: 95, Device: "leaf-1" },
-              { Status: "mapped", Confidence: 90, Device: "leaf-2" },
-            ],
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          },
-        );
-      },
-    ),
+    [queryId],
   );
 
   assert.equal(calls.length, 1);
@@ -199,35 +164,25 @@ test("executes only POST /api/nqe and returns sanitized aggregate evidence", asy
   assert.equal(result.result.sampleRows, undefined);
 });
 
-test("marks endpoint-resolution rows needs-map when Forward cannot resolve a dependency endpoint", async () => {
-  const queryId = "FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-
-  const result = await withEnv(
-    {
-      FORWARD_NQE_READONLY_AUTHORIZATION: "Basic read-only-demo",
-      FORWARD_NQE_ALLOWED_QUERY_IDS: queryId,
-    },
-    () => buildForwardNqePreview(
-      {
-        ...baseRequest,
-        templateId: "approved-endpoint-resolution",
-        queryId,
-        execute: true,
-      },
-      async () => new Response(
-        JSON.stringify({
-          totalNumItems: 2,
-          items: [
-            { endpointRole: "source", endpoint: "checkout-vip", matchCount: 1 },
-            { endpointRole: "destination", endpoint: "orders-db", matchCount: 0 },
-          ],
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
+test("Forward-side executor marks unresolved endpoints needs-map", async () => {
+  const request = {
+    ...baseRequest,
+    templateId: "approved-endpoint-resolution",
+    queryId,
+  };
+  const result = await execute(
+    request,
+    async () => new Response(
+      JSON.stringify({
+        totalNumItems: 2,
+        items: [
+          { endpointRole: "source", endpoint: "checkout-vip", matchCount: 1 },
+          { endpointRole: "destination", endpoint: "orders-db", matchCount: 0 },
+        ],
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
     ),
+    [queryId],
   );
 
   assert.equal(result.status, "ready");
@@ -235,46 +190,44 @@ test("marks endpoint-resolution rows needs-map when Forward cannot resolve a dep
   assert.equal(result.endpointResolution.source.status, "resolved");
   assert.equal(result.endpointResolution.destination.status, "unresolved");
   assert.match(result.summary, /could not resolve/);
-  assert.equal(
-    result.nextSteps.includes("Mark unresolved dependencies as needs-map before exporting an apply package."),
-    true,
-  );
 });
 
-test("marks endpoint-resolution rows review when Forward returns ambiguous endpoint matches", async () => {
-  const queryId = "FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-
-  const result = await withEnv(
-    {
-      FORWARD_NQE_READONLY_AUTHORIZATION: "Basic read-only-demo",
-      FORWARD_NQE_ALLOWED_QUERY_IDS: queryId,
-    },
-    () => buildForwardNqePreview(
-      {
-        ...baseRequest,
-        templateId: "approved-endpoint-resolution",
-        queryId,
-        execute: true,
-      },
-      async () => new Response(
-        JSON.stringify({
-          totalNumItems: 1,
-          items: [
-            {
-              sourceMatchCount: 2,
-              destinationMatchCount: 1,
-            },
-          ],
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
+test("Forward-side executor marks ambiguous endpoint matches review", async () => {
+  const request = {
+    ...baseRequest,
+    templateId: "approved-endpoint-resolution",
+    queryId,
+  };
+  const result = await execute(
+    request,
+    async () => new Response(
+      JSON.stringify({
+        totalNumItems: 1,
+        items: [{ sourceMatchCount: 2, destinationMatchCount: 1 }],
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
     ),
+    [queryId],
   );
 
   assert.equal(result.endpointResolution.mappingState, "review");
   assert.equal(result.endpointResolution.source.status, "ambiguous");
   assert.equal(result.endpointResolution.destination.status, "resolved");
+});
+
+test("Forward-side executor rejects non-TLS remote origins", async () => {
+  const request = {
+    ...baseRequest,
+    forwardBaseUrl: "http://forward.example.com",
+  };
+  const planned = await buildForwardNqePreview(request);
+
+  await assert.rejects(
+    executeForwardNqePreview({
+      request,
+      planned,
+      authorization: "Basic read-only-demo",
+    }),
+    /must use HTTPS/,
+  );
 });

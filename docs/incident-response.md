@@ -7,7 +7,7 @@ Use this when Forward-side import fails, drifts unexpectedly, or creates only pa
 1. Stop scheduled imports until the failure class is known.
 2. Preserve the manifest, checks package, import report, and runtime logs.
 3. Record package ID, run ID, Forward network ID, Forward snapshot ID, and importer version.
-4. Do not rerun with `--apply` until validation and dry-run pass.
+4. Do not reuse the prior plan or approval. Reconcile first, then stage and approve a new plan.
 
 ## Failure Classes
 
@@ -21,7 +21,7 @@ Use this when Forward-side import fails, drifts unexpectedly, or creates only pa
 | Forward 4xx on create | Treat as mapping/config error; inspect rejected location filters and package rows. |
 | Changed drift | Review generated field differences; do not auto-update without approved policy. |
 | Stale drift | Review service retirement and ownership; do not auto-delete without approved policy. |
-| Partial bulk create | Keep report/logs; rerun dry-run to identify remaining missing checks before apply. |
+| Partial create or replacement | Preserve the private per-key outcomes and failure phase; reconcile the latest processed snapshot, repair any replacement whose old check was deleted, then stage and approve a new plan. |
 
 ## Recovery
 

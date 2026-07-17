@@ -12,7 +12,7 @@ unreviewed package-generation authority and unrestricted Forward write authority
 | Optional Forward NQE preview runner | Run approved read-only NQE preview requests with `NetworkOperation.USE_NQE`. | Hold `NetworkOperation.EDIT_CHECKS`, commit NQE Library content, or run unapproved query IDs/templates. |
 | Forward import reviewer | Run validate-only and dry-run, inspect create/changed/stale counts, approve apply. | Change Dynatrace mappings or bypass package validation. |
 | Forward import applier | Run apply with create-missing-only policy after review. | Delete or update stale/changed checks without separate approval. |
-| Forward mutation approver | Approve exact changed/stale `dynatrace-key:*` values, change window, and mutation budgets. | Generate packages, hold signing private keys, or run unreviewed imports. |
+| Forward mutation approver | Approve exact changed/stale `source-key:sha256:*` values, change window, and mutation budgets. | Generate packages, hold signing private keys, or run unreviewed imports. |
 | Signing key custodian | Rotate signing keys and publish trusted public key material. | Run Forward imports using private signing keys. |
 | Runtime administrator | Configure scheduler, package URL, network ID, log shipping, metrics, and secret references. | Commit secrets or package artifacts to source control. |
 

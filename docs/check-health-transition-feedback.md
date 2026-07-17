@@ -1,14 +1,13 @@
 # Continuous Forward Check-Health Transition Feedback
 
 The Forward-side poller reads the latest processed snapshot and the Existential check inventory. It tracks only checks
-tagged `dynatrace` with exactly one `dynatrace-key:*` tag. The durable state file stores the SHA-256 identity hash, last
+with the complete Forward for Dynatrace ownership tuple. The durable state file stores the SHA-256 identity hash, last
 status, and bounded owner/service context; it does not store check definitions, endpoints, paths, credentials, or API
 responses.
 
 ```bash
 export FORWARD_BASE_URL=https://forward.example.com
-export FORWARD_USER=<user>
-export FORWARD_PASSWORD=<password-or-token>
+export FORWARD_AUTHORIZATION_FILE=/secure/path/forward-authorization.header
 export FORWARD_NETWORK_ID=<network-id>
 
 npm run forward:check-health -- \
@@ -25,7 +24,7 @@ payloads deterministic. The OpenPipeline event ID uses the same transition ID, a
 Add `--apply`, a Dynatrace environment URL, and a Platform Token file only after reviewing the batch. Transient `429`
 and `5xx` responses retry the same payload. State advances only after any requested publication succeeds.
 
-The poller fails closed if the live inventory contains duplicate managed `dynatrace-key:*` identities, if a state file
+The poller fails closed if the live inventory contains duplicate managed source-key identities, if a state file
 created for one Forward network is reused for another network, or if one poll would publish more than 100 transitions.
 Use `--max-transitions` to choose a lower bound. The output artifact is written before the volume gate, but state is
 not advanced. Resolve the ownership or volume error instead of replacing state automatically.

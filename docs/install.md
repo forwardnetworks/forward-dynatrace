@@ -22,18 +22,15 @@ Steps:
 ```bash
 git clone https://github.com/forwardnetworks/forward-dynatrace.git
 cd forward-dynatrace
-# For a controlled pre-release rehearsal, use the exact reviewed PR #13 head commit.
-git checkout <reviewed-v2.0.0-release-candidate-commit>
+# Use an exact reviewed commit or verified immutable replacement release.
+git checkout <reviewed-commit>
 npm ci
 npm run ci
-npm run acceptance:bundle -- --dependencies shared/demo-dependencies.json --output-dir out/acceptance
+npm run acceptance:bundle -- --dependencies shared/demo-dependencies.json --output-dir out/acceptance --source-instance-id dt-acceptance-rehearsal
 ```
 
-The check-health poller, security correlator, and expanded evidence portal are not included in `v1.0.0`. That tag
-remains the legacy published base package/import line. Do not run current
-templates with the `v1.0.0` importer image. Historical Actions evidence shows that tag on three commits, so it is not
-immutable release proof. Use a reviewed exact release-candidate commit only for a controlled rehearsal, or a newer
-matching tag after this tranche lands and passes the checked published-release verifier.
+The reset defines one production `v1` contract and no alternate-version compatibility path. Until a replacement immutable
+release is published and verified, use an exact reviewed commit only for controlled non-production rehearsal.
 
 For an unsigned trial or development install, use a `my.*` app ID:
 
@@ -64,8 +61,8 @@ customer-specific reference. `npm run repo:validate` fails if those values are a
 Dynatrace AppEngine rejects unsigned app IDs outside the `my.*` namespace. The wrapper command makes that policy
 explicit before invoking `dt-app`, so trial installs and signed enterprise installs are separate operator choices.
 
-The retired pre-production IDs are not upgrade-compatible with the production identity. Follow
-[`app-identity-migration.md`](app-identity-migration.md) once to remove an older install, regenerate Workflow templates,
+This reset is a clean installation rather than an in-place upgrade. Follow
+[`app-identities.md`](app-identities.md) to remove an experimental install, regenerate Workflow templates,
 and install either `my.forward` in a sandbox or the signed `com.forward.dynatrace` package.
 
 ## Forward Manual Import
@@ -92,8 +89,7 @@ the package.
 
    ```bash
    export FORWARD_BASE_URL=https://forward.example.com
-   export FORWARD_USER=<user>
-   export FORWARD_PASSWORD=<password-or-token>
+   export FORWARD_AUTHORIZATION_FILE=/secure/path/forward-authorization.header
    export FORWARD_NETWORK_ID=<network-id>
 
    npm run forward:import -- \
@@ -102,13 +98,32 @@ the package.
      --report forward-import-report.json
    ```
 
-5. Review `create`, `unchanged`, `changed`, and `stale` results.
-6. Apply only missing checks:
+5. Review `create`, `unchanged`, `changed`, `stale`, and `collision` results.
+6. Verify the detached package signature and stage an immutable plan bound to the current processed snapshot:
 
    ```bash
    npm run forward:import -- \
      --checks forward-intent-checks.json \
      --manifest forward-dynatrace-manifest.json \
+     --require-signature \
+     --signature forward-dynatrace-package.sig \
+     --public-key /secure/path/forward-dynatrace-public.pem \
+     --stage-plan /secure/approvals/import-plan.json
+   ```
+
+7. Have a Forward operator review the plan and create an approval that exactly matches its action arrays. Set
+   `approvedAt` to the issuance time and `expiresAt` no more than 24 hours later.
+8. Apply the same signed package and staged plan:
+
+   ```bash
+   npm run forward:import -- \
+     --checks forward-intent-checks.json \
+     --manifest forward-dynatrace-manifest.json \
+     --require-signature \
+     --signature forward-dynatrace-package.sig \
+     --public-key /secure/path/forward-dynatrace-public.pem \
+     --apply-plan /secure/approvals/import-plan.json \
+     --require-approval-file /secure/approvals/approval.json \
      --apply
    ```
 
@@ -201,4 +216,4 @@ The repository validation blocks:
 - local private token filenames
 - non-placeholder Forward credentials
 - personal email or customer-specific references
-- legacy secondary-artifact wording
+- retired secondary-artifact wording

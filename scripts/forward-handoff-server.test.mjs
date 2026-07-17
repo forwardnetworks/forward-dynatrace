@@ -7,6 +7,11 @@ import path from "node:path";
 import { test } from "node:test";
 
 import {
+  requiredOwnershipTags,
+  sourceInstanceTag,
+  sourceKeyTag,
+} from "../lib/managed-check-identity.mjs";
+import {
   createHandoffRequestHandler,
   createHandoffService,
   loadHandoffTokens,
@@ -15,12 +20,18 @@ import {
 } from "./forward-handoff-server.mjs";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+const sourceInstanceId = "dt-handoff-server-test";
 
-const check = (port = "443") => ({
+const check = (port = "443") => {
+  const sourceKey = sourceKeyTag({
+    sourceInstanceId,
+    identity: { kind: "intent", source: "source", destination: "destination", protocol: "tcp", port },
+  });
+  return ({
   name: `[Dynatrace] Checkout prod: source -> destination tcp/${port}`,
   enabled: true,
   priority: "HIGH",
-  tags: ["dynatrace", `dynatrace-key:dt:checkout:prod:source:destination:tcp:${port}`],
+  tags: ["dynatrace", ...requiredOwnershipTags({ sourceInstanceId, sourceKey })],
   definition: {
     checkType: "Existential",
     filters: {
@@ -35,7 +46,8 @@ const check = (port = "443") => ({
     noiseTypes: [],
     returnPath: "ANY",
   },
-});
+  });
+};
 
 const publicationFile = (name, text) => ({
   name,
@@ -54,7 +66,9 @@ const publication = ({ packageId = "package-1", port = "443", retentionClass = "
     requestedIngestPath: "data-connector",
     source: {
       platform: "dynatrace",
-      app: "forward-dynatrace",
+      app: "com.forward.dynatrace",
+      instanceId: sourceInstanceId,
+      instanceTag: sourceInstanceTag(sourceInstanceId),
       writePolicy: "dynatrace-never-writes-forward",
     },
     artifacts: {
@@ -68,16 +82,23 @@ const publication = ({ packageId = "package-1", port = "443", retentionClass = "
       payloadShape: "NewNetworkCheck[]",
       bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk",
       dedupeRequiredBeforePost: true,
+      dedupe: "managed-source-key",
     },
     validation: {
-      requiredTagPrefix: "dynatrace-key:",
-      requiredTagsPerCheck: 1,
+      managedByTag: "managed-by:com.forward.dynatrace",
+      contractVersionTag: "contract-version:1",
+      sourceInstanceTagPrefix: "source-instance:",
+      sourceKeyTagPrefix: "source-key:sha256:",
+      ownershipTagsPerCheck: 4,
+      identityPolicy: "strict-ownership-tuple",
       credentialPolicy: "no-forward-credentials-in-dynatrace",
     },
     reconciliation: {
+      strategy: "source-scoped-desired-state",
       defaultApplyPolicy: "create-missing-only",
       changedChecks: "report-only",
       staleChecks: "report-only",
+      collisionPolicy: "reject",
     },
   }, null, 2)}\n`;
   return {

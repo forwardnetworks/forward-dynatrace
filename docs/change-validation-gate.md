@@ -41,7 +41,7 @@ command writes the evidence artifact first, then exits `2` for a non-pass decisi
 
 To trigger the checked lifecycle Guardian after the gate is built, publish the sanitized event with
 `--guardian-context`, `--guardian-trigger`, and an identical `--run-id`. Guardian trigger publication is opt-in so the
-existing batch event path remains backward compatible.
+existing batch event path remains unchanged.
 
 ## Decision Rules
 

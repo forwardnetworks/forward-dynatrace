@@ -26,7 +26,7 @@ The runtime needs:
 - a read-only package URL or mounted package files
 - a dedicated handoff read-token file referenced by `packageTokenFile` when the package URL uses the checked ingress
 - a non-secret connector config based on `config/forward-connector.config.example.json`
-- `FORWARD_USER` and `FORWARD_PASSWORD` from a runtime secret store
+- a protected Forward authorization-header file mounted from a runtime secret store
 - write access only to report, metrics, and status-artifact output paths
 
 The connector config must not contain user names, passwords, tokens, or private keys. The importer enforces that rule.
@@ -39,12 +39,12 @@ placeholder configuration as activation-ready:
 
 ```bash
 npm run systemd:install -- \
-  --source-dir /secure/releases/forward-dynatrace-importer-v2.0.0 \
+  --source-dir /secure/releases/forward-dynatrace-importer-<verified-release> \
   --root / \
   --output /secure/evidence/systemd-install-plan.json
 
 npm run systemd:install -- \
-  --source-dir /secure/releases/forward-dynatrace-importer-v2.0.0 \
+  --source-dir /secure/releases/forward-dynatrace-importer-<verified-release> \
   --root / \
   --output /secure/evidence/systemd-install-report.json \
   --apply
@@ -75,8 +75,7 @@ cp deploy/systemd/forward-dynatrace.env.example /etc/forward-dynatrace/forward-d
 Populate `/etc/forward-dynatrace/forward-dynatrace.env` from the local secret manager:
 
 ```bash
-FORWARD_USER=<user>
-FORWARD_PASSWORD=<password-or-token>
+FORWARD_AUTHORIZATION_FILE=/etc/forward-dynatrace/forward-authorization.header
 ```
 
 Install and enable the timer:
@@ -187,7 +186,7 @@ Default runtime policy should stay conservative:
 - `maxUpdates=0` and `maxDeactivations=0` unless the same run supplies an approval file and explicit budget.
 
 Changed and stale checks remain report-only by default. Optional update and retirement workflows require Forward-side
-approval, a verified signed package, exact approved `dynatrace-key:*` values, and a non-expired approval artifact.
+approval, a verified signed package, exact approved `source-key:sha256:*` values, and a non-expired approval artifact.
 
 ## Docker Compose Runtime
 

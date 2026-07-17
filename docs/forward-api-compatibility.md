@@ -12,7 +12,7 @@ The base workflow requires these Forward API capabilities:
 | Latest processed snapshot | `GET /api/networks/{networkId}/snapshots/latestProcessed` | Pick a snapshot that can accept new checks. |
 | Host resolution | `GET /api/networks/{networkId}/hosts/{hostSpecifier}?snapshotId={snapshotId}` | Resolve Dynatrace names, cloud host IDs, IPs, or MACs through Forward snapshot host inventory before package generation. |
 | Optional path evidence | `POST /api/networks/{networkId}/paths-bulk?snapshotId={snapshotId}` | Evaluate resolved dependencies with read-only Forward path search before approval. |
-| Existing check inventory | `GET /api/snapshots/{snapshotId}/checks?type=Existential` | Reconcile by name and `dynatrace-key:*` tag before writing. |
+| Existing check inventory | `GET /api/snapshots/{snapshotId}/checks?type=Existential` | Reconcile by complete ownership tuple and opaque source key before writing. |
 | Persistent check create | `POST /api/snapshots/{snapshotId}/checks?bulk` | Create missing `NewNetworkCheck[]` entries after validation. |
 | Optional deactivation | `DELETE /api/snapshots/{snapshotId}/checks/{checkId}` | Replace changed checks or retire stale checks only behind approval gates. |
 
@@ -41,7 +41,7 @@ response contains a `hosts` array with host details such as `subnets`, `deviceNa
 integration treats exactly one usable host subnet as `ready`, multiple candidates as `review`, and no candidates as
 `needs-map`.
 
-The package builder keeps original Dynatrace source/destination values for deterministic `dynatrace-key:*` tags and
+The package builder hashes stable Dynatrace dependency identity into opaque, source-instance-scoped source keys and
 uses `sourceResolvedValue` and `destinationResolvedValue` for the generated Forward check filters when the resolver
 provides them.
 

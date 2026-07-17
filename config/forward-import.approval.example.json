@@ -1,14 +1,22 @@
 {
-  "schemaVersion": "forward-dynatrace-approval/v1",
-  "packageId": "dynatrace-forward-demo",
+  "schemaVersion": "forward-dynatrace-import-approval/v1",
+  "planId": "forward-dynatrace-plan-0123456789abcdef01234567",
+  "planSha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "packageId": "dynatrace-forward-20260715183000-0123456789ab",
+  "networkId": "network-123",
+  "snapshotId": "snapshot-456",
   "changeWindowId": "CHG-DEMO-0001",
-  "expiresAt": "2099-01-01T00:00:00.000Z",
+  "approvedAt": "2026-07-17T18:00:00.000Z",
+  "expiresAt": "2026-07-17T19:00:00.000Z",
   "approvedBy": "forward-operator",
-  "reason": "Example approval artifact for changed or stale generated checks.",
-  "approvedChangedKeys": [
-    "dynatrace-key:dt:demo:changed"
-  ],
-  "approvedStaleKeys": [
-    "dynatrace-key:dt:demo:stale"
-  ]
+  "reason": "Example approval of one exact immutable import plan.",
+  "actions": {
+    "createMissing": true,
+    "updateSourceKeys": [
+      "source-key:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ],
+    "retireSourceKeys": [
+      "source-key:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    ]
+  }
 }

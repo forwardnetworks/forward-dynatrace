@@ -13,7 +13,7 @@ Validate that a release tag has no prior publication state
 
 Usage:
   node scripts/validate-release-immutability.mjs \\
-    --release-name v2.0.0 \\
+    --release-name v1.1.0 \\
     --repository forwardnetworks/forward-dynatrace \\
     --commit-sha <40-hex-sha> \\
     --run-id <github-actions-run-id>

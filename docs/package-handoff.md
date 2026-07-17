@@ -87,7 +87,7 @@ successful, denied, rejected, or missing package operation produces a sanitized 
 The primary non-production deployment is systemd:
 
 ```bash
-npm run systemd:install -- --source-dir /secure/releases/forward-dynatrace-importer-v2.0.0 --root / --apply
+npm run systemd:install -- --source-dir /secure/releases/forward-dynatrace-importer-<verified-release> --root / --apply
 install -m 0600 /secure/handoff-write-token /etc/forward-dynatrace/handoff-write-token
 install -m 0600 /secure/handoff-read-token /etc/forward-dynatrace/handoff-read-token
 systemctl daemon-reload

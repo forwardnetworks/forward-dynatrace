@@ -6,7 +6,7 @@ import {
   verifyReleaseImmutability,
 } from "./validate-release-immutability.mjs";
 
-const releaseName = "v2.0.0";
+const releaseName = "v1.1.0";
 const repository = "forwardnetworks/forward-dynatrace";
 const commitSha = "a".repeat(40);
 const runId = 123456;
@@ -79,7 +79,7 @@ test("rejects incomplete workflow pagination and malformed release history", () 
 test("orchestrates paginated GitHub checks and proves the GHCR tag is absent", async () => {
   const calls = [];
   let imageProbes = 0;
-  const imageReference = "ghcr.io/forwardnetworks/forward-dynatrace-importer:v2.0.0";
+  const imageReference = "ghcr.io/forwardnetworks/forward-dynatrace-importer:v1.1.0";
   const runner = async (command, args) => {
     calls.push([command, ...args]);
     if (command === "gh" && args.at(-1).includes("/actions/workflows/")) {

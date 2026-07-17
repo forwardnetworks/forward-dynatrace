@@ -33,6 +33,7 @@ const projection = (prefix = "fetch events") => `${prefix}
 test("builds environment-agnostic on-demand, schedule, and problem templates", () => {
   const templates = buildWorkflowTemplates({
     appConfig: { app: { id: "com.forward.dynatrace", version: "1.2.0" } },
+    sourceInstanceId: "dt-test-environment",
     scheduleQuery: projection(),
     problemQuery: projection('data json:"""{{ event()|to_json }}"""'),
   });
@@ -53,6 +54,10 @@ test("builds environment-agnostic on-demand, schedule, and problem templates", (
     "com.forward.dynatrace:export-forward-package",
   );
   assert.match(schedule.workflow.tasks.export_forward_package.input.request, /result\("query_dependencies"\)/u);
+  assert.match(
+    schedule.workflow.tasks.export_forward_package.input.request,
+    /"sourceInstanceId": "dt-test-environment"/u,
+  );
   assert.equal(schedule.workflow.trigger.schedule.trigger.intervalMinutes, 15);
   assert.equal(
     templates["forward-package-on-demand.template.json"].workflow.trigger,
@@ -93,6 +98,7 @@ test("writes deterministic templates and checksum manifest without connection ID
   const manifest = await generateWorkflowTemplates({
     scheduleQueryPath,
     problemQueryPath,
+    sourceInstanceId: "dt-test-environment",
     outputDir,
   });
   assert.equal(manifest.schemaVersion, "forward-dynatrace-workflow-template-set/v1");

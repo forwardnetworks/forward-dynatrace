@@ -12,11 +12,11 @@ listing every document.
 ## Install, Package, And Release
 
 - [Install](install.md): supported toolchain, installation, and public-release gate.
-- [App identity migration](app-identity-migration.md): production/sandbox IDs and one-time retired-ID cutover.
+- [App identities](app-identities.md): production/sandbox IDs and clean-install reset rule.
 - [Deployment readiness](deployment-readiness.md): validate-only and dry-run gates.
 - [Release](release.md): release workflow and checksum verification.
 - [Release provenance](release-provenance.md): signatures, SBOM, GHCR image, and attestations.
-- [Schema versioning](schema-versioning.md): compatibility and migration rules.
+- [Schema versioning](schema-versioning.md): sole-version contract and future-version gate.
 - [GitOps](gitops.md): CI and delivery workflow.
 - [Governance](governance.md): review and branch-control expectations.
 

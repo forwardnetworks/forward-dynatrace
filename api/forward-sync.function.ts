@@ -1,5 +1,16 @@
 import { createHash } from "node:crypto";
 
+import {
+  CONTRACT_VERSION_TAG,
+  MANAGED_BY_TAG,
+  SOURCE_INSTANCE_TAG_PREFIX,
+  SOURCE_KEY_TAG_PREFIX,
+  dependencySourceKeyTag,
+  normalizeSourceInstanceId,
+  requiredOwnershipTags,
+  sourceInstanceTag,
+} from "../lib/managed-check-identity.mjs";
+
 type ForwardSyncMode = "manual-import" | "data-connector" | "intent-package";
 type ForwardSyncStatus = "ready" | "blocked";
 type ForwardLocationFilterType =
@@ -35,6 +46,7 @@ interface DependencyCandidate {
 }
 
 export interface ForwardSyncRequest {
+  sourceInstanceId: string;
   forwardBaseUrl?: string;
   forwardNetworkId?: string;
   syncMode: ForwardSyncMode;
@@ -109,7 +121,9 @@ interface ForwardExportManifest {
   requestedIngestPath: ForwardSyncMode;
   source: {
     platform: "dynatrace";
-    app: "forward-dynatrace";
+    app: "com.forward.dynatrace";
+    instanceId: string;
+    instanceTag: string;
     writePolicy: "dynatrace-never-writes-forward";
   };
   forwardTargetMetadata: {
@@ -140,21 +154,26 @@ interface ForwardExportManifest {
     payloadShape: "NewNetworkCheck[]";
     bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk";
     dedupeRequiredBeforePost: true;
-    dedupe: "name-or-dynatrace-key-tag";
+    dedupe: "managed-source-key";
     fingerprintAlgorithm: "canonical-json-sha256";
   };
   validation: {
-    requiredTagPrefix: "dynatrace-key:";
-    requiredTagsPerCheck: 1;
+    managedByTag: string;
+    contractVersionTag: string;
+    sourceInstanceTagPrefix: string;
+    sourceKeyTagPrefix: string;
+    ownershipTagsPerCheck: 4;
+    identityPolicy: "strict-ownership-tuple";
     duplicatePolicy: "reject-package";
     allowedCheckTypes: Array<"Existential">;
     credentialPolicy: "no-forward-credentials-in-dynatrace";
   };
   reconciliation: {
-    strategy: "desired-state";
+    strategy: "source-scoped-desired-state";
     defaultApplyPolicy: "create-missing-only";
     changedChecks: "report-only";
     staleChecks: "report-only";
+    collisionPolicy: "reject";
   };
   bulkPolicy: {
     supported: true;
@@ -173,7 +192,7 @@ interface ForwardExportManifest {
 const missing = (value: string | undefined): boolean => !value?.trim();
 
 const INTEGRATION_BOUNDARY_DISCLAIMER =
-  "forward.dynatrace exports Forward-ready artifacts and is not an officially supported Forward product integration. Forward ingestion runs in a Forward-controlled environment: either a manual importer or a Forward-side connector that pulls the package.";
+  "Forward for Dynatrace exports checksummed, source-scoped intent artifacts. Package signing, Forward ingestion, and every Forward mutation run in a Forward-controlled integration service or connector.";
 
 const MANIFEST_FILE_NAME = "forward-dynatrace-manifest.json";
 const INTENT_CHECKS_FILE_NAME = "forward-intent-checks.json";
@@ -202,20 +221,6 @@ const toSlug = (value: string): string =>
     .slice(0, 80);
 
 const toTagValue = (value: string): string => toSlug(value) || "unknown";
-
-const toIntegrationKey = (dependency: DependencyCandidate): string =>
-  [
-    "dt",
-    toSlug(dependency.appName),
-    toSlug(dependency.environment),
-    toSlug(dependency.serviceEntityId),
-    toSlug(dependency.source),
-    toSlug(dependency.destination),
-    dependency.protocol,
-    dependency.port,
-  ]
-    .filter(Boolean)
-    .join(":");
 
 const toPriority = (
   criticality: DependencyCandidate["criticality"],
@@ -279,7 +284,11 @@ const resolutionNoteFields = (dependency: DependencyCandidate): string[] => [
 const toIntentCheck = (
   dependency: DependencyCandidate,
   duplicateBaseNames: Set<string>,
-): ForwardIntentCheck => ({
+  sourceInstanceId: string,
+): ForwardIntentCheck => {
+  const sourceKey = dependencySourceKeyTag(dependency, { sourceInstanceId });
+  const ownershipTags = requiredOwnershipTags({ sourceInstanceId, sourceKey }) as string[];
+  return ({
   definition: {
     checkType: "Existential",
     filters: {
@@ -320,7 +329,7 @@ const toIntentCheck = (
   note: [
     `Generated from Dynatrace service ${dependency.serviceName}`,
     `serviceEntityId=${dependency.serviceEntityId}`,
-    `integrationKey=${toIntegrationKey(dependency)}`,
+    `sourceKey=${sourceKey}`,
     `owner=${dependency.owner}`,
     `confidence=${dependency.confidence}`,
     ...resolutionNoteFields(dependency),
@@ -328,16 +337,19 @@ const toIntentCheck = (
   priority: toPriority(dependency.criticality),
   tags: [
     "dynatrace",
+    ...ownershipTags,
     `app:${toTagValue(dependency.appName)}`,
     `environment:${toTagValue(dependency.environment)}`,
     `owner:${toTagValue(dependency.owner)}`,
+    `criticality:${toTagValue(dependency.criticality)}`,
     ...(dependency.synthetic === true ? ["provenance:synthetic"] : []),
-    `dynatrace-key:${toIntegrationKey(dependency)}`,
   ],
-});
+  });
+};
 
 const toIntentChecks = (
   dependencies: DependencyCandidate[],
+  sourceInstanceId: string,
 ): ForwardIntentCheck[] => {
   const baseNameCounts = new Map<string, number>();
   for (const dependency of dependencies) {
@@ -350,12 +362,12 @@ const toIntentChecks = (
       .map(([baseName]) => baseName),
   );
   return dependencies.map((dependency) =>
-    toIntentCheck(dependency, duplicateBaseNames),
+    toIntentCheck(dependency, duplicateBaseNames, sourceInstanceId),
   );
 };
 
-const toPackageId = (generatedAt: string): string =>
-  `dynatrace-forward-${generatedAt.replace(/[^0-9]/g, "").slice(0, 14)}`;
+const toPackageId = (generatedAt: string, checksSha256: string): string =>
+  `dynatrace-forward-${generatedAt.replace(/[^0-9]/g, "").slice(0, 14)}-${checksSha256.slice(0, 12)}`;
 
 const sha256Hex = (text: string): string =>
   createHash("sha256").update(text, "utf8").digest("hex");
@@ -377,12 +389,14 @@ const toExportManifest = ({
 }): ForwardExportManifest => ({
   schemaVersion: "forward-dynatrace/v1",
   packageType: "forward-intent-import",
-  packageId: toPackageId(generatedAt),
+  packageId: toPackageId(generatedAt, intentChecksSha256),
   generatedAt,
   requestedIngestPath: payload.syncMode,
   source: {
     platform: "dynatrace",
-    app: "forward-dynatrace",
+    app: "com.forward.dynatrace",
+    instanceId: normalizeSourceInstanceId(payload.sourceInstanceId),
+    instanceTag: sourceInstanceTag(payload.sourceInstanceId),
     writePolicy: "dynatrace-never-writes-forward",
   },
   forwardTargetMetadata: {
@@ -416,21 +430,26 @@ const toExportManifest = ({
     payloadShape: "NewNetworkCheck[]",
     bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk",
     dedupeRequiredBeforePost: true,
-    dedupe: "name-or-dynatrace-key-tag",
+    dedupe: "managed-source-key",
     fingerprintAlgorithm: "canonical-json-sha256",
   },
   validation: {
-    requiredTagPrefix: "dynatrace-key:",
-    requiredTagsPerCheck: 1,
+    managedByTag: MANAGED_BY_TAG,
+    contractVersionTag: CONTRACT_VERSION_TAG,
+    sourceInstanceTagPrefix: SOURCE_INSTANCE_TAG_PREFIX,
+    sourceKeyTagPrefix: SOURCE_KEY_TAG_PREFIX,
+    ownershipTagsPerCheck: 4,
+    identityPolicy: "strict-ownership-tuple",
     duplicatePolicy: "reject-package",
     allowedCheckTypes: ["Existential"],
     credentialPolicy: "no-forward-credentials-in-dynatrace",
   },
   reconciliation: {
-    strategy: "desired-state",
+    strategy: "source-scoped-desired-state",
     defaultApplyPolicy: "create-missing-only",
     changedChecks: "report-only",
     staleChecks: "report-only",
+    collisionPolicy: "reject",
   },
   bulkPolicy: {
     supported: true,
@@ -472,6 +491,11 @@ const toReadinessChecks = (
 
   return [
     {
+      label: "Dynatrace source identity",
+      status: "ready",
+      detail: `Packages and managed checks are scoped to ${sourceInstanceTag(payload.sourceInstanceId)}.`,
+    },
+    {
       label: "Forward target metadata",
       status: "ready",
       detail:
@@ -500,7 +524,7 @@ const toReadinessChecks = (
       label: "Idempotency",
       status: "ready",
       detail:
-        "Rows include deterministic integration keys and intent-check tags; Forward-side import must dedupe before bulk create.",
+        "Rows include opaque, source-scoped SHA-256 identities; Forward-side import reconciles only the complete managed ownership tuple.",
     },
     {
       label: "Forward endpoint mapping",
@@ -515,7 +539,7 @@ const toReadinessChecks = (
       label: "Package validation",
       status: "ready",
       detail:
-        "Forward-side import rejects malformed packages, missing dynatrace-key tags, duplicate keys, duplicate names, and unsupported check types before writes.",
+        "Forward-side import rejects malformed packages, incomplete ownership tags, duplicate source keys, name collisions, and unsupported check types before writes.",
     },
     {
       label: "Bulk import",
@@ -575,7 +599,7 @@ const buildActions = (
     method: "GET",
     path: "/api/snapshots/{latestProcessedSnapshotId}/checks?type=Existential",
     purpose:
-      "Forward-side import reads existing intent checks, dedupes by check name or dynatrace-key tag, and detects changed or stale checks.",
+      "Forward-side import reads existing intent checks, reconciles only by managed source key, and detects changed, stale, or colliding checks.",
   });
   actions.push({
     method: "POST",
@@ -583,7 +607,7 @@ const buildActions = (
     purpose:
       "Forward-side import creates the missing persistent intent checks in bulk with NewNetworkCheck[] JSON.",
     bodyPreview: `${intentChecks.length} NewNetworkCheck JSON payload(s); persistent defaults to true`,
-    idempotencyKey: "Forward check name plus dynatrace-key tag",
+    idempotencyKey: "Managed source-instance plus source-key ownership tuple",
   });
   actions.push({
     method: "GET",
@@ -598,6 +622,27 @@ export default function (
   payload?: ForwardSyncRequest,
 ): ForwardSyncResponse {
   const generatedAt = new Date().toISOString();
+
+  if (payload) {
+    try {
+      normalizeSourceInstanceId(payload.sourceInstanceId);
+    } catch (error) {
+      return {
+        status: "blocked",
+        summary: error instanceof Error ? error.message : "Invalid sourceInstanceId.",
+        generatedAt,
+        disclaimer: INTEGRATION_BOUNDARY_DISCLAIMER,
+        exportManifestPreview: "",
+        intentChecksPreview: "",
+        intentCheckCount: 0,
+        rejectedDependencyCount: payload.dependencies?.length || 0,
+        actions: [],
+        readinessChecks: [],
+        workflowTrigger: "Not staged",
+        nextSteps: ["Configure a stable opaque Dynatrace sourceInstanceId."],
+      };
+    }
+  }
 
   if (!payload || payload.dependencies.length === 0) {
     return {
@@ -621,7 +666,10 @@ export default function (
   );
   const rejectedDependencyCount =
     payload.dependencies.length - exportableDependencies.length;
-  const intentChecks = toIntentChecks(exportableDependencies);
+  const intentChecks = toIntentChecks(
+    exportableDependencies,
+    normalizeSourceInstanceId(payload.sourceInstanceId),
+  );
   const intentChecksPreview = JSON.stringify(
     intentChecks,
     null,
@@ -695,7 +743,7 @@ export default function (
             "Run Forward-side validate-only and dry-run import before apply.",
           ]),
       "Import with the Forward-side script, or let a Forward-side connector pull the package.",
-      "Forward-side import resolves latest processed snapshot, reads existing checks, dedupes by name/tag, then calls /checks?bulk.",
+      "Forward-side import resolves the latest processed snapshot, reconciles the source-scoped ownership tuple, rejects name collisions, then calls /checks?bulk.",
       "Review changed or stale Dynatrace-managed checks before any update or retirement workflow.",
       "Keep Dynatrace as the mapping source and Forward as the system of record for intent.",
     ],

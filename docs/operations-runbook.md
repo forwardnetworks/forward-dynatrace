@@ -42,8 +42,7 @@ Before enabling scheduled import, fill in these local values outside the repo:
 
    ```bash
    export FORWARD_BASE_URL=https://forward.example.com
-   export FORWARD_USER=<user>
-   export FORWARD_PASSWORD=<password-or-token>
+   export FORWARD_AUTHORIZATION_FILE=/secure/path/forward-authorization.header
    export FORWARD_NETWORK_ID=<network-id>
 
    npm run forward:import -- \
@@ -88,7 +87,7 @@ Before enabling scheduled import, fill in these local values outside the repo:
      --status-artifact forward-ingest-status.json
    ```
 
-   The approval file must name exact `dynatrace-key:*` values from the current dry-run report. Keep the approval file
+   The approval file must name exact `source-key:sha256:*` values from the current dry-run report. Keep the approval file
    with the import report for audit.
 
 9. Publish sanitized status for Dynatrace display:
@@ -106,7 +105,7 @@ Before enabling scheduled import, fill in these local values outside the repo:
 
 1. Copy `config/forward-connector.config.example.json` to a local config path outside Git.
 2. Set `packageUrl`, `forwardBaseUrl`, `forwardNetworkId`, batch, retry, age, and drift policy.
-3. Keep `FORWARD_USER` and `FORWARD_PASSWORD` in the runtime secret store, not in the config file.
+3. Mount a protected authorization-header file from the runtime secret store and reference only its path.
 4. Run:
 
    ```bash

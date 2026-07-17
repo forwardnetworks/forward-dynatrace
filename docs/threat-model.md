@@ -30,8 +30,8 @@ This model covers the Forward for Dynatrace trust boundary.
 | Stale package replay | Manifest age limit defaults to 1440 minutes and can be lowered in connector config. |
 | Credential leak through Dynatrace | Dynatrace app never accepts Forward credentials; importer requires runtime env secrets. |
 | Credential leak through config | Connector config validator rejects user/password/token fields. |
-| Customer data leak through repo | Repo validation blocks tokens, tenant URLs, local paths, emails, and legacy unsafe paths. |
-| Duplicate or conflicting checks | Importer rejects duplicate names and duplicate `dynatrace-key:*` tags. |
+| Customer data leak through repo | Repo validation blocks tokens, tenant URLs, local paths, emails, and retired unsafe paths. |
+| Duplicate or conflicting checks | Importer rejects incomplete or duplicate ownership tuples and refuses name-based adoption. |
 | Unapproved NQE query execution | Optional NQE artifacts require committed Forward query IDs in the runtime allowlist. |
 | Wrong check update | Default policy creates missing checks only; optional update/stale automation requires signed package verification, exact approval, and mutation budgets. |
 | Bulk API partial failure | Import report keeps counts and planned creates; rerun dry-run before retrying apply. |

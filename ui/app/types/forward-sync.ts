@@ -35,6 +35,7 @@ export interface DependencyCandidate {
 }
 
 export interface ForwardSyncRequest {
+  sourceInstanceId: string;
   forwardBaseUrl?: string;
   forwardNetworkId?: string;
   syncMode: ForwardSyncMode;

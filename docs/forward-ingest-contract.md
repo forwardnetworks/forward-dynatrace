@@ -53,8 +53,8 @@ The base integration must work without the optional NQE artifacts.
 Before any Forward API write, the importer or connector must reject the generated package if:
 
 - the intent-check artifact is not a JSON array
-- any check is missing a name, definition, or exactly one `dynatrace-key:*` tag
-- any generated name or `dynatrace-key:*` tag is duplicated
+- any check is missing a name, definition, or any member of the four-tag ownership tuple
+- any generated name or managed source key is duplicated
 - any base intent-check artifact entry uses a check type other than `Existential`
 - optional NQE checks use a query ID that is missing from the Forward-side allowlist
 - the manifest schema version, package type, generated timestamp, check count, checksum, credential policy, or
@@ -142,7 +142,7 @@ The app maps:
 | `port` | `definition.filters.from.headers[].values.tp_dst` |
 | `criticality` | `priority` |
 | `app`, `environment`, `owner` | `tags` |
-| `integration_key` | `dynatrace-key:*` tag and note |
+| scoped dependency identity | opaque `source-key:sha256:*` tag |
 
 ## Forward-Side Reconciliation
 
@@ -154,7 +154,7 @@ GET /api/snapshots/{snapshotId}/checks?type=Existential
 
 Then:
 
-1. Match existing checks by exact name or `dynatrace-key:*` tag.
+1. Match existing checks only by a complete ownership tuple and opaque source key; report name conflicts as collisions.
 2. Compute a canonical JSON SHA-256 fingerprint over generated fields: `definition`, `enabled`, `name`, `note`,
    `priority`, and sorted `tags`.
 3. Skip unchanged checks.

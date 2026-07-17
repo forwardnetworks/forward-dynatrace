@@ -5,13 +5,24 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import {
+  requiredOwnershipTags,
+  sourceInstanceTag,
+  sourceKeyTag,
+} from "../lib/managed-check-identity.mjs";
 import { publishPackageHandoff } from "./publish-forward-package.mjs";
 
-const check = (port = "443") => ({
+const sourceInstanceId = "dt-package-publish-test";
+const check = (port = "443") => {
+  const sourceKey = sourceKeyTag({
+    sourceInstanceId,
+    identity: { kind: "intent", source: "source", destination: "destination", protocol: "tcp", port },
+  });
+  return ({
   name: `[Dynatrace] Checkout prod: source -> destination tcp/${port}`,
   enabled: true,
   priority: "HIGH",
-  tags: ["dynatrace", `dynatrace-key:dt:checkout:prod:source:destination:tcp:${port}`],
+  tags: ["dynatrace", ...requiredOwnershipTags({ sourceInstanceId, sourceKey })],
   definition: {
     checkType: "Existential",
     filters: {
@@ -26,7 +37,8 @@ const check = (port = "443") => ({
     noiseTypes: [],
     returnPath: "ANY",
   },
-});
+  });
+};
 
 const writePackage = async (directory, { packageId = "package-1", port = "443", signature } = {}) => {
   await mkdir(directory, { recursive: true });
@@ -38,7 +50,13 @@ const writePackage = async (directory, { packageId = "package-1", port = "443", 
     packageId,
     generatedAt: new Date().toISOString(),
     requestedIngestPath: "data-connector",
-    source: { platform: "dynatrace", app: "forward-dynatrace", writePolicy: "dynatrace-never-writes-forward" },
+    source: {
+      platform: "dynatrace",
+      app: "com.forward.dynatrace",
+      instanceId: sourceInstanceId,
+      instanceTag: sourceInstanceTag(sourceInstanceId),
+      writePolicy: "dynatrace-never-writes-forward",
+    },
     artifacts: { manifest: "forward-dynatrace-manifest.json", intentChecks: "forward-intent-checks.json" },
     integrity: {
       algorithm: "sha256",
@@ -50,9 +68,24 @@ const writePackage = async (directory, { packageId = "package-1", port = "443", 
       payloadShape: "NewNetworkCheck[]",
       bulkEndpoint: "/api/snapshots/{snapshotId}/checks?bulk",
       dedupeRequiredBeforePost: true,
+      dedupe: "managed-source-key",
     },
-    validation: { requiredTagPrefix: "dynatrace-key:", requiredTagsPerCheck: 1, credentialPolicy: "no-forward-credentials-in-dynatrace" },
-    reconciliation: { defaultApplyPolicy: "create-missing-only", changedChecks: "report-only", staleChecks: "report-only" },
+    validation: {
+      managedByTag: "managed-by:com.forward.dynatrace",
+      contractVersionTag: "contract-version:1",
+      sourceInstanceTagPrefix: "source-instance:",
+      sourceKeyTagPrefix: "source-key:sha256:",
+      ownershipTagsPerCheck: 4,
+      identityPolicy: "strict-ownership-tuple",
+      credentialPolicy: "no-forward-credentials-in-dynatrace",
+    },
+    reconciliation: {
+      strategy: "source-scoped-desired-state",
+      defaultApplyPolicy: "create-missing-only",
+      changedChecks: "report-only",
+      staleChecks: "report-only",
+      collisionPolicy: "reject",
+    },
   };
   await writeFile(path.join(directory, "forward-intent-checks.json"), checksText);
   await writeFile(path.join(directory, "forward-dynatrace-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);

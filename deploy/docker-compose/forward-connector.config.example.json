@@ -3,6 +3,7 @@
   "packageUrl": "https://package.example.com/dynatrace-forward/latest/",
   "packageTokenFile": "/run/secrets/handoff-read-token",
   "forwardBaseUrl": "https://forward.example.com",
+  "forwardAuthorizationFile": "/run/secrets/forward-authorization",
   "forwardNetworkId": "<network-id>",
   "batchSize": 500,
   "maxRetries": 3,
@@ -14,6 +15,7 @@
   "deactivateStale": false,
   "maxUpdates": 0,
   "maxDeactivations": 0,
+  "lockPath": "/var/lib/forward-dynatrace/forward-apply.lock",
   "reportPath": "/var/lib/forward-dynatrace/forward-import-report.json",
   "metricsPath": "/var/lib/forward-dynatrace/forward-import-metrics.prom",
   "statusArtifactPath": "/var/lib/forward-dynatrace/forward-ingest-status.json"
