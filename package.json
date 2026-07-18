@@ -130,15 +130,15 @@
     "react-router-dom": "^6.22.2"
   },
   "devDependencies": {
-    "@eslint/js": "^9.37.0",
+    "@eslint/js": "^9.39.5",
     "@microsoft/eslint-plugin-sdl": "^1.1.0",
-    "@types/node": "^24.7.0",
+    "@types/node": "^24.13.3",
     "@types/react": "^18.3.20",
     "@types/react-dom": "^18.3.5",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "dt-app": "1.11.2",
-    "eslint": "^9.37.0",
+    "dt-app": "1.13.1",
+    "eslint": "^9.39.5",
     "eslint-plugin-n": "17.24.0",
     "eslint-plugin-no-secrets": "^2.2.1",
     "eslint-plugin-no-unsanitized": "^4.1.4",
@@ -147,6 +147,6 @@
     "eslint-plugin-security": "^3.0.1",
     "playwright": "^1.61.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.62.1"
+    "typescript-eslint": "^8.64.0"
   }
 }
