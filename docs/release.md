@@ -28,7 +28,14 @@ Actions. It is not published to PyPI.
    Before any release write, the workflow also runs `scripts/validate-release-immutability.mjs`. It fails closed when
    the tag has another release-workflow run, a GitHub release already uses the tag, the versioned GHCR tag already
    resolves, or registry absence cannot be proven. A failed or superseded release must use a new semantic version;
-   never move or reuse its tag.
+   never move or reuse its tag under normal release policy.
+
+   The sole exception is the pre-customer `v1.0.0` production reset recorded in
+   `config/release-reset-authorizations.json`. The checked authorization permits only the exact retired workflow runs,
+   GitHub release timestamp, and image digest listed there, expires within seven days, allows one successful
+   replacement, and records retry attempts. The workflow preserves the retired GitHub release until the replacement
+   artifacts, image, attestations, and vulnerability scan have passed; it deletes that release only immediately before
+   publishing the verified replacement. No other tag receives this path.
 
 4. After the pre-publish immutability gate passes, the `release` workflow builds with Node 24, runs `npm run ci`, runs
    `npm run release:package`, optionally
@@ -37,7 +44,10 @@ Actions. It is not published to PyPI.
 5. After a successful tag workflow, `verify-release` checks out the immutable release source and runs the checked
    published-release verifier. It uploads `published-release-verification.json` only after release asset membership,
    checksums, optional signature, SBOM identity, artifact and image attestations, GHCR digest, exact release workflow
-   run, and zero-result Trivy SARIF all verify.
+run, and zero-result Trivy SARIF all verify.
+
+For `v1.0.0`, the verification report also retains the authorized retired workflow IDs and image digest as a durable
+tombstone. Those retired artifacts are not production releases and must not be installed.
 
 For a local archive smoke test after `npm run build`:
 

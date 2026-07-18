@@ -50,11 +50,13 @@ Cross-product workflow orchestration and combined demonstrations are intentional
   and require reconciliation plus a new staged plan after partial apply.
 - [x] Re-read the target snapshot after every apply and require observed Forward state to reconcile to the approved
   plan before reporting success.
+- [x] Encode the pre-customer `v1.0.0` replacement as a one-time, expiring, exact-lineage authorization with failed-run
+  recovery and post-publication verification, while preserving immutable release policy for every other tag.
 
 ## Plan
 
-1. Publish the signed reset release from the verified `main` commit. The app and package version is `1.0.0`; release
-   engineering must audit existing tags before choosing or replacing a public tag.
+1. Publish the signed reset release from the verified `main` commit. The app and package version is `1.0.0`; the
+   audited retired tag, workflow runs, GitHub release, and image digest are fixed in the reset ledger.
 2. Install the exact release artifacts in a non-production Dynatrace tenant and Forward network.
 3. Run one authoritative customer-owned dependency export through validate-only, reviewed apply, and status readback.
 4. Capture the release tag, commit, checksums, image digest, network and snapshot IDs, package ID, reconciliation counts,
@@ -82,6 +84,7 @@ Cross-product workflow orchestration and combined demonstrations are intentional
 | 2026-07-17 | Reset the production design as the sole `v1`. | There are no customer deployments to migrate, so compatibility would add risk without value. |
 | 2026-07-17 | Treat an immutable reconciliation plan as the approval object. | An operator must approve the exact package, snapshot, policy, and source-key action set that is later applied. |
 | 2026-07-17 | Accept Forward authorization only from a protected mounted file. | Dedicated runtime credentials remain outside Dynatrace, process arguments, environment dumps, and repository config. |
+| 2026-07-17 | Permit one audited pre-customer `v1.0.0` release reset. | The old development release must not represent the new production contract; exact retired lineage, a short deadline, one replacement success, and durable verification keep this from becoming a general tag-reuse mechanism. |
 
 ## Evidence To Capture
 

@@ -91,6 +91,41 @@ test("validates release metadata, workflow identity, image digest, SBOM, and emp
   });
 });
 
+test("selects exactly one production reset run while retaining the retired lineage", () => {
+  const resetReleaseName = "v1.0.0";
+  const retired = {
+    ...releaseRun,
+    databaseId: 100001,
+    headSha: "d".repeat(40),
+    headBranch: resetReleaseName,
+    createdAt: "2026-07-04T14:50:00.000Z",
+  };
+  const replacement = { ...releaseRun, headBranch: resetReleaseName };
+  const authorization = {
+    releaseName: resetReleaseName,
+    retiredRuns: [{ runId: retired.databaseId, commitSha: retired.headSha }],
+  };
+  assert.equal(selectReleaseRun([replacement, retired], {
+    releaseName: resetReleaseName,
+    commitSha,
+    resetAuthorization: authorization,
+  }).databaseId, replacement.databaseId);
+  assert.throws(() => selectReleaseRun([replacement], {
+    releaseName: resetReleaseName,
+    commitSha,
+    resetAuthorization: authorization,
+  }), /reset history .* incomplete/u);
+  assert.throws(() => selectReleaseRun([
+    replacement,
+    retired,
+    { ...replacement, databaseId: 123457 },
+  ], {
+    releaseName: resetReleaseName,
+    commitSha,
+    resetAuthorization: authorization,
+  }), /exactly one successful completed release run/u);
+});
+
 test("binds attestations to the exact release workflow run, source, and subject digest", () => {
   const subjectName = "forward-dynatrace-app-v1.1.0.tgz";
   const subjectDigest = "c".repeat(64);

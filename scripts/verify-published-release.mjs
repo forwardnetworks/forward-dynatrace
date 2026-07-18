@@ -7,6 +7,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { releaseSigningPayload } from "./sign-release-checksums.mjs";
+import { loadReleaseResetAuthorization } from "../lib/release-reset-authorization.mjs";
 
 const REPORT_SCHEMA = "forward-dynatrace-published-release-verification/v1";
 const TRIVY_ARTIFACT = "forward-dynatrace-trivy-sarif";
@@ -209,20 +210,43 @@ export const validateSbom = (sbom, version) => {
   return { format: sbom.bomFormat, specVersion: sbom.specVersion, components: sbom.components.length };
 };
 
-export const selectReleaseRun = (runs, { releaseName, commitSha }) => {
+export const selectReleaseRun = (
+  runs,
+  { releaseName, commitSha, resetAuthorization = null },
+) => {
   if (!Array.isArray(runs)) throw new Error("GitHub release workflow runs must be an array.");
   if (runs.length >= RELEASE_RUN_LIMIT) {
     throw new Error(`Release workflow history for ${releaseName} reached the bounded query limit.`);
   }
+  if (resetAuthorization && resetAuthorization.releaseName !== releaseName) {
+    throw new Error(`Release reset authorization does not apply to ${releaseName}.`);
+  }
   const tagRuns = runs.filter((run) => run.headBranch === releaseName);
-  const conflicting = tagRuns.filter((run) => run.headSha !== commitSha);
+  const retiredRuns = new Map(
+    (resetAuthorization?.retiredRuns || []).map((run) => [run.runId, run.commitSha]),
+  );
+  const observedRetiredRunIds = new Set();
+  const conflicting = tagRuns.filter((run) => {
+    if (run.headSha === commitSha) return false;
+    if (retiredRuns.get(run.databaseId) === run.headSha) {
+      observedRetiredRunIds.add(run.databaseId);
+      return false;
+    }
+    return true;
+  });
   if (conflicting.length > 0) {
     const evidence = conflicting.map((run) => `${run.databaseId ?? "unknown"}:${run.headSha ?? "missing"}`).join(", ");
     throw new Error(
       `Release tag ${releaseName} has workflow history for a different commit; tag immutability is violated (${evidence}).`,
     );
   }
-  const matching = tagRuns.filter((run) => run.status === "completed");
+  const missingRetired = [...retiredRuns.keys()].filter((id) => !observedRetiredRunIds.has(id));
+  if (missingRetired.length > 0) {
+    throw new Error(`Release reset history for ${releaseName} is incomplete.`);
+  }
+  const matching = tagRuns.filter(
+    (run) => run.headSha === commitSha && run.status === "completed",
+  );
   const successful = matching.filter((run) => run.conclusion === "success")
     .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
   if (successful.length !== 1) {
@@ -328,8 +352,12 @@ export const verifyPublishedRelease = async ({
   commandAttempts = 3,
   sleep = wait,
   now = () => new Date().toISOString(),
+  resetAuthorization,
 } = {}) => {
   const tag = requiredString(releaseName, "--release-name", RELEASE_TAG);
+  const authorizedReset = resetAuthorization === undefined
+    ? await loadReleaseResetAuthorization(tag)
+    : resetAuthorization;
   const repo = requiredString(repository, "--repository", /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u);
   const owner = repo.split("/")[0];
   const destination = path.resolve(requiredString(outputDir, "--output-dir"));
@@ -343,6 +371,9 @@ export const verifyPublishedRelease = async ({
     "release", "view", tag, "--repo", repo,
     "--json", "tagName,isDraft,isPrerelease,publishedAt,url,targetCommitish",
   ])), tag, repo);
+  if (authorizedReset && Date.parse(metadata.publishedAt) <= Date.parse(authorizedReset.approvedAt)) {
+    throw new Error("Replacement release publication time does not follow its reset approval.");
+  }
   const commitSha = (await commandText(readRunner, "gh", [
     "api", `repos/${repo}/commits/${tag}`, "--jq", ".sha",
   ])).trim();
@@ -353,7 +384,11 @@ export const verifyPublishedRelease = async ({
     "--branch", tag, "--limit", String(RELEASE_RUN_LIMIT),
     "--json", "databaseId,headSha,headBranch,status,conclusion,url,createdAt",
   ]));
-  const releaseRun = selectReleaseRun(releaseRuns, { releaseName: tag, commitSha });
+  const releaseRun = selectReleaseRun(releaseRuns, {
+    releaseName: tag,
+    commitSha,
+    resetAuthorization: authorizedReset,
+  });
 
   await readRunner("gh", [
     "release", "download", tag, "--repo", repo, "--dir", destination, "--clobber",
@@ -444,6 +479,18 @@ export const verifyPublishedRelease = async ({
       commitSha,
       workflowRunId: releaseRun.databaseId,
       workflowRunUrl: releaseRun.url,
+      reset: authorizedReset
+        ? {
+            authorized: true,
+            reason: authorizedReset.reason,
+            approvedAt: authorizedReset.approvedAt,
+            resetDeadline: authorizedReset.resetDeadline,
+            replacementPolicy: authorizedReset.replacementPolicy,
+            retiredReleasePublishedAt: authorizedReset.retiredReleasePublishedAt,
+            retiredWorkflowRunIds: authorizedReset.retiredRuns.map((run) => run.runId),
+            retiredImageDigest: authorizedReset.retiredImageDigest,
+          }
+        : { authorized: false },
     },
     artifacts: {
       checksums,

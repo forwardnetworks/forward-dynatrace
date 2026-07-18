@@ -13,7 +13,7 @@ belong in a separate demo or customer automation project, not in this repository
 
 - Contract: sole production `v1`
 - Application version: `1.0.0`
-- Release state: replacement `v1` candidate; use a reviewed commit until an immutable replacement tag is published
+- Release target: `v1.0.0`; trust it only after `release:published:verify` succeeds against the published artifacts
 - Runtime: Node.js 24.x
 - Distribution: GitHub release artifacts and GHCR importer image
 - Product status: production candidate; signed release and support ownership are required before general availability

@@ -51,6 +51,20 @@ prior run, existing release, existing image tag, malformed response, registry un
 bounded retries stops the workflow before release writes. Rerun a failure only when no publication state exists;
 otherwise increment the version and create a new immutable tag.
 
+### One-Time Pre-Customer `v1.0.0` Reset
+
+`config/release-reset-authorizations.json` is a permanent, checked ledger for the sole production-contract reset. It
+names the exact retired workflow run IDs and commits, retired GitHub release timestamp, retired image digest, approval
+time, deadline, and one-successful-replacement policy. The parser allows at most one authorization, limits its window
+to seven days, and rejects missing, additional, or changed lineage. A failed first attempt may be retried only from the
+same replacement commit; a successful replacement makes any later attempt fail closed.
+
+The release workflow does not remove the retired GitHub release at the start of the reset. It first builds, attests,
+publishes and scans the replacement image, then deletes the retired release immediately before creating the replacement
+release. The post-publication verifier accepts the different historical commits only when every one exactly matches the
+ledger and records that retired lineage in its evidence report. This exception does not authorize reuse of any other
+tag and does not create a general tag-mutation process.
+
 ## Verify A Release
 
 Use the checked end-to-end verifier from the matching release source:
@@ -70,8 +84,10 @@ CycloneDX component/version, and verifies every artifact and GHCR attestation ag
 downloads the Trivy-authored SARIF from that exact run, requires zero HIGH/CRITICAL results, and writes
 `published-release-verification.json`. Use `--require-signature` when absence of the optional signature must fail.
 
-Release tags are immutable. Never move or reuse a tag; the checked verifier refuses to issue an immutable-release
-report when release evidence identifies more than one source commit.
+Release tags are immutable after publication. Outside the single ledgered pre-customer `v1.0.0` reset, never move or
+reuse a tag; the checked verifier refuses to issue an immutable-release report when release evidence identifies more
+than one source commit. For that reset only, it requires the exact retired lineage plus exactly one successful
+production replacement run.
 
 The `verify-release` workflow runs the same command automatically after a successful tag workflow and retains the
 bounded report as a workflow artifact. The manual commands below remain useful for independent investigation.

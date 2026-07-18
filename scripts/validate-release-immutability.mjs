@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
+import { appendFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
+import { loadReleaseResetAuthorization } from "../lib/release-reset-authorization.mjs";
 import { runCommand, withRetries } from "./verify-published-release.mjs";
 
 const REPORT_SCHEMA = "forward-dynatrace-release-immutability/v1";
@@ -16,11 +18,13 @@ Usage:
     --release-name v1.1.0 \\
     --repository forwardnetworks/forward-dynatrace \\
     --commit-sha <40-hex-sha> \\
-    --run-id <github-actions-run-id>
+    --run-id <github-actions-run-id> \\
+    --run-attempt <github-actions-run-attempt>
 
-Options default to GITHUB_REF_NAME, GITHUB_REPOSITORY, GITHUB_SHA, and
-GITHUB_RUN_ID. The command is read-only and fails before release writes when a
-prior release workflow run, GitHub release, or versioned GHCR tag exists.
+Options default to GITHUB_REF_NAME, GITHUB_REPOSITORY, GITHUB_SHA,
+GITHUB_RUN_ID, and GITHUB_RUN_ATTEMPT. The command is read-only and fails
+before release writes when prior publication state exists, except for an exact,
+expiring reset authorization recorded in the repository ledger.
 `;
 
 export const parseArgs = (argv) => {
@@ -31,7 +35,7 @@ export const parseArgs = (argv) => {
       args.help = true;
       continue;
     }
-    if (["--release-name", "--repository", "--commit-sha", "--run-id"].includes(value)) {
+    if (["--release-name", "--repository", "--commit-sha", "--run-id", "--run-attempt"].includes(value)) {
       const next = argv[index + 1];
       if (!next || next.startsWith("--")) throw new Error(`Missing value for ${value}.`);
       args[value.slice(2)] = next;
@@ -55,6 +59,15 @@ const parseRunId = (value) => {
   const runId = Number(normalized);
   if (!Number.isSafeInteger(runId)) throw new Error("--run-id is outside the safe integer range.");
   return runId;
+};
+
+const parseRunAttempt = (value) => {
+  const normalized = requiredString(String(value ?? ""), "--run-attempt", /^[1-9][0-9]*$/u);
+  const runAttempt = Number(normalized);
+  if (!Number.isSafeInteger(runAttempt)) {
+    throw new Error("--run-attempt is outside the safe integer range.");
+  }
+  return runAttempt;
 };
 
 const parseJson = (text, label) => {
@@ -96,6 +109,7 @@ export const validateRemoteState = ({
   runId,
   workflowPages,
   releasePages,
+  resetAuthorization = null,
 }) => {
   const workflowRuns = workflowRunsFromPages(workflowPages);
   const currentRuns = workflowRuns.filter((run) => run?.id === runId);
@@ -104,7 +118,36 @@ export const validateRemoteState = ({
     throw new Error("Current release workflow identity does not match the requested tag and commit.");
   }
   const priorRuns = workflowRuns.filter((run) => run?.id !== runId);
-  if (priorRuns.length > 0) {
+  let replacementAttempts = 0;
+  if (resetAuthorization) {
+    if (resetAuthorization.releaseName !== releaseName) {
+      throw new Error(`Release reset authorization does not apply to ${releaseName}.`);
+    }
+    const retiredRuns = new Map(
+      resetAuthorization.retiredRuns.map((run) => [run.runId, run.commitSha]),
+    );
+    const observedRetiredRunIds = new Set();
+    const unexpected = [];
+    for (const run of priorRuns) {
+      if (run?.head_branch === releaseName && retiredRuns.get(run?.id) === run?.head_sha) {
+        observedRetiredRunIds.add(run.id);
+      } else if (
+        run?.head_branch === releaseName &&
+        run?.head_sha === commitSha &&
+        run?.conclusion !== "success"
+      ) {
+        replacementAttempts += 1;
+      } else {
+        unexpected.push(run);
+      }
+    }
+    const missingRetired = [...retiredRuns.keys()].filter((id) => !observedRetiredRunIds.has(id));
+    if (unexpected.length > 0 || missingRetired.length > 0) {
+      throw new Error(
+        `Release reset history for ${releaseName} does not match its authorization.`,
+      );
+    }
+  } else if (priorRuns.length > 0) {
     const evidence = priorRuns
       .map((run) => `${run?.id ?? "unknown"}:${run?.head_sha ?? "missing"}`)
       .join(", ");
@@ -113,17 +156,35 @@ export const validateRemoteState = ({
 
   const releases = releasesFromPages(releasePages);
   const existing = releases.filter((release) => release?.tag_name === releaseName);
-  if (existing.length > 0) throw new Error(`GitHub release ${releaseName} already exists.`);
-  return { observedWorkflowRuns: workflowRuns.length, existingReleases: 0 };
+  if (!resetAuthorization && existing.length > 0) {
+    throw new Error(`GitHub release ${releaseName} already exists.`);
+  }
+  if (resetAuthorization) {
+    if (existing.length > 1) throw new Error(`GitHub release ${releaseName} is duplicated.`);
+    if (
+      existing.length === 1 &&
+      existing[0].published_at !== resetAuthorization.retiredReleasePublishedAt
+    ) {
+      throw new Error(`GitHub release ${releaseName} does not match the retired release authorization.`);
+    }
+  }
+  return {
+    observedWorkflowRuns: workflowRuns.length,
+    existingReleases: existing.length,
+    releaseResetAuthorized: Boolean(resetAuthorization),
+    replacementAttempts,
+  };
 };
 
 const probeImageTag = async (runner, imageReference) => {
   try {
-    await runner("docker", ["buildx", "imagetools", "inspect", imageReference]);
-    return "exists";
+    const { stdout } = await runner("docker", ["buildx", "imagetools", "inspect", imageReference]);
+    const digest = /^Digest:\s*(sha256:[a-f0-9]{64})\s*$/mu.exec(stdout)?.[1];
+    if (!digest) throw new Error("registry inspection returned no digest");
+    return { status: "exists", digest };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (message.includes(`${imageReference}: not found`)) return "absent";
+    if (message.includes(`${imageReference}: not found`)) return { status: "absent", digest: null };
     throw new Error(`Unable to prove GHCR tag absence: ${message}`);
   }
 };
@@ -135,14 +196,20 @@ export const verifyReleaseImmutability = async ({
   repository = DEFAULT_REPOSITORY,
   commitSha,
   runId,
+  runAttempt = 1,
   runner = runCommand,
   attempts = 3,
   sleep,
+  resetAuthorization,
 } = {}) => {
   const tag = requiredString(releaseName, "--release-name", RELEASE_TAG);
   const repo = requiredString(repository, "--repository", /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u);
   const sha = requiredString(commitSha, "--commit-sha", /^[a-f0-9]{40}$/u);
   const actionRunId = parseRunId(runId);
+  const actionRunAttempt = parseRunAttempt(runAttempt);
+  const authorizedReset = resetAuthorization === undefined
+    ? await loadReleaseResetAuthorization(tag, { enforceDeadline: true })
+    : resetAuthorization;
   const readRunner = (command, args) => withRetries(
     () => runner(command, args),
     { attempts, ...(sleep ? { sleep } : {}) },
@@ -162,15 +229,27 @@ export const verifyReleaseImmutability = async ({
     runId: actionRunId,
     workflowPages,
     releasePages,
+    resetAuthorization: authorizedReset,
   });
 
   const owner = repo.split("/")[0].toLowerCase();
   const imageReference = `ghcr.io/${owner}/forward-dynatrace-importer:${tag}`;
-  const imageTagStatus = await withRetries(
+  const imageState = await withRetries(
     () => probeImageTag(runner, imageReference),
     { attempts, ...(sleep ? { sleep } : {}) },
   );
-  if (imageTagStatus !== "absent") throw new Error(`GHCR image tag ${imageReference} already exists.`);
+  if (!authorizedReset && imageState.status !== "absent") {
+    throw new Error(`GHCR image tag ${imageReference} already exists.`);
+  }
+  if (
+    authorizedReset &&
+    imageState.status === "exists" &&
+    imageState.digest !== authorizedReset.retiredImageDigest &&
+    state.replacementAttempts === 0 &&
+    actionRunAttempt === 1
+  ) {
+    throw new Error(`GHCR image tag ${imageReference} does not match the retired release authorization.`);
+  }
 
   return {
     schemaVersion: REPORT_SCHEMA,
@@ -179,10 +258,14 @@ export const verifyReleaseImmutability = async ({
     releaseName: tag,
     commitSha: sha,
     workflowRunId: actionRunId,
+    workflowRunAttempt: actionRunAttempt,
     observedWorkflowRuns: state.observedWorkflowRuns,
     existingReleases: state.existingReleases,
+    releaseResetAuthorized: state.releaseResetAuthorized,
+    replacementAttempts: state.replacementAttempts,
     imageReference,
-    imageTagStatus,
+    imageTagStatus: imageState.status,
+    priorImageDigest: imageState.digest,
   };
 };
 
@@ -197,7 +280,14 @@ export const run = async (argv = process.argv.slice(2), env = process.env) => {
     repository: args.repository || env.GITHUB_REPOSITORY,
     commitSha: args["commit-sha"] || env.GITHUB_SHA,
     runId: args["run-id"] || env.GITHUB_RUN_ID,
+    runAttempt: args["run-attempt"] || env.GITHUB_RUN_ATTEMPT || "1",
   });
+  if (env.GITHUB_OUTPUT) {
+    await appendFile(
+      env.GITHUB_OUTPUT,
+      `release_reset=${report.releaseResetAuthorized ? "true" : "false"}\n`,
+    );
+  }
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   return 0;
 };

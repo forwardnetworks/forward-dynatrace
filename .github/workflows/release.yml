@@ -49,6 +49,7 @@ jobs:
           password: ${{ github.token }}
 
       - name: Validate release immutability before writes
+        id: immutability
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
@@ -58,6 +59,7 @@ jobs:
           --repository "${GITHUB_REPOSITORY}"
           --commit-sha "${GITHUB_SHA}"
           --run-id "${GITHUB_RUN_ID}"
+          --run-attempt "${GITHUB_RUN_ATTEMPT}"
 
       - name: Install dependencies
         run: npm ci
@@ -164,6 +166,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          if [ "${{ steps.immutability.outputs.release_reset }}" = "true" ]; then
+            if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+              gh release delete "${GITHUB_REF_NAME}" --yes
+            fi
+          fi
           gh release create "${GITHUB_REF_NAME}" out/release/* \
             --verify-tag \
             --title "${GITHUB_REF_NAME}" \

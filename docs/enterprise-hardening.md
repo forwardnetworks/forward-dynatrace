@@ -37,6 +37,8 @@ remain explicit release gates.
 - Done in repo: release archive packager smoke-tested in CI.
 - Done in repo: GitHub release workflow that builds app/importer archives, publishes release SBOM, optionally
   self-signs `SHA256SUMS`, emits artifact attestations, publishes the GHCR importer image, and publishes tag releases.
+- Done in repo: exact, expiring, one-successful-replacement authorization for retiring the pre-customer `v1.0.0`
+  development release without weakening normal immutable-tag enforcement; the published verifier retains its lineage.
 - Done in repo: weekly Dependabot checks for npm and GitHub Actions.
 - Done in repo: deterministic 1001-check test coverage for bulk import, chunk sizing, and transient retries.
 - Done in repo: load and scale smoke for 2500 generated dependency rows through normalization, package build,
@@ -54,6 +56,8 @@ remain explicit release gates.
 - External before wider use: assign actual identities or groups to the RBAC roles in `docs/rbac.md`.
 - External before wider use: provision signing keys if checksum-only integrity is not sufficient for the deployment
   trust model.
+- External before wider use: publish and independently verify the replacement `v1.0.0` release, then pin deployments
+  to its verified importer image digest.
 - Done in repo: pin the package, ownership, import-plan, approval, and status contracts to the sole `v1` release.
 - Done in repo: default apply policy is `create-missing-only`; every write requires signed-package verification, a fresh
   reconciliation, an immutable staged plan, an exact approval no more than 24 hours long, and mutation budgets.

@@ -68,10 +68,12 @@ const requiredFiles = [
   "config/forward-nqe-live-smoke.approval.example.json",
   "config/forward-change-context.example.json",
   "config/forward-guardian-execution-context.example.json",
+  "config/release-reset-authorizations.json",
   "api/forward-status.function.ts",
   "api/forward-nqe-preview.function.ts",
   "lib/managed-check-identity.mjs",
   "lib/forward-authorization.mjs",
+  "lib/release-reset-authorization.mjs",
   "actions/export-forward-package.action.ts",
   "actions/export-forward-package.logic.mjs",
   "actions/export-forward-package.widget.tsx",
@@ -604,6 +606,9 @@ for (const requiredReleaseGate of [
   "Validate release immutability before writes",
   "scripts/validate-release-immutability.mjs",
   "GITHUB_RUN_ID",
+  "GITHUB_RUN_ATTEMPT",
+  "steps.immutability.outputs.release_reset",
+  "gh release delete",
   "Validate release tag and repository version",
   "npm run release:ref:validate",
 ]) {
@@ -647,6 +652,8 @@ for (const requiredImmutabilityBoundary of [
   "already has workflow history",
   "already exists",
   "Unable to prove GHCR tag absence",
+  "loadReleaseResetAuthorization",
+  "workflowRunAttempt",
 ]) {
   if (!releaseImmutabilityGuard.includes(requiredImmutabilityBoundary)) {
     fail(`Release immutability guard must preserve ${requiredImmutabilityBoundary}.`);
@@ -663,6 +670,7 @@ for (const requiredVerifierBoundary of [
   "runnerEnvironment",
   "tool?.driver?.name",
   "tag immutability is violated",
+  "reset history",
   "withRetries",
   "--clobber",
 ]) {
@@ -969,6 +977,8 @@ for (const requiredPackagerText of [
   "scripts/generate-release-signing-keypair.mjs",
   "scripts/validate-release-immutability.mjs",
   "scripts/validate-release-immutability.test.mjs",
+  "lib/release-reset-authorization.mjs",
+  "config/release-reset-authorizations.json",
   "scripts/verify-published-release.mjs",
   "scripts/verify-published-release.test.mjs",
   "scripts/schema-validate.mjs",
