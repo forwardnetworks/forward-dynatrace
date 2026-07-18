@@ -596,8 +596,9 @@ for (const planPath of [
   }
 }
 
+const releaseBoundaryVersion = (await readJson("package.json")).version;
 for (const [file, requiredReleaseBoundary] of [
-  ["README.md", "Application version: `1.0.0`"],
+  ["README.md", `Application version: \`${releaseBoundaryVersion}\``],
   ["docs/install.md", "one production `v1` contract"],
   ["docs/container-runtime.md", "operator to supply the digest"],
 ]) {

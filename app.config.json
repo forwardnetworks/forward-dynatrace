@@ -3,7 +3,7 @@
   "environmentUrl": "https://your-environment-id.apps.dynatrace.com/",
   "app": {
     "name": "Forward",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Application dependency evidence and modeled network assurance",
     "id": "com.forward.dynatrace",
     "scopes": [
