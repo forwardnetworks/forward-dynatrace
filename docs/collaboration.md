@@ -1,12 +1,12 @@
 # Collaboration Guide
 
-This repository is designed so a new human or agent collaborator can recover product intent, constraints, current
-work, and verified evidence from the checkout alone. Chat, meetings, and private notes can inform a change, but durable
-decisions must be recorded here before the change is considered complete.
+This repository is designed so a new collaborator can recover product intent, constraints, current work, and verified
+evidence from the checkout alone. Chat, meetings, and private notes can inform a change, but durable decisions must be
+recorded here before the change is considered complete.
 
 ## Start A Change
 
-1. Read `AGENTS.md`, then follow the smallest route in `docs/index.md`.
+1. Start with `README.md`, then follow the smallest route in `docs/index.md`.
 2. Read the active execution plan and the executable source of truth for the behavior being changed.
 3. Record a complex or multi-session change in `docs/exec-plans/active/` with objective, non-goals, progress,
    verification, decision log, and evidence to capture.
@@ -27,8 +27,8 @@ revert, or continue the change without reconstructing hidden context.
 7. Update the active plan and `docs/validation-matrix.md` with what was actually verified.
 8. Open a short-lived pull request and iterate until automated and human review feedback is resolved.
 
-Repeated review feedback is a harness defect. Promote it into a schema, test, custom repository check, runbook rule, or
-agent guide so the next collaborator receives the correction automatically.
+Repeated review feedback is a repository defect. Promote it into a schema, test, custom repository check, or runbook
+rule so the next collaborator receives the correction automatically.
 
 ## Evidence Standard
 

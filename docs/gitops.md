@@ -1,6 +1,6 @@
 # GitOps
 
-GitOps checks are intentionally close to the local developer loop. The goal is for an agent or human to run the same
+GitOps checks are intentionally close to the local developer loop. The goal is for every contributor to run the same
 commands locally that GitHub Actions runs on pull requests.
 
 ## Required Checks

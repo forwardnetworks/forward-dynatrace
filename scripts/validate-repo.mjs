@@ -8,7 +8,6 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const failures = [];
 
 const requiredFiles = [
-  "AGENTS.md",
   "ARCHITECTURE.md",
   "README.md",
   "LICENSE",
@@ -56,10 +55,10 @@ const requiredFiles = [
   "docs/templates/customer-acceptance-record.md",
   "docs/index.md",
   "docs/validation-matrix.md",
-  "docs/harness-engineering.md",
+  "docs/dynatrace-app-development.md",
+  "docs/assets/screenshots/dynatrace-app-overview.png",
   "docs/collaboration.md",
   "docs/gitops.md",
-  "docs/agent-guides/dynatrace-app.md",
   "docs/exec-plans/README.md",
   "docs/exec-plans/active/pre-1.0-product-readiness.md",
   "docs/exec-plans/active/design-partner-pilot.md",
@@ -338,7 +337,6 @@ const dynamicLocalHygienePatterns =
   : [];
 
 const publicBrandingFiles = [
-  "AGENTS.md",
   "ARCHITECTURE.md",
   "README.md",
   "app.config.json",
@@ -346,7 +344,7 @@ const publicBrandingFiles = [
   "api/forward-sync.function.ts",
   "api/forward-status.function.ts",
   "api/forward-nqe-preview.function.ts",
-  "docs/harness-engineering.md",
+  "docs/dynatrace-app-development.md",
   "docs/collaboration.md",
   "docs/index.md",
   "docs/exec-plans/README.md",
@@ -501,25 +499,17 @@ for (const forbiddenFile of forbiddenSeededDemoFiles) {
   }
 }
 
-const agentMap = await readText("AGENTS.md");
-const agentMapLineCount = agentMap.trimEnd().split("\n").length;
-if (agentMapLineCount > 80) {
-  fail(`AGENTS.md should stay compact; found ${agentMapLineCount} lines.`);
-}
-
-for (const target of [
-  "README.md",
-  "ARCHITECTURE.md",
-  "docs/index.md",
-  "docs/exec-plans/README.md",
-  "docs/exec-plans/active/pre-1.0-product-readiness.md",
-  "docs/exec-plans/active/design-partner-pilot.md",
-  "docs/validation-matrix.md",
-  "docs/harness-engineering.md",
-  "docs/collaboration.md",
+for (const forbiddenAssistantInstructionFile of [
+  "AGENTS.md",
+  "CLAUDE.md",
+  "CODEX.md",
+  "GEMINI.md",
+  ".cursorrules",
+  ".windsurfrules",
+  ".github/copilot-instructions.md",
 ]) {
-  if (!agentMap.includes(target)) {
-    fail(`AGENTS.md does not point to ${target}.`);
+  if (await exists(forbiddenAssistantInstructionFile)) {
+    fail(`Repository-specific assistant instruction file must not exist: ${forbiddenAssistantInstructionFile}`);
   }
 }
 
@@ -553,9 +543,6 @@ for (const entry of topLevelDocEntries) {
   if (!docsIndex.includes(`(${entry.name})`)) {
     fail(`docs/index.md does not point to docs/${entry.name}.`);
   }
-}
-if (!docsIndex.includes("(agent-guides/dynatrace-app.md)")) {
-  fail("docs/index.md does not point to the Dynatrace app agent guide.");
 }
 if (!docsIndex.includes("(exec-plans/README.md)")) {
   fail("docs/index.md does not point to the execution-plan index.");
@@ -1000,7 +987,7 @@ for (const requiredPackagerText of [
   "docs/forward-api-compatibility.md",
   "ARCHITECTURE.md",
   "docs/index.md",
-  "docs/harness-engineering.md",
+  "docs/dynatrace-app-development.md",
   "docs/exec-plans",
   "docs/release-provenance.md",
   "docs/governance.md",

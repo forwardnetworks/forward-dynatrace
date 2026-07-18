@@ -75,7 +75,7 @@ correlation combines separately sourced facts without treating modeled reachabil
 
 ## Change Routes
 
-- App or UI behavior: `docs/agent-guides/dynatrace-app.md`, then `docs/workflow.md`.
+- App or UI behavior: `docs/dynatrace-app-development.md`, then `docs/workflow.md`.
 - Package/import behavior: `docs/forward-ingest-contract.md`, then `docs/forward-importer.md`.
 - Runtime deployment: `docs/connector-runtime.md`, `docs/container-runtime.md`, or `docs/cron-runtime.md`.
 - Change validation: `docs/change-validation-gate.md`.

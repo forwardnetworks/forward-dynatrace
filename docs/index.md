@@ -1,13 +1,11 @@
 # Documentation Index
 
-Use this page to route a task to the smallest relevant source of truth. `AGENTS.md` deliberately links here instead of
-listing every document.
+Use this page to route a task to the smallest relevant source of truth.
 
 ## Understand The System
 
 - [Workflow](workflow.md): end-to-end Dynatrace-to-Forward flow.
 - [Forward ingest contract](forward-ingest-contract.md): package, reconciliation, and ownership contract.
-- [Harness engineering](harness-engineering.md): agent-first repository model and feedback loop.
 - [Collaboration guide](collaboration.md): branch/worktree workflow, review loop, and evidence handoff.
 
 ## Install, Package, And Release
@@ -24,7 +22,7 @@ listing every document.
 
 ## Build The Dynatrace Side
 
-- [Dynatrace app agent guide](agent-guides/dynatrace-app.md): AppEngine, Strato, SDK, and UI guidance.
+- [Dynatrace app development](dynatrace-app-development.md): AppEngine, DQL, Strato, SDK, and UI guidance.
 - [Dynatrace workflow trigger](dynatrace-workflow-trigger.md): schedule/problem payload contract.
 - [Site Reliability Guardian](site-reliability-guardian.md): lifecycle Guardian, execution context, Monaco package, and acceptance runs.
 - [Dynatrace status dashboard](dynatrace-status-dashboard.md): status events and DQL views.
