@@ -56,8 +56,8 @@ remain explicit release gates.
 - External before wider use: assign actual identities or groups to the RBAC roles in `docs/rbac.md`.
 - External before wider use: provision signing keys if checksum-only integrity is not sufficient for the deployment
   trust model.
-- External before wider use: publish and independently verify the replacement `v1.0.0` release, then pin deployments
-  to its verified importer image digest.
+- Done operationally: published and independently verified signed `v1.0.0` from commit `ce5a13f`; deployment
+  manifests must pin the verified importer digest recorded in `docs/validation-matrix.md`.
 - Done in repo: pin the package, ownership, import-plan, approval, and status contracts to the sole `v1` release.
 - Done in repo: default apply policy is `create-missing-only`; every write requires signed-package verification, a fresh
   reconciliation, an immutable staged plan, an exact approval no more than 24 hours long, and mutation budgets.

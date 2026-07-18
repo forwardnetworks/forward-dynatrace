@@ -52,18 +52,19 @@ Cross-product workflow orchestration and combined demonstrations are intentional
   plan before reporting success.
 - [x] Encode the pre-customer `v1.0.0` replacement as a one-time, expiring, exact-lineage authorization with failed-run
   recovery and post-publication verification, while preserving immutable release policy for every other tag.
+- [x] Publish signed `v1.0.0` from commit `ce5a13f`, pass release run `29622283324`, and pass independent published
+  evidence verification run `29622381593` with signed checksums, six asset attestations, image attestation, and zero
+  HIGH/CRITICAL Trivy findings.
 
 ## Plan
 
-1. Publish the signed reset release from the verified `main` commit. The app and package version is `1.0.0`; the
-   audited retired tag, workflow runs, GitHub release, and image digest are fixed in the reset ledger.
-2. Install the exact release artifacts in a non-production Dynatrace tenant and Forward network.
-3. Run one authoritative customer-owned dependency export through validate-only, reviewed apply, and status readback.
-4. Capture the release tag, commit, checksums, image digest, network and snapshot IDs, package ID, reconciliation counts,
+1. Install the exact release artifacts in a non-production Dynatrace tenant and Forward network.
+2. Run one authoritative customer-owned dependency export through validate-only, reviewed apply, and status readback.
+3. Capture the release tag, commit, checksums, image digest, network and snapshot IDs, package ID, reconciliation counts,
    Dynatrace event ID, and operator approvals in `docs/validation-matrix.md`.
-5. Deploy the Guardian package in the sandbox and query back one pass, one deliberate objective failure, and one
+4. Deploy the Guardian package in the sandbox and query back one pass, one deliberate objective failure, and one
    missing-evidence fail-closed result.
-6. Confirm the installation and rollback runbooks with customer operators who did not author the integration.
+5. Confirm the installation and rollback runbooks with customer operators who did not author the integration.
 
 ## Verification
 
