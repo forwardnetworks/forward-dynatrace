@@ -55,6 +55,8 @@ Cross-product workflow orchestration and combined demonstrations are intentional
 - [x] Publish signed `v1.0.0` from commit `ce5a13f`, pass release run `29622283324`, and pass independent published
   evidence verification run `29622381593` with signed checksums, six asset attestations, image attestation, and zero
   HIGH/CRITICAL Trivy findings.
+- [x] Publish the self-contained signed customer kit as immutable `v1.0.1` from commit `a89ff21`, pass release run
+  `29622910036`, and pass independent verification run `29622995213` with the acceptance documents in both archives.
 
 ## Plan
 

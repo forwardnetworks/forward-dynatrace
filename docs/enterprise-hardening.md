@@ -58,6 +58,8 @@ remain explicit release gates.
   trust model.
 - Done operationally: published and independently verified signed `v1.0.0` from commit `ce5a13f`; deployment
   manifests must pin the verified importer digest recorded in `docs/validation-matrix.md`.
+- Done operationally: published and independently verified signed `v1.0.1` from commit `a89ff21` as the self-contained
+  customer kit with the acceptance checklist, one-pager, live-demo runbook, and checked local documentation links.
 - Done in repo: pin the package, ownership, import-plan, approval, and status contracts to the sole `v1` release.
 - Done in repo: default apply policy is `create-missing-only`; every write requires signed-package verification, a fresh
   reconciliation, an immutable staged plan, an exact approval no more than 24 hours long, and mutation budgets.
