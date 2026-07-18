@@ -1,0 +1,17 @@
+// Latest lifecycle Guardian results. Filter by dt.srg.id or guardian tags in tenant-owned copies.
+// Lifecycle result events may omit execution_context; use the Automation execution readback for an enforced join.
+
+fetch events, from: now() - 30d
+| filter event.kind == "SDLC_EVENT"
+| filter event.provider == "dynatrace.site.reliability.guardian"
+| filter event.type == "validation"
+| filter event.status == "finished"
+| fields
+    timestamp,
+    task.id,
+    dt.srg.id,
+    dt.srg.tags,
+    validation.result,
+    execution_context
+| sort timestamp desc
+| limit 100

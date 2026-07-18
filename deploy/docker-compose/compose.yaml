@@ -1,0 +1,31 @@
+services:
+  forward-dynatrace-importer:
+    image: ${FORWARD_DYNATRACE_IMPORTER_IMAGE:?set an immutable verified image digest}
+    build:
+      context: ../..
+      dockerfile: Dockerfile.forward-importer
+    command:
+      - "--config"
+      - "/config/forward-connector.config.json"
+    volumes:
+      - ./forward-connector.config.example.json:/config/forward-connector.config.json:ro
+      - forward-dynatrace-state:/var/lib/forward-dynatrace
+    secrets:
+      - handoff-read-token
+      - forward-authorization
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+
+volumes:
+  forward-dynatrace-state:
+
+secrets:
+  handoff-read-token:
+    file: ${FORWARD_HANDOFF_READ_TOKEN_FILE:?set FORWARD_HANDOFF_READ_TOKEN_FILE}
+  forward-authorization:
+    file: ${FORWARD_AUTHORIZATION_FILE:?set FORWARD_AUTHORIZATION_FILE}

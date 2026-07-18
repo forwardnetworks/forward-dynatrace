@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Forward for Dynatrace connector import every 15 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+RandomizedDelaySec=90s
+Persistent=true
+Unit=forward-dynatrace-connector.service
+
+[Install]
+WantedBy=timers.target

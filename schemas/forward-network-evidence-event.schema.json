@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/forward-network-evidence-event.schema.json",
+  "title": "Forward for Dynatrace network evidence event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "timestamp", "eventType", "severity", "title", "properties"],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace-network-evidence-event/v1" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "eventType": { "const": "forward.dynatrace.network.evidence" },
+    "severity": { "enum": ["INFO", "WARN", "ERROR"] },
+    "title": { "type": "string", "minLength": 1 },
+    "properties": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "number", "boolean", "null"] },
+      "required": [
+        "forward.dynatrace.evidence_run_id",
+        "forward.dynatrace.problem_id",
+        "forward.dynatrace.network_assessment",
+        "forward.dynatrace.count.total",
+        "forward.dynatrace.count.queryable",
+        "forward.dynatrace.count.reachable",
+        "forward.dynatrace.count.blocked",
+        "forward.dynatrace.count.ambiguous",
+        "forward.dynatrace.count.unmapped",
+        "forward.dynatrace.count.failed"
+      ],
+      "properties": {
+        "forward.dynatrace.evidence_run_id": { "type": "string", "minLength": 1 },
+        "forward.dynatrace.problem_id": { "type": "string", "minLength": 1 },
+        "forward.dynatrace.service_entity_id": { "type": ["string", "null"] },
+        "forward.dynatrace.network_assessment": {
+          "enum": [
+            "consistent-with-network-policy-block",
+            "no-modeled-policy-block",
+            "inconclusive"
+          ]
+        },
+        "forward.dynatrace.target.network_id": { "type": ["string", "null"] },
+        "forward.dynatrace.target.snapshot_id": { "type": ["string", "null"] },
+        "forward.dynatrace.count.total": { "type": "integer", "minimum": 0 },
+        "forward.dynatrace.count.queryable": { "type": "integer", "minimum": 0 },
+        "forward.dynatrace.count.reachable": { "type": "integer", "minimum": 0 },
+        "forward.dynatrace.count.blocked": { "type": "integer", "minimum": 0 },
+        "forward.dynatrace.count.ambiguous": { "type": "integer", "minimum": 0 },
+        "forward.dynatrace.count.unmapped": { "type": "integer", "minimum": 0 },
+        "forward.dynatrace.count.failed": { "type": "integer", "minimum": 0 },
+        "forward.dynatrace.forwarding_outcomes": { "type": "string" },
+        "forward.dynatrace.security_outcomes": { "type": "string" },
+        "forward.dynatrace.max_hop_count": { "type": "integer", "minimum": 0 },
+        "forward.dynatrace.evidence_source": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

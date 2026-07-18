@@ -1,0 +1,63 @@
+name: verify-release
+
+on:
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: Exact published tag to verify
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  attestations: read
+  contents: read
+  packages: read
+
+jobs:
+  verify:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.release_name || github.event.workflow_run.head_branch }}
+    steps:
+      - name: Checkout immutable release source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_name || github.event.workflow_run.head_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Verify published release evidence
+        run: >-
+          npm run release:published:verify --
+          --release-name "${RELEASE_NAME}"
+          --repository "${GITHUB_REPOSITORY}"
+          --output-dir out/published-release-verification
+
+      - name: Upload verification report
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: forward-dynatrace-published-release-verification-${{ env.RELEASE_NAME }}
+          path: out/published-release-verification/published-release-verification.json
+          if-no-files-found: error

@@ -1,0 +1,134 @@
+# Observability
+
+The Forward-side importer emits a structured JSON report and optional Prometheus text metrics. The runtime that runs
+the importer should ship both to its standard log and metrics systems.
+
+## Import Report
+
+Write a report on every run:
+
+```bash
+npm run forward:import -- \
+  --config /secure/path/forward-connector.config.json \
+  --report forward-import-report.json \
+  --metrics forward-import-metrics.prom \
+  --status-artifact forward-ingest-status.json
+```
+
+The report includes run ID, timestamps, duration, package ID, package checksum, signature status, source locators,
+planned-check count, optional NQE artifact counts, reconciliation counts, changed fields, and stale check summaries.
+
+## Status Artifact
+
+Write `forward-ingest-status.json` when the Forward-side result needs to be shown back in Dynatrace. The artifact is
+read-only status, not an instruction channel. It uses `schemaVersion: forward-dynatrace-status/v1` and includes
+aggregate state only: run ID, package ID, mode, import state, package integrity, signature status, target IDs, counts,
+planned-check count, optional NQE check/diff counts, and duration.
+
+The status artifact intentionally excludes check names, hostnames, dependency rows, credentials, and Forward API
+response bodies. Publish it only after the Forward-side run finishes.
+
+Publish a sanitized copy into the package handoff location:
+
+```bash
+node scripts/publish-forward-status.mjs \
+  --status forward-ingest-status.json \
+  --output-dir /handoff/dynatrace-forward/latest
+```
+
+This writes `forward-ingest-status.json`, `forward-ingest-status.sha256`, and
+`forward-ingest-status-event.json`. Dynatrace can display the aggregate status by supplying the artifact or a
+read-only HTTPS artifact URL to the `forward-status` app function.
+
+## Dynatrace Status Event
+
+`forward-ingest-status-event.json` is a publish-safe event payload derived from the sanitized status artifact. It can be
+sent to a customer-approved Dynatrace event ingestion path when the customer wants Dynatrace alerting on Forward-side
+import health.
+
+The event includes:
+
+- run ID, package ID, mode, import state, and apply policy
+- signature status
+- target network and snapshot IDs
+- planned intent/NQE counts
+- create, unchanged, changed, stale, unresolved, and mutation counts
+
+The event excludes check names, hostnames, dependency rows, credentials, and Forward API response bodies. Treat it as
+Forward-to-Dynatrace telemetry, not as a command channel.
+
+Dry-run the Dynatrace publish path before enabling it:
+
+```bash
+npm run dynatrace:status:publish -- \
+  --event /handoff/dynatrace-forward/latest/forward-ingest-status-event.json \
+  --environment-url https://<environment-id>.apps.dynatrace.com/
+```
+
+When approved, publish with a Platform Token that has `openpipeline:events:ingest`:
+
+```bash
+export DYNATRACE_TOKEN=<platform-token>
+npm run dynatrace:status:publish -- \
+  --event /handoff/dynatrace-forward/latest/forward-ingest-status-event.json \
+  --environment-url https://<environment-id>.apps.dynatrace.com/ \
+  --apply
+```
+
+This is the only Forward-to-Dynatrace write path in the reference workflow. It sends aggregate ingest health back to
+Dynatrace and does not expose Forward credentials, check names, endpoint names, or dependency rows.
+
+For dashboard-ready views, use [dynatrace-status-dashboard.md](dynatrace-status-dashboard.md) with:
+
+- `deploy/dynatrace-dql/forward-ingest-status-latest.dql`
+- `deploy/dynatrace-dql/forward-ingest-status-attention.dql`
+
+## Metrics
+
+The metrics file currently includes:
+
+- `forward_dynatrace_import_planned_checks`
+- `forward_dynatrace_import_result_count{result="create|unchanged|changed|stale"}`
+- `forward_dynatrace_import_duration_ms`
+- `forward_dynatrace_import_signature_verified{status="verified|not-provided"}`
+
+Ship these metrics from the selected runtime. Do not scrape from Dynatrace; Forward-side ingest is the system of
+record for write status.
+
+## Alert Thresholds
+
+Start with these thresholds, then tune per deployment:
+
+| Signal | Suggested alert |
+| --- | --- |
+| Validation failure | Any failure in a scheduled run. |
+| Auth failure | Any Forward `401` or `403`. |
+| Package staleness | Manifest age exceeds the configured `maxPackageAgeMinutes`. |
+| Changed drift | Any changed check when `--fail-on-drift` is enabled. |
+| Stale drift | Any stale check when `--fail-on-drift` is enabled. |
+| Partial write | Any status with `mutationFailure.recoveryRequired = true`, regardless of completed mutation count. |
+| Unverified apply | Any apply run where `postApplyVerification.state` is not `verified`. |
+| Repeated transient errors | Three consecutive runs with `429` or `5xx` retries. |
+| Missing signature | Any production run where `packageSignature.status` is not `verified`. |
+
+## Runtime SLO Gate
+
+Use the report and metrics output as a deployment gate:
+
+```bash
+node scripts/runtime-slo-check.mjs \
+  --report forward-import-report.json \
+  --metrics forward-import-metrics.prom \
+  --max-duration-ms 300000 \
+  --require-signature
+```
+
+The gate fails on excessive runtime duration, any collision or mutation failure, an apply without verified post-apply
+reconciliation, unresolved changed/stale drift unless `--allow-drift` is supplied, a missing verified signature when
+required, or metrics that do not match the JSON report.
+
+## Evidence Retention
+
+Retain the package manifest, intent-check JSON, optional NQE artifacts, signature if used, import report, metrics, and
+status artifact for the same period as other Forward-side change evidence. These artifacts are enough to explain what
+was planned, what was imported, what was unchanged, and what was held for review.

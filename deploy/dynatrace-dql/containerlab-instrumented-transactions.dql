@@ -1,0 +1,41 @@
+fetch spans, from: now()-15m
+| filter forward.observation.method == "instrumented-transaction"
+| filter span.kind == "client"
+| join [
+    fetch spans, from: now()-15m
+    | filter forward.observation.method == "instrumented-transaction"
+    | filter span.kind == "server"
+    | fields trace.id, modeledServiceName = service.name, modeledServiceEntityId = dt.smartscape.service
+  ],
+  kind: leftOuter,
+  on: { trace.id },
+  fields: { modeledServiceName, modeledServiceEntityId }
+| summarize {
+    transactions = count(),
+    failedTransactions = countIf(span.status_code == "error"),
+    modeledServiceEntityId = takeAny(modeledServiceEntityId)
+  }, by: {
+    id = forward.dependency.id,
+    sourceService = service.name,
+    sourceAddress = forward.network.source.address,
+    destinationService = forward.network.destination.label,
+    destinationAddress = forward.network.destination.address,
+    destinationPort = server.port,
+    transport = network.transport
+  }
+| fieldsAdd
+    appName = "Enterprise Containerlab Scale",
+    environment = "lab",
+    serviceEntityId = coalesce(modeledServiceEntityId, destinationService),
+    serviceName = destinationService,
+    sourceLabel = sourceService,
+    source = sourceAddress,
+    destinationLabel = destinationService,
+    destination = destinationAddress,
+    protocol = transport,
+    port = destinationPort,
+    owner = "network-platform",
+    criticality = "high",
+    confidence = 100,
+    mappingState = "ready"
+| sort sourceService asc, destinationService asc

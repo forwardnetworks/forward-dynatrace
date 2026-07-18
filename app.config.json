@@ -1,0 +1,39 @@
+{
+  "$schema": "./.dt-app/app.config.schema.json",
+  "environmentUrl": "https://your-environment-id.apps.dynatrace.com/",
+  "app": {
+    "name": "Forward",
+    "version": "0.10.0",
+    "description": "Application dependency evidence and modeled network assurance",
+    "id": "com.forward.dynatrace",
+    "scopes": [
+      {
+        "name": "storage:buckets:read",
+        "comment": "Read Grail buckets containing approved dependency evidence"
+      },
+      {
+        "name": "storage:events:read",
+        "comment": "Query approved Dynatrace dependency events from Grail"
+      },
+      {
+        "name": "storage:spans:read",
+        "comment": "Query current instrumented application dependency spans from Grail"
+      },
+      {
+        "name": "environment-api:entities:read",
+        "comment": "Read Dynatrace service/entity context before exporting Forward packages"
+      },
+      {
+        "name": "app-settings:objects:read",
+        "comment": "Read the selected write-only customer package-handoff connection"
+      }
+    ],
+    "actions": [
+      {
+        "name": "export-forward-package",
+        "title": "Export Forward intent package",
+        "description": "Generate checksummed Forward package artifacts and publish the exact bytes to a customer-owned handoff. Performs no Forward writes."
+      }
+    ]
+  }
+}

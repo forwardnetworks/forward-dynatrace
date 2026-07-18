@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "forward-dynatrace-dashboard-template/v1",
+  "title": "forward.dynatrace Ingest Status",
+  "description": "Dashboard construction template for publish-safe Forward ingest status events.",
+  "eventType": "forward.dynatrace.ingest.status",
+  "dataSensitivity": "aggregate-status-only",
+  "writePolicy": "dashboard-never-approves-forward-writes",
+  "queries": [
+    {
+      "id": "latest-forward-ingest-runs",
+      "title": "Latest Forward ingest runs",
+      "queryFile": "../dynatrace-dql/forward-ingest-status-latest.dql",
+      "visualization": "table",
+      "purpose": "Show recent package IDs, provenance, import state, signature state, planned checks, and reconciliation counts."
+    },
+    {
+      "id": "needs-forward-review",
+      "title": "Needs Forward review",
+      "queryFile": "../dynatrace-dql/forward-ingest-status-attention.dql",
+      "visualization": "table",
+      "purpose": "Surface failed, drifted, changed, stale, or unsigned runs that need Forward-side action."
+    }
+  ],
+  "requiredFields": [
+    "event.type",
+    "event.kind",
+    "event.status",
+    "forward.dynatrace.run_id",
+    "forward.dynatrace.package_id",
+    "forward.dynatrace.evidence_source",
+    "forward.dynatrace.synthetic",
+    "forward.dynatrace.import_state",
+    "forward.dynatrace.planned_checks",
+    "forward.dynatrace.count.create",
+    "forward.dynatrace.count.unchanged",
+    "forward.dynatrace.count.changed",
+    "forward.dynatrace.count.stale",
+    "forward.dynatrace.signature_status"
+  ],
+  "operationalNotes": [
+    "Use this as a dashboard build template when importing into a tenant-specific Dynatrace dashboard.",
+    "Do not add Forward credentials, check names, hostnames, dependency rows, or Forward API response bodies to status events.",
+    "Treat this dashboard as observability only; Forward write approval remains in the Forward-controlled workflow."
+  ]
+}

@@ -1,0 +1,11 @@
+# Interim accountable maintainer. Replace or augment this identity with the
+# product and integration teams before enabling required code-owner review.
+* @captainpacket
+
+/api/ @captainpacket
+/ui/ @captainpacket
+/scripts/forward-import-package.mjs @captainpacket
+/scripts/forward-import-package.test.mjs @captainpacket
+/deploy/ @captainpacket
+/docs/ @captainpacket
+/.github/ @captainpacket

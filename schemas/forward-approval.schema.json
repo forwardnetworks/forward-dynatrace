@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/forward-approval.schema.json",
+  "title": "Forward for Dynatrace immutable import-plan approval",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "planId",
+    "planSha256",
+    "packageId",
+    "networkId",
+    "snapshotId",
+    "approvedAt",
+    "expiresAt",
+    "approvedBy",
+    "reason",
+    "actions"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace-import-approval/v1" },
+    "planId": { "type": "string", "pattern": "^forward-dynatrace-plan-[a-f0-9]{24}$" },
+    "planSha256": { "$ref": "#/definitions/sha256" },
+    "packageId": { "$ref": "#/definitions/nonEmptyString" },
+    "networkId": { "$ref": "#/definitions/nonEmptyString" },
+    "snapshotId": { "$ref": "#/definitions/nonEmptyString" },
+    "changeWindowId": { "$ref": "#/definitions/nonEmptyString" },
+    "approvedAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "approvedBy": { "$ref": "#/definitions/nonEmptyString" },
+    "reason": { "$ref": "#/definitions/nonEmptyString" },
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["createMissing", "updateSourceKeys", "retireSourceKeys"],
+      "properties": {
+        "createMissing": { "const": true },
+        "updateSourceKeys": { "$ref": "#/definitions/sourceKeys" },
+        "retireSourceKeys": { "$ref": "#/definitions/sourceKeys" }
+      }
+    }
+  },
+  "definitions": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "sourceKeys": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^source-key:sha256:[a-f0-9]{64}$" }
+    }
+  }
+}

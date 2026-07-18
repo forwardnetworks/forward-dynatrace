@@ -1,0 +1,24 @@
+[Unit]
+Description=Forward for Dynatrace connector import
+Documentation=https://github.com/forwardnetworks/forward-dynatrace
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=forward-dynatrace
+Group=forward-dynatrace
+WorkingDirectory=/opt/forward-dynatrace
+EnvironmentFile=/etc/forward-dynatrace/forward-dynatrace.env
+ExecStart=/usr/bin/node /opt/forward-dynatrace/scripts/forward-import-package.mjs --config /etc/forward-dynatrace/forward-connector.config.json
+ExecStartPost=/usr/bin/node /opt/forward-dynatrace/scripts/publish-forward-status.mjs --status /var/lib/forward-dynatrace/forward-ingest-status.json --output-dir /var/lib/forward-dynatrace/handoff/latest --event-output /var/lib/forward-dynatrace/forward-ingest-status-event.json
+ExecStartPost=/usr/bin/node /opt/forward-dynatrace/scripts/publish-dynatrace-status-event.mjs --event /var/lib/forward-dynatrace/forward-ingest-status-event.json --environment-url ${DYNATRACE_ENVIRONMENT_URL} --token-file /etc/forward-dynatrace/dynatrace-platform.token --apply
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadOnlyPaths=/etc/forward-dynatrace/forward-authorization.header /etc/forward-dynatrace/handoff-read-token /etc/forward-dynatrace/dynatrace-platform.token
+ReadWritePaths=/var/lib/forward-dynatrace /var/log/forward-dynatrace
+StateDirectory=forward-dynatrace
+LogsDirectory=forward-dynatrace
+UMask=0077

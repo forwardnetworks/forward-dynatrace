@@ -1,0 +1,46 @@
+# Data Handling
+
+This repository must stay safe to publish. Product and demonstration artifacts contain no seeded dependency evidence.
+Isolated unit tests may generate fake records in temporary directories, but those records are not packaged, published,
+or accepted as live evidence.
+
+## Allowed
+
+- Placeholder Forward URLs such as `https://forward.example.com`.
+- Placeholder Dynatrace Apps URLs such as `https://your-environment-id.apps.dynatrace.com/`.
+- Generated `source-key:sha256:*` values derived from isolated unit-test rows.
+- Forward query ID placeholders such as `FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`.
+- Sanitized import reports from reviewed non-production runs.
+
+## Not Allowed
+
+- Forward, Dynatrace, or customer credentials.
+- Real tenant URLs, OAuth callback URLs, private token filenames, or local user paths.
+- Personal email addresses or customer-specific names.
+- Real hostnames, device names, subnet names, application topology, or screenshots that reveal production topology.
+- Package exports from a real environment unless every row is reviewed and sanitized first.
+
+## Package Boundary
+
+The Dynatrace package contains desired Forward intent checks only. It must not contain Forward credentials, Forward
+session data, personal identifiers, or private tenant details beyond the metadata explicitly approved for the target
+deployment.
+
+Optional NQE artifacts may contain Forward query IDs and parameter values. Treat those as customer-approved operational
+metadata. Do not publish real query IDs or parameter values unless the customer has approved them for that audience.
+
+The Forward-side importer report can contain reconciliation evidence. Store reports in the Forward-side runtime log or
+artifact store, apply retention, and sanitize before sharing externally.
+
+The optional Forward ingest status artifact is safer to reflect back into Dynatrace because it contains aggregate state
+only. It must still be treated as operational evidence and reviewed before external sharing.
+
+## Release Gate
+
+Before publishing source, docs, or release artifacts:
+
+1. Run `npm run repo:validate`.
+2. Run `git diff --check`.
+3. Confirm no replay, seeded, fixture, or synthetic dependency artifacts are included.
+4. Confirm `app.config.json` uses the placeholder Dynatrace environment URL.
+5. Confirm connector config examples contain no secrets.

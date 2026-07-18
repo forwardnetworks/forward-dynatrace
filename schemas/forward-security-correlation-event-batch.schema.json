@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/forward-security-correlation-event-batch.schema.json",
+  "title": "Forward for Dynatrace security-correlation event batch",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "eventType", "runId", "provenance", "counts", "records"],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace-security-correlation-event-batch/v1" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "eventType": { "const": "forward.dynatrace.security.correlation" },
+    "runId": { "type": "string", "minLength": 1 },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "synthetic"],
+      "properties": {
+        "source": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+        "synthetic": { "type": "boolean" }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publishedCandidates", "rejectedMappings"],
+      "properties": {
+        "publishedCandidates": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "rejectedMappings": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "records": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event.provider", "event.type", "event.name", "event.category", "event.status",
+          "timestamp", "severity", "forward.dynatrace.security_run_id",
+          "forward.dynatrace.evidence_source", "forward.dynatrace.synthetic",
+          "forward.dynatrace.correlation_id", "forward.dynatrace.correlation_confidence",
+          "forward.dynatrace.correlation_disposition", "forward.dynatrace.dynatrace_finding_id",
+          "forward.dynatrace.dynatrace_observed_at", "forward.dynatrace.forward_exposure_id",
+          "forward.dynatrace.forward_snapshot_id", "forward.dynatrace.forward_observed_at",
+          "forward.dynatrace.identity_mapping_id", "forward.dynatrace.fact.observed_execution",
+          "forward.dynatrace.fact.vulnerable_runtime", "forward.dynatrace.fact.modeled_reachability",
+          "forward.dynatrace.fact.internet_addressability", "forward.dynatrace.fact.policy_finding"
+        ],
+        "properties": {
+          "event.provider": { "const": "forward-dynatrace" },
+          "event.type": { "const": "forward.dynatrace.security.correlation" },
+          "event.name": { "type": "string", "minLength": 1 },
+          "event.category": { "const": "security-correlation" },
+          "event.status": { "enum": ["INFO", "WARN", "ERROR"] },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "severity": { "enum": ["low", "medium", "high", "critical"] },
+          "forward.dynatrace.security_run_id": { "type": "string", "minLength": 1 },
+          "forward.dynatrace.evidence_source": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+          "forward.dynatrace.synthetic": { "type": "boolean" },
+          "forward.dynatrace.correlation_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "forward.dynatrace.correlation_confidence": { "enum": ["low", "medium", "high"] },
+          "forward.dynatrace.correlation_disposition": { "enum": ["investigate", "identity-review-required"] },
+          "forward.dynatrace.owner": { "type": "string" },
+          "forward.dynatrace.dynatrace_finding_id": { "type": "string" },
+          "forward.dynatrace.dynatrace_observed_at": { "type": "string", "format": "date-time" },
+          "forward.dynatrace.forward_exposure_id": { "type": "string" },
+          "forward.dynatrace.forward_snapshot_id": { "type": "string" },
+          "forward.dynatrace.forward_observed_at": { "type": "string", "format": "date-time" },
+          "forward.dynatrace.identity_mapping_id": { "type": "string" },
+          "forward.dynatrace.fact.observed_execution": { "type": "boolean" },
+          "forward.dynatrace.fact.vulnerable_runtime": { "type": "boolean" },
+          "forward.dynatrace.fact.modeled_reachability": { "type": "boolean" },
+          "forward.dynatrace.fact.internet_addressability": { "type": "boolean" },
+          "forward.dynatrace.fact.policy_finding": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

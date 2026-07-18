@@ -1,0 +1,210 @@
+# Release Provenance
+
+This project publishes release evidence that a customer security or platform team can verify before installing the
+Dynatrace app or running the Forward-side importer.
+
+## Release Artifacts
+
+Every tag release publishes:
+
+- `forward-dynatrace-app-<tag>.tgz`
+- `forward-dynatrace-importer-<tag>.tgz`
+- `forward-dynatrace-sbom-<tag>.cdx.json`
+- `SHA256SUMS`
+
+When the repository secret `RELEASE_SIGNING_PRIVATE_KEY_PEM` is configured, the release also publishes:
+
+- `SHA256SUMS.sig`
+- `SHA256SUMS.pub`
+
+The signing key is a self-managed Ed25519 key. It is intentionally separate from any Forward intent-package signing
+key. The private key must stay in the release secret manager and must not be committed to this repository.
+
+## Generate A Self-Managed Key
+
+Generate the keypair on a controlled workstation or build-secret host:
+
+```bash
+npm run release:signing-key:generate -- \
+  --output-dir /secure/path/forward-dynatrace-release-signing
+```
+
+Store `release-ed25519-private.pem` as the GitHub Actions secret `RELEASE_SIGNING_PRIVATE_KEY_PEM`. Keep
+`release-ed25519-public.pem` as the public verifier. The release workflow also emits `SHA256SUMS.pub` so a verifier can
+match the release signature to the public key used for that release.
+
+## Prevent Tag Reuse Before Publication
+
+The tag workflow runs this checked, read-only guard before installing dependencies, attesting artifacts, publishing an
+image, or creating a GitHub release:
+
+```bash
+npm run release:immutability:validate -- \
+  --release-name <tag> \
+  --repository forwardnetworks/forward-dynatrace \
+  --commit-sha <40-hex-tag-commit> \
+  --run-id <current-actions-run-id>
+```
+
+It paginates release-workflow and GitHub release history and probes the authenticated versioned GHCR reference. Any
+prior run, existing release, existing image tag, malformed response, registry uncertainty, or transient failure after
+bounded retries stops the workflow before release writes. Rerun a failure only when no publication state exists;
+otherwise increment the version and create a new immutable tag.
+
+### Historical Pre-Customer `v1.0.0` Reset
+
+`config/release-reset-authorizations.json` is a permanent, checked ledger for the completed historical reset. It
+names the exact retired workflow run IDs and commits, retired GitHub release timestamp, retired image digest, approval
+time, deadline, and one-successful-replacement policy. The parser allows at most one authorization, limits its window
+to seven days, and rejects missing, additional, or changed lineage. A failed first attempt may be retried only from the
+same replacement commit; a successful replacement makes any later attempt fail closed.
+
+The current release workflow never deletes an existing GitHub release or reuses a tag. The post-publication verifier
+still understands the completed historical reset so it can audit the exact recorded lineage. The ledger authorizes no
+new replacement, tag mutation, or release deletion.
+
+### Pre-1.0 Release Policy
+
+Every `v0.x` tag is a GitHub prerelease and publishes only a versioned GHCR image tag. It never updates `latest`.
+Promoting a supported `v1.0.0` requires the explicit product, signing, support, and acceptance decisions recorded in
+the active pre-1.0 readiness plan.
+
+The prematurely published `v1.0.0` through `v1.0.2` releases are also marked prerelease and titled `RETIRED`. Their
+immutable tags and evidence remain available for audit only and are special-cased by the verifier as historical input.
+
+## Verify A Release
+
+Use the checked end-to-end verifier from the matching release source:
+
+```bash
+npm run release:published:verify -- \
+  --release-name <tag> \
+  --repository forwardnetworks/forward-dynatrace \
+  --output-dir /secure/evidence/forward-dynatrace-<tag>
+```
+
+It resolves the tag to an exact commit and successful `release.yml` run, rejects any release-workflow history that
+shows the tag on another commit, downloads only the expected assets into a
+new or empty directory, verifies `SHA256SUMS`, verifies the optional Ed25519 signature when present, validates the
+CycloneDX component/version, and verifies every artifact and GHCR attestation against the exact tag source digest,
+`release.yml` signer, GitHub-hosted runner, subject digest, and successful workflow run. It records the registry digest,
+downloads the Trivy-authored SARIF from that exact run, requires zero HIGH/CRITICAL results, and writes
+`published-release-verification.json`. Use `--require-signature` when absence of the optional signature must fail.
+
+Release tags are immutable after publication. Never move or reuse a tag; the checked verifier refuses to issue an
+immutable-release report when release evidence identifies more than one source commit. When auditing the completed
+historical `v1.0.0` reset, it requires the exact retired lineage plus exactly one successful replacement run.
+
+The `verify-release` workflow runs the same command automatically after a successful tag workflow and retains the
+bounded report as a workflow artifact. The manual commands below remain useful for independent investigation.
+
+Download the release into an empty verification directory:
+
+```bash
+mkdir -p forward-dynatrace-release
+cd forward-dynatrace-release
+gh release download <tag> --repo forwardnetworks/forward-dynatrace
+```
+
+Verify checksums before inspecting or installing any archive:
+
+```bash
+sha256sum -c SHA256SUMS
+```
+
+If signature files are present, verify the checksum signature before trusting `SHA256SUMS`:
+
+```bash
+npm run release:sign -- \
+  --verify \
+  --checksums SHA256SUMS \
+  --public-key SHA256SUMS.pub \
+  --signature SHA256SUMS.sig
+```
+
+Verify artifact attestations with GitHub CLI:
+
+```bash
+gh attestation verify forward-dynatrace-app-<tag>.tgz \
+  --repo forwardnetworks/forward-dynatrace
+
+gh attestation verify forward-dynatrace-importer-<tag>.tgz \
+  --repo forwardnetworks/forward-dynatrace
+
+gh attestation verify forward-dynatrace-sbom-<tag>.cdx.json \
+  --repo forwardnetworks/forward-dynatrace
+```
+
+Validate that the package schemas and acceptance workflow still pass from an unpacked importer archive or source
+checkout:
+
+```bash
+mkdir -p importer
+tar -xzf forward-dynatrace-importer-<tag>.tgz -C importer
+cd importer
+npm ci
+npm run schemas:validate
+npm run acceptance:bundle -- \
+  --dependencies /secure/export/dynatrace-dependencies.json \
+  --output-dir out/acceptance \
+  --source-instance-id dt-release-acceptance \
+  --release-dir ..
+```
+
+## GHCR Importer Image
+
+Tag releases publish the Forward-side importer image to:
+
+```text
+ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag>
+```
+
+Pin every shared-environment deployment by digest instead of `latest`:
+
+```bash
+docker pull ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag>
+docker image inspect ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag> \
+  --format '{{index .RepoDigests 0}}'
+```
+
+Use the digest form in Kubernetes or other scheduled runtimes after acceptance:
+
+```text
+ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:<digest>
+```
+
+Verify the image attestation and inspect the BuildKit metadata:
+
+```bash
+gh attestation verify oci://ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag> \
+  --owner forwardnetworks
+
+docker buildx imagetools inspect ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag>
+```
+
+Run a customer-side vulnerability scan when policy requires local evidence:
+
+```bash
+trivy image --severity HIGH,CRITICAL --ignore-unfixed \
+  ghcr.io/forwardnetworks/forward-dynatrace-importer:<tag>
+```
+
+## Attestations
+
+The release workflow emits GitHub artifact attestations for release files and the GHCR importer image. These
+attestations are release provenance signals; they do not replace customer change approval, package signature
+verification, or the Forward-side dry-run gate.
+
+The release workflow uploads Trivy SARIF for the importer image and fails on HIGH/CRITICAL findings. Treat the SARIF as
+vulnerability evidence for the published image, not as proof that a customer runtime is patched after deployment.
+
+## Verification Order
+
+1. Confirm the GitHub release tag and workflow run.
+2. Verify `SHA256SUMS`.
+3. Verify `SHA256SUMS.sig` when present.
+4. Review the SBOM.
+5. Verify GitHub artifact attestations.
+6. Pull the GHCR image by tag, verify its image attestation, record its digest, and deploy by digest.
+7. Generate an acceptance evidence bundle.
+8. Run the Forward-side dry-run before enabling `--apply`.

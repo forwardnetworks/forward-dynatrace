@@ -1,0 +1,48 @@
+{
+  "description": "Runs the lifecycle Guardian for a reviewed Forward/Dynatrace scope mapping.",
+  "isPrivate": true,
+  "labels": {
+    "integration": "forward"
+  },
+  "taskDefaults": {},
+  "title": "{{ .name }}",
+  "trigger": {
+    "eventTrigger": {
+      "filterQuery": "event.kind == \"SDLC_EVENT\" and\nevent.type == \"forward.dynatrace.change.validation\" and\nforward.dynatrace.scope_mapping_id == \"{{ .scopeMappingId }}\"",
+      "isActive": true,
+      "triggerConfiguration": {
+        "type": "event",
+        "value": {
+          "eventType": "events",
+          "query": "event.kind == \"SDLC_EVENT\" and\nevent.type == \"forward.dynatrace.change.validation\" and\nforward.dynatrace.scope_mapping_id == \"{{ .scopeMappingId }}\""
+        }
+      },
+      "uniqueExpression": null
+    }
+  },
+  "triggerType": "Event",
+  "tasks": {
+    "run_validation": {
+      "action": "dynatrace.site.reliability.guardian:validate-guardian-action",
+      "description": "Run the lifecycle Guardian and retain correlation through the Workflow execution readback.",
+      "input": {
+        "executionId": "{{`{{`}} execution().id {{`}}`}}",
+        "objectId": "{{ .guardianid }}",
+        "timeframeInputType": "timeframeSelector",
+        "timeframeSelector": {
+          "from": "now-30m",
+          "to": "now"
+        }
+      },
+      "name": "run_validation",
+      "position": {
+        "x": 0,
+        "y": 1
+      },
+      "waitBefore": 30,
+      "predecessors": []
+    }
+  },
+  "usages": [],
+  "version": 2
+}

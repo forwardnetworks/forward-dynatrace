@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/forward-import-plan.schema.json",
+  "title": "Forward for Dynatrace immutable import plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "createdAt",
+    "package",
+    "target",
+    "policy",
+    "counts",
+    "actions",
+    "planId",
+    "planSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace-import-plan/v1" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packageId", "manifestSha256", "intentChecksSha256", "signatureStatus", "sourceInstanceTag"],
+      "properties": {
+        "packageId": { "$ref": "#/definitions/nonEmptyString" },
+        "manifestSha256": { "$ref": "#/definitions/sha256" },
+        "intentChecksSha256": { "$ref": "#/definitions/sha256" },
+        "signatureStatus": { "const": "verified" },
+        "sourceInstanceTag": { "type": "string", "pattern": "^source-instance:[a-z0-9][a-z0-9._:-]{2,127}$" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["networkId", "snapshotId"],
+      "properties": {
+        "networkId": { "$ref": "#/definitions/nonEmptyString" },
+        "snapshotId": { "$ref": "#/definitions/nonEmptyString" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["createMissing", "updateChanged", "retireStale", "maxUpdates", "maxRetirements"],
+      "properties": {
+        "createMissing": { "const": true },
+        "updateChanged": { "type": "boolean" },
+        "retireStale": { "type": "boolean" },
+        "maxUpdates": { "type": "integer", "minimum": 0 },
+        "maxRetirements": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "counts": { "$ref": "#/definitions/counts" },
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["create", "update", "retire", "collision"],
+      "properties": {
+        "create": { "type": "array", "items": { "$ref": "#/definitions/createAction" } },
+        "update": { "type": "array", "items": { "$ref": "#/definitions/updateAction" } },
+        "retire": { "type": "array", "items": { "$ref": "#/definitions/retireAction" } },
+        "collision": { "type": "array", "items": { "$ref": "#/definitions/collisionAction" } }
+      }
+    },
+    "planId": { "type": "string", "pattern": "^forward-dynatrace-plan-[a-f0-9]{24}$" },
+    "planSha256": { "$ref": "#/definitions/sha256" }
+  },
+  "definitions": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "sourceKey": { "type": "string", "pattern": "^source-key:sha256:[a-f0-9]{64}$" },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["create", "unchanged", "changed", "stale", "collision"],
+      "properties": {
+        "create": { "type": "integer", "minimum": 0 },
+        "unchanged": { "type": "integer", "minimum": 0 },
+        "changed": { "type": "integer", "minimum": 0 },
+        "stale": { "type": "integer", "minimum": 0 },
+        "collision": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "createAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceKey", "checkFingerprint"],
+      "properties": {
+        "sourceKey": { "$ref": "#/definitions/sourceKey" },
+        "checkFingerprint": { "$ref": "#/definitions/sha256" }
+      }
+    },
+    "updateAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceKey", "existingCheckId", "existingFingerprint", "plannedFingerprint"],
+      "properties": {
+        "sourceKey": { "$ref": "#/definitions/sourceKey" },
+        "existingCheckId": { "$ref": "#/definitions/nonEmptyString" },
+        "existingFingerprint": { "$ref": "#/definitions/sha256" },
+        "plannedFingerprint": { "$ref": "#/definitions/sha256" }
+      }
+    },
+    "retireAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceKey", "existingCheckId", "existingFingerprint"],
+      "properties": {
+        "sourceKey": { "$ref": "#/definitions/sourceKey" },
+        "existingCheckId": { "$ref": "#/definitions/nonEmptyString" },
+        "existingFingerprint": { "$ref": "#/definitions/sha256" }
+      }
+    },
+    "collisionAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceKey", "reason", "existingCheckIds"],
+      "properties": {
+        "sourceKey": { "$ref": "#/definitions/sourceKey" },
+        "reason": { "$ref": "#/definitions/nonEmptyString" },
+        "existingCheckIds": { "type": "array", "items": { "$ref": "#/definitions/nonEmptyString" } }
+      }
+    }
+  }
+}

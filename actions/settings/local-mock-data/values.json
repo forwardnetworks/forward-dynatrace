@@ -1,0 +1,12 @@
+[
+  {
+    "schemaId": "forward-package-handoff-connection",
+    "value": {
+      "name": "Local handoff",
+      "url": "https://handoff.example.com/v1/packages",
+      "token": "local-development-write-token",
+      "retentionClass": "nonproduction-30d"
+    },
+    "summary": "Local handoff"
+  }
+]

@@ -1,0 +1,18 @@
+// Bounded state transitions for integration-managed Forward checks.
+
+fetch events, from: now() - 30d
+| filter event.type == "forward.dynatrace.check.health.transition"
+| fields
+    timestamp,
+    severity,
+    forward.dynatrace.transition_id,
+    forward.dynatrace.check_identity_hash,
+    forward.dynatrace.transition,
+    forward.dynatrace.previous_state,
+    forward.dynatrace.current_state,
+    forward.dynatrace.network_id,
+    forward.dynatrace.snapshot_id,
+    forward.dynatrace.owner,
+    forward.dynatrace.service
+| sort timestamp desc
+| limit 100

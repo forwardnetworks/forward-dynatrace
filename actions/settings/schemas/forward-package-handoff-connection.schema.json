@@ -1,0 +1,102 @@
+{
+  "$schema": "https://developer.dynatrace.com/docs-assets/schema_strict_apps.json",
+  "dynatrace": "1",
+  "schemaId": "forward-package-handoff-connection",
+  "version": "1.0.0",
+  "summaryPattern": "{name}",
+  "displayName": "Forward package handoff",
+  "description": "Write-only connection from the Dynatrace export action to a customer-owned package handoff ingress",
+  "multiObject": true,
+  "maxObjects": 100,
+  "ordered": false,
+  "properties": {
+    "name": {
+      "displayName": "Connection name",
+      "description": "Customer-owned handoff connection label",
+      "type": "text",
+      "nullable": false,
+      "forceSecretResubmission": false,
+      "constraints": [
+        {
+          "type": "LENGTH",
+          "customMessage": "Name must be between 1 and 100 characters",
+          "minLength": 1,
+          "maxLength": 100
+        }
+      ],
+      "default": ""
+    },
+    "url": {
+      "displayName": "HTTPS publish URL",
+      "description": "Exact customer handoff ingress URL ending in /v1/packages",
+      "type": "text",
+      "subType": "url",
+      "nullable": false,
+      "forceSecretResubmission": true,
+      "constraints": [
+        {
+          "type": "LENGTH",
+          "customMessage": "URL must be between 1 and 2048 characters",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        {
+          "type": "PATTERN",
+          "customMessage": "URL must use HTTPS and end in /v1/packages",
+          "pattern": "^https://[^?#]+/v1/packages$"
+        }
+      ],
+      "default": ""
+    },
+    "token": {
+      "displayName": "Write token",
+      "description": "Dedicated package-publish token; never a Forward credential",
+      "type": "secret",
+      "nullable": false,
+      "constraints": [
+        {
+          "type": "LENGTH",
+          "customMessage": "Token must be between 16 and 4096 characters",
+          "minLength": 16,
+          "maxLength": 4096
+        }
+      ],
+      "default": ""
+    },
+    "retentionClass": {
+      "displayName": "Retention class",
+      "description": "Customer-approved retention policy label returned in every receipt",
+      "type": "text",
+      "nullable": false,
+      "forceSecretResubmission": false,
+      "constraints": [
+        {
+          "type": "LENGTH",
+          "customMessage": "Retention class must be between 1 and 128 characters",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        {
+          "type": "PATTERN",
+          "customMessage": "Retention class must be a publish-safe identifier",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        }
+      ],
+      "default": "nonproduction-30d"
+    }
+  },
+  "constraints": [
+    {
+      "type": "SECRET_RESUBMISSION",
+      "customMessage": "Re-enter the write token when changing this connection",
+      "checkAllProperties": false
+    }
+  ],
+  "schemaConstraints": [
+    {
+      "type": "UNIQUE",
+      "customMessage": "A handoff connection with the same name already exists",
+      "uniqueProperties": ["name"]
+    }
+  ]
+}

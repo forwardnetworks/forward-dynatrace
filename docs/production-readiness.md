@@ -1,0 +1,90 @@
+# Future 1.0 Production Readiness Checklist
+
+Forward for Dynatrace `0.10.x` is a design-partner preview, not a production candidate. Use this checklist to evaluate
+a future `1.0.0`; completing repository CI alone does not make the integration generally available.
+
+## Security
+
+- Do not store Forward credentials in Dynatrace.
+- Never accept Forward credentials from browser state.
+- Store Forward credentials only in the Forward-side connector or manual import environment.
+- Keep Forward credentials in a runtime secret store, not in connector config.
+- Keep tenant URLs, private token filenames, OAuth callback URLs, and customer-specific references out of GitHub.
+- Restrict Forward credential scope to the needed tenant/network/API capabilities.
+- Require the package and connector to declare the same explicit Read Only, Network Operator, or Network Admin profile;
+  never infer write authority from a credential that happens to be stronger.
+- Log correlation IDs, not secrets.
+- Verify release checksums, SBOM, and self-managed release signature when present.
+- Pin the Forward-side importer image by GHCR digest after acceptance.
+
+## Data Quality
+
+- Require source, destination, protocol, port, service entity ID, app, and environment.
+- Do not create checks for `needs-map` rows.
+- Reject packages with missing, malformed, incomplete, or duplicate ownership tuples and source keys.
+- Reject packages with duplicate generated check names.
+- Reject packages when manifest checksum does not match the intent-check payload.
+- Reject unsupported check types before contacting Forward.
+- Prefer minimum confidence threshold for automatic check creation.
+- Report rejected rows in the manifest/import report for review.
+
+## Forward-Side Write Safety
+
+- Read existing checks before writes.
+- Reconcile only by complete ownership tuple and source key; reject name collisions.
+- Fingerprint generated fields so result/status/timestamp fields do not cause false drift.
+- Create missing checks only with `POST /api/snapshots/{snapshotId}/checks?bulk`.
+- Permit intent-check creation or replacement only under Network Admin. Read Only and Network Operator must fail
+  closed before a write call.
+- Chunk large `NewNetworkCheck[]` imports and report per-batch status.
+- Keep Forward writes in the manual importer or Forward-side connector, never in the Dynatrace app.
+- Enable optional NQE artifacts only with Forward-owned query IDs and a Forward-side allowlist.
+- Keep update/stale automation disabled by default.
+- Allow signed, explicitly activated Network Admin runtimes to create only missing managed checks automatically.
+- Require a verified signed package, exact approval file, change window when used, and mutation budgets before
+  replacing changed generated checks or deactivating stale generated checks.
+
+## Workflow
+
+- Problem workflow: export only impacted app dependencies.
+- Scheduled workflow: refresh critical production mappings.
+- Manual workflow: build package, dry-run the Forward-side importer, review planned creates, then apply with Network
+  Admin when creation is intended.
+- Connector workflow: Forward-side connector pulls the latest package URL, validates manifest and checks, then performs
+  deduped bulk check ingest.
+- Runtime workflow: deploy the connector with the systemd or Kubernetes scheduler templates and keep credentials in the
+  runtime secret store.
+- Treat each export as desired state and reconcile before writing.
+- Keep the default apply policy as create-missing-only. Enable update/stale automation only as an approved optional
+  Forward-side path.
+
+## Reliability
+
+- Retry transient 429/5xx responses with bounded exponential backoff.
+- Honor `Retry-After` when Forward returns it.
+- Treat 4xx responses as configuration/data errors.
+- Poll snapshot processing before check creation.
+- Capture per-action result status.
+- Surface partial failures in Forward connector/import logs and keep the generated artifacts.
+- Keep the importer dry-run by default and require an explicit apply flag for writes.
+
+## Observability
+
+- Emit summary counts: rows received, rows accepted, checks planned, checks created, checks skipped, checks failed.
+- Include Forward snapshot ID and network ID in results.
+- Include app/environment/owner tags in generated checks.
+- Record run ID for audit correlation.
+- Publish sanitized Forward-side ingest status when Dynatrace-side visibility is required.
+- Use the Dynatrace status dashboard queries for aggregate health, not for write approval.
+
+## Tests Before Live Write
+
+- Complete [customer-acceptance-checklist.md](customer-acceptance-checklist.md).
+- Unit test deterministic integration keys.
+- Unit test `needs-map` rejection.
+- Unit test intent check JSON shape.
+- Unit test package validation failures before Forward API calls.
+- Unit test tuple-scoped reconciliation, name collision rejection, and no implicit adoption.
+- Unit test importer reconciliation for create, unchanged, changed, and stale cases.
+- Integration test against a non-production Forward network.
+- Dry-run comparison: same input twice should produce identical payloads.

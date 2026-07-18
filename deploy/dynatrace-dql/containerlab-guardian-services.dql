@@ -1,0 +1,5 @@
+fetch spans, from: now()-15m
+| filter forward.observation.method == "instrumented-transaction"
+| filter span.kind == "server"
+| summarize requests = count(), by: { serviceName = service.name, serviceEntityId = dt.smartscape.service }
+| sort requests desc

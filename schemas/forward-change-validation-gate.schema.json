@@ -1,0 +1,157 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/forward-change-validation-gate.schema.json",
+  "title": "Forward for Dynatrace change-validation gate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "change", "decision", "reasons", "dynatrace", "forward", "evidence"],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace-change-validation/v1" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["changeId", "deploymentId", "serviceEntityIds"],
+      "properties": {
+        "changeId": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "deploymentId": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "serviceEntityIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 255 }
+        }
+      }
+    },
+    "decision": { "enum": ["pass", "warn", "fail"] },
+    "reasons": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "code", "message"],
+        "properties": {
+          "severity": { "enum": ["info", "warn", "fail"] },
+          "code": { "type": "string", "maxLength": 128, "pattern": "^[A-Z][A-Z0-9_]+$" },
+          "message": { "type": "string", "minLength": 1, "maxLength": 1000 }
+        }
+      }
+    },
+    "dynatrace": { "$ref": "#/definitions/dynatrace" },
+    "forward": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["networkId", "before", "after", "delta", "reconciliation"],
+      "properties": {
+        "networkId": { "type": ["string", "null"], "maxLength": 255 },
+        "before": { "$ref": "#/definitions/pathSummary" },
+        "after": { "$ref": "#/definitions/pathSummary" },
+        "delta": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reachable", "blocked", "ambiguous", "unmapped", "failed"],
+          "properties": {
+            "reachable": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+            "blocked": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+            "ambiguous": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+            "unmapped": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+            "failed": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 }
+          }
+        },
+        "reconciliation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["runId", "packageId", "importState", "target", "plannedChecks", "counts", "unresolvedCounts"],
+          "properties": {
+            "runId": { "type": ["string", "null"], "maxLength": 255 },
+            "packageId": { "type": ["string", "null"], "maxLength": 255 },
+            "importState": { "type": ["string", "null"], "maxLength": 64 },
+            "target": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["networkId", "snapshotId"],
+              "properties": {
+                "networkId": { "type": ["string", "null"], "maxLength": 255 },
+                "snapshotId": { "type": ["string", "null"], "maxLength": 255 }
+              }
+            },
+            "plannedChecks": { "type": "integer", "minimum": 0 },
+            "counts": { "$ref": "#/definitions/reconciliationCounts" },
+            "unresolvedCounts": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["changed", "stale"],
+              "properties": {
+                "changed": { "type": "integer", "minimum": 0 },
+                "stale": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contextSha256", "beforePathEvidenceSha256", "afterPathEvidenceSha256", "reconciliationStatusSha256"],
+      "properties": {
+        "contextSha256": { "$ref": "#/definitions/sha256" },
+        "beforePathEvidenceSha256": { "$ref": "#/definitions/sha256" },
+        "afterPathEvidenceSha256": { "$ref": "#/definitions/sha256" },
+        "reconciliationStatusSha256": { "$ref": "#/definitions/sha256" }
+      }
+    }
+  },
+  "definitions": {
+    "dynatrace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deploymentState", "serviceHealth", "openProblemCount"],
+      "properties": {
+        "deploymentState": { "enum": ["SUCCEEDED", "FAILED", "IN_PROGRESS", "UNKNOWN"] },
+        "serviceHealth": { "enum": ["HEALTHY", "DEGRADED", "UNHEALTHY", "UNKNOWN"] },
+        "openProblemCount": { "type": "integer", "minimum": 0, "maximum": 2147483647 }
+      }
+    },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "pathCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "queryable", "reachable", "blocked", "ambiguous", "unmapped", "failed"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "queryable": { "type": "integer", "minimum": 0 },
+        "reachable": { "type": "integer", "minimum": 0 },
+        "blocked": { "type": "integer", "minimum": 0 },
+        "ambiguous": { "type": "integer", "minimum": 0 },
+        "unmapped": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "pathSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshotId", "status", "assessment", "counts"],
+      "properties": {
+        "snapshotId": { "type": ["string", "null"], "maxLength": 255 },
+        "status": { "type": ["string", "null"], "maxLength": 64 },
+        "assessment": { "type": ["string", "null"], "maxLength": 255 },
+        "counts": { "$ref": "#/definitions/pathCounts" }
+      }
+    },
+    "reconciliationCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["create", "unchanged", "changed", "stale"],
+      "properties": {
+        "create": { "type": "integer", "minimum": 0 },
+        "unchanged": { "type": "integer", "minimum": 0 },
+        "changed": { "type": "integer", "minimum": 0 },
+        "stale": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

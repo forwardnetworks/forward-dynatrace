@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "forward-dynatrace-release-reset-authorizations/v1",
+  "authorizations": [
+    {
+      "releaseName": "v1.0.0",
+      "reason": "Replace the retired development release with the sole production v1 contract before customer deployment.",
+      "approvedAt": "2026-07-17T23:55:00.000Z",
+      "resetDeadline": "2026-07-20T23:59:59.000Z",
+      "replacementPolicy": "one-successful-replacement",
+      "retiredReleasePublishedAt": "2026-07-04T14:50:15Z",
+      "retiredRuns": [
+        {
+          "runId": 28696639370,
+          "commitSha": "e75a3df94164cd32cba18f5eafc860ca2c262d08"
+        },
+        {
+          "runId": 28696863169,
+          "commitSha": "7ea8ef2733e9d10876c566b009265f680c2b2925"
+        },
+        {
+          "runId": 28709783362,
+          "commitSha": "509a4bb446bb5c23daf58a4a5d2bbf404774b9a8"
+        }
+      ],
+      "retiredImageDigest": "sha256:aa777cda7351553baa07ab55dad3264ce7c272f6e6eeb78b90ee8d0e33cd247b"
+    }
+  ]
+}
