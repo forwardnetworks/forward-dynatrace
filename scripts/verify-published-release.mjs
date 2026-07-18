@@ -117,7 +117,14 @@ export const validateReleaseMetadata = (metadata, releaseName, repository = DEFA
   }
   if (metadata.tagName !== releaseName) throw new Error("GitHub release tag does not match the requested tag.");
   if (metadata.isDraft) throw new Error("GitHub release is still a draft.");
-  if (metadata.isPrerelease) throw new Error("GitHub release is still a prerelease.");
+  const prereleaseExpected = releaseName.startsWith("v0.");
+  if (Boolean(metadata.isPrerelease) !== prereleaseExpected) {
+    throw new Error(
+      prereleaseExpected
+        ? "Pre-1.0 GitHub releases must be marked as prereleases."
+        : "GitHub release is unexpectedly marked as a prerelease.",
+    );
+  }
   if (!Number.isFinite(Date.parse(metadata.publishedAt))) {
     throw new Error("GitHub release has no valid publication time.");
   }

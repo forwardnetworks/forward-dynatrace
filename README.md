@@ -11,16 +11,18 @@ belong in a separate demo or customer automation project, not in this repository
 
 ## Status
 
-- Contract: sole production `v1`
-- Application version: `1.0.2`
-- Release: independently verified `v1.0.2`; install only its signed artifacts or digest-pinned importer
+- Product line: pre-1.0 design-partner preview
+- Application version: `0.10.0`
+- Release: unreleased from the reset baseline; use an exact reviewed commit for sandbox work
 - Runtime: Node.js 24.x
-- Distribution: GitHub release artifacts and GHCR importer image
-- Product status: production candidate; signed release and support ownership are required before general availability
+- Distribution: source builds now; future `0.x` tags are GitHub prereleases with versioned GHCR images
+- Product status: design-partner development; no generally available or supported production release exists
 - License: ISC
 
-This repository has one contract. Packages, plans, approvals, status artifacts, Workflow payloads, and managed Forward
-checks all use their strict `v1` schema. Clean installation is required; there is no compatibility runtime.
+The prematurely published `v1.0.0` through `v1.0.2` artifacts are retired historical evidence and must not be installed.
+They remain immutable so provenance stays auditable. Packages, plans, approvals, status artifacts, Workflow payloads,
+and managed Forward checks still use strict `/v1` schema identifiers; those identify wire contracts, not product
+maturity. Clean installation is required and there is no compatibility runtime.
 
 ## What It Does
 
@@ -62,7 +64,7 @@ Dynatrace dependencies -> exported intent package -> Forward validates, reconcil
         +---------------- sanitized aggregate status -----------+
 ```
 
-The production path remains Forward-centric at the write boundary. Dynatrace supplies dependency and application
+The deployment path remains Forward-centric at the write boundary. Dynatrace supplies dependency and application
 evidence; Forward validates the target network snapshot before persistent checks are created. The integration reports
 bounded results but never deploys or rolls back.
 
@@ -71,7 +73,7 @@ bounded results but never deploys or rolls back.
 ```bash
 git clone https://github.com/forwardnetworks/forward-dynatrace.git
 cd forward-dynatrace
-# Use an exact reviewed commit or a verified immutable replacement release.
+# Use an exact reviewed pre-1.0 commit or prerelease.
 git checkout <reviewed-commit>
 npm ci
 npm run ci
@@ -170,7 +172,7 @@ npm run dynatrace:uninstall -- \
 
 ## Forward Import Workflow
 
-Manual import is the first production-safe workflow because Forward writes happen only after a Forward operator reviews
+Manual import is the first design-partner workflow because Forward writes happen only after a Forward operator reviews
 the package.
 
 1. Export dependency candidates from Dynatrace:
@@ -313,7 +315,7 @@ Start with the smallest useful map:
 
 - [ARCHITECTURE.md](ARCHITECTURE.md): system boundaries, components, and primary data paths
 - [docs/index.md](docs/index.md): task-oriented index of all detailed documentation
-- [docs/exec-plans/active/customer-production-readiness.md](docs/exec-plans/active/customer-production-readiness.md): current execution plan
+- [docs/exec-plans/active/pre-1.0-product-readiness.md](docs/exec-plans/active/pre-1.0-product-readiness.md): current product-readiness plan
 - [docs/validation-matrix.md](docs/validation-matrix.md): verified evidence and remaining live-validation gaps
 - [docs/customer-one-pager.md](docs/customer-one-pager.md): customer-facing scope and verification
 

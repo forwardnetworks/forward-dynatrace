@@ -61,7 +61,7 @@ const requiredFiles = [
   "docs/gitops.md",
   "docs/agent-guides/dynatrace-app.md",
   "docs/exec-plans/README.md",
-  "docs/exec-plans/active/customer-production-readiness.md",
+  "docs/exec-plans/active/pre-1.0-product-readiness.md",
   "docs/exec-plans/active/design-partner-pilot.md",
   "docs/exec-plans/tech-debt-tracker.md",
   "config/forward-connector.config.example.json",
@@ -350,7 +350,7 @@ const publicBrandingFiles = [
   "docs/collaboration.md",
   "docs/index.md",
   "docs/exec-plans/README.md",
-  "docs/exec-plans/active/customer-production-readiness.md",
+  "docs/exec-plans/active/pre-1.0-product-readiness.md",
   "docs/exec-plans/active/design-partner-pilot.md",
   "docs/exec-plans/tech-debt-tracker.md",
   "docs/forward-nqe-preview.md",
@@ -512,7 +512,7 @@ for (const target of [
   "ARCHITECTURE.md",
   "docs/index.md",
   "docs/exec-plans/README.md",
-  "docs/exec-plans/active/customer-production-readiness.md",
+  "docs/exec-plans/active/pre-1.0-product-readiness.md",
   "docs/exec-plans/active/design-partner-pilot.md",
   "docs/validation-matrix.md",
   "docs/harness-engineering.md",
@@ -563,7 +563,7 @@ if (!docsIndex.includes("(exec-plans/README.md)")) {
 
 const executionPlanIndex = await readText("docs/exec-plans/README.md");
 for (const target of [
-  "active/customer-production-readiness.md",
+  "active/pre-1.0-product-readiness.md",
   "active/design-partner-pilot.md",
   "tech-debt-tracker.md",
 ]) {
@@ -573,7 +573,7 @@ for (const target of [
 }
 
 for (const planPath of [
-  "docs/exec-plans/active/customer-production-readiness.md",
+  "docs/exec-plans/active/pre-1.0-product-readiness.md",
   "docs/exec-plans/active/design-partner-pilot.md",
 ]) {
   const activeExecutionPlan = await readText(planPath);
@@ -598,7 +598,7 @@ for (const planPath of [
 const releaseBoundaryVersion = (await readJson("package.json")).version;
 for (const [file, requiredReleaseBoundary] of [
   ["README.md", `Application version: \`${releaseBoundaryVersion}\``],
-  ["docs/install.md", "one production `v1` contract"],
+  ["docs/install.md", "`0.10.x` pre-1.0 product line"],
   ["docs/container-runtime.md", "operator to supply the digest"],
 ]) {
   if (!(await readText(file)).includes(requiredReleaseBoundary)) {
@@ -613,8 +613,8 @@ for (const requiredReleaseGate of [
   "scripts/validate-release-immutability.mjs",
   "GITHUB_RUN_ID",
   "GITHUB_RUN_ATTEMPT",
-  "steps.immutability.outputs.release_reset",
-  "gh release delete",
+  "RELEASE_ARGS+=(--prerelease)",
+  "type=raw,value=latest,enable=${{ !startsWith(github.ref_name, 'v0.') }}",
   "Validate release tag and repository version",
   "npm run release:ref:validate",
 ]) {
@@ -751,7 +751,7 @@ const packageJson = await readJson("package.json");
 const packageLock = await readJson("package-lock.json");
 const appConfig = await readJson("app.config.json");
 if (appConfig.app?.id !== expectedAppId) {
-  fail(`app.config.json app.id must be the production identity ${expectedAppId}.`);
+  fail(`app.config.json app.id must be the reserved signed identity ${expectedAppId}.`);
 }
 if (appConfig.app?.name !== expectedAppName) {
   fail(`app.config.json app.name must be the product display name ${expectedAppName}.`);

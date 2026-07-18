@@ -91,6 +91,24 @@ test("validates release metadata, workflow identity, image digest, SBOM, and emp
   });
 });
 
+test("requires pre-1.0 releases to remain prereleases", () => {
+  const preview = {
+    ...releaseMetadata,
+    tagName: "v0.10.0",
+    isPrerelease: true,
+    url: "https://github.com/forwardnetworks/forward-dynatrace/releases/tag/v0.10.0",
+  };
+  assert.equal(validateReleaseMetadata(preview, "v0.10.0").tagName, "v0.10.0");
+  assert.throws(
+    () => validateReleaseMetadata({ ...preview, isPrerelease: false }, "v0.10.0"),
+    /must be marked as prereleases/u,
+  );
+  assert.throws(
+    () => validateReleaseMetadata({ ...releaseMetadata, isPrerelease: true }, "v1.1.0"),
+    /unexpectedly marked as a prerelease/u,
+  );
+});
+
 test("selects exactly one production reset run while retaining the retired lineage", () => {
   const resetReleaseName = "v1.0.0";
   const retired = {

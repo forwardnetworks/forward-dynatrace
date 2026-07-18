@@ -22,11 +22,11 @@ bounded results through shared context and tags.
 ## Progress
 
 - [x] Build and validate the native Dynatrace app, package export, Forward reconciliation, and sanitized readback.
-- [x] Select production identity `com.forward.dynatrace` and sandbox identity `my.forward`.
-- [x] Define clean installation under the production or sandbox identity; experimental installs are removed, not
+- [x] Reserve signed identity `com.forward.dynatrace` and select sandbox identity `my.forward`.
+- [x] Define clean installation under the reserved signed or sandbox identity; experimental installs are removed, not
   migrated.
-- [x] Publish immutable `v1.0.2` release artifacts and verify checksums, release signature, SBOM, attestations, image
-  digest, signer workflow, and zero-result vulnerability scan.
+- [x] Preserve the published `v1.0.x` build/provenance evidence as retired history and reset active development to the
+  `0.10.0` design-partner baseline.
 - [ ] Produce and install the Dynatrace-signed `com.forward.dynatrace` archive; release checksum signing alone does not
   satisfy the Dynatrace production identity gate.
 - [ ] Install the unsigned sandbox identity and complete the smoke checklist.
@@ -45,15 +45,15 @@ bounded results through shared context and tags.
 Owner: Forward engineering and product
 
 - Publish the exact signed `com.forward.dynatrace` release candidate.
-- Provide `my.forward` sandbox clean-install instructions and signed `com.forward.dynatrace` production instructions.
+- Provide `my.forward` sandbox clean-install instructions and signed `com.forward.dynatrace` shared-pilot instructions.
 - Publish required Dynatrace scopes, package-handoff requirements, checksums, SBOM, attestations, and rollback steps.
 - Assign production support, release approval, and escalation ownership.
 
 Acceptance: a tenant administrator can verify the archive and install it without repository-local credentials or
 author assistance.
 
-Implementation status: immutable `v1.0.2` source, app/importer archives, checksum signature, SBOM, attestations, GHCR
-digest, and independent verification are published. A tenant-installable Dynatrace-signed production archive and named
+Implementation status: the active `0.10.0` source baseline is ready for review but is not yet tagged. Historical
+`v1.0.x` artifacts are retired and not installable. A tenant-installable Dynatrace-signed preview archive and named
 support ownership remain open.
 
 ### 2. Sandbox installation
@@ -137,7 +137,7 @@ cycles and final timing/resource budgets remain open.
 
 Owner: Dynatrace non-production administrator, network owner, and Forward product
 
-- Install only the signed `com.forward.dynatrace` release verified in task 1.
+- Install only the exact signed `com.forward.dynatrace` preview verified in task 1.
 - Select a bounded real non-production service scope with matching Forward coverage.
 - Run validate-only, reviewed apply, unchanged rerun, guardian pass/fail, status readback, and rollback.
 - Review telemetry cost, query cost, permissions, data retention, failure handling, and operator workload.
@@ -188,7 +188,7 @@ Acceptance: ownership and support decisions are written before general availabil
 
 ## Exit Criteria
 
-- A signed production identity is published with named support ownership.
+- A signed preview identity is accepted in non-production with named pilot support ownership.
 - The sandbox phase is repeatable by an operator who did not author the integration.
 - The tagging contract resolves a bounded real non-production scope in both platforms.
 - Site Reliability Guardian and Forward evidence are correlated and fail closed on missing evidence.

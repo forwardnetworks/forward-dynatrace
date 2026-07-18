@@ -4,7 +4,7 @@ This app uses Dynatrace application dependency mapping to fill Forward intent ch
 application dependency evidence; Forward is the system that stores, evaluates, reconciles, and reports the network
 intent.
 
-This repository contains the production-candidate Forward for Dynatrace integration. The Dynatrace app must not mutate
+This repository contains the pre-1.0 design-partner Forward for Dynatrace integration. The Dynatrace app must not mutate
 a Forward tenant. Forward-side manual import or a Forward-side connector owns all intent-check writes.
 
 ## What the Dynatrace App Provides

@@ -25,7 +25,6 @@ const RUNTIME_SOURCE_ENTRIES = [
   "scripts",
   "schemas",
   "config",
-  "shared",
   "deploy",
 ];
 

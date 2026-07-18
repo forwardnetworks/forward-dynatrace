@@ -1,14 +1,14 @@
 # Support And Compatibility Matrix
 
-This matrix defines the single-version `v1` production-candidate boundary. A release is installable only when the
-artifact, target platform, required API capabilities, runtime, and operating controls all satisfy the same row. Passing
-repository CI alone does not convert an unverified customer environment into a supported deployment.
+This matrix defines the `0.10.x` design-partner boundary. A preview is eligible for a controlled sandbox or
+non-production pilot only when the artifact, target platform, required API capabilities, runtime, and operating controls
+all satisfy the same row. Passing repository CI alone does not create a supported production deployment.
 
 ## Product Contract
 
-| Area | `v1` baseline | Verification | Production gate |
+| Area | `0.10.x` baseline | Verification | Pilot gate |
 | --- | --- | --- | --- |
-| Forward for Dynatrace | Immutable `v1.x` release; current verified kit is `v1.0.2` | Published-release verifier checks commit, checksums, signature, attestations, SBOM, image digest, and Trivy result | Install the exact verified release; never install a moved tag or mutable image tag |
+| Forward for Dynatrace | Unreleased `0.10.0` reset baseline; future `0.x` tags are prereleases | CI and published-release verifier check commit, checksums, signature, attestations, SBOM, image digest, Trivy result, and prerelease status | Use an exact reviewed commit or immutable `0.x` prerelease; never install retired `v1.0.x` artifacts or a mutable image tag |
 | Package schema | `forward-dynatrace/v1` | JSON Schema and import-plan tests | Reject unknown schema versions; no compatibility shim or silent downgrade |
 | Connector schema | `forward-dynatrace-connector/v1` | Schema and runtime-manifest tests | Customer config must validate before credentials or network calls are enabled |
 | Forward access profiles | Read Only, Network Operator, Network Admin | Shared profile module, schemas, API/importer tests, and readiness tests | Package and connector profiles must match; only Network Admin may write intent checks |
@@ -18,14 +18,14 @@ repository CI alone does not convert an unverified customer environment into a s
 
 | Area | Verified baseline | Production gate |
 | --- | --- | --- |
-| Application identity | `my.forward` for unsigned sandbox installation; `com.forward.dynatrace` for production | Production identity requires a Dynatrace-signed archive and tenant-admin approval |
+| Application identity | `my.forward` for unsigned sandbox installation; `com.forward.dynatrace` reserved for signed shared-environment pilots and a future supported release | The reserved identity requires a Dynatrace-signed archive and tenant-admin approval |
 | App Toolkit | `dt-app` `1.11.2` | Rebuild and run full CI before adopting another toolkit baseline |
 | Node.js | `>=24.0.0 <25.0.0`; CI and version files use Node 24 | Do not run the supported kit on another Node major |
 | App dependencies | Exact versions in the release `package-lock.json` | Install with `npm ci`; do not resolve a fresh dependency graph during deployment |
 | Grail evidence | Customer-owned application dependency and Guardian evidence | Query-back must verify the same bounded correlation identity and evidence window |
 
 The repository checksum signature protects release membership. It is separate from the Dynatrace archive signature
-required to install the production application identity.
+required to install the reserved `com.forward.dynatrace` application identity.
 
 ## Forward Baseline
 
@@ -59,13 +59,14 @@ and direct Forward writes from Dynatrace are unsupported.
 
 ## Support Lifecycle
 
-- The current supported contract line is `v1`; a future public contract requires a separate migration plan.
-- Patch releases may correct behavior without weakening schemas, identity, approval, or credential boundaries.
+- There is no supported general-availability line yet; `0.10.x` is a design-partner preview.
+- Every `0.x` tag must be a GitHub prerelease and must not update the GHCR `latest` tag.
+- The published `v1.0.0` through `v1.0.2` artifacts are retired history and are not installable baselines.
+- Schema identifiers ending in `/v1` remain the current strict wire contract and do not signal product maturity.
+- Preview patches may correct behavior without weakening schemas, identity, approval, or credential boundaries.
 - Toolkit, Node-major, Forward API, and deployment-substrate expansion requires full contract and acceptance evidence.
-- Rollback means reinstalling a previously verified immutable release and its matching configuration; schema downgrade is
-  not inferred or performed automatically.
-- General availability still requires named product ownership, signing authority, escalation ownership, and a completed
-  customer non-production acceptance record.
+- General availability requires named product ownership, signing authority, escalation ownership, and completed customer
+  non-production acceptance before an explicitly approved new `1.0.0` is published.
 
 Use [`templates/customer-acceptance-record.md`](templates/customer-acceptance-record.md) to record the evidence for a
 specific environment without placing credentials, tenant URLs, private topology, or customer data in this repository.

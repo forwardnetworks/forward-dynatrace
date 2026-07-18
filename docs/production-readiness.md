@@ -1,7 +1,7 @@
-# Production Readiness Checklist
+# Future 1.0 Production Readiness Checklist
 
-Forward for Dynatrace is a production candidate. Use this checklist before enabling Forward-side ingest or describing
-the integration as generally available.
+Forward for Dynatrace `0.10.x` is a design-partner preview, not a production candidate. Use this checklist to evaluate
+a future `1.0.0`; completing repository CI alone does not make the integration generally available.
 
 ## Security
 

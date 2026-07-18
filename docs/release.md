@@ -25,17 +25,17 @@ Actions. It is not published to PyPI.
    The tag workflow repeats this validation and fails before packaging or publishing when `GITHUB_REF_NAME` differs
    from `package.json`, the root package-lock versions, or `app.config.json`.
 
+   Every `v0.x` tag is published as a GitHub prerelease and only receives its versioned GHCR image tag. It must not
+   update the mutable `latest` tag. A future `v1.0.0` requires an explicit product promotion decision and completion
+   of the pre-1.0 readiness plan.
+
    Before any release write, the workflow also runs `scripts/validate-release-immutability.mjs`. It fails closed when
    the tag has another release-workflow run, a GitHub release already uses the tag, the versioned GHCR tag already
    resolves, or registry absence cannot be proven. A failed or superseded release must use a new semantic version;
    never move or reuse its tag under normal release policy.
 
-   The sole exception is the pre-customer `v1.0.0` production reset recorded in
-   `config/release-reset-authorizations.json`. The checked authorization permits only the exact retired workflow runs,
-   GitHub release timestamp, and image digest listed there, expires within seven days, allows one successful
-   replacement, and records retry attempts. The workflow preserves the retired GitHub release until the replacement
-   artifacts, image, attestations, and vulnerability scan have passed; it deletes that release only immediately before
-   publishing the verified replacement. No other tag receives this path.
+   `config/release-reset-authorizations.json` preserves the historical, completed `v1.0.0` reset evidence. It does not
+   authorize another tag replacement. The current workflow never deletes an existing GitHub release or reuses a tag.
 
 4. After the pre-publish immutability gate passes, the `release` workflow builds with Node 24, runs `npm run ci`, runs
    `npm run release:package`, optionally
@@ -44,10 +44,10 @@ Actions. It is not published to PyPI.
 5. After a successful tag workflow, `verify-release` checks out the immutable release source and runs the checked
    published-release verifier. It uploads `published-release-verification.json` only after release asset membership,
    checksums, optional signature, SBOM identity, artifact and image attestations, GHCR digest, exact release workflow
-run, and zero-result Trivy SARIF all verify.
+run, release maturity (`0.x` must be a prerelease), and zero-result Trivy SARIF all verify.
 
-For `v1.0.0`, the verification report also retains the authorized retired workflow IDs and image digest as a durable
-tombstone. Those retired artifacts are not production releases and must not be installed.
+For historical `v1.0.0` verification, the report retains the authorized retired workflow IDs and image digest as a
+durable tombstone. All `v1.0.0` through `v1.0.2` artifacts are retired and must not be installed.
 
 For a local archive smoke test after `npm run build`:
 
@@ -61,7 +61,7 @@ npm run release:package:smoke
   contract docs.
 - `forward-dynatrace-importer-<tag>.tgz`: Forward-side importer, signer, container file, config examples, and
   runtime templates and operations docs.
-- `forward-dynatrace-sbom-<tag>.cdx.json`: CycloneDX SBOM for production dependencies.
+- `forward-dynatrace-sbom-<tag>.cdx.json`: CycloneDX SBOM for runtime dependencies.
 - `SHA256SUMS`: SHA-256 digests for release archives.
 - Optional `SHA256SUMS.sig` and `SHA256SUMS.pub`: detached Ed25519 signature over the checksum file and the matching
   public key for self-managed verification. The release signing key must be separate from Forward intent-package

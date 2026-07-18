@@ -80,5 +80,5 @@ correlation combines separately sourced facts without treating modeled reachabil
 - Runtime deployment: `docs/connector-runtime.md`, `docs/container-runtime.md`, or `docs/cron-runtime.md`.
 - Change validation: `docs/change-validation-gate.md`.
 - Security or data handling: `docs/threat-model.md`, `docs/data-handling.md`, and `docs/rbac.md`.
-- Current priorities: `docs/exec-plans/active/customer-production-readiness.md`.
+- Current priorities: `docs/exec-plans/active/pre-1.0-product-readiness.md`.
 - Verified truth: `docs/validation-matrix.md` and executable CI.

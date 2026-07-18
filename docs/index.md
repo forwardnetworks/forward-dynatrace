@@ -75,6 +75,6 @@ listing every document.
 ## Plan Work
 
 - [Execution plans](exec-plans/README.md): plan lifecycle and index.
-- [Active customer production-readiness plan](exec-plans/active/customer-production-readiness.md): current prioritized work.
+- [Active pre-1.0 product-readiness plan](exec-plans/active/pre-1.0-product-readiness.md): current prioritized work before a supported 1.0 release.
 - [Active design-partner pilot](exec-plans/active/design-partner-pilot.md): sandbox, Guardian, scale, and non-production gates.
 - [Technical debt tracker](exec-plans/tech-debt-tracker.md): deferred structural work with triggers and exits.

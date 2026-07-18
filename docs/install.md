@@ -5,9 +5,11 @@ This project is not distributed through PyPI. It has two runtime pieces:
 - a Dynatrace AppEngine app built and deployed with the Dynatrace App Toolkit (`dt-app`)
 - a Forward-side Node.js importer that runs outside Dynatrace with Forward-scoped credentials
 
-The GitHub release is the source and documentation release. A Dynatrace tenant operator installs the Dynatrace app from
-the release source, and a Forward operator runs the importer or connector workflow from a Forward-controlled
-environment.
+During the pre-1.0 design-partner phase, an exact reviewed commit or immutable `0.x` prerelease is the source and
+documentation baseline. A Dynatrace tenant operator installs the Dynatrace app from that baseline, and a Forward
+operator runs the importer or connector workflow from a Forward-controlled environment.
+
+Do not install the retired `v1.0.0` through `v1.0.2` artifacts. They remain published only to preserve provenance.
 
 ## Dynatrace App Install
 
@@ -22,15 +24,16 @@ Steps:
 ```bash
 git clone https://github.com/forwardnetworks/forward-dynatrace.git
 cd forward-dynatrace
-# Use an exact reviewed commit or verified immutable replacement release.
+# Use an exact reviewed pre-1.0 commit or prerelease.
 git checkout <reviewed-commit>
 npm ci
 npm run ci
 npm run acceptance:bundle -- --dependencies /secure/export/dynatrace-dependencies.json --output-dir out/acceptance --source-instance-id <stable-opaque-source-id>
 ```
 
-The reset defines one production `v1` contract and no alternate-version compatibility path. Until a replacement immutable
-release is published and verified, use an exact reviewed commit only for controlled non-production rehearsal.
+The reset defines the `0.10.x` pre-1.0 product line and no alternate-version compatibility path. The strict `/v1`
+identifiers inside package and status documents are schema versions, not a production-release claim. Until an immutable
+`0.x` prerelease is published and verified, use an exact reviewed commit only for controlled sandbox rehearsal.
 
 For an unsigned trial or development install, use a `my.*` app ID:
 
@@ -71,7 +74,7 @@ npm run dynatrace:uninstall -- \
   --non-interactive
 ```
 
-Omit `--app-id my.forward` only when removing the production `com.forward.dynatrace` identity. Uninstall never needs
+Omit `--app-id my.forward` only when removing the reserved signed `com.forward.dynatrace` identity. Uninstall never needs
 archive-signing credentials, but the deployment OAuth client or user still needs `app-engine:apps:delete` for the exact
 app identity.
 
@@ -81,7 +84,7 @@ and install either `my.forward` in a sandbox or the signed `com.forward.dynatrac
 
 ## Forward Manual Import
 
-Manual import is the first production-safe workflow because Forward writes happen only after a Forward operator reviews
+Manual import is the first design-partner workflow because Forward writes happen only after a Forward operator reviews
 the package.
 
 1. Generate or download the required artifacts from the Dynatrace app:

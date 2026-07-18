@@ -5,8 +5,8 @@ must have a checked-in plan with progress, decisions, verification, and evidence
 
 ## Active
 
-- [Customer production readiness](active/customer-production-readiness.md): land the current tranche, install owned
-  runtimes, and complete live acceptance.
+- [Pre-1.0 product readiness](active/pre-1.0-product-readiness.md): validate the design-partner preview, close ownership
+  and signing gaps, and define the promotion decision for a future 1.0.
 - [Design-partner pilot](active/design-partner-pilot.md): install in sandbox, define shared context, validate Guardian
   automation, exercise scale, and promote a signed build to non-production.
 
