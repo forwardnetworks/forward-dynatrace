@@ -34,6 +34,25 @@ Use this as the repository settings checklist for `main`:
 | Allow force pushes | Disabled |
 | Allow deletions | Disabled |
 
+## Current Activation State
+
+The repository names an accountable maintainer in `CODEOWNERS`; it no longer points at a non-existent placeholder team.
+Required code-owner review is intentionally not enabled until Forward assigns an appropriate product or integration
+team with at least two eligible reviewers. A single author cannot approve their own pull request, so enabling the rule
+against only the interim owner would block valid maintenance rather than add independent review.
+
+Before general availability:
+
+1. assign the product and engineering owner teams;
+2. replace or augment the interim maintainer in `CODEOWNERS`;
+3. verify two independent members can review and merge a test pull request;
+4. enable required code-owner review and administrator enforcement; and
+5. decide whether organization-managed signed commits are mandatory.
+
+All third-party GitHub Actions are pinned to full commit SHAs. The adjacent release comment preserves the upstream
+version for human review and Dependabot updates. `npm run github-actions:validate` rejects mutable action tags or
+missing version comments.
+
 ## Required PR Evidence
 
 Every production-impacting PR should include:

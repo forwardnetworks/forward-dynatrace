@@ -28,21 +28,21 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
           cache: npm
 
       - name: Set up Docker Buildx
         if: startsWith(github.ref, 'refs/tags/')
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       - name: Login to GHCR
         if: startsWith(github.ref, 'refs/tags/')
-        uses: docker/login-action@v4
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -92,12 +92,12 @@ jobs:
 
       - name: Attest release artifacts
         if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/attest@v4
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
         with:
           subject-path: out/release/*
 
       - name: Upload workflow artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: forward-dynatrace-release
           path: out/release/*
@@ -106,7 +106,7 @@ jobs:
       - name: Extract image metadata
         if: startsWith(github.ref, 'refs/tags/')
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
@@ -116,7 +116,7 @@ jobs:
       - name: Build and publish GHCR importer image
         if: startsWith(github.ref, 'refs/tags/')
         id: build-push
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
           file: Dockerfile.forward-importer
@@ -128,7 +128,7 @@ jobs:
 
       - name: Attest GHCR importer image
         if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/attest@v4
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
         with:
           subject-name: ${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build-push.outputs.digest }}
@@ -136,7 +136,7 @@ jobs:
 
       - name: Scan GHCR importer image
         if: startsWith(github.ref, 'refs/tags/')
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
           format: sarif
@@ -149,13 +149,13 @@ jobs:
       - name: Upload Trivy SARIF
         if: startsWith(github.ref, 'refs/tags/')
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4
         with:
           sarif_file: trivy-results.sarif
 
       - name: Upload Trivy workflow artifact
         if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: forward-dynatrace-trivy-sarif
           path: trivy-results.sarif

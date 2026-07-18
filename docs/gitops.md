@@ -7,6 +7,8 @@ commands locally that GitHub Actions runs on pull requests.
 
 ```bash
 npm run repo:validate
+npm run github-actions:validate
+npm run github-actions:validate:test
 npm run schemas:validate
 npm run schemas:validate:test
 npm run acceptance:bundle:test
@@ -52,3 +54,5 @@ Use `docs/governance.md` as the detailed branch-rule checklist.
 - Workflow or screenshot changes should update `docs/workflow.md` and `docs/assets/screenshots/`.
 - Dependabot is configured for npm and GitHub Actions. Treat dependency PRs like code changes: run `npm run ci`,
   inspect lockfile changes, and publish only after the GitOps workflow passes.
+- Third-party Actions must use full commit SHAs with an adjacent upstream release comment. The immutable pin is the
+  execution identity; the comment lets reviewers and Dependabot explain which upstream release the SHA represents.

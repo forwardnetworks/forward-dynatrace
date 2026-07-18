@@ -2,7 +2,7 @@
 
 Status: active
 Owner: repository maintainer plus Dynatrace, Forward runtime, security, and network owners
-Last updated: 2026-07-17
+Last updated: 2026-07-18
 
 ## Objective
 
@@ -57,6 +57,12 @@ Cross-product workflow orchestration and combined demonstrations are intentional
   HIGH/CRITICAL Trivy findings.
 - [x] Publish the self-contained signed customer kit as immutable `v1.0.1` from commit `a89ff21`, pass release run
   `29622910036`, and pass independent verification run `29622995213` with the acceptance documents in both archives.
+- [x] Pin every third-party GitHub Action to a full commit SHA, retain reviewable release comments for Dependabot, and
+  add a mechanical CI gate that rejects mutable action references.
+- [x] Add the single-version support matrix and a customer-neutral protected acceptance-record template to the exact
+  membership checks for both `v1.0.2` release archives.
+- [x] Replace the non-existent CODEOWNERS placeholder with an accountable interim maintainer and document the exact
+  two-reviewer/product-team gate before code-owner and administrator enforcement are enabled.
 
 ## Plan
 

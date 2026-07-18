@@ -25,11 +25,15 @@ bounded results through shared context and tags.
 - [x] Select production identity `com.forward.dynatrace` and sandbox identity `my.forward`.
 - [x] Define clean installation under the production or sandbox identity; experimental installs are removed, not
   migrated.
-- [ ] Publish a signed release candidate and verify its checksum, SBOM, attestations, and signer.
+- [x] Publish immutable `v1.0.1` release artifacts and verify checksums, release signature, SBOM, attestations, image
+  digest, signer workflow, and zero-result vulnerability scan.
+- [ ] Produce and install the Dynatrace-signed `com.forward.dynatrace` archive; release checksum signing alone does not
+  satisfy the Dynatrace production identity gate.
 - [ ] Install the unsigned sandbox identity and complete the smoke checklist.
 - [ ] Agree on the minimum dependency and execution-context tagging contract.
 - [ ] Validate a Site Reliability Guardian vertical slice.
-- [ ] Exercise a high-cardinality lab package with substantially more than six intent checks.
+- [x] Exercise a high-cardinality lab package with 50 observed dependencies and 50 persistent intent checks, including
+  create, unchanged, regression, recovery, and live Forward/Grail readback.
 - [ ] Promote the signed app into non-production and validate against authoritative service evidence.
 
 ## Plan
@@ -45,6 +49,10 @@ Owner: Forward engineering and product
 
 Acceptance: a tenant administrator can verify the archive and install it without repository-local credentials or
 author assistance.
+
+Implementation status: immutable `v1.0.1` source, app/importer archives, checksum signature, SBOM, attestations, GHCR
+digest, and independent verification are published. A tenant-installable Dynatrace-signed production archive and named
+support ownership remain open.
 
 ### 2. Sandbox installation
 
@@ -116,10 +124,11 @@ Owner: Forward demo engineering in the separate change-demo repository
 Acceptance: the profile survives three reset/collect/reconcile cycles, produces zero unexplained drift, and the app
 remains usable with the full evidence set. The active six-flow profile remains the fast smoke path.
 
-Implementation status: the separate change-demo repository now renders and mechanically validates an isolated 49-node
-profile with 38 Linux endpoints, 11 modeled network devices, 50 observed probe definitions, and 50 deterministic
-`NewNetworkCheck[]` previews. Deployment, three reset/collect/reconcile cycles, timing/resource measurements, and live
-Grail/Forward readback remain open.
+Implementation status: the separate change-demo repository deployed the isolated 49-node profile with 38 Linux
+endpoints, 11 modeled network devices, 23 instrumented services, four transaction generators, 50 observed
+relationships, and 50 persistent checks. First create, unchanged reconciliation, regression, recovery, Guardian
+pass/fail, and live Grail/Forward readback passed. Two additional clean reset cycles plus final timing and resource
+budgets remain open.
 
 ### 6. Non-production promotion
 

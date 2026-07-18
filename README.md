@@ -12,8 +12,8 @@ belong in a separate demo or customer automation project, not in this repository
 ## Status
 
 - Contract: sole production `v1`
-- Application version: `1.0.1`
-- Release: verified `v1.0.1`; install only its signed artifacts or digest-pinned importer
+- Application version: `1.0.2`
+- Release: `v1.0.2` production candidate; current independently verified customer kit is `v1.0.1`
 - Runtime: Node.js 24.x
 - Distribution: GitHub release artifacts and GHCR importer image
 - Product status: production candidate; signed release and support ownership are required before general availability

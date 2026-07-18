@@ -1,10 +1,11 @@
-# Template only: replace this placeholder with owning Forward groups before enforcing code-owner review.
-* @forwardnetworks/codeowners-placeholder
+# Interim accountable maintainer. Replace or augment this identity with the
+# product and integration teams before enabling required code-owner review.
+* @captainpacket
 
-/api/ @forwardnetworks/codeowners-placeholder
-/ui/ @forwardnetworks/codeowners-placeholder
-/scripts/forward-import-package.mjs @forwardnetworks/codeowners-placeholder
-/scripts/forward-import-package.test.mjs @forwardnetworks/codeowners-placeholder
-/deploy/ @forwardnetworks/codeowners-placeholder
-/docs/ @forwardnetworks/codeowners-placeholder
-/.github/ @forwardnetworks/codeowners-placeholder
+/api/ @captainpacket
+/ui/ @captainpacket
+/scripts/forward-import-package.mjs @captainpacket
+/scripts/forward-import-package.test.mjs @captainpacket
+/deploy/ @captainpacket
+/docs/ @captainpacket
+/.github/ @captainpacket

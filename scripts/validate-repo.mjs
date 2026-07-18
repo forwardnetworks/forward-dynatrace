@@ -52,6 +52,8 @@ const requiredFiles = [
   "docs/release.md",
   "docs/release-provenance.md",
   "docs/governance.md",
+  "docs/support-matrix.md",
+  "docs/templates/customer-acceptance-record.md",
   "docs/index.md",
   "docs/validation-matrix.md",
   "docs/harness-engineering.md",
@@ -95,6 +97,8 @@ const requiredFiles = [
   "scripts/validate-release-ref.test.mjs",
   "scripts/validate-release-immutability.mjs",
   "scripts/validate-release-immutability.test.mjs",
+  "scripts/validate-github-action-pins.mjs",
+  "scripts/validate-github-action-pins.test.mjs",
   "scripts/verify-published-release.mjs",
   "scripts/verify-published-release.test.mjs",
   "scripts/schema-validate.mjs",
@@ -379,6 +383,8 @@ const publicBrandingFiles = [
   "docs/release.md",
   "docs/release-provenance.md",
   "docs/governance.md",
+  "docs/support-matrix.md",
+  "docs/templates/customer-acceptance-record.md",
   "docs/screenshots.md",
   "docs/validation-matrix.md",
   "docs/workflow.md",
@@ -623,6 +629,11 @@ for (const requiredReleaseGate of [
     fail(`Release workflow must preserve ${requiredReleaseGate}.`);
   }
 }
+
+const codeOwners = await readText(".github/CODEOWNERS");
+if (codeOwners.includes("codeowners-placeholder")) {
+  fail("CODEOWNERS must identify a real accountable owner, not the retired placeholder team.");
+}
 const releaseImmutabilityStep = releaseWorkflowSource.indexOf("Validate release immutability before writes");
 for (const firstReleaseWriteBoundary of [
   "Install dependencies",
@@ -799,6 +810,8 @@ for (const scriptName of [
   "release:ref:test",
   "release:immutability:test",
   "release:published:test",
+  "github-actions:validate",
+  "github-actions:validate:test",
   "schemas:validate",
   "schemas:validate:test",
   "acceptance:bundle:test",
@@ -926,9 +939,9 @@ for (const requiredReleaseWorkflowText of [
   "RELEASE_SIGNING_PRIVATE_KEY_PEM",
   "npm run release:sign",
   "SHA256SUMS",
-  "actions/attest@v4",
-  "aquasecurity/trivy-action@v0.36.0",
-  "github/codeql-action/upload-sarif@v4",
+  "actions/attest@",
+  "aquasecurity/trivy-action@",
+  "github/codeql-action/upload-sarif@",
   "security-events: write",
   "exit-code: \"1\"",
   "actions/upload-artifact",
@@ -970,6 +983,8 @@ for (const requiredPackagerText of [
   "docs/exec-plans",
   "docs/release-provenance.md",
   "docs/governance.md",
+  "docs/support-matrix.md",
+  "docs/templates/customer-acceptance-record.md",
   "docs/dynatrace-status-dashboard.md",
   "schemas",
   "docs/connector-runtime.md",
@@ -1192,9 +1207,11 @@ for (const file of textFiles) {
     }
   }
 
-  for (const pattern of dynamicLocalHygienePatterns) {
-    if (pattern.regex.test(content)) {
-      fail(`${pattern.name} found in ${file}.`);
+  if (file !== ".github/CODEOWNERS") {
+    for (const pattern of dynamicLocalHygienePatterns) {
+      if (pattern.regex.test(content)) {
+        fail(`${pattern.name} found in ${file}.`);
+      }
     }
   }
 

@@ -19,6 +19,7 @@ listing every document.
 - [Schema versioning](schema-versioning.md): sole-version contract and future-version gate.
 - [GitOps](gitops.md): CI and delivery workflow.
 - [Governance](governance.md): review and branch-control expectations.
+- [Support matrix](support-matrix.md): single-version platform, runtime, compatibility, and lifecycle boundary.
 
 ## Build The Dynatrace Side
 
@@ -59,6 +60,7 @@ listing every document.
 
 - [Production readiness](production-readiness.md): pre-production checklist.
 - [Customer acceptance checklist](customer-acceptance-checklist.md): evidence-driven non-production promotion gate.
+- [Customer acceptance record template](templates/customer-acceptance-record.md): protected-environment evidence and sign-off record.
 - [Enterprise hardening](enterprise-hardening.md): control catalog and productization choices.
 - [Threat model](threat-model.md): trust boundaries, threats, and mitigations.
 - [Data handling](data-handling.md): publish-safe data and artifact rules.
