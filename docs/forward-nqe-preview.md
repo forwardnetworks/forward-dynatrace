@@ -1,4 +1,4 @@
-# Read-Only NQE Preview
+# Forward NQE Preview
 
 The `forward-nqe-preview` app function adds the optional preflight workflow from the execution roadmap: Dynatrace can
 plan a read-only network-evidence request before exporting persistent intent-check packages.
@@ -13,7 +13,9 @@ Plan mode is the default:
 - builds the Forward NQE request body
 - shows the target `POST /api/nqe` path
 - can be staged before Forward URL and network metadata are supplied
-- uses allowlisted raw-query templates by default
+- enforces the requested Forward access profile before planning execution
+- under Read Only, requires an approved Forward Library `queryId`
+- under Network Operator or Network Admin, permits approved arbitrary NQE templates
 - includes dependency parameters when an approved optional query ID is used
 - performs no network call
 
@@ -22,13 +24,13 @@ rejects it. Forward-side execution:
 
 - requires the explicit `--execute` operator flag
 - requires Forward URL metadata and a network ID
-- requires a runtime-supplied read-only authorization header
+- requires a runtime-supplied authorization header matching the selected profile
 - requires query IDs to be allowlisted when `queryId` is used
 - returns sanitized aggregate evidence: row count, returned count, columns, and optionally a small row sample
 
 ## Forward-Side Runtime Settings
 
-Mount one protected file containing the complete read-only `Authorization` header. Pass the file explicitly to the
+Mount one protected file containing the complete Forward `Authorization` header. Pass the file explicitly to the
 Forward-side helper:
 
 ```bash
@@ -44,13 +46,13 @@ config files.
 
 | Template | Uses Raw Query | Requires `queryId` | Purpose |
 | --- | --- | --- | --- |
-| `endpoint-inventory-smoke` | Yes | No | Confirm read-only NQE execution against the target network. |
+| `endpoint-inventory-smoke` | Yes | Network Operator or Network Admin | Confirm arbitrary NQE execution against the target network. |
 | `approved-endpoint-resolution` | No | Yes | Run a Forward-owned endpoint-resolution query with Dynatrace dependency parameters. |
 | `approved-blast-radius` | No | Yes | Run a Forward-owned blast-radius query with Dynatrace service context. |
 
-The raw-query template path is the default read-only preview option. Query-ID templates are optional and should be used
-only when the customer approves specific Forward-owned query IDs for stable reusable previews, diffs, or persistent NQE
-checks. The base integration continues to work with intent-check packages only.
+Read Only can execute only committed Forward Library queries by approved query ID. Network Operator and Network Admin
+can execute an approved arbitrary NQE template. Query-ID templates remain preferred for stable reusable previews,
+diffs, or persistent NQE checks. The base integration continues to work with intent-check packages only.
 
 ## Endpoint-Resolution Contract
 
@@ -93,6 +95,7 @@ Forward-resolvable `HostFilter`, `SubnetLocationFilter`, or `DeviceFilter` value
 {
   "forwardBaseUrl": "https://forward.example.com",
   "forwardNetworkId": "123",
+  "forwardAccessProfile": "read-only",
   "templateId": "approved-endpoint-resolution",
   "queryId": "FQ_<forward-owned-query-id>",
   "dependency": {
@@ -135,15 +138,17 @@ For a customer-approved live credential smoke, run plan mode first:
 npm run forward:nqe-live-smoke -- \
   --forward-base-url https://forward.example.com \
   --forward-network-id <network-id> \
+  --forward-access-profile network-operator \
   --output /tmp/forward-nqe-live-smoke-plan.json
 ```
 
-Then execute only with a read-only Forward authorization header supplied by the protected file:
+Then execute only with a Forward authorization header matching the selected profile:
 
 ```bash
 npm run forward:nqe-live-smoke -- \
   --forward-base-url https://forward.example.com \
   --forward-network-id <network-id> \
+  --forward-access-profile network-operator \
   --approval-file /secure/path/nqe-preview-approval.json \
   --authorization-file /secure/path/read-only-forward-auth-header \
   --execute \

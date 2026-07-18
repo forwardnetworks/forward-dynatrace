@@ -61,6 +61,20 @@ customer-specific reference. `npm run repo:validate` fails if those values are a
 Dynatrace AppEngine rejects unsigned app IDs outside the `my.*` namespace. The wrapper command makes that policy
 explicit before invoking `dt-app`, so trial installs and signed enterprise installs are separate operator choices.
 
+Use the same wrapper for a checked clean uninstall. Pass the exact identity that was installed:
+
+```bash
+npm run dynatrace:uninstall -- \
+  --environment-url https://your-environment-id.apps.dynatrace.com/ \
+  --app-id my.forward \
+  --no-open \
+  --non-interactive
+```
+
+Omit `--app-id my.forward` only when removing the production `com.forward.dynatrace` identity. Uninstall never needs
+archive-signing credentials, but the deployment OAuth client or user still needs `app-engine:apps:delete` for the exact
+app identity.
+
 This reset is a clean installation rather than an in-place upgrade. Follow
 [`app-identities.md`](app-identities.md) to remove an experimental install, regenerate Workflow templates,
 and install either `my.forward` in a sandbox or the signed `com.forward.dynatrace` package.
@@ -127,7 +141,8 @@ the package.
      --apply
    ```
 
-The default apply policy is intentionally `create-missing-only`. Changed and stale Dynatrace-managed checks remain
+The default Network Admin apply policy is intentionally automatic `create-missing-only` after signed-package and
+runtime activation gates are configured. Changed and stale Dynatrace-managed checks remain
 report-only unless the optional approval-gated update/stale workflow is enabled from the Forward-side runtime with a
 verified signed package, exact approval file, and explicit mutation budgets.
 
@@ -138,6 +153,7 @@ For automation, run the same importer from a scheduled Forward-side job or conne
 - read-only access to a package URL published by Dynatrace or by an approved package handoff workflow
   (`docs/package-handoff.md`)
 - Forward credentials stored only in the Forward-side runtime
+- a required `forwardAccessProfile` matching the package: `read-only`, `network-operator`, or `network-admin`
 - a configured Forward network ID
 - alerting on validation failure, drift, stale checks, and import failure
 
@@ -168,7 +184,17 @@ cp config/forward-connector.config.example.json /secure/path/forward-connector.c
 npm run forward:import -- --config /secure/path/forward-connector.config.json
 ```
 
+Start from the example matching the Forward credential:
+
+- `config/forward-connector.config.example.json`: Read Only
+- `config/forward-connector.network-operator.config.example.json`: Network Operator
+- `config/forward-connector.network-admin.config.example.json`: Network Admin, shipped with apply disabled for the
+  mandatory dry-run and approval setup
+
 Do not store Forward user, password, or token values in the config file.
+Read Only and Network Operator connector profiles never write intent checks. Network Admin may create missing checks;
+changed-check replacement remains signed, exact-approval-gated, change-window-bound, and budgeted. Stale retirement is
+a separate deletion policy.
 Use `config/forward-connector.signed.config.example.json` when the package handoff requires detached signature
 verification.
 

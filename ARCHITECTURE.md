@@ -14,8 +14,9 @@ Dynatrace app/workflow
   -> deterministic signed/checksummed package
   -> customer-approved handoff
   -> Forward-side importer or connector
+  -> enforce Read Only, Network Operator, or Network Admin profile
   -> validate + read existing checks + reconcile
-  -> create missing checks only by default
+  -> Network Admin creates missing checks and performs exact-approved updates
   -> sanitized status/evidence events
   -> Dynatrace display and query-back
 ```
@@ -42,12 +43,13 @@ checks, or own committed Forward NQE Library content.
 2. Package construction is deterministic and independent of Forward credentials.
 3. Forward-side runtimes validate packages before any Forward API call.
 4. Reconciliation reads current Forward state before planning changes.
-5. Apply is create-missing-only unless a signed package, exact-key approval, change window, and mutation budgets allow
-   update/stale actions.
-6. Detailed Forward topology stays inside the Forward-controlled boundary; return paths publish bounded aggregates.
-7. Customer deployment systems may consume checksummed evidence and enforce promotion decisions outside Forward and
+5. Read Only and Network Operator never call intent-check write APIs. Network Admin may create missing checks; changed
+   checks still require a signed package, exact-key approval, change window, and mutation budget.
+6. Stale-check retirement is a separate deletion policy and is never implied by Network Admin synchronization.
+7. Detailed Forward topology stays inside the Forward-controlled boundary; return paths publish bounded aggregates.
+8. Customer deployment systems may consume checksummed evidence and enforce promotion decisions outside Forward and
    Dynatrace.
-8. Every live proof records environment, correlation IDs, Forward network/snapshot IDs, counts, and provenance.
+9. Every live proof records environment, correlation IDs, Forward network/snapshot IDs, counts, and provenance.
 
 ## Primary Data Paths
 

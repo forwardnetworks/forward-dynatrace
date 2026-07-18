@@ -24,6 +24,7 @@ export interface NqeDependencyContext {
 }
 
 export interface ForwardNqePreviewRequest {
+  forwardAccessProfile: "read-only" | "network-operator" | "network-admin";
   forwardBaseUrl?: string;
   forwardNetworkId?: string;
   snapshotId?: string;

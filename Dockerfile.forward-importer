@@ -6,6 +6,7 @@ COPY package.json package-lock.json ./
 COPY scripts/forward-import-package.mjs ./scripts/forward-import-package.mjs
 COPY scripts/forward-import-plan.mjs ./scripts/forward-import-plan.mjs
 COPY lib/managed-check-identity.mjs ./lib/managed-check-identity.mjs
+COPY lib/forward-access-profile.mjs ./lib/forward-access-profile.mjs
 COPY lib/forward-authorization.mjs ./lib/forward-authorization.mjs
 COPY scripts/publish-forward-package.mjs ./scripts/publish-forward-package.mjs
 COPY scripts/forward-handoff-server.mjs ./scripts/forward-handoff-server.mjs

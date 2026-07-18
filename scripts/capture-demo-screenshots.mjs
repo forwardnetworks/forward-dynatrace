@@ -248,13 +248,31 @@ const main = async () => {
     }
     await capture(page, "01-overview.jpg");
 
-    const fields = page.getByRole("textbox");
-    await fields.nth(1).fill("https://forward.example.com");
-    await fields.nth(2).fill("123");
-    await fields.nth(3).fill(demoQueryId);
+    await page.getByPlaceholder("Not stored; configured in Forward-side runtime")
+      .fill("https://forward.example.com");
+    await page.getByPlaceholder("123").fill("123");
+    await page.getByPlaceholder("Not configured").fill(demoQueryId);
 
-    await page.getByRole("button", { name: "Check endpoint mapping" }).click();
-    await page.getByText("Forward resolved both dependency endpoints.").first().waitFor();
+    const networkAdminControl = page.locator("label").filter({ hasText: "Network Admin" });
+    if (await networkAdminControl.count() !== 1) {
+      throw new Error("Capture harness expected exactly one Network Admin profile control.");
+    }
+    await networkAdminControl.click();
+    await page.getByText(
+      "Reconcile and create or approval-gated update managed intent checks from the Forward-side connector.",
+      { exact: true },
+    ).waitFor();
+    const packageInputsPanel = page.locator(".panel", { hasText: "Forward Package Inputs" });
+    await packageInputsPanel
+      .getByText("SYNTHETIC DEMO REHEARSAL", { exact: true })
+      .waitFor();
+    await captureElement(packageInputsPanel, "05-forward-access-profiles.jpg");
+
+    await page.getByRole("button", { name: "Plan endpoint mapping", exact: true }).click();
+    await page.getByText(
+      "Network Admin Forward NQE request is planned for Forward-side execution.",
+      { exact: true },
+    ).waitFor();
     await scrollToPanel(page, "Forward Host Resolution And Path Evidence");
     await page.locator(".panel", { hasText: "Forward Host Resolution And Path Evidence" })
       .getByText("SYNTHETIC DEMO REHEARSAL", { exact: true }).waitFor();
@@ -262,7 +280,10 @@ const main = async () => {
 
     await scrollRootTo(page, 0);
     await page.getByRole("button", { name: "Build resolved package" }).click();
-    await page.getByText("Forward bulk intent package is ready.").waitFor();
+    await page.getByText(
+      "Forward intent package is ready for Network Admin reconciliation and managed create/update policy.",
+      { exact: true },
+    ).waitFor();
     await scrollToPanel(page, "Forward-Centric Ingest Package");
     await page.locator(".panel", { hasText: "Forward-Centric Ingest Package" })
       .locator(".panel-header")
@@ -284,6 +305,7 @@ const main = async () => {
             "docs/assets/screenshots/02-export-package-readiness.jpg",
             "docs/assets/screenshots/03-forward-side-api.jpg",
             "docs/assets/screenshots/04-intent-check-payload.jpg",
+            "docs/assets/screenshots/05-forward-access-profiles.jpg",
           ],
         },
         null,

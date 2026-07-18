@@ -14,6 +14,7 @@ export interface ForwardIngestStatusArtifact {
   durationMs?: number;
   packageId?: string;
   mode?: string;
+  forwardAccessProfile?: "read-only" | "network-operator" | "network-admin";
   importState?: ForwardImportState;
   packageSignature?: {
     status?: string;

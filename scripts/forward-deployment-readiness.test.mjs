@@ -53,7 +53,7 @@ const runJson = async (args, env) => {
   };
 };
 
-const buildPackage = async () => {
+const buildPackage = async (forwardAccessProfile = "read-only") => {
   const outputDir = await mkdtemp(path.join(tmpdir(), "forward-readiness-package-"));
   const dependenciesPath = path.join(outputDir, "dependencies.json");
   await writeFile(dependenciesPath, `${JSON.stringify([dependency], null, 2)}\n`);
@@ -68,6 +68,8 @@ const buildPackage = async () => {
     outputDir,
     "--source-instance-id",
     "dt-readiness-test",
+    "--forward-access-profile",
+    forwardAccessProfile,
   ]);
   assert.equal(buildResult.code, 0, buildResult.stderr);
 
@@ -132,14 +134,15 @@ test("fails Forward dry-run readiness when runtime credentials are missing", asy
   );
 });
 
-test("refuses connector configs with apply enabled", async () => {
-  const pkg = await buildPackage();
+test("forces a Network Admin connector through non-mutating readiness", async () => {
+  const pkg = await buildPackage("network-admin");
   const configPath = path.join(pkg.outputDir, "forward-connector.config.json");
   await writeFile(
     configPath,
     `${JSON.stringify(
       {
         schemaVersion: "forward-dynatrace-connector/v1",
+        forwardAccessProfile: "network-admin",
         checks: pkg.checks,
         manifest: pkg.manifest,
         forwardBaseUrl: "https://forward.example.com",
@@ -164,12 +167,12 @@ test("refuses connector configs with apply enabled", async () => {
   assert.equal(result.code, 1);
   assert.equal(result.json.overallStatus, "failed");
   assert.equal(
-    result.json.gates.find((gate) => gate.id === "connector-mutation-policy")?.status,
-    "fail",
+    result.json.gates.find((gate) => gate.id === "connector-access-profile")?.status,
+    "pass",
   );
   assert.equal(
-    result.json.gates.find((gate) => gate.id === "forward-dry-run")?.status,
-    "skip",
+    result.json.gates.find((gate) => gate.id === "forward-connectivity")?.status,
+    "fail",
   );
 });
 

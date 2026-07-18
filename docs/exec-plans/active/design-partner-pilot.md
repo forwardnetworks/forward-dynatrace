@@ -2,7 +2,7 @@
 
 Status: active
 Owner: Forward product and engineering with Dynatrace tenant, observability, security, and network owners
-Last updated: 2026-07-17
+Last updated: 2026-07-18
 
 ## Objective
 
@@ -35,6 +35,8 @@ bounded results through shared context and tags.
 - [x] Exercise a high-cardinality lab package with 50 observed dependencies and 50 persistent intent checks, including
   create, unchanged, regression, recovery, and live Forward/Grail readback.
 - [ ] Promote the signed app into non-production and validate against authoritative service evidence.
+- [x] Add explicit Read Only, Network Operator, and Network Admin package/runtime profiles with exact match enforcement,
+  profile-aware NQE behavior, non-mutating readiness, and Network Admin-only check synchronization.
 
 ## Plan
 
@@ -171,6 +173,7 @@ Acceptance: ownership and support decisions are written before general availabil
 | 2026-07-17 | Start Site Reliability Guardian with static thresholds. | Auto-adaptive thresholds require validation history before they provide a decision. |
 | 2026-07-17 | Keep the 40–50-node scale profile in the change-demo repository. | This repository stays independently installable and contains no demo-lab orchestration. |
 | 2026-07-17 | Use an opt-in SDLC event publisher mode for Guardian automation. | Lifecycle Guardians require the SDLC stream, while existing batch event consumers remain unchanged. |
+| 2026-07-18 | Offer one workflow with three explicit Forward access profiles. | Design partners can start read-only, add arbitrary NQE under Network Operator, or enable managed check synchronization under Network Admin without changing the Dynatrace trust boundary. |
 
 ## Evidence To Capture
 

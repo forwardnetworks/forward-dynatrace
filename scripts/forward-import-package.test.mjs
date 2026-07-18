@@ -117,6 +117,7 @@ const baseManifest = (checks = [baseCheck]) => ({
   packageId: "dynatrace-forward-test",
   generatedAt: new Date().toISOString(),
   requestedIngestPath: "manual-import",
+  requestedForwardAccessProfile: "read-only",
   source: {
     platform: "dynatrace",
     app: "com.forward.dynatrace",
@@ -272,6 +273,47 @@ test("allows historical snapshot dry-run but forbids historical apply", () => {
         "require-signature": true,
       }),
     /dry-run only/,
+  );
+});
+
+test("enforces Forward RBAC profiles before any intent-check write", () => {
+  for (const forwardAccessProfile of ["read-only", "network-operator"]) {
+    assert.throws(
+      () => validatePolicyArgs({
+        apply: true,
+        "forward-access-profile": forwardAccessProfile,
+      }),
+      /writes require.*network-admin/i,
+    );
+  }
+  assert.doesNotThrow(() => validatePolicyArgs({
+    "forward-access-profile": "network-admin",
+  }));
+  assert.doesNotThrow(() => validatePolicyArgs({
+    apply: true,
+    "forward-access-profile": "network-admin",
+    "require-signature": true,
+  }));
+  assert.throws(
+    () => validatePolicyArgs({
+      apply: true,
+      "apply-updates": true,
+      "forward-access-profile": "network-admin",
+      "require-signature": true,
+    }),
+    /update\/stale apply requires --apply-plan/,
+  );
+  assert.throws(
+    () => validatePolicyArgs({ "forward-access-profile": "super-admin" }),
+    /Unsupported --forward-access-profile/,
+  );
+  assert.throws(
+    () => validateConnectorConfig({
+      schemaVersion: "forward-dynatrace-connector/v1",
+      forwardAccessProfile: "network-operator",
+      apply: true,
+    }),
+    /Only forwardAccessProfile=network-admin/,
   );
 });
 
@@ -605,6 +647,7 @@ test("rejects connector config secrets", () => {
     () =>
       validateConnectorConfig({
         schemaVersion: "forward-dynatrace-connector/v1",
+        forwardAccessProfile: "read-only",
         packageUrl: "https://package.example.com/dynatrace-forward/latest/",
         forwardPassword: "do-not-store",
       }),
@@ -613,6 +656,7 @@ test("rejects connector config secrets", () => {
   assert.throws(
     () => validateConnectorConfig({
       schemaVersion: "forward-dynatrace-connector/v1",
+      forwardAccessProfile: "read-only",
       packageUrl: "https://package.example.com/dynatrace-forward/latest/",
       packageToken: "do-not-store",
     }),
@@ -620,6 +664,7 @@ test("rejects connector config secrets", () => {
   );
   assert.doesNotThrow(() => validateConnectorConfig({
     schemaVersion: "forward-dynatrace-connector/v1",
+    forwardAccessProfile: "read-only",
     packageUrl: "https://package.example.com/dynatrace-forward/latest/",
     packageTokenFile: "/etc/forward-dynatrace/handoff-read-token",
   }));

@@ -5,6 +5,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { assertForwardAccessProfile } from "../lib/forward-access-profile.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const TEMPLATE_SCHEMA = "forward-dynatrace-workflow-template-set/v1";
 const ACTION_NAME = "export-forward-package";
@@ -34,6 +36,7 @@ Usage:
     --schedule-query /secure/queries/customer-dependencies.dql \\
     --problem-query /secure/queries/customer-problem-dependencies.dql \\
     --source-instance-id dt-env-opaque-id \\
+    --forward-access-profile read-only \\
     --output-dir /secure/generated-workflows
 
 Options:
@@ -41,6 +44,8 @@ Options:
   --problem-query path   Customer-owned DQL bound to the triggering event with event().
   --source-instance-id id
                          Stable opaque Dynatrace environment/source identifier.
+  --forward-access-profile name
+                         read-only, network-operator, or network-admin. Default: read-only.
   --output-dir path      Destination for three workflow templates and a checksum manifest.
   --help                 Show help.
 
@@ -67,7 +72,7 @@ const parseArgs = (argv) => {
       args.help = true;
       continue;
     }
-    if (!new Set(["--schedule-query", "--problem-query", "--source-instance-id", "--output-dir"]).has(value)) {
+    if (!new Set(["--schedule-query", "--problem-query", "--source-instance-id", "--forward-access-profile", "--output-dir"]).has(value)) {
       throw new Error(`Unsupported option: ${value}`);
     }
     const next = argv[index + 1];
@@ -105,8 +110,13 @@ const normalizedSourceInstanceId = (value) => {
   return normalized;
 };
 
-const requestExpression = (syncMode, sourceInstanceId) =>
-  `{{ {"sourceInstanceId": "${sourceInstanceId}", "syncMode": "${syncMode}", "dependencies": result("query_dependencies")["records"]} | to_json }}`;
+const normalizedForwardAccessProfile = (value = "read-only") => {
+  const normalized = requiredString(value, "--forward-access-profile", 32);
+  return assertForwardAccessProfile(normalized, "--forward-access-profile");
+};
+
+const requestExpression = (syncMode, sourceInstanceId, forwardAccessProfile) =>
+  `{{ {"sourceInstanceId": "${sourceInstanceId}", "syncMode": "${syncMode}", "forwardAccessProfile": "${forwardAccessProfile}", "dependencies": result("query_dependencies")["records"]} | to_json }}`;
 
 const workflowTemplate = ({
   title,
@@ -114,6 +124,7 @@ const workflowTemplate = ({
   query,
   syncMode,
   sourceInstanceId,
+  forwardAccessProfile,
   appId,
   appVersion,
   trigger,
@@ -149,7 +160,7 @@ const workflowTemplate = ({
         action: `${appId}:${ACTION_NAME}`,
         input: {
           connectionId: "",
-          request: requestExpression(syncMode, sourceInstanceId),
+          request: requestExpression(syncMode, sourceInstanceId, forwardAccessProfile),
         },
         position: { x: 0, y: 2 },
         predecessors: ["query_dependencies"],
@@ -164,12 +175,14 @@ export const buildWorkflowTemplates = ({
   scheduleQuery,
   problemQuery,
   sourceInstanceId: requestedSourceInstanceId,
+  forwardAccessProfile: requestedForwardAccessProfile = "read-only",
 }) => {
   const appId = requiredString(appConfig?.app?.id, "app.config.json app.id", 255);
   const appVersion = requiredString(appConfig?.app?.version, "app.config.json app.version", 64);
   const scheduleDql = validateWorkflowQuery(scheduleQuery);
   const problemDql = validateWorkflowQuery(problemQuery, { problem: true });
   const sourceInstanceId = normalizedSourceInstanceId(requestedSourceInstanceId);
+  const forwardAccessProfile = normalizedForwardAccessProfile(requestedForwardAccessProfile);
   return {
     "forward-package-on-demand.template.json": workflowTemplate({
       title: "Forward dependency package - on demand",
@@ -177,6 +190,7 @@ export const buildWorkflowTemplates = ({
       query: scheduleDql,
       syncMode: "manual-import",
       sourceInstanceId,
+      forwardAccessProfile,
       appId,
       appVersion,
     }),
@@ -186,6 +200,7 @@ export const buildWorkflowTemplates = ({
       query: scheduleDql,
       syncMode: "data-connector",
       sourceInstanceId,
+      forwardAccessProfile,
       appId,
       appVersion,
       trigger: { schedule: { trigger: { type: "interval", intervalMinutes: 15 } } },
@@ -196,6 +211,7 @@ export const buildWorkflowTemplates = ({
       query: problemDql,
       syncMode: "data-connector",
       sourceInstanceId,
+      forwardAccessProfile,
       appId,
       appVersion,
       trigger: {
@@ -225,6 +241,7 @@ export const generateWorkflowTemplates = async ({
   scheduleQueryPath,
   problemQueryPath,
   sourceInstanceId,
+  forwardAccessProfile = "read-only",
   outputDir,
 }) => {
   const [appConfig, scheduleQuery, problemQuery] = await Promise.all([
@@ -237,6 +254,7 @@ export const generateWorkflowTemplates = async ({
     scheduleQuery,
     problemQuery,
     sourceInstanceId,
+    forwardAccessProfile,
   });
   const destination = path.resolve(outputDir);
   await mkdir(destination, { recursive: true, mode: 0o700 });
@@ -271,6 +289,7 @@ export const run = async (argv = process.argv.slice(2)) => {
     scheduleQueryPath: requiredString(args["schedule-query"], "--schedule-query"),
     problemQueryPath: requiredString(args["problem-query"], "--problem-query"),
     sourceInstanceId: normalizedSourceInstanceId(args["source-instance-id"]),
+    forwardAccessProfile: normalizedForwardAccessProfile(args["forward-access-profile"]),
     outputDir: requiredString(args["output-dir"], "--output-dir"),
   });
   process.stdout.write(canonicalJson(manifest));

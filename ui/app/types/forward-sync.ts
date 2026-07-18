@@ -2,6 +2,10 @@ export type ForwardSyncMode =
   | "manual-import"
   | "data-connector"
   | "intent-package";
+export type ForwardAccessProfile =
+  | "read-only"
+  | "network-operator"
+  | "network-admin";
 export type ForwardSyncStatus = "ready" | "blocked";
 export type ForwardLocationFilterType =
   | "HostFilter"
@@ -39,6 +43,7 @@ export interface ForwardSyncRequest {
   forwardBaseUrl?: string;
   forwardNetworkId?: string;
   syncMode: ForwardSyncMode;
+  forwardAccessProfile: ForwardAccessProfile;
   includeReviewRows?: boolean;
   dependencies: DependencyCandidate[];
 }

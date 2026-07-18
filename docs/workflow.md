@@ -11,8 +11,9 @@ a Forward tenant. Forward-side manual import or a Forward-side connector owns al
 
 - A focused view of Dynatrace application dependencies that are candidates for Forward intent.
 - A path preview action that turns a Dynatrace service/problem context into a Forward path query.
-- An optional read-only NQE preview action that plans approved `POST /api/nqe` requests without Forward credentials or
-  Forward network calls in Dynatrace.
+- An optional profile-aware NQE preview action that plans approved `POST /api/nqe` requests without Forward credentials
+  or Forward network calls in Dynatrace. Read Only uses a Forward Library query ID; Network Operator and Network Admin
+  may use approved arbitrary NQE templates.
 - An export action that stages Forward-side ingest input:
   - dependency candidates with source, destination, protocol, port, ownership, confidence, and mapping state.
   - optional NQE metadata when the customer enables the query-ID artifact path.
@@ -30,9 +31,12 @@ flowchart LR
     F --> G["Build manifest + NewNetworkCheck[]"]
     G --> H["Sign and validate package"]
     H --> I["Forward reconcile"]
-    I --> P["Stage immutable plan"]
-    P --> Q["Forward operator approval"]
-    Q --> J["Forward /checks?bulk"]
+    I --> R{"Selected profile"}
+    R -->|"Read Only / Network Operator"| S["Publish reconciliation only"]
+    R -->|"Network Admin create-missing"| J["Forward /checks?bulk"]
+    R -->|"Network Admin update / retire"| P["Stage immutable plan"]
+    P --> Q["Exact operator approval"]
+    Q --> J
     J --> K["Post-apply reconciliation"]
 ```
 
@@ -64,6 +68,13 @@ Eligible dependency rows become persistent `Existential` checks with determinist
 Forward-side ingest.
 
 ![Forward intent check payload](assets/screenshots/04-intent-check-payload.jpg)
+
+### 5. Select The Forward Credential Profile
+
+The package records the customer-selected Read Only, Network Operator, or Network Admin profile. The Forward-side
+runtime must match it exactly; only Network Admin exposes managed intent-check write actions.
+
+![Forward access profiles](assets/screenshots/05-forward-access-profiles.jpg)
 
 ## Standard Forward-Centric Ingest Sequence
 
@@ -101,17 +112,19 @@ Forward-side ingest.
    - `stale`
    - `collision`
 
-10. The Forward-side runtime verifies the package signature and stages an immutable plan containing the package,
-    snapshot, policy, budgets, counts, and exact source-key actions. A Forward operator issues a matching approval for
-    no more than 24 hours.
-11. Forward-side ingest creates missing persistent intent checks in bulk:
+10. Read Only and Network Operator stop after reconciliation and publish status without an intent-check write. Network
+    Admin verifies the package signature and may create newly missing managed checks after explicit runtime activation.
+11. Before replacing changed managed checks or retiring stale checks, Network Admin stages an immutable plan containing
+    the package, snapshot, policy, budgets, counts, and exact source-key actions and requires an exact approval. It then
+    performs the authorized bulk create or replacement:
 
    `POST /api/snapshots/{snapshotId}/checks?bulk`
 
    Body is `NewNetworkCheck[]`. Persistence defaults to true in Forward's API.
 
-12. Forward-side ingest reads the target snapshot again and requires post-apply reconciliation to match the approved
-    plan. A mismatch or unavailable readback fails the run and requires a new plan:
+12. Forward-side ingest reads the target snapshot again and requires post-apply reconciliation to match the requested
+    create set or approved mutation plan. A mismatch or unavailable readback fails the run; changed/stale mutation
+    requires a new plan:
 
    `GET /api/snapshots/{snapshotId}/checks?type=Existential`
 
@@ -123,8 +136,8 @@ mapping confidence only:
 - plan mode builds the request and performs no network call
 - the Dynatrace app function rejects execute mode
 - an approved Forward-side runtime may execute only `POST /api/nqe` and return sanitized aggregate evidence
-- raw-query templates are the default read-only preview path
-- query-ID templates are optional and require a Forward-owned query ID in the runtime allowlist
+- Read Only requires a Forward-owned Library query ID in the runtime allowlist
+- Network Operator and Network Admin may run an approved arbitrary NQE request
 - runtime authorization remains in the Forward-controlled runtime, never a Dynatrace app setting, UI field, or package
   artifact
 - preview failures should lower confidence or mark the row for review, not block package export
@@ -140,7 +153,8 @@ The automated workflow should treat every export as desired state from Dynatrace
 
 Each connector or importer run should compute:
 
-- `new`: a fully owned source key exists in the package but not in Forward. Create it after plan approval.
+- `new`: a fully owned source key exists in the package but not in Forward. A signed, explicitly activated Network
+  Admin runtime may create it automatically.
 - `unchanged`: key and generated fingerprint match. Skip it.
 - `changed`: same key, different generated fingerprint. Replace only through the optional approval-gated policy, or
   report for review.

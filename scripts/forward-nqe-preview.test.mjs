@@ -12,6 +12,7 @@ const { buildForwardNqePreview, default: forwardNqePreviewAppFunction } =
 
 const queryId = "FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const baseRequest = {
+  forwardAccessProfile: "network-operator",
   forwardBaseUrl: "https://forward.example.com",
   forwardNetworkId: "network-1",
   dependency: {
@@ -38,7 +39,7 @@ const execute = async (request, fetchImpl, allowedQueryIds = []) => {
   });
 };
 
-test("plans a credential-free read-only NQE request", async () => {
+test("plans a credential-free Network Operator arbitrary NQE request", async () => {
   const result = await buildForwardNqePreview(baseRequest);
 
   assert.equal(result.status, "planned");
@@ -46,6 +47,23 @@ test("plans a credential-free read-only NQE request", async () => {
   assert.equal(result.requestPreview.path, "/api/nqe?networkId=network-1");
   assert.equal(result.requestPreview.body.query.includes("network.devices"), true);
   assert.equal(JSON.stringify(result.evidence).includes("checkout-api"), true);
+});
+
+test("Read Only requires an approved Forward Library query ID", async () => {
+  const blocked = await buildForwardNqePreview({
+    ...baseRequest,
+    forwardAccessProfile: "read-only",
+  });
+  assert.equal(blocked.status, "blocked");
+  assert.match(blocked.summary, /Library NQE queries.*query ID/);
+
+  const planned = await buildForwardNqePreview({
+    ...baseRequest,
+    forwardAccessProfile: "read-only",
+    templateId: "approved-endpoint-resolution",
+    queryId,
+  });
+  assert.equal(planned.status, "planned");
 });
 
 test("Dynatrace app function blocks execute mode", async () => {
@@ -61,6 +79,7 @@ test("Dynatrace app function blocks execute mode", async () => {
 
 test("plans before Forward target metadata is supplied", async () => {
   const result = await buildForwardNqePreview({
+    forwardAccessProfile: "network-operator",
     dependency: baseRequest.dependency,
     templateId: "endpoint-inventory-smoke",
   });
@@ -82,7 +101,7 @@ test("rejects malformed Forward query IDs during planning", async () => {
 });
 
 test("Forward-side executor requires target metadata", async () => {
-  const request = { templateId: "endpoint-inventory-smoke" };
+  const request = { forwardAccessProfile: "network-operator", templateId: "endpoint-inventory-smoke" };
   const planned = await buildForwardNqePreview(request);
 
   await assert.rejects(
@@ -100,7 +119,7 @@ test("Forward-side executor requires explicit authorization", async () => {
 
   await assert.rejects(
     executeForwardNqePreview({ request: baseRequest, planned }),
-    /valid read-only Authorization value/,
+    /valid Forward Authorization value/,
   );
 });
 

@@ -40,7 +40,8 @@ checks all use their strict `v1` schema. Clean installation is required; there i
 - Emits bounded Forward-managed check-health transitions without publishing unchanged polling cycles.
 - Includes systemd and Kubernetes schedules with durable state for continuous check-health feedback.
 - Correlates explicit Dynatrace vulnerability and Forward exposure evidence into a read-only investigation queue.
-- Supports bulk create-missing-only imports through a Forward-side importer or scheduled connector.
+- Supports explicit Read Only, Network Operator, and Network Admin Forward-side profiles. Only Network Admin can
+  create missing or exact-approved changed intent checks.
 - Optionally emits Forward NQE check and diff artifacts using Forward-controlled query IDs and allowlists.
 - Publishes sanitized aggregate status back to Dynatrace for import state, counts, drift, signature state, and failures.
 
@@ -49,6 +50,7 @@ checks all use their strict `v1` schema. Clean installation is required; there i
 - The Dynatrace app does not mutate Forward.
 - Dynatrace does not store Forward credentials.
 - The importer does not auto-approve changed or stale Forward checks.
+- Read Only and Network Operator never call Forward intent-check write APIs.
 - Status events do not include Forward credentials, hostnames, check names, dependency rows, or Forward API response
   bodies.
 
@@ -77,6 +79,7 @@ npm run acceptance:bundle -- \
   --dependencies shared/demo-dependencies.json \
   --output-dir out/acceptance \
   --source-instance-id dt-acceptance-rehearsal \
+  --forward-access-profile read-only \
   --sync-mode data-connector
 ```
 
@@ -167,6 +170,16 @@ npm run dynatrace:deploy -- \
 For an enterprise install with the default `com.forward.dynatrace` app ID, use
 `--sign-archive` and provide Dynatrace App Toolkit signing OAuth credentials. Full install details are in
 [docs/install.md](docs/install.md).
+
+Use the same checked identity wrapper for sandbox rollback:
+
+```bash
+npm run dynatrace:uninstall -- \
+  --environment-url https://your-environment-id.apps.dynatrace.com/ \
+  --app-id my.forward \
+  --no-open \
+  --non-interactive
+```
 
 ## Forward Import Workflow
 
@@ -298,6 +311,8 @@ proof sources.
 ![Forward-side API sequence](docs/assets/screenshots/03-forward-side-api.jpg)
 
 ![Forward intent check payload](docs/assets/screenshots/04-intent-check-payload.jpg)
+
+![Forward access profiles](docs/assets/screenshots/05-forward-access-profiles.jpg)
 
 ## Development
 

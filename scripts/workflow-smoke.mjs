@@ -163,6 +163,7 @@ const toManifest = (checks, checksText) => ({
   packageId: `dynatrace-forward-${new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14)}`,
   generatedAt: new Date().toISOString(),
   requestedIngestPath: "manual-import",
+  requestedForwardAccessProfile: "network-admin",
   source: {
     platform: "dynatrace",
     app: "com.forward.dynatrace",
@@ -623,6 +624,7 @@ const main = async () => {
       JSON.stringify(
         {
           schemaVersion: "forward-dynatrace-connector/v1",
+          forwardAccessProfile: "network-admin",
           packageUrl: `http://127.0.0.1:${port}/package`,
           forwardBaseUrl: `http://127.0.0.1:${port}`,
           forwardNetworkId: "demo-network",

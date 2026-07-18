@@ -11,6 +11,7 @@ same package importer used by every other deployment model; it does not introduc
 - An atomic lock prevents overlapping runs. A lock older than 120 minutes is treated as abandoned and reclaimed.
 - Forward credentials come only from a root-readable environment file or the scheduler's secret injection.
 - The non-secret connector config keeps changed and stale checks report-only and fails on drift.
+- The package and connector access profiles must match; only Network Admin can pass an apply gate.
 - Each run writes a mode-`0600` log. Import reports, metrics, and sanitized status use the paths in the connector config.
 
 ## Install
@@ -74,7 +75,8 @@ environment-file load, and log redirect intact.
 
 After dry-run acceptance:
 
-1. Set `apply=true` in the local connector config.
+1. Set `forwardAccessProfile=network-admin` and `apply=true` in the local connector config, and generate the package
+   with the matching Network Admin profile.
 2. Add `--allow-apply` to the cron command.
 3. Leave `applyUpdates=false`, `deactivateStale=false`, `maxUpdates=0`, and `maxDeactivations=0` for the initial
    production schedule.

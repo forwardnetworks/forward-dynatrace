@@ -32,7 +32,7 @@ const executionFailure = (planned, summary, httpStatus) => ({
     ...(httpStatus === undefined ? [] : [{ label: "HTTP status", value: String(httpStatus) }]),
   ],
   nextSteps: [
-    "Inspect the Forward-side runtime logs and read-only principal permissions.",
+    "Inspect the Forward-side runtime logs and configured Forward access-profile permissions.",
     "Do not publish raw Forward responses or credentials to Dynatrace.",
     "Issue a new preflight after correcting the Forward-side failure.",
   ],
@@ -53,7 +53,7 @@ export const executeForwardNqePreview = async ({
     throw new Error("Forward-side execution requires Forward URL metadata and a network ID.");
   }
   if (!AUTHORIZATION_PATTERN.test(authorization || "")) {
-    throw new Error("Forward-side execution requires a valid read-only Authorization value.");
+    throw new Error("Forward-side execution requires a valid Forward Authorization value.");
   }
   if (request.queryId && !new Set(allowedQueryIds).has(request.queryId.trim())) {
     throw new Error("Forward NQE query ID is not in the Forward-side runtime allowlist.");

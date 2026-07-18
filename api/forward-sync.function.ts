@@ -10,8 +10,13 @@ import {
   requiredOwnershipTags,
   sourceInstanceTag,
 } from "../lib/managed-check-identity.mjs";
+import {
+  canWriteIntentChecks,
+  isForwardAccessProfile,
+} from "../lib/forward-access-profile.mjs";
 
 type ForwardSyncMode = "manual-import" | "data-connector" | "intent-package";
+type ForwardAccessProfile = "read-only" | "network-operator" | "network-admin";
 type ForwardSyncStatus = "ready" | "blocked";
 type ForwardLocationFilterType =
   | "HostFilter"
@@ -50,6 +55,7 @@ export interface ForwardSyncRequest {
   forwardBaseUrl?: string;
   forwardNetworkId?: string;
   syncMode: ForwardSyncMode;
+  forwardAccessProfile: ForwardAccessProfile;
   includeReviewRows?: boolean;
   dependencies: DependencyCandidate[];
 }
@@ -119,6 +125,7 @@ interface ForwardExportManifest {
   packageId: string;
   generatedAt: string;
   requestedIngestPath: ForwardSyncMode;
+  requestedForwardAccessProfile: ForwardAccessProfile;
   source: {
     platform: "dynatrace";
     app: "com.forward.dynatrace";
@@ -184,7 +191,7 @@ interface ForwardExportManifest {
   workflowOptions: Array<{
     id: "manual-import" | "data-connector";
     owner: "forward-operator" | "forward-side-connector";
-    writesForward: true;
+    writesForward: boolean;
     summary: string;
   }>;
 }
@@ -366,11 +373,45 @@ const toIntentChecks = (
   );
 };
 
-const toPackageId = (generatedAt: string, checksSha256: string): string =>
-  `dynatrace-forward-${generatedAt.replace(/[^0-9]/g, "").slice(0, 14)}-${checksSha256.slice(0, 12)}`;
+const toPackageId = (generatedAt: string, manifestIdentitySha256: string): string =>
+  `dynatrace-forward-${generatedAt.replace(/[^0-9]/g, "").slice(0, 17)}-${manifestIdentitySha256.slice(0, 12)}`;
 
 const sha256Hex = (text: string): string =>
   createHash("sha256").update(text, "utf8").digest("hex");
+
+const toManifestIdentitySha256 = ({
+  payload,
+  generatedAt,
+  exportableDependencies,
+  rejectedDependencyCount,
+  intentCheckCount,
+  intentChecksSha256,
+}: {
+  payload: ForwardSyncRequest;
+  generatedAt: string;
+  exportableDependencies: DependencyCandidate[];
+  rejectedDependencyCount: number;
+  intentCheckCount: number;
+  intentChecksSha256: string;
+}): string => sha256Hex(JSON.stringify({
+  generatedAt,
+  requestedIngestPath: payload.syncMode,
+  requestedForwardAccessProfile: payload.forwardAccessProfile,
+  sourceInstanceId: normalizeSourceInstanceId(payload.sourceInstanceId),
+  forwardBaseUrl: missing(payload.forwardBaseUrl) ? null : payload.forwardBaseUrl.trim(),
+  forwardNetworkId: missing(payload.forwardNetworkId) ? null : payload.forwardNetworkId.trim(),
+  rowCount: payload.dependencies.length,
+  rejectedDependencyCount,
+  readyRowCount: payload.dependencies.filter((dependency) => dependency.mappingState === "ready").length,
+  reviewRowCount: payload.dependencies.filter((dependency) => dependency.mappingState === "review").length,
+  needsMapRowCount: payload.dependencies.filter((dependency) => dependency.mappingState === "needs-map").length,
+  includedReviewRowCount: exportableDependencies.filter(
+    (dependency) => dependency.mappingState === "review",
+  ).length,
+  reviewOverrideEnabled: Boolean(payload.includeReviewRows),
+  intentCheckCount,
+  intentChecksSha256,
+}));
 
 const toExportManifest = ({
   payload,
@@ -389,9 +430,20 @@ const toExportManifest = ({
 }): ForwardExportManifest => ({
   schemaVersion: "forward-dynatrace/v1",
   packageType: "forward-intent-import",
-  packageId: toPackageId(generatedAt, intentChecksSha256),
+  packageId: toPackageId(
+    generatedAt,
+    toManifestIdentitySha256({
+      payload,
+      generatedAt,
+      exportableDependencies,
+      rejectedDependencyCount,
+      intentCheckCount: intentChecks.length,
+      intentChecksSha256,
+    }),
+  ),
   generatedAt,
   requestedIngestPath: payload.syncMode,
+  requestedForwardAccessProfile: payload.forwardAccessProfile,
   source: {
     platform: "dynatrace",
     app: "com.forward.dynatrace",
@@ -461,16 +513,16 @@ const toExportManifest = ({
     {
       id: "manual-import",
       owner: "forward-operator",
-      writesForward: true,
+      writesForward: canWriteIntentChecks(payload.forwardAccessProfile),
       summary:
-        "Download artifacts from Dynatrace, review them, then run Forward-side dry-run/import tooling from a Forward-controlled environment.",
+        "Download artifacts from Dynatrace, review them, then run the profile-gated Forward-side tooling from a Forward-controlled environment.",
     },
     {
       id: "data-connector",
       owner: "forward-side-connector",
-      writesForward: true,
+      writesForward: canWriteIntentChecks(payload.forwardAccessProfile),
       summary:
-        "Forward-side connector pulls the latest package from Dynatrace with read-only Dynatrace access, validates schema, dedupes checks, then performs Forward writes.",
+        "Forward-side connector pulls the latest package with read-only Dynatrace access, validates and reconciles it, then enforces the requested Forward access profile.",
     },
   ],
 });
@@ -502,6 +554,16 @@ const toReadinessChecks = (
         missing(payload.forwardBaseUrl) || missing(payload.forwardNetworkId)
           ? "Optional. Forward URL and network ID can be added during Forward-side import."
           : "Forward URL and network ID are included as package metadata.",
+    },
+    {
+      label: "Forward access profile",
+      status: "ready",
+      detail:
+        payload.forwardAccessProfile === "read-only"
+          ? "Read inventory and paths and execute approved Library NQE query IDs; no intent-check writes."
+          : payload.forwardAccessProfile === "network-operator"
+            ? "Read Only capabilities plus arbitrary NQE execution; no intent-check writes."
+            : "Network Admin may create missing checks and replace changed managed checks only after exact approval.",
     },
     {
       label: "No Dynatrace write credential",
@@ -603,12 +665,32 @@ const buildActions = (
   });
   actions.push({
     method: "POST",
-    path: "/api/snapshots/{latestProcessedSnapshotId}/checks?bulk",
+    path: "/api/nqe",
     purpose:
-      "Forward-side import creates the missing persistent intent checks in bulk with NewNetworkCheck[] JSON.",
-    bodyPreview: `${intentChecks.length} NewNetworkCheck JSON payload(s); persistent defaults to true`,
-    idempotencyKey: "Managed source-instance plus source-key ownership tuple",
+      payload.forwardAccessProfile === "read-only"
+        ? "Read Only may execute approved Forward Library NQE query IDs only."
+        : "Network Operator and Network Admin may execute an approved arbitrary NQE preflight.",
+    bodyPreview:
+      payload.forwardAccessProfile === "read-only"
+        ? "Forward-owned query ID plus bounded parameters"
+        : "Approved bounded NQE query or Forward-owned query ID",
   });
+  if (canWriteIntentChecks(payload.forwardAccessProfile)) {
+    actions.push({
+      method: "POST",
+      path: "/api/snapshots/{latestProcessedSnapshotId}/checks?bulk",
+      purpose:
+        "Network Admin creates missing persistent intent checks in bulk after reconciliation.",
+      bodyPreview: `${intentChecks.length} NewNetworkCheck JSON payload(s); persistent defaults to true`,
+      idempotencyKey: "Managed source-instance plus source-key ownership tuple",
+    });
+    actions.push({
+      method: "DELETE",
+      path: "/api/snapshots/{latestProcessedSnapshotId}/checks/{approvedManagedCheckId}",
+      purpose:
+        "Network Admin replaces a changed managed check only when a signed package, exact approval, change window, and update budget authorize it; the replacement is recreated through /checks?bulk.",
+    });
+  }
   actions.push({
     method: "GET",
     path: "/api/snapshots/{latestProcessedSnapshotId}/checks?type=Existential",
@@ -624,6 +706,22 @@ export default function (
   const generatedAt = new Date().toISOString();
 
   if (payload) {
+    if (!isForwardAccessProfile(payload.forwardAccessProfile)) {
+      return {
+        status: "blocked",
+        summary: "Select a supported Forward access profile.",
+        generatedAt,
+        disclaimer: INTEGRATION_BOUNDARY_DISCLAIMER,
+        exportManifestPreview: "",
+        intentChecksPreview: "",
+        intentCheckCount: 0,
+        rejectedDependencyCount: payload.dependencies?.length || 0,
+        actions: [],
+        readinessChecks: [],
+        workflowTrigger: "Not staged",
+        nextSteps: ["Select Read Only, Network Operator, or Network Admin."],
+      };
+    }
     try {
       normalizeSourceInstanceId(payload.sourceInstanceId);
     } catch (error) {
@@ -644,7 +742,7 @@ export default function (
     }
   }
 
-  if (!payload || payload.dependencies.length === 0) {
+  if (!payload || !Array.isArray(payload.dependencies) || payload.dependencies.length === 0) {
     return {
       status: "blocked",
       summary: "No dependency rows selected for Forward export.",
@@ -717,12 +815,15 @@ export default function (
     (dependency) => dependency.mappingState === "review" &&
       !isExportableDependency(dependency, payload.includeReviewRows),
   );
+  const profileSummary = payload.forwardAccessProfile === "network-admin"
+    ? "Forward intent package is ready for Network Admin reconciliation and managed create/update policy."
+    : `Forward intent package is ready for ${payload.forwardAccessProfile === "read-only" ? "Read Only" : "Network Operator"} reconciliation; no Forward writes are requested.`;
 
   return {
     status: "ready",
     summary: hasForwardTarget
-      ? "Forward bulk intent package is ready. A Forward-side importer or connector owns ingestion."
-      : "Forward import package is ready. Add optional Forward URL and network ID metadata if desired.",
+      ? profileSummary
+      : `${profileSummary} Add optional Forward URL and network ID metadata if desired.`,
     generatedAt,
     disclaimer: INTEGRATION_BOUNDARY_DISCLAIMER,
     exportManifestPreview,
@@ -742,9 +843,15 @@ export default function (
         : [
             "Run Forward-side validate-only and dry-run import before apply.",
           ]),
-      "Import with the Forward-side script, or let a Forward-side connector pull the package.",
-      "Forward-side import resolves the latest processed snapshot, reconciles the source-scoped ownership tuple, rejects name collisions, then calls /checks?bulk.",
-      "Review changed or stale Dynatrace-managed checks before any update or retirement workflow.",
+      "Process with the Forward-side script, or let a Forward-side connector pull the package.",
+      ...(payload.forwardAccessProfile === "network-admin"
+        ? [
+            "Network Admin resolves the latest processed snapshot, reconciles the source-scoped ownership tuple, creates missing checks, and updates changed managed checks only with exact approval.",
+            "Review stale Dynatrace-managed checks separately before any retirement workflow.",
+          ]
+        : [
+            "Read Only and Network Operator profiles reconcile and report without calling Forward intent-check write APIs.",
+          ]),
       "Keep Dynatrace as the mapping source and Forward as the system of record for intent.",
     ],
   };

@@ -10,6 +10,7 @@
     "packageId",
     "generatedAt",
     "requestedIngestPath",
+    "requestedForwardAccessProfile",
     "source",
     "artifacts",
     "integrity",
@@ -26,6 +27,9 @@
     "packageId": { "type": "string", "minLength": 1 },
     "generatedAt": { "type": "string", "format": "date-time" },
     "requestedIngestPath": { "enum": ["manual-import", "data-connector", "intent-package"] },
+    "requestedForwardAccessProfile": {
+      "enum": ["read-only", "network-operator", "network-admin"]
+    },
     "source": {
       "type": "object",
       "additionalProperties": true,

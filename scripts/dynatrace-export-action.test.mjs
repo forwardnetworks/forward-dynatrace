@@ -6,6 +6,7 @@ import {
   buildHandoffPublication,
   createExportForwardPackageAction,
 } from "../actions/export-forward-package.logic.mjs";
+import forwardSync from "../api/forward-sync.function.ts";
 
 const dependency = {
   id: "checkout-orders",
@@ -74,7 +75,7 @@ test("workflow action publishes exact package bytes through a selected write-onl
   const { action, requests } = harness();
   const result = await action({
     connectionId: "connection-1",
-    request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [dependency] },
+    request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", forwardAccessProfile: "read-only", dependencies: [dependency] },
   });
   assert.equal(result.schemaVersion, "forward-dynatrace-workflow-action/v1");
   assert.equal(result.status, "ready");
@@ -104,7 +105,7 @@ test("workflow action accepts expression-resolved JSON text", async () => {
   const { action } = harness();
   const result = await action({
     connectionId: "connection-1",
-    request: JSON.stringify({ sourceInstanceId: "dt-test-environment", syncMode: "manual-import", dependencies: [dependency] }),
+    request: JSON.stringify({ sourceInstanceId: "dt-test-environment", syncMode: "manual-import", forwardAccessProfile: "read-only", dependencies: [dependency] }),
   });
   assert.equal(result.intentCheckCount, 1);
   assert.equal(result.handoff.retentionClass, "nonproduction-30d");
@@ -130,14 +131,50 @@ test("builds deterministic complete publication bytes", () => {
   assert.equal(Buffer.from(first.files[0].contentBase64, "base64").toString("utf8"), intentChecksText);
 });
 
+test("binds immutable package IDs to millisecond time and the complete manifest identity", () => {
+  const originalDate = globalThis.Date;
+  const fixedTime = "2026-07-18T11:50:12.345Z";
+  class FixedDate extends originalDate {
+    constructor(...args) {
+      super(...(args.length > 0 ? args : [fixedTime]));
+    }
+
+    static now() {
+      return new originalDate(fixedTime).getTime();
+    }
+  }
+  globalThis.Date = FixedDate;
+  try {
+    const request = {
+      sourceInstanceId: "dt-test-environment",
+      syncMode: "data-connector",
+      forwardAccessProfile: "read-only",
+      dependencies: [dependency],
+    };
+    const first = forwardSync(request);
+    const repeated = forwardSync(request);
+    const admin = forwardSync({ ...request, forwardAccessProfile: "network-admin" });
+    const firstManifest = JSON.parse(first.exportManifestPreview);
+    const repeatedManifest = JSON.parse(repeated.exportManifestPreview);
+    const adminManifest = JSON.parse(admin.exportManifestPreview);
+
+    assert.equal(firstManifest.packageId, repeatedManifest.packageId);
+    assert.equal(first.exportManifestPreview, repeated.exportManifestPreview);
+    assert.notEqual(firstManifest.packageId, adminManifest.packageId);
+    assert.match(firstManifest.packageId, /^dynatrace-forward-20260718115012345-[a-f0-9]{12}$/u);
+  } finally {
+    globalThis.Date = originalDate;
+  }
+});
+
 test("workflow action rejects empty scope, missing connection, and unsafe connection URLs", async () => {
   const { action } = harness();
   await assert.rejects(
-    action({ connectionId: "connection-1", request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [] } }),
+    action({ connectionId: "connection-1", request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", forwardAccessProfile: "read-only", dependencies: [] } }),
     /No dependency rows selected/,
   );
   await assert.rejects(
-    action({ request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [dependency] } }),
+    action({ request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", forwardAccessProfile: "read-only", dependencies: [dependency] } }),
     /connectionId.*non-empty string/,
   );
   const unsafeAction = createExportForwardPackageAction({
@@ -149,7 +186,7 @@ test("workflow action rejects empty scope, missing connection, and unsafe connec
   await assert.rejects(
     unsafeAction({
       connectionId: "connection-1",
-      request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [dependency] },
+      request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", forwardAccessProfile: "read-only", dependencies: [dependency] },
     }),
     /must use HTTPS/,
   );
@@ -162,7 +199,7 @@ test("workflow action rejects empty scope, missing connection, and unsafe connec
   await assert.rejects(
     weakTokenAction({
       connectionId: "connection-1",
-      request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [dependency] },
+      request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", forwardAccessProfile: "read-only", dependencies: [dependency] },
     }),
     /at least 16 characters/,
   );
@@ -175,7 +212,7 @@ test("workflow action rejects empty scope, missing connection, and unsafe connec
   await assert.rejects(
     extendedConnectionAction({
       connectionId: "connection-1",
-      request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [dependency] },
+      request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", forwardAccessProfile: "read-only", dependencies: [dependency] },
     }),
     /unsupported fields: unexpected/,
   );
@@ -207,7 +244,7 @@ test("workflow action fails closed on a mismatched handoff receipt", async () =>
   await assert.rejects(
     action({
       connectionId: "connection-1",
-      request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [dependency] },
+      request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", forwardAccessProfile: "read-only", dependencies: [dependency] },
     }),
     /receipt changed the package ID/,
   );
@@ -216,7 +253,7 @@ test("workflow action fails closed on a mismatched handoff receipt", async () =>
 test("workflow action rejects inconsistent or extended receipts and does not echo failure bodies", async () => {
   const request = {
     connectionId: "connection-1",
-    request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", dependencies: [dependency] },
+    request: { sourceInstanceId: "dt-test-environment", syncMode: "data-connector", forwardAccessProfile: "read-only", dependencies: [dependency] },
   };
   const receiptAction = ({ status = 200, receiptOverrides = {} } = {}) =>
     createExportForwardPackageAction({

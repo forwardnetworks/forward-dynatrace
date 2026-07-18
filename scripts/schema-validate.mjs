@@ -249,6 +249,8 @@ const main = async () => {
   if (!hasExplicitArtifacts) {
     for (const connectorConfig of [
       "config/forward-connector.config.example.json",
+      "config/forward-connector.network-operator.config.example.json",
+      "config/forward-connector.network-admin.config.example.json",
       "config/forward-connector.signed.config.example.json",
       "deploy/docker-compose/forward-connector.config.example.json",
       "deploy/systemd/forward-connector.config.example.json",

@@ -5,6 +5,7 @@
   "durationMs": 2400,
   "packageId": "dynatrace-forward-demo",
   "mode": "dry-run",
+  "forwardAccessProfile": "read-only",
   "importState": "reconciled",
   "packageSignature": {
     "status": "not-provided"

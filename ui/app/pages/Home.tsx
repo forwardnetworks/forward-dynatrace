@@ -35,6 +35,7 @@ import type {
 } from "../types/forward-nqe-preview";
 import type {
   DependencyCandidate,
+  ForwardAccessProfile,
   ForwardSyncMode,
   ForwardSyncRequest,
   ForwardSyncResponse,
@@ -52,18 +53,50 @@ const sampleForwardStatus = demoForwardStatus as ForwardIngestStatusArtifact;
 const dynatraceLogoUrl = "assets/Dynatrace_Logo.svg";
 const forwardLogoUrl = "assets/forward-logo.svg";
 const LIVE_DEPENDENCY_QUERY = `
-fetch events, from: -24h
-| filter event.type == "com.forward.application.dependency"
-| filter \`demo.synthetic\` == false
-| sort timestamp desc
-| dedup dependency.id
-| fields timestamp, \`forward.dynatrace.run_id\`, dependency.id,
-    \`forward.dynatrace.evidence_source\`, \`forward.dynatrace.problem_id\`,
-    \`forward.dynatrace.target.network_id\`, \`forward.dynatrace.target.snapshot_id\`,
-    app.name, app.environment, dt.entity.service, service.name,
-    network.source.label, network.source, network.destination.label,
-    network.destination, network.protocol, network.port,
-    owner.team, criticality, dependency.confidence, dependency.mapping_state
+fetch spans, from: now()-15m
+| filter forward.observation.method == "instrumented-transaction"
+| filter span.kind == "client"
+| join [
+    fetch spans, from: now()-15m
+    | filter forward.observation.method == "instrumented-transaction"
+    | filter span.kind == "server"
+    | fields trace.id, modeledServiceName = service.name, modeledServiceEntityId = dt.smartscape.service
+  ],
+  kind: leftOuter,
+  on: { trace.id },
+  fields: { modeledServiceName, modeledServiceEntityId }
+| summarize {
+    transactions = count(),
+    failedTransactions = countIf(span.status_code == "error"),
+    modeledServiceEntityId = takeAny(modeledServiceEntityId)
+  }, by: {
+    id = forward.dependency.id,
+    sourceService = service.name,
+    sourceAddress = forward.network.source.address,
+    destinationService = forward.network.destination.label,
+    destinationAddress = forward.network.destination.address,
+    destinationPort = server.port,
+    transport = network.transport
+  }
+| fieldsAdd
+    \`forward.dynatrace.run_id\` = "live-trace-current-state",
+    \`forward.dynatrace.evidence_source\` = "opentelemetry-instrumented-transaction",
+    \`demo.synthetic\` = false,
+    appName = "Enterprise Containerlab Scale",
+    environment = "lab",
+    serviceEntityId = coalesce(modeledServiceEntityId, destinationService),
+    serviceName = destinationService,
+    sourceLabel = sourceService,
+    source = sourceAddress,
+    destinationLabel = destinationService,
+    destination = destinationAddress,
+    protocol = transport,
+    port = destinationPort,
+    owner = "network-platform",
+    criticality = "high",
+    confidence = 100,
+    mappingState = "ready"
+| sort sourceService asc, destinationService asc
 | limit 500
 `;
 const LIVE_INGEST_STATUS_QUERY = `
@@ -73,6 +106,7 @@ fetch events, from: -24h
 | sort timestamp desc
 | fields timestamp, \`forward.dynatrace.run_id\`, \`forward.dynatrace.package_id\`,
     \`forward.dynatrace.evidence_source\`, \`forward.dynatrace.mode\`,
+    \`forward.dynatrace.access_profile\`,
     \`forward.dynatrace.import_state\`, \`forward.dynatrace.signature_status\`,
     \`forward.dynatrace.target.network_id\`, \`forward.dynatrace.target.snapshot_id\`,
     \`forward.dynatrace.planned_checks\`, \`forward.dynatrace.count.create\`,
@@ -242,6 +276,18 @@ const modeLabel: Record<ForwardSyncMode, string> = {
   "intent-package": "Bulk checks JSON",
 };
 
+const accessProfileLabel: Record<ForwardAccessProfile, string> = {
+  "read-only": "Read Only",
+  "network-operator": "Network Operator",
+  "network-admin": "Network Admin",
+};
+
+const accessProfileDetail: Record<ForwardAccessProfile, string> = {
+  "read-only": "Read inventory and paths; execute approved Library NQE query IDs; never write intent checks.",
+  "network-operator": "Read Only capabilities plus arbitrary NQE execution; never write intent checks.",
+  "network-admin": "Reconcile and create or approval-gated update managed intent checks from the Forward-side connector.",
+};
+
 type WorkflowStageTone = "ready" | "needs-work" | "controlled";
 
 interface WorkflowStageDefinition {
@@ -283,6 +329,8 @@ export const Home = () => {
   >({});
   const [nqePreviewDependencyId, setNqePreviewDependencyId] = useState<string>();
   const [syncMode, setSyncMode] = useState<ForwardSyncMode>("manual-import");
+  const [forwardAccessProfile, setForwardAccessProfile] =
+    useState<ForwardAccessProfile>("read-only");
   const [nqePreviewRequest, setNqePreviewRequest] = useState<
     ForwardNqePreviewRequest | undefined
   >();
@@ -333,8 +381,8 @@ export const Home = () => {
     ["forward.dynatrace.evidence_source"],
     "dynatrace-grail",
   );
-  const liveEvidenceLabel = liveEvidenceSource === "containerlab-live-service-probe"
-    ? "Live containerlab service probes"
+  const liveEvidenceLabel = liveEvidenceSource === "opentelemetry-instrumented-transaction"
+    ? "Live instrumented OpenTelemetry transactions"
     : "Live Dynatrace Grail dependency evidence";
   const liveNetworkId = rowField(
     liveNetworkRow || liveStatusRow || liveDependencyRow,
@@ -489,8 +537,8 @@ export const Home = () => {
       icon: <AutomationEngineIcon />,
       label: "Import",
       title: "Forward-side workflow",
-      value: modeLabel[syncMode],
-      detail: "validate, dry-run, apply outside Dynatrace",
+      value: accessProfileLabel[forwardAccessProfile],
+      detail: `${modeLabel[syncMode]} · capability enforced outside Dynatrace`,
       tone: "controlled",
     },
     {
@@ -551,6 +599,7 @@ export const Home = () => {
       forwardBaseUrl,
       forwardNetworkId,
       syncMode: "data-connector",
+      forwardAccessProfile,
       includeReviewRows: false,
       dependencies: effectiveDependencies,
     });
@@ -558,6 +607,7 @@ export const Home = () => {
     captureMode,
     effectiveDependencies,
     forwardBaseUrl,
+    forwardAccessProfile,
     forwardNetworkId,
     isLiveSource,
     sourceInstanceId,
@@ -580,6 +630,7 @@ export const Home = () => {
   function planEvidence(dependency = activeDependency) {
     if (!dependency) return;
     setNqePreviewRequest({
+      forwardAccessProfile,
       forwardBaseUrl,
       forwardNetworkId,
       templateId: "endpoint-inventory-smoke",
@@ -603,6 +654,7 @@ export const Home = () => {
     setActiveDependencyId(dependency.id);
     setNqePreviewDependencyId(dependency.id);
     setNqePreviewRequest({
+      forwardAccessProfile,
       forwardBaseUrl,
       forwardNetworkId,
       templateId: "approved-endpoint-resolution",
@@ -628,6 +680,7 @@ export const Home = () => {
       forwardBaseUrl,
       forwardNetworkId,
       syncMode,
+      forwardAccessProfile,
       includeReviewRows,
       dependencies: showcaseMode ? showcaseDependencies : effectiveDependencies,
     });
@@ -675,7 +728,12 @@ export const Home = () => {
           </div>
         </div>
         <div className="hero-actions">
-          <Button color="primary" variant="emphasized" onClick={buildExportPackage}>
+          <Button
+            color="primary"
+            variant="emphasized"
+            disabled={!sourceInstanceId.trim()}
+            onClick={buildExportPackage}
+          >
             <Button.Prefix>
               <SyncIcon />
             </Button.Prefix>
@@ -694,8 +752,9 @@ export const Home = () => {
         <Strong>Integration boundary</Strong>
         <span>
           Dynatrace supplies application dependency evidence and exports a credential-free intent package.
-          Forward imports that package manually, or a Forward-side connector pulls it. The Dynatrace app
-          never stores Forward credentials and never writes to Forward.
+          Forward imports that package manually, or a Forward-side connector pulls it under an explicit
+          Read Only, Network Operator, or Network Admin profile. The Dynatrace app never stores Forward
+          credentials and never writes to Forward.
         </span>
       </section>
 
@@ -706,14 +765,14 @@ export const Home = () => {
               ? "Checked replay dependency data"
               : isLiveSource
                 ? liveEvidenceLabel
-                : "No explicit live dependency rows"}
+                : "No live instrumented dependency rows"}
           </Strong>
           <span>
             {captureMode
               ? `${dependencies.length} saved rows for the credential-free rehearsal; live Grail remains the production source.`
               : isLiveSource
                 ? `${liveDependencies.length} deduplicated live rows from ${liveRunId}; source ${liveEvidenceSource}.`
-                : "Only live rows with demo.synthetic=false are eligible; saved rehearsal data is disabled."}
+                : "Only current instrumented spans are eligible; saved rehearsal data is disabled."}
           </span>
         </div>
         <div className="source-actions">
@@ -924,6 +983,7 @@ export const Home = () => {
             icon={<UploadIcon />}
             title="Forward Package Inputs"
             detail="Dependency candidates and package metadata"
+            badge={captureMode ? "SYNTHETIC DEMO REHEARSAL" : undefined}
           />
           <div className="field-grid">
             <label>
@@ -933,6 +993,9 @@ export const Home = () => {
                 onChange={setSourceInstanceId}
                 placeholder="dt-production-us"
               />
+              <small>
+                Required. Use one stable opaque ID for this Dynatrace source; do not use a run ID.
+              </small>
             </label>
             <label>
               <span>Dynatrace problem</span>
@@ -986,6 +1049,25 @@ export const Home = () => {
             </ToggleButtonGroup>
           </div>
 
+          <div className="mode-control">
+            <span>Forward access profile</span>
+            <ToggleButtonGroup
+              value={forwardAccessProfile}
+              onChange={(value) => setForwardAccessProfile(value as ForwardAccessProfile)}
+            >
+              <ToggleButtonGroup.Item value="read-only">
+                Read Only
+              </ToggleButtonGroup.Item>
+              <ToggleButtonGroup.Item value="network-operator">
+                Network Operator
+              </ToggleButtonGroup.Item>
+              <ToggleButtonGroup.Item value="network-admin">
+                Network Admin
+              </ToggleButtonGroup.Item>
+            </ToggleButtonGroup>
+            <small>{accessProfileDetail[forwardAccessProfile]}</small>
+          </div>
+
           <div className="override-control">
             <Switch
               name="focused-scope"
@@ -1015,7 +1097,12 @@ export const Home = () => {
             </small>
           </div>
 
-          <Button color="primary" variant="accent" onClick={buildExportPackage}>
+          <Button
+            color="primary"
+            variant="accent"
+            disabled={!sourceInstanceId.trim()}
+            onClick={buildExportPackage}
+          >
             <Button.Prefix>
               <SyncIcon />
             </Button.Prefix>
@@ -1171,6 +1258,7 @@ export const Home = () => {
               { label: "Drift", value: `${liveDriftChecks}` },
               { label: "Signature", value: rowField(liveStatusRow, ["forward.dynatrace.signature_status"]) },
               { label: "Mode", value: rowField(liveStatusRow, ["forward.dynatrace.mode"]) },
+              { label: "Forward profile", value: rowField(liveStatusRow, ["forward.dynatrace.access_profile"], "unknown") },
             ]}
             nextSteps={liveDriftChecks === 0
               ? ["No unresolved drift; the current package and Forward snapshot are reconciled."]
@@ -1202,8 +1290,24 @@ export const Home = () => {
         {sync.isLoading && <ProgressCircle aria-label="Loading export package" />}
         {sync.data ? (() => {
           const syncData = sync.data;
-          const intentChecks = JSON.parse(syncData.intentChecksPreview) as unknown[];
-          const intentCheckSample = JSON.stringify(intentChecks.slice(0, 3), null, 2);
+          const hasArtifactPayload =
+            syncData.status === "ready" &&
+            Boolean(syncData.intentChecksPreview.trim()) &&
+            Boolean(syncData.exportManifestPreview.trim());
+          let intentCheckSample = "";
+          let artifactPayloadError = "";
+          if (hasArtifactPayload) {
+            try {
+              const intentChecks = JSON.parse(syncData.intentChecksPreview) as unknown;
+              if (!Array.isArray(intentChecks)) {
+                throw new Error("Intent-check preview is not an array.");
+              }
+              intentCheckSample = JSON.stringify(intentChecks.slice(0, 3), null, 2);
+            } catch {
+              artifactPayloadError =
+                "The package response did not contain a valid intent-check array. Rebuild the package before handoff.";
+            }
+          }
           return (
             <div className="sync-result">
               <ResultBody
@@ -1217,7 +1321,10 @@ export const Home = () => {
                 nextSteps={syncData.nextSteps}
               />
               <p className="result-disclaimer">{syncData.disclaimer}</p>
-              <div className="artifact-actions" aria-label="Export artifacts">
+              {artifactPayloadError && <Paragraph>{artifactPayloadError}</Paragraph>}
+              {hasArtifactPayload && !artifactPayloadError && (
+                <>
+                  <div className="artifact-actions" aria-label="Export artifacts">
                 <Button
                   color="primary"
                   size="condensed"
@@ -1250,53 +1357,55 @@ export const Home = () => {
                   </Button.Prefix>
                   Bulk checks JSON
                 </Button>
-              </div>
-              <div className="readiness-grid" aria-label="Production readiness gates">
-                {syncData.readinessChecks.map((check) => (
-                  <div className="readiness-item" key={check.label}>
-                    <span className={`readiness-dot ${check.status}`} />
+                  </div>
+                  <div className="readiness-grid" aria-label="Production readiness gates">
+                    {syncData.readinessChecks.map((check) => (
+                      <div className="readiness-item" key={check.label}>
+                        <span className={`readiness-dot ${check.status}`} />
+                        <div>
+                          <Strong>{check.label}</Strong>
+                          <small>{check.detail}</small>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="sync-grid">
                     <div>
-                      <Strong>{check.label}</Strong>
-                      <small>{check.detail}</small>
+                      <Heading level={5}>Forward-side ingest sequence</Heading>
+                      <ol className="action-list">
+                        {syncData.actions.map((action) => (
+                          <li key={`${action.method}-${action.path}`}>
+                            <code>{action.method}</code> <span>{action.path}</span>
+                            <p>{action.purpose}</p>
+                            {action.bodyPreview && <small>{action.bodyPreview}</small>}
+                            {action.idempotencyKey && (
+                              <small>Idempotency: {action.idempotencyKey}</small>
+                            )}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                    <div>
+                      <Heading level={5}>Manifest</Heading>
+                      <pre className="json-preview compact">
+                        {syncData.exportManifestPreview}
+                      </pre>
                     </div>
                   </div>
-                ))}
-              </div>
-              <div className="sync-grid">
-                <div>
-                  <Heading level={5}>Forward-side ingest sequence</Heading>
-                  <ol className="action-list">
-                    {syncData.actions.map((action) => (
-                      <li key={`${action.method}-${action.path}`}>
-                        <code>{action.method}</code> <span>{action.path}</span>
-                        <p>{action.purpose}</p>
-                        {action.bodyPreview && <small>{action.bodyPreview}</small>}
-                        {action.idempotencyKey && (
-                          <small>Idempotency: {action.idempotencyKey}</small>
-                        )}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-                <div>
-                  <Heading level={5}>Manifest</Heading>
-                  <pre className="json-preview compact">
-                    {syncData.exportManifestPreview}
-                  </pre>
-                </div>
-              </div>
-              <div className="intent-preview">
-                <div className="intent-preview-heading">
-                  <Heading level={5}>Bulk intent check payload sample</Heading>
-                  {captureMode && (
-                    <span className="evidence-status controlled">SYNTHETIC DEMO REHEARSAL</span>
-                  )}
-                </div>
-                <Paragraph>
-                  Showing 3 of {syncData.intentCheckCount}; the downloaded artifact contains the full package.
-                </Paragraph>
-                <pre className="json-preview">{intentCheckSample}</pre>
-              </div>
+                  <div className="intent-preview">
+                    <div className="intent-preview-heading">
+                      <Heading level={5}>Bulk intent check payload sample</Heading>
+                      {captureMode && (
+                        <span className="evidence-status controlled">SYNTHETIC DEMO REHEARSAL</span>
+                      )}
+                    </div>
+                    <Paragraph>
+                      Showing 3 of {syncData.intentCheckCount}; the downloaded artifact contains the full package.
+                    </Paragraph>
+                    <pre className="json-preview">{intentCheckSample}</pre>
+                  </div>
+                </>
+              )}
             </div>
           );
         })() : (

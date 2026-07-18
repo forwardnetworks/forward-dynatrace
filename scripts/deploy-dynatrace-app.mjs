@@ -24,6 +24,7 @@ Options:
   --environment-url URL   Target Dynatrace Apps URL.
   --app-id ID             Temporary app ID for this deploy. Use my.* for unsigned trial installs.
   --app-version VERSION   Temporary SemVer app version for iterative trial deploys.
+  --uninstall             Remove the selected app identity instead of deploying it.
   --sign-archive          Sign the app archive. Required for non-my.* app IDs.
   --dry-run               Build a distributable archive without installing it.
   --no-open               Do not open a browser.
@@ -53,6 +54,7 @@ const booleanOptions = new Set([
   "--optimize",
   "--sign-archive",
   "--skip-build",
+  "--uninstall",
 ]);
 
 const valueOptions = new Set(["--app-id", "--app-version", "--environment-url"]);
@@ -71,6 +73,7 @@ export const parseArgs = (argv) => {
     optimize: false,
     signArchive: false,
     skipBuild: false,
+    uninstall: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -97,6 +100,7 @@ export const parseArgs = (argv) => {
       if (arg === "--optimize") args.optimize = true;
       if (arg === "--sign-archive") args.signArchive = true;
       if (arg === "--skip-build") args.skipBuild = true;
+      if (arg === "--uninstall") args.uninstall = true;
       continue;
     }
 
@@ -121,7 +125,16 @@ export const validateDeployArgs = (args, defaultAppId, env = process.env) => {
     throw new Error(`Invalid Dynatrace app version: ${args.appVersion}`);
   }
 
-  const isUnsignedDeployAllowed = targetAppId.startsWith("my.") || args.dryRun;
+  if (args.uninstall && args.signArchive) {
+    throw new Error("--uninstall cannot be combined with --sign-archive.");
+  }
+  if (args.uninstall && (args.optimize || args.skipBuild || args.noTypeCheck)) {
+    throw new Error(
+      "--uninstall cannot be combined with build-only options (--optimize, --skip-build, or --no-type-check).",
+    );
+  }
+
+  const isUnsignedDeployAllowed = targetAppId.startsWith("my.") || args.dryRun || args.uninstall;
   if (!args.signArchive && !isUnsignedDeployAllowed) {
     throw new Error(
       [
@@ -145,7 +158,7 @@ export const validateDeployArgs = (args, defaultAppId, env = process.env) => {
 };
 
 const buildDtAppArgs = (args) => {
-  const dtArgs = ["deploy", "--environment-url", args.environmentUrl];
+  const dtArgs = [args.uninstall ? "uninstall" : "deploy", "--environment-url", args.environmentUrl];
   if (args.signArchive) dtArgs.push("--sign-archive");
   if (args.dryRun) dtArgs.push("--dry-run");
   if (args.noOpen) dtArgs.push("--no-open");

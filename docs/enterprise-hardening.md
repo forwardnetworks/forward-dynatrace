@@ -63,8 +63,9 @@ remain explicit release gates.
 - Done operationally: published and independently verified signed `v1.0.2` from commit `de452ad` with immutable
   GitHub Action pins, accountable interim ownership, the single-version support matrix, and protected acceptance record.
 - Done in repo: pin the package, ownership, import-plan, approval, and status contracts to the sole `v1` release.
-- Done in repo: default apply policy is `create-missing-only`; every write requires signed-package verification, a fresh
-  reconciliation, an immutable staged plan, an exact approval no more than 24 hours long, and mutation budgets.
+- Done in repo: default apply policy is `create-missing-only`; every write requires Network Admin, signed-package
+  verification, fresh reconciliation, and the source/network lock. Changed-check replacement and stale retirement
+  additionally require an immutable staged plan, an exact approval no more than 24 hours long, and mutation budgets.
 - Done in repo: serialize apply by source instance and Forward network, reject every identity/name collision, and never
   adopt or mutate an existing check by display name.
 - Done in repo: stop on the first failed write, preserve per-source-key mutation outcomes in the private report,

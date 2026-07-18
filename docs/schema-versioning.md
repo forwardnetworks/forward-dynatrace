@@ -23,6 +23,8 @@ allowlists, and mutation budgets.
 - `packageType = forward-intent-import`
 - `packageId`
 - `generatedAt`
+- `requestedIngestPath`
+- `requestedForwardAccessProfile`
 - `source.platform = dynatrace`
 - `source.writePolicy = dynatrace-never-writes-forward`
 - `artifacts.manifest = forward-dynatrace-manifest.json`
@@ -44,6 +46,10 @@ allowlists, and mutation budgets.
 - `reconciliation.defaultApplyPolicy = create-missing-only`
 - `reconciliation.changedChecks = report-only`
 - `reconciliation.staleChecks = report-only`
+
+Generated `packageId` values use the full millisecond timestamp plus a digest of every variable manifest-identity
+field, including the requested Forward access profile. Two manifests with different policy or target metadata cannot
+claim the same immutable handoff path even when their `NewNetworkCheck[]` bytes are identical.
 
 `forward-dynatrace/v1` includes these explicitly modeled optional artifacts:
 

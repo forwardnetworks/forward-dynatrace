@@ -1,15 +1,15 @@
 {
   "schemaVersion": "forward-dynatrace-connector/v1",
-  "forwardAccessProfile": "read-only",
+  "forwardAccessProfile": "network-operator",
   "packageUrl": "https://package.example.com/dynatrace-forward/latest/",
-  "packageTokenFile": "/run/secrets/handoff-read-token",
+  "packageTokenFile": "/secure/path/handoff-read-token",
   "forwardBaseUrl": "https://forward.example.com",
-  "forwardAuthorizationFile": "/run/secrets/forward-authorization",
+  "forwardAuthorizationFile": "/secure/path/forward-authorization.header",
   "forwardNetworkId": "<network-id>",
   "batchSize": 500,
   "maxRetries": 3,
   "maxPackageAgeMinutes": 1440,
-  "requireSignature": false,
+  "requireSignature": true,
   "failOnDrift": true,
   "apply": false,
   "applyUpdates": false,
@@ -17,7 +17,7 @@
   "maxUpdates": 0,
   "maxDeactivations": 0,
   "lockPath": "/var/lib/forward-dynatrace/forward-apply.lock",
-  "reportPath": "/var/lib/forward-dynatrace/forward-import-report.json",
-  "metricsPath": "/var/lib/forward-dynatrace/forward-import-metrics.prom",
-  "statusArtifactPath": "/var/lib/forward-dynatrace/forward-ingest-status.json"
+  "reportPath": "forward-import-report.json",
+  "metricsPath": "forward-import-metrics.prom",
+  "statusArtifactPath": "forward-ingest-status.json"
 }

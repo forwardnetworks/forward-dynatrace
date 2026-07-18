@@ -18,6 +18,10 @@ import {
 } from "../lib/managed-check-identity.mjs";
 import { loadForwardAuthorization } from "../lib/forward-authorization.mjs";
 import {
+  canWriteIntentChecks,
+  isForwardAccessProfile,
+} from "../lib/forward-access-profile.mjs";
+import {
   DEFAULT_NQE_CHECKS_PATH,
   DEFAULT_NQE_DIFF_REQUESTS_PATH,
   parseQueryIdAllowlist,
@@ -61,8 +65,9 @@ Usage:
 Options:
   --stage-plan path     Write an immutable, snapshot-bound import plan. Requires
                        a verified package signature and performs no Forward writes.
-  --apply              Apply an immutable approved plan. Requires --apply-plan,
-                       --require-approval-file, and --require-signature.
+  --apply              Under Network Admin, create missing managed checks. Requires a
+                       verified package signature. Updates/retirements additionally require
+                       --apply-plan and --require-approval-file.
   --apply-plan path     Previously staged immutable plan to verify before apply.
   --apply-updates      Replace approved changed generated checks. Requires --apply,
                        --require-signature, and --require-approval-file.
@@ -73,7 +78,10 @@ Options:
   --config path         Load non-secret connector/importer settings from JSON.
   --deactivate-stale   Deactivate approved stale generated checks. Requires --apply,
                        --require-signature, and --require-approval-file.
+  --dry-run            Force reconciliation-only behavior even if connector config enables apply.
   --fail-on-drift      Exit non-zero when changed or stale Dynatrace-managed checks are found.
+  --forward-access-profile name
+                       read-only, network-operator, or network-admin. Must match the package.
   --manifest path      Validate the package manifest before importing.
   --manifest-url url    Pull forward-dynatrace-manifest.json from a read-only HTTPS URL.
   --lock-path path      Apply lock file. Defaults to a source/network-scoped file in
@@ -127,7 +135,9 @@ const SUPPORTED_ARGS = new Set([
   "checks-url",
   "config",
   "deactivate-stale",
+  "dry-run",
   "fail-on-drift",
+  "forward-access-profile",
   "help",
   "manifest",
   "manifest-url",
@@ -170,6 +180,7 @@ const parseArgs = (argv) => {
       key === "apply" ||
       key === "apply-updates" ||
       key === "deactivate-stale" ||
+      key === "dry-run" ||
       key === "fail-on-drift" ||
       key === "help" ||
       key === "require-signature" ||
@@ -223,6 +234,19 @@ const validateArgs = (args) => {
 };
 
 export const validatePolicyArgs = (args) => {
+  const accessProfile = args["forward-access-profile"];
+  if (accessProfile && !isForwardAccessProfile(accessProfile)) {
+    throw new Error(`Unsupported --forward-access-profile ${accessProfile}.`);
+  }
+  if (
+    accessProfile &&
+    !canWriteIntentChecks(accessProfile) &&
+    (args.apply || args["apply-updates"] || args["deactivate-stale"])
+  ) {
+    throw new Error(
+      "Forward writes require --forward-access-profile network-admin.",
+    );
+  }
   const hasMutationFlag = Boolean(args["apply-updates"] || args["deactivate-stale"]);
   const staging = Boolean(args["stage-plan"]);
   if (hasMutationFlag && !args.apply && !staging) {
@@ -233,12 +257,12 @@ export const validatePolicyArgs = (args) => {
   if ((args.apply || staging) && !args["require-signature"]) {
     throw new Error("Staging and apply require --require-signature.");
   }
-  if (args.apply && !args["apply-plan"]) {
-    throw new Error("--apply requires --apply-plan.");
+  if (args.apply && hasMutationFlag && !args["apply-plan"]) {
+    throw new Error("Approved update/stale apply requires --apply-plan.");
   }
-  if (args.apply && !args["require-approval-file"]) {
+  if (args.apply && hasMutationFlag && !args["require-approval-file"]) {
     throw new Error(
-      "--apply requires --require-approval-file.",
+      "Approved update/stale apply requires --require-approval-file.",
     );
   }
   if (args["apply-plan"] && !args.apply) {
@@ -368,6 +392,7 @@ const CONNECTOR_CONFIG_KEYS = new Set([
   "checksUrl",
   "deactivateStale",
   "failOnDrift",
+  "forwardAccessProfile",
   "forwardBaseUrl",
   "forwardAuthorizationFile",
   "forwardNetworkId",
@@ -417,6 +442,11 @@ export const validateConnectorConfig = (config) => {
   }
   if (config.schemaVersion !== CONNECTOR_CONFIG_SCHEMA_VERSION) {
     errors.push(`schemaVersion must be ${CONNECTOR_CONFIG_SCHEMA_VERSION}.`);
+  }
+  if (!isForwardAccessProfile(config.forwardAccessProfile)) {
+    errors.push(
+      "forwardAccessProfile must be read-only, network-operator, or network-admin.",
+    );
   }
 
   for (const key of Object.keys(config)) {
@@ -495,6 +525,14 @@ export const validateConnectorConfig = (config) => {
   if (config.batchSize === 0 || config.maxPackageAgeMinutes === 0) {
     errors.push("batchSize and maxPackageAgeMinutes must be greater than zero.");
   }
+  if (
+    !canWriteIntentChecks(config.forwardAccessProfile) &&
+    (config.apply === true || config.applyUpdates === true || config.deactivateStale === true)
+  ) {
+    errors.push(
+      "Only forwardAccessProfile=network-admin may enable Forward intent-check writes.",
+    );
+  }
 
   if (errors.length > 0) {
     throw new Error(
@@ -504,6 +542,7 @@ export const validateConnectorConfig = (config) => {
 };
 
 const toArgsFromConnectorConfig = (config) => ({
+  "forward-access-profile": config.forwardAccessProfile,
   ...(config.apply ? { apply: true } : {}),
   ...(config.applyPlanPath ? { "apply-plan": config.applyPlanPath } : {}),
   ...(config.applyUpdates ? { "apply-updates": true } : {}),
@@ -672,6 +711,7 @@ export const toStatusArtifact = (report) => ({
   runId: report.runId,
   packageId: report.packageId || null,
   mode: report.mode,
+  forwardAccessProfile: report.forwardAccessProfile || null,
   importState: toImportState(report),
   applyPolicy: report.applyPolicy || "validate-only",
   packageIntegrity: report.packageIntegrity || null,
@@ -1565,6 +1605,11 @@ export const validateManifest = (
       }
     }
   }
+  if (!isForwardAccessProfile(manifest.requestedForwardAccessProfile)) {
+    errors.push(
+      "manifest.requestedForwardAccessProfile must be read-only, network-operator, or network-admin.",
+    );
+  }
 
   if (requireObject(manifest.source, "manifest.source", errors)) {
     if (manifest.source.platform !== "dynatrace") {
@@ -1861,6 +1906,14 @@ const main = async () => {
     ? await loadConnectorConfig(rawArgs.config)
     : {};
   const args = mergeConfigArgs(rawArgs, connectorConfig);
+  if (rawArgs["dry-run"]) {
+    delete args.apply;
+    delete args["apply-updates"];
+    delete args["deactivate-stale"];
+    delete args["apply-plan"];
+    delete args["require-approval-file"];
+    delete args["change-window-id"];
+  }
   validateArgs(args);
   validatePolicyArgs(args);
 
@@ -1948,6 +2001,25 @@ const main = async () => {
       maxPackageAgeMinutes,
     });
   }
+  const requestedForwardAccessProfile = manifest?.requestedForwardAccessProfile;
+  const runtimeForwardAccessProfile =
+    args["forward-access-profile"] || requestedForwardAccessProfile;
+  if (
+    requestedForwardAccessProfile &&
+    runtimeForwardAccessProfile !== requestedForwardAccessProfile
+  ) {
+    throw new Error(
+      `Forward access profile mismatch: package requests ${requestedForwardAccessProfile}, runtime is ${runtimeForwardAccessProfile}.`,
+    );
+  }
+  if (
+    (args.apply || args["apply-updates"] || args["deactivate-stale"]) &&
+    !canWriteIntentChecks(runtimeForwardAccessProfile)
+  ) {
+    throw new Error(
+      "Forward intent-check writes require the network-admin access profile.",
+    );
+  }
   const approvalDocument = args["require-approval-file"]
     ? await readJson(args["require-approval-file"])
     : null;
@@ -2004,6 +2076,7 @@ const main = async () => {
     const finishedAt = new Date().toISOString();
     const report = {
       mode: "validate-only",
+      forwardAccessProfile: runtimeForwardAccessProfile || null,
       runId,
       startedAt,
       finishedAt,
@@ -2307,6 +2380,7 @@ const main = async () => {
   const finishedAt = new Date().toISOString();
   const report = {
     mode: apply ? "apply" : args["stage-plan"] ? "stage" : "dry-run",
+    forwardAccessProfile: runtimeForwardAccessProfile || null,
     runId,
     startedAt,
     finishedAt,

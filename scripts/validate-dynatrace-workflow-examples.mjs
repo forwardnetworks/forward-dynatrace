@@ -60,6 +60,7 @@ for (const example of examples) {
   const checks = JSON.parse(result.intentChecksPreview);
   assert.equal(manifest.schemaVersion, "forward-dynatrace/v1");
   assert.equal(manifest.source.instanceId, payload.sourceInstanceId);
+  assert.equal(manifest.requestedForwardAccessProfile, payload.forwardAccessProfile);
   assert.equal(manifest.source.writePolicy, "dynatrace-never-writes-forward");
   assert.equal(manifest.intentChecks.count, checks.length);
   for (const check of checks) {

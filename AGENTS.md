@@ -14,6 +14,7 @@ and executable checks.
 - [docs/exec-plans/active/design-partner-pilot.md](docs/exec-plans/active/design-partner-pilot.md): sandbox, Guardian, scale, and non-production pilot plan.
 - [docs/validation-matrix.md](docs/validation-matrix.md): verified evidence and remaining live-validation gaps.
 - [docs/harness-engineering.md](docs/harness-engineering.md): agent-first working model and repository feedback loops.
+- [docs/collaboration.md](docs/collaboration.md): collaborator setup, review loop, and evidence handoff.
 
 ## Non-Negotiable Boundaries
 

@@ -57,6 +57,47 @@ describe("deploy-dynatrace-app", () => {
     assert.doesNotThrow(() => validateDeployArgs(args, defaultAppId, {}));
   });
 
+  it("allows uninstall for either app identity without signing credentials", () => {
+    const sandbox = parseArgs([
+      "--environment-url",
+      "https://your-environment-id.apps.dynatrace.com/",
+      "--app-id",
+      "my.forward",
+      "--uninstall",
+      "--no-open",
+      "--non-interactive",
+    ]);
+    const production = parseArgs([
+      "--environment-url",
+      "https://your-environment-id.apps.dynatrace.com/",
+      "--uninstall",
+      "--no-open",
+      "--non-interactive",
+    ]);
+
+    assert.doesNotThrow(() => validateDeployArgs(sandbox, defaultAppId, {}));
+    assert.doesNotThrow(() => validateDeployArgs(production, defaultAppId, {}));
+  });
+
+  it("rejects signing and build-only options during uninstall", () => {
+    const base = parseArgs([
+      "--environment-url",
+      "https://your-environment-id.apps.dynatrace.com/",
+      "--app-id",
+      "my.forward",
+      "--uninstall",
+    ]);
+
+    assert.throws(
+      () => validateDeployArgs({ ...base, signArchive: true }, defaultAppId, {}),
+      /cannot be combined with --sign-archive/,
+    );
+    assert.throws(
+      () => validateDeployArgs({ ...base, optimize: true }, defaultAppId, {}),
+      /cannot be combined with build-only options/,
+    );
+  });
+
   it("rejects invalid app IDs", () => {
     const args = parseArgs([
       "--environment-url",

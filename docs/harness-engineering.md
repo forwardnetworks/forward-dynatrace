@@ -12,6 +12,7 @@ knowledge in the repository, treat plans as versioned artifacts, and enforce imp
 - Validation rules are executable when practical.
 - UI evidence should be captured from the running app, not hand-created.
 - The Forward integration boundary is explicit: Dynatrace exports, Forward imports.
+- Collaborator handoffs are repository artifacts, not chat history or private context.
 
 ## Applied To This Repo
 
@@ -25,6 +26,7 @@ knowledge in the repository, treat plans as versioned artifacts, and enforce imp
 | Saved demo replay path | `npm run dynatrace:replay-demo` dry-run by default |
 | Workflow evidence | `npm run demo:capture` writes real browser screenshots under `docs/assets/screenshots/` |
 | Boundary enforcement | Importer validation, create-missing-only policy, no Forward credentials in Dynatrace |
+| Collaborator onboarding | `docs/collaboration.md`, active execution plans, PR checklist, and Node 24 CI |
 
 ## Feedback Loop
 
@@ -33,6 +35,7 @@ knowledge in the repository, treat plans as versioned artifacts, and enforce imp
 3. Update the active execution plan's progress, decisions, and evidence.
 4. If a repeated review comment appears, promote it into `docs/` or `scripts/validate-repo.mjs`.
 5. Keep `docs/validation-matrix.md` current so future work starts from known evidence.
+6. Self-review the diff and drive affected UI journeys before requesting collaborator review.
 
 ## Knowledge Lifecycle
 
@@ -41,6 +44,14 @@ knowledge in the repository, treat plans as versioned artifacts, and enforce imp
 - Completed work moves to `docs/exec-plans/completed/` as an immutable evidence summary.
 - Deferred structural work belongs in the technical-debt tracker with a trigger and exit condition.
 - `npm run repo:validate` checks the map, plan shape, required cross-links, and compactness of `AGENTS.md`.
+- Repeated feedback must graduate into an executable check or a routed repository rule.
+
+## Collaborator Contract
+
+The repository must make the application, logs, schemas, UI journeys, and integration evidence directly inspectable.
+New contributors start from the compact map and progressively disclose only the docs needed for their task. Complex
+work lives in a versioned execution plan; customer or meeting decisions are translated into contracts, tests, and
+decision-log entries. See [Collaboration guide](collaboration.md) for the checked handoff loop.
 
 ## GitOps Expectations
 

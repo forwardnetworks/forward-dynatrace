@@ -1,4 +1,5 @@
 type NqePreviewStatus = "planned" | "ready" | "blocked" | "failed";
+type ForwardAccessProfile = "read-only" | "network-operator" | "network-admin";
 type NqeTemplateId =
   | "endpoint-inventory-smoke"
   | "approved-endpoint-resolution"
@@ -23,6 +24,7 @@ interface DependencyContext {
 }
 
 interface ForwardNqePreviewRequest {
+  forwardAccessProfile?: ForwardAccessProfile;
   forwardBaseUrl?: string;
   forwardNetworkId?: string;
   snapshotId?: string;
@@ -76,6 +78,12 @@ const DEFAULT_MAX_ROWS = 25;
 const MAX_RESULT_SAMPLE_ROWS = 5;
 
 const missing = (value: string | undefined): boolean => !value?.trim();
+
+const isForwardAccessProfile = (value: unknown): value is ForwardAccessProfile =>
+  value === "read-only" || value === "network-operator" || value === "network-admin";
+
+const canExecuteArbitraryNqe = (value: ForwardAccessProfile): boolean =>
+  value === "network-operator" || value === "network-admin";
 
 const isForwardQueryId = (value: string): boolean => /^FQ_[A-Fa-f0-9]{40}$/.test(value);
 
@@ -156,6 +164,7 @@ const baseEvidence = (
 ): Array<{ label: string; value: string }> => [
   { label: "Template", value: templateId },
   { label: "Mode", value: "plan" },
+  { label: "Forward profile", value: payload.forwardAccessProfile || "not supplied" },
   { label: "Forward network", value: payload.forwardNetworkId || "not supplied" },
   { label: "Snapshot", value: payload.snapshotId || "latest via network ID" },
   { label: "Query ID", value: payload.queryId || "raw allowlisted template" },
@@ -501,6 +510,27 @@ export const buildForwardNqePreview = (
     body,
   };
 
+  if (!isForwardAccessProfile(request.forwardAccessProfile)) {
+    return blocked(
+      "Select a supported Forward access profile before planning NQE execution.",
+      { ...request, templateId },
+      body,
+      ["Select Read Only, Network Operator, or Network Admin."],
+    );
+  }
+
+  if (!canExecuteArbitraryNqe(request.forwardAccessProfile) && !request.queryId) {
+    return blocked(
+      "Read Only can execute Forward Library NQE queries by approved query ID only.",
+      { ...request, templateId },
+      body,
+      [
+        "Select a committed Forward NQE Library query ID and add it to the Forward-side allowlist.",
+        "Use Network Operator only when customer policy permits arbitrary NQE execution.",
+      ],
+    );
+  }
+
   if (templateId !== "endpoint-inventory-smoke" && !request.queryId) {
     return blocked(
       "This preview template requires an approved Forward NQE Library query ID.",
@@ -524,11 +554,16 @@ export const buildForwardNqePreview = (
   }
 
   const targetSupplied = !missing(request.forwardBaseUrl) && !missing(request.forwardNetworkId);
+  const accessProfileLabel = request.forwardAccessProfile === "read-only"
+    ? "Read Only"
+    : request.forwardAccessProfile === "network-operator"
+      ? "Network Operator"
+      : "Network Admin";
   return {
     status: "planned",
     summary: targetSupplied
-      ? "Read-only Forward NQE request is planned for Forward-side execution."
-      : "Read-only Forward NQE request is planned. Add Forward URL metadata and a network ID before Forward-side execution.",
+      ? `${accessProfileLabel} Forward NQE request is planned for Forward-side execution.`
+      : `${accessProfileLabel} Forward NQE request is planned. Add Forward URL metadata and a network ID before Forward-side execution.`,
     generatedAt,
     templateId,
     requestPreview,
@@ -536,7 +571,7 @@ export const buildForwardNqePreview = (
     nextSteps: [
       ...(targetSupplied ? [] : ["Add Forward URL and network ID metadata before execution."]),
       "Review the NQE request body and dependency parameters.",
-      "Execute only from a Forward-controlled runtime with read-only NQE permission.",
+      `Execute only from a Forward-controlled runtime whose credential matches the ${accessProfileLabel} profile.`,
       "Return only sanitized aggregate evidence to Dynatrace.",
     ],
   };

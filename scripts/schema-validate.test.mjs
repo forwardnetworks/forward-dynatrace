@@ -49,6 +49,7 @@ test("rejects connector configs that contain secret-shaped keys", async () => {
     `${JSON.stringify(
       {
         schemaVersion: "forward-dynatrace-connector/v1",
+        forwardAccessProfile: "read-only",
         forwardPassword: "do-not-store",
       },
       null,

@@ -14,6 +14,7 @@ interface ForwardIngestStatusArtifact {
   durationMs?: number;
   packageId?: string;
   mode?: string;
+  forwardAccessProfile?: "read-only" | "network-operator" | "network-admin";
   importState?: ForwardImportState;
   packageSignature?: {
     status?: string;
@@ -136,6 +137,7 @@ export default async function (payload?: ForwardStatusRequest): Promise<ForwardS
     rows: [
       { label: "Import state", value: state },
       { label: "Mode", value: artifact.mode || "unknown" },
+      { label: "Forward profile", value: artifact.forwardAccessProfile || "unknown" },
       { label: "Package", value: artifact.packageId || "unknown" },
       { label: "Run", value: artifact.runId || "unknown" },
       { label: "Finished", value: artifact.finishedAt || artifact.generatedAt || "unknown" },

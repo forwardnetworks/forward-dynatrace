@@ -79,7 +79,7 @@ test("CLI blocks an apply config before invoking the importer", async () => {
   try {
     await writeFile(
       configPath,
-      `${JSON.stringify({ schemaVersion: "forward-dynatrace-connector/v1", apply: true })}\n`,
+      `${JSON.stringify({ schemaVersion: "forward-dynatrace-connector/v1", forwardAccessProfile: "network-admin", apply: true })}\n`,
     );
     const result = spawnSync(
       process.execPath,
@@ -101,7 +101,7 @@ test("CLI captures importer failure in a protected log and releases its lock", a
   try {
     await writeFile(
       configPath,
-      `${JSON.stringify({ schemaVersion: "forward-dynatrace-connector/v1", apply: false })}\n`,
+      `${JSON.stringify({ schemaVersion: "forward-dynatrace-connector/v1", forwardAccessProfile: "read-only", apply: false })}\n`,
     );
     const result = spawnSync(
       process.execPath,

@@ -8,6 +8,7 @@ listing every document.
 - [Workflow](workflow.md): end-to-end Dynatrace-to-Forward flow and screenshots.
 - [Forward ingest contract](forward-ingest-contract.md): package, reconciliation, and ownership contract.
 - [Harness engineering](harness-engineering.md): agent-first repository model and feedback loop.
+- [Collaboration guide](collaboration.md): branch/worktree workflow, review loop, and evidence handoff.
 
 ## Install, Package, And Release
 

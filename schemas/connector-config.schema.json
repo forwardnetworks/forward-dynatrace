@@ -4,7 +4,7 @@
   "title": "Forward for Dynatrace connector config",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion"],
+  "required": ["schemaVersion", "forwardAccessProfile"],
   "properties": {
     "schemaVersion": { "const": "forward-dynatrace-connector/v1" },
     "apply": { "type": "boolean" },
@@ -17,6 +17,9 @@
     "checksUrl": { "$ref": "#/definitions/httpsUrl" },
     "deactivateStale": { "type": "boolean" },
     "failOnDrift": { "type": "boolean" },
+    "forwardAccessProfile": {
+      "enum": ["read-only", "network-operator", "network-admin"]
+    },
     "forwardBaseUrl": { "$ref": "#/definitions/httpsUrl" },
     "forwardAuthorizationFile": { "$ref": "#/definitions/nonEmptyString" },
     "forwardNetworkId": { "$ref": "#/definitions/nonEmptyString" },

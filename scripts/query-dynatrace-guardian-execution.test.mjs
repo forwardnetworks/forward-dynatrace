@@ -21,9 +21,9 @@ const execution = {
         changeId: "CHG0000006",
         deploymentId: "netlab-wan-recovery",
         network: {
-          networkId: "252606",
-          beforeSnapshotId: "1347438",
-          afterSnapshotId: "1347439",
+          networkId: "12345",
+          beforeSnapshotId: "67890",
+          afterSnapshotId: "67891",
         },
       }),
     },
@@ -60,6 +60,6 @@ test("joins trigger context with Guardian action result", () => {
   assert.equal(output.validationStatus, "pass");
   assert.equal(output.validationSummary.pass, 4);
   assert.equal(output.waitBeforeSeconds, 31);
-  assert.equal(output.afterSnapshotId, "1347439");
+  assert.equal(output.afterSnapshotId, "67891");
   assert.equal(output.objectives[0].name, "Forward validation evidence");
 });

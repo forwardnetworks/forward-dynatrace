@@ -1,6 +1,7 @@
 {
   "sourceInstanceId": "dt-environment-demo",
   "syncMode": "manual-import",
+  "forwardAccessProfile": "read-only",
   "forwardBaseUrl": "",
   "forwardNetworkId": "",
   "dependencies": [

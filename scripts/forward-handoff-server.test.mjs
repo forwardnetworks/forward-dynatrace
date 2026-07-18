@@ -64,6 +64,7 @@ const publication = ({ packageId = "package-1", port = "443", retentionClass = "
     packageId,
     generatedAt,
     requestedIngestPath: "data-connector",
+    requestedForwardAccessProfile: "read-only",
     source: {
       platform: "dynatrace",
       app: "com.forward.dynatrace",

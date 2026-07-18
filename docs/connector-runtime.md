@@ -1,8 +1,8 @@
 # Forward-Side Connector Runtime
 
 The connector runtime is the scheduled process that imports a Dynatrace-generated package into Forward. It runs outside
-Dynatrace, holds Forward credentials, validates the package, reconciles against existing checks, and applies only
-missing checks when `apply` is enabled.
+Dynatrace, holds Forward credentials, validates the package, reconciles against existing checks, and enforces the
+configured Read Only, Network Operator, or Network Admin profile.
 
 The checked primary non-production topology is a single customer-controlled systemd host: handoff ingress,
 scheduled Forward importer, and optional check-health poller run as separate least-privilege
@@ -30,6 +30,9 @@ The runtime needs:
 - write access only to report, metrics, and status-artifact output paths
 
 The connector config must not contain user names, passwords, tokens, or private keys. The importer enforces that rule.
+It must declare `forwardAccessProfile`, and that profile must exactly match the package request. Read Only and Network
+Operator are non-mutating. Network Admin may create missing checks and may replace changed managed checks only when the
+signed-package, exact-approval, change-window, and budget controls are present.
 
 ## systemd Runtime
 
@@ -177,6 +180,9 @@ escalation, uses a read-only root filesystem, and loads Forward credentials only
 
 Default runtime policy should stay conservative:
 
+- `forwardAccessProfile=read-only` for initial install and package/reconciliation acceptance.
+- Use `network-operator` only when arbitrary NQE execution is required.
+- Use `network-admin` only for managed intent synchronization; do not treat it as an NQE convenience role.
 - `apply=false` for first installation and dry-run acceptance.
 - `apply=true` only after the Forward operator approves the package and target network.
 - `failOnDrift=true` for scheduled automation so changed or stale checks block and require review.
@@ -187,6 +193,9 @@ Default runtime policy should stay conservative:
 
 Changed and stale checks remain report-only by default. Optional update and retirement workflows require Forward-side
 approval, a verified signed package, exact approved `source-key:sha256:*` values, and a non-expired approval artifact.
+With `forwardAccessProfile=network-admin`, `apply=true`, and a verified package signature, the scheduled connector may
+create newly missing managed checks automatically. That activation does not authorize changed-check replacement or
+stale-check retirement; those continue to require their explicit flags, immutable plan, and exact approval.
 
 ## Docker Compose Runtime
 

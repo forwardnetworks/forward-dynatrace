@@ -20,6 +20,7 @@ Options:
   --source-instance-id id           Stable opaque Dynatrace source ID. Required.
   --forward-base-url url             Optional Forward URL metadata only; no network calls.
   --forward-network-id id            Optional Forward network ID metadata only; no network calls.
+  --forward-access-profile name      read-only, network-operator, or network-admin. Default: read-only.
   --include-review                   Include mappingState=review rows in generated artifacts.
   --nqe-query-id FQ_...              Include optional NQE check artifact.
   --nqe-diff-query-id FQ_...         Include optional NQE diff request artifact.
@@ -222,6 +223,8 @@ const main = async () => {
     packageDir,
     "--source-instance-id",
     sourceInstanceId,
+    "--forward-access-profile",
+    args["forward-access-profile"] || "read-only",
     "--eligibility-report",
     eligibilityReport,
     "--sync-mode",

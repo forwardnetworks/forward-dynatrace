@@ -72,6 +72,7 @@ export const buildDemoPackageRehearsal = async (outputDir) => {
   const result = forwardSync({
     sourceInstanceId: "dt-demo-rehearsal",
     syncMode: "data-connector",
+    forwardAccessProfile: "read-only",
     dependencies: dependencies.filter((dependency) => dependency.mappingState !== "needs-map"),
   });
 

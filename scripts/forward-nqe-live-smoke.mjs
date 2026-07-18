@@ -5,6 +5,11 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { loadForwardAuthorization } from "../lib/forward-authorization.mjs";
+import {
+  assertForwardAccessProfile,
+  canExecuteArbitraryNqe,
+  canWriteIntentChecks,
+} from "../lib/forward-access-profile.mjs";
 import { executeForwardNqePreview } from "./forward-nqe-executor.mjs";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
@@ -24,6 +29,8 @@ Usage:
 Options:
   --forward-base-url url       Forward base URL.
   --forward-network-id id      Forward network ID for NQE execution.
+  --forward-access-profile name
+                               read-only, network-operator, or network-admin. Default: read-only.
   --snapshot-id id             Optional snapshot ID.
   --approval-file path         Customer approval artifact required with --execute.
   --authorization-file path    File containing the full read-only Authorization header value.
@@ -139,7 +146,9 @@ export const validateLiveSmokeApproval = (approval, request) => {
   }
   requireArrayIncludes(approval, "allowedOperations", "POST /api/nqe");
   requireArrayIncludes(approval, "requiredForwardPermissions", "NetworkOperation.USE_NQE");
-  requireArrayIncludes(approval, "forbiddenForwardPermissions", "NetworkOperation.EDIT_CHECKS");
+  if (!canWriteIntentChecks(request.forwardAccessProfile)) {
+    requireArrayIncludes(approval, "forbiddenForwardPermissions", "NetworkOperation.EDIT_CHECKS");
+  }
   if (request.templateId) {
     requireArrayIncludes(approval, "allowedTemplates", request.templateId);
   }
@@ -170,6 +179,16 @@ const queryIdAllowlist = (args) =>
     (args["allow-query-id"] || []).map((value) => value.trim()).filter(Boolean),
   )];
 
+export const validateNqeAccessProfile = (value, queryId) => {
+  const profile = assertForwardAccessProfile(value, "--forward-access-profile");
+  if (!canExecuteArbitraryNqe(profile) && !queryId) {
+    throw new Error(
+      "Read Only NQE execution requires --query-id for an approved Forward Library query.",
+    );
+  }
+  return profile;
+};
+
 const writeJson = async (filePath, value) => {
   const outputPath = path.resolve(filePath);
   await mkdir(path.dirname(outputPath), { recursive: true });
@@ -185,9 +204,14 @@ const main = async () => {
 
   const forwardBaseUrl = required(args, "forward-base-url");
   const forwardNetworkId = required(args, "forward-network-id");
+  const forwardAccessProfile = validateNqeAccessProfile(
+    args["forward-access-profile"] || "read-only",
+    args["query-id"],
+  );
   const request = {
     forwardBaseUrl,
     forwardNetworkId,
+    forwardAccessProfile,
     ...(args["snapshot-id"] ? { snapshotId: args["snapshot-id"] } : {}),
     templateId: args["template-id"] || "endpoint-inventory-smoke",
     ...(args["query-id"] ? { queryId: args["query-id"] } : {}),
@@ -220,6 +244,7 @@ const main = async () => {
     schemaVersion: "forward-dynatrace-nqe-live-smoke/v1",
     generatedAt: new Date().toISOString(),
     mode: args.execute ? "execute" : "plan",
+    forwardAccessProfile,
     status: result.status,
     summary: result.summary,
     requestPreview: result.requestPreview,

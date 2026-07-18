@@ -200,6 +200,8 @@ const main = async () => {
     "data-connector",
     "--source-instance-id",
     sourceInstanceId,
+    "--forward-access-profile",
+    "network-admin",
   ]);
 
   assert.equal(buildResult.dependencies, dependencyRows);
@@ -210,6 +212,7 @@ const main = async () => {
   const manifest = await readJson(manifestPath);
   const checks = await readJson(checksPath);
   assert.equal(manifest.requestedIngestPath, "data-connector");
+  assert.equal(manifest.requestedForwardAccessProfile, "network-admin");
   assert.equal(manifest.dependencyRows.rowCount, dependencies.length);
   assert.equal(manifest.dependencyRows.rejectedRowCount, rejectedDependencies);
   assert.equal(manifest.intentChecks.count, exportableDependencies.length);

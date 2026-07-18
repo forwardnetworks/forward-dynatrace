@@ -24,4 +24,8 @@ npm run demo:capture
 
 ![Intent check payload](assets/screenshots/04-intent-check-payload.jpg)
 
+## Forward Access Profiles
+
+![Read Only, Network Operator, and Network Admin controls](assets/screenshots/05-forward-access-profiles.jpg)
+
 Every synthetic screenshot keeps its rehearsal label visible. Capture live evidence separately and never replace live provenance with checked fixtures.

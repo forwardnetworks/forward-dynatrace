@@ -57,6 +57,7 @@ const requiredFiles = [
   "docs/index.md",
   "docs/validation-matrix.md",
   "docs/harness-engineering.md",
+  "docs/collaboration.md",
   "docs/gitops.md",
   "docs/demo-data.md",
   "docs/agent-guides/dynatrace-app.md",
@@ -68,6 +69,8 @@ const requiredFiles = [
   "shared/demo-dynatrace-query-rows.json",
   "shared/demo-forward-ingest-status.json",
   "config/forward-connector.config.example.json",
+  "config/forward-connector.network-operator.config.example.json",
+  "config/forward-connector.network-admin.config.example.json",
   "config/forward-connector.signed.config.example.json",
   "config/forward-import.approval.example.json",
   "config/forward-nqe-live-smoke.approval.example.json",
@@ -77,6 +80,8 @@ const requiredFiles = [
   "api/forward-status.function.ts",
   "api/forward-nqe-preview.function.ts",
   "lib/managed-check-identity.mjs",
+  "lib/forward-access-profile.mjs",
+  "lib/forward-access-profile.test.mjs",
   "lib/forward-authorization.mjs",
   "lib/release-reset-authorization.mjs",
   "actions/export-forward-package.action.ts",
@@ -234,6 +239,7 @@ const requiredScreenshots = [
   "docs/assets/screenshots/02-export-package-readiness.jpg",
   "docs/assets/screenshots/03-forward-side-api.jpg",
   "docs/assets/screenshots/04-intent-check-payload.jpg",
+  "docs/assets/screenshots/05-forward-access-profiles.jpg",
 ];
 
 const skippedDirectories = new Set([
@@ -349,6 +355,7 @@ const publicBrandingFiles = [
   "api/forward-status.function.ts",
   "api/forward-nqe-preview.function.ts",
   "docs/harness-engineering.md",
+  "docs/collaboration.md",
   "docs/index.md",
   "docs/exec-plans/README.md",
   "docs/exec-plans/active/customer-production-readiness.md",
@@ -524,6 +531,7 @@ for (const target of [
   "docs/exec-plans/active/design-partner-pilot.md",
   "docs/validation-matrix.md",
   "docs/harness-engineering.md",
+  "docs/collaboration.md",
 ]) {
   if (!agentMap.includes(target)) {
     fail(`AGENTS.md does not point to ${target}.`);
@@ -698,6 +706,20 @@ for (const requiredVerifierBoundary of [
 }
 
 const crossDomainEvidence = await readText("ui/app/components/CrossDomainEvidence.tsx");
+const homePage = await readText("ui/app/pages/Home.tsx");
+for (const requiredLiveSourceBoundary of [
+  'fetch spans, from: now()-15m',
+  'forward.observation.method == "instrumented-transaction"',
+  '"opentelemetry-instrumented-transaction"',
+  'Only current instrumented spans are eligible',
+]) {
+  if (!homePage.includes(requiredLiveSourceBoundary)) {
+    fail(`Dynatrace app must use current instrumented trace evidence: ${requiredLiveSourceBoundary}`);
+  }
+}
+if (homePage.includes('filter event.type == "com.forward.application.dependency"')) {
+  fail("Dynatrace app live dependency source must not depend on seeded dependency events.");
+}
 for (const requiredProvenanceContract of [
   "`forward.dynatrace.evidence_source`, `forward.dynatrace.synthetic`",
   "| filter `forward.dynatrace.synthetic` == false",

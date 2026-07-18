@@ -18,6 +18,7 @@ npm run forward:resolve-hosts -- \
 npm run forward:package -- \
   --dependencies resolved-dependencies.json \
   --source-instance-id <stable-opaque-dynatrace-source-id> \
+  --forward-access-profile read-only \
   --output-dir out/forward-package
 ```
 
@@ -101,6 +102,18 @@ Use `--dry-run` on the readiness command after Forward credentials and network I
 
 ## Stage, Approve, And Apply
 
+The package and connector must declare the same Forward profile:
+
+- `read-only`: validate, resolve, reconcile, and report; Library NQE queries require approved query IDs.
+- `network-operator`: the same non-mutating workflow plus approved arbitrary NQE execution.
+- `network-admin`: the only profile allowed to create or replace managed intent checks.
+
+A Network Admin runtime may automatically create missing checks after a verified package signature and the explicit
+runtime apply gate are configured. Creation remains source/network locked, bounded, idempotent, and followed by live
+readback. It does not require an immutable mutation plan because it adds only absent managed checks.
+
+Stage and exact approval are required before replacing changed checks or retiring stale checks:
+
 ```bash
 npm run forward:import -- \
   --checks forward-intent-checks.json \
@@ -127,7 +140,7 @@ npm run forward:import -- \
   --apply
 ```
 
-Create-missing apply posts:
+Network Admin create-missing apply posts:
 
 ```text
 POST /api/snapshots/{snapshotId}/checks?bulk
@@ -135,7 +148,8 @@ POST /api/snapshots/{snapshotId}/checks?bulk
 
 Body shape is `NewNetworkCheck[]`. The Forward API defaults `persistent` to `true`.
 
-Changed and stale checks remain report-only unless the optional approval-gated update/stale path is enabled.
+Changed and stale checks remain report-only unless the optional approval-gated update/stale path is enabled. Read Only
+and Network Operator reject every apply or mutation configuration before a Forward write can be attempted.
 
 The importer retries transient Forward API responses (`408`, `409`, `425`, `429`, and `5xx`) with bounded backoff.
 Use `--max-retries 0` to disable retries in test harnesses.
@@ -204,7 +218,7 @@ NQE diff requests:
 The importer can also replace changed generated checks and deactivate stale generated checks, but only from the
 Forward-controlled runtime. This path is optional. The base production workflow works without it.
 
-Required gates:
+Required gates for changed-check replacement or stale-check retirement:
 
 - `--apply`
 - `--require-signature` with a verified detached package signature

@@ -5,6 +5,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import forwardSync from "../api/forward-sync.function.ts";
+import { isForwardAccessProfile } from "../lib/forward-access-profile.mjs";
 import {
   DEFAULT_NQE_CHECKS_PATH,
   DEFAULT_NQE_DIFF_REQUESTS_PATH,
@@ -34,6 +35,7 @@ Options:
   --eligibility-report path        Optional dependency eligibility report JSON.
   --include-review                Explicit override: include mappingState=review rows in intent-check artifacts.
   --sync-mode manual-import       manual-import, data-connector, or intent-package.
+  --forward-access-profile name   read-only, network-operator, or network-admin. Default: read-only.
 
 Writes:
   forward-dynatrace-manifest.json
@@ -160,6 +162,10 @@ const main = async () => {
   if (!validSyncModes.has(syncMode)) {
     throw new Error(`Unsupported --sync-mode ${syncMode}.`);
   }
+  const forwardAccessProfile = args["forward-access-profile"] || "read-only";
+  if (!isForwardAccessProfile(forwardAccessProfile)) {
+    throw new Error(`Unsupported --forward-access-profile ${forwardAccessProfile}.`);
+  }
 
   const dependencies = JSON.parse(await readFile(args.dependencies, "utf8"));
   if (!Array.isArray(dependencies)) {
@@ -178,6 +184,7 @@ const main = async () => {
     forwardBaseUrl: args["forward-base-url"],
     forwardNetworkId: args["forward-network-id"],
     syncMode,
+    forwardAccessProfile,
     includeReviewRows,
     dependencies,
   });

@@ -1,6 +1,7 @@
 {
   "sourceInstanceId": "dt-environment-demo",
   "syncMode": "manual-import",
+  "forwardAccessProfile": "network-operator",
   "dependencies": [
     {
       "id": "problem-impacted-inventory-cache",

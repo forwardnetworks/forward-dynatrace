@@ -193,13 +193,6 @@ const gate = ({
 const commandErrorSummary = (result) =>
   (result.stderr || result.error || result.stdout || "Command failed.").trim().slice(0, 1200);
 
-const connectorMutationFields = (config) =>
-  [
-    config.apply ? "apply" : null,
-    config.applyUpdates ? "applyUpdates" : null,
-    config.deactivateStale ? "deactivateStale" : null,
-  ].filter(Boolean);
-
 const runtimeValue = (envName, configValue) => process.env[envName] || configValue;
 
 const writeJson = async (filePath, value) => {
@@ -216,6 +209,9 @@ const buildNqeArgs = (args, config) => {
     "--experimental-strip-types",
     "scripts/forward-nqe-live-smoke.mjs",
   ];
+  if (config.forwardAccessProfile) {
+    commandArgs.push("--forward-access-profile", config.forwardAccessProfile);
+  }
   if (forwardBaseUrl) {
     commandArgs.push("--forward-base-url", forwardBaseUrl);
   }
@@ -261,27 +257,22 @@ const main = async () => {
   const generatedAt = new Date().toISOString();
   const gates = [];
   const connectorConfig = args.config ? await loadConnectorConfig(args.config) : {};
-  const mutationFields = connectorMutationFields(connectorConfig);
+  const forwardAccessProfile = connectorConfig.forwardAccessProfile || "package-declared";
 
   gates.push(
     gate({
-      id: "connector-mutation-policy",
-      label: "Connector mutation policy",
-      status: mutationFields.length > 0 ? "fail" : "pass",
+      id: "connector-access-profile",
+      label: "Connector access profile",
+      status: "pass",
       owner: "forward",
-      summary:
-        mutationFields.length > 0
-          ? `Readiness refuses connector configs with mutation fields enabled: ${mutationFields.join(", ")}.`
-          : "Connector config is non-mutating for readiness validation.",
-      nextStep:
-        mutationFields.length > 0
-          ? "Set apply, applyUpdates, and deactivateStale to false for readiness checks."
-          : undefined,
+      summary: forwardAccessProfile === "package-declared"
+        ? "No connector config supplied; the importer will enforce the package-declared Forward access profile."
+        : `Connector uses the ${forwardAccessProfile} Forward access profile. Readiness forces non-mutating execution.`,
     }),
   );
 
   const validateResult = await runJson(
-    buildImporterArgs(args, ["--validate-only"]),
+    buildImporterArgs(args, ["--dry-run", "--validate-only"]),
   );
   if (validateResult.ok) {
     gates.push(
@@ -336,8 +327,7 @@ const main = async () => {
   let dryRunResult = null;
   const canDryRun =
     Boolean(args["dry-run"]) &&
-    validateResult.ok &&
-    mutationFields.length === 0;
+    validateResult.ok;
   if (args["dry-run"] && !canDryRun) {
     gates.push(
       gate({
@@ -345,11 +335,11 @@ const main = async () => {
         label: "Forward dry-run",
         status: "skip",
         owner: "forward",
-        summary: "Skipped because package validation or mutation-policy gates failed.",
+        summary: "Skipped because package validation failed.",
       }),
     );
   } else if (args["dry-run"]) {
-    dryRunResult = await runJson(buildImporterArgs(args));
+    dryRunResult = await runJson(buildImporterArgs(args, ["--dry-run"]));
     if (dryRunResult.ok) {
       const changed = dryRunResult.json.counts?.changed ?? 0;
       const stale = dryRunResult.json.counts?.stale ?? 0;

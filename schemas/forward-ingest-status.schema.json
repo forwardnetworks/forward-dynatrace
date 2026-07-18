@@ -10,6 +10,7 @@
     "runId",
     "packageId",
     "mode",
+    "forwardAccessProfile",
     "importState",
     "packageSignature",
     "target",
@@ -22,6 +23,9 @@
     "runId": { "$ref": "#/definitions/nullableString" },
     "packageId": { "$ref": "#/definitions/nullableString" },
     "mode": { "$ref": "#/definitions/nullableString" },
+    "forwardAccessProfile": {
+      "enum": ["read-only", "network-operator", "network-admin", null]
+    },
     "importState": { "enum": ["valid", "staged", "reconciled", "needs-review", "applied", "failed", null] },
     "applyPolicy": { "$ref": "#/definitions/nullableString" },
     "packageIntegrity": { "type": ["object", "null"], "additionalProperties": true },

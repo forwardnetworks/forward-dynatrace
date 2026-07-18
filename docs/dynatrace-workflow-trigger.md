@@ -34,6 +34,8 @@ credential or connection ID.
 npm run dynatrace:workflow:generate -- \
   --schedule-query /secure/queries/customer-dependencies.dql \
   --problem-query /secure/queries/customer-problem-dependencies.dql \
+  --source-instance-id dt-production-opaque \
+  --forward-access-profile read-only \
   --output-dir /secure/generated-workflows
 ```
 
@@ -65,6 +67,7 @@ Use a schedule trigger for steady-state desired-state export. The workflow shoul
 
 1. Query or assemble critical production dependency rows.
 2. Run the **Export Forward intent package** action with `syncMode=data-connector`.
+   Set `forwardAccessProfile` to the customer-approved Forward role.
 3. Require the action's checksum-bound handoff receipt; task output alone is not publication evidence.
 4. Leave Forward writes to the Forward-side connector runtime.
 
@@ -95,4 +98,6 @@ Use on-demand export during trials or mapping review. The workflow should:
 - Do not call Forward write APIs from Dynatrace.
 - Keep package handoff read-only from the Forward-side runtime.
 - Preserve manifest and package bytes together so the checksum remains valid.
+- Require the package `forwardAccessProfile` to match the Forward-side connector configuration. A stronger credential
+  must not silently upgrade a Read Only or Network Operator request.
 - Use the status artifact from the Forward-side runtime for read-only Dynatrace display.

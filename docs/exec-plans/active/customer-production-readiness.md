@@ -39,8 +39,14 @@ Cross-product workflow orchestration and combined demonstrations are intentional
   identity migration, or compatibility runtime remains.
 - [x] Replace name-based adoption with the complete managed ownership tuple: product owner, contract version, source
   instance, and deterministic source key. Name and partial-identity conflicts fail closed as collisions.
-- [x] Require a verified signed package, fresh Forward reconciliation, immutable staged plan, exact short-lived approval,
-  bounded mutation policy, and source/network-scoped apply lock for every write.
+- [x] Require a verified signed package, fresh Forward reconciliation, explicit Network Admin activation, bounded batch
+  policy, and source/network-scoped apply lock for create-missing writes. Require an immutable staged plan, exact
+  short-lived approval, and mutation budgets before changed-check replacement or stale retirement.
+- [x] Define and mechanically enforce the three Forward credential profiles: Read Only for Library-query/read paths,
+  Network Operator for arbitrary NQE plus read paths, and Network Admin for managed intent-check synchronization.
+  Package and connector profiles must match exactly; stronger credentials never silently upgrade a package.
+- [x] Adopt the repository-legibility, progressive-disclosure, versioned-plan, and mechanical-invariant practices from
+  OpenAI Harness Engineering, including a checked collaborator guide and expanded pull-request evidence contract.
 - [x] Remove username/password and raw authorization environment inputs. Every Forward-side read or write path accepts
   only a protected mounted Authorization header file and never exposes that value to Dynatrace, reports, or command
   arguments.
@@ -96,6 +102,9 @@ Cross-product workflow orchestration and combined demonstrations are intentional
 | 2026-07-17 | Treat an immutable reconciliation plan as the approval object. | An operator must approve the exact package, snapshot, policy, and source-key action set that is later applied. |
 | 2026-07-17 | Accept Forward authorization only from a protected mounted file. | Dedicated runtime credentials remain outside Dynatrace, process arguments, environment dumps, and repository config. |
 | 2026-07-17 | Permit one audited pre-customer `v1.0.0` release reset. | The old development release must not represent the new production contract; exact retired lineage, a short deadline, one replacement success, and durable verification keep this from becoming a general tag-reuse mechanism. |
+| 2026-07-18 | Model Forward access as Read Only, Network Operator, and Network Admin. | These names match the product's actual RBAC boundary and let one package workflow fail closed against the credential supplied by each customer. |
+| 2026-07-18 | Allow signed Network Admin runtimes to create missing managed checks automatically, while keeping changed and stale mutation exact-approval-gated. | Create and create/update use the same Forward role, but replacement and deletion have materially higher operational risk. |
+| 2026-07-18 | Treat collaborator legibility as a release property. | Plans, rules, validation evidence, and UI journeys must be recoverable from the repository without private chat context. |
 
 ## Evidence To Capture
 

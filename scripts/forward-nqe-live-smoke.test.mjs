@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { validateLiveSmokeApproval } from "./forward-nqe-live-smoke.mjs";
+import {
+  validateLiveSmokeApproval,
+  validateNqeAccessProfile,
+} from "./forward-nqe-live-smoke.mjs";
 
 const request = {
   forwardBaseUrl: "https://forward.example.com",
   forwardNetworkId: "network-1",
+  forwardAccessProfile: "read-only",
   templateId: "endpoint-inventory-smoke",
 };
 
@@ -27,6 +31,19 @@ test("accepts approval for read-only NQE live smoke", () => {
   const result = validateLiveSmokeApproval(validApproval, request);
   assert.equal(result.status, "verified");
   assert.equal(result.credentialModel, "dedicated-read-only-nqe-principal");
+});
+
+test("enforces Library query IDs for Read Only and arbitrary NQE for operator/admin", () => {
+  assert.equal(validateNqeAccessProfile("read-only", "FQ_approved"), "read-only");
+  assert.throws(
+    () => validateNqeAccessProfile("read-only"),
+    /requires --query-id/,
+  );
+  assert.equal(
+    validateNqeAccessProfile("network-operator"),
+    "network-operator",
+  );
+  assert.equal(validateNqeAccessProfile("network-admin"), "network-admin");
 });
 
 test("rejects expired approval", () => {

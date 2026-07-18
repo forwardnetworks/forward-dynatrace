@@ -32,8 +32,9 @@ Record these values in the protected acceptance record before testing:
   shared non-production tenant.
 - [ ] Assign the roles in [rbac.md](rbac.md) to named groups or service principals.
 - [ ] Confirm the Dynatrace app has no Forward credential and cannot call a Forward write endpoint.
-- [ ] Provision separate handoff publisher, handoff reader, Forward read-only/NQE, and Forward check-write identities
-  where those lanes are enabled.
+- [ ] Select and record one Forward profile per connector: Read Only, Network Operator, or Network Admin. Provision
+  separate handoff publisher and reader identities, and use separate Forward runtime identities where those lanes are
+  enabled.
 - [ ] Store authorization headers and signing keys in the customer secret manager; verify rotation and audit ownership.
 
 ## 3. Validate Real Dependency Evidence
@@ -54,12 +55,15 @@ Record these values in the protected acceptance record before testing:
 - [ ] Confirm endpoint resolution has no unexplained ambiguous mappings and the target has a processed snapshot.
 - [ ] Record create, unchanged, changed, stale, collision, and unresolved counts before approval.
 
-## 5. Stage, Approve, And Apply
+## 5. Activate Create-Missing Or Approve Mutation
 
-- [ ] Stage an immutable import plan from the exact signed package and current Forward reconciliation.
-- [ ] Have an authorized reviewer approve the exact package, network, snapshot, source instance, plan digest, action set,
-  policy, mutation budgets, and validity window.
-- [ ] Apply the default `create-missing-only` policy with the source/network lock enabled.
+- [ ] Confirm the package and connector profiles match exactly; Read Only and Network Operator must reject apply.
+- [ ] For Network Admin create-missing automation, verify the signed package, explicitly activate apply, and retain the
+  source/network lock and bounded batch limits.
+- [ ] Before changed-check replacement or stale retirement, stage an immutable import plan from the exact signed
+  package and current reconciliation.
+- [ ] Have an authorized reviewer approve the exact package, network, snapshot, source instance, plan digest, action
+  set, policy, mutation budgets, and validity window.
 - [ ] Confirm the importer stops on the first failed write and never adopts a check by display name.
 - [ ] Confirm post-apply readback reconciles every approved action before the run reports success.
 - [ ] Rerun the same package and confirm zero creates, zero unexplained drift, and all managed checks unchanged.

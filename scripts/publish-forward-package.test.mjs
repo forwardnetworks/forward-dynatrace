@@ -50,6 +50,7 @@ const writePackage = async (directory, { packageId = "package-1", port = "443", 
     packageId,
     generatedAt: new Date().toISOString(),
     requestedIngestPath: "data-connector",
+    requestedForwardAccessProfile: "read-only",
     source: {
       platform: "dynatrace",
       app: "com.forward.dynatrace",

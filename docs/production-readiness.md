@@ -11,6 +11,8 @@ the integration as generally available.
 - Keep Forward credentials in a runtime secret store, not in connector config.
 - Keep tenant URLs, private token filenames, OAuth callback URLs, and customer-specific references out of GitHub.
 - Restrict Forward credential scope to the needed tenant/network/API capabilities.
+- Require the package and connector to declare the same explicit Read Only, Network Operator, or Network Admin profile;
+  never infer write authority from a credential that happens to be stronger.
 - Log correlation IDs, not secrets.
 - Verify release checksums, SBOM, and self-managed release signature when present.
 - Pin the Forward-side importer image by GHCR digest after acceptance.
@@ -32,10 +34,13 @@ the integration as generally available.
 - Reconcile only by complete ownership tuple and source key; reject name collisions.
 - Fingerprint generated fields so result/status/timestamp fields do not cause false drift.
 - Create missing checks only with `POST /api/snapshots/{snapshotId}/checks?bulk`.
+- Permit intent-check creation or replacement only under Network Admin. Read Only and Network Operator must fail
+  closed before a write call.
 - Chunk large `NewNetworkCheck[]` imports and report per-batch status.
 - Keep Forward writes in the manual importer or Forward-side connector, never in the Dynatrace app.
 - Enable optional NQE artifacts only with Forward-owned query IDs and a Forward-side allowlist.
 - Keep update/stale automation disabled by default.
+- Allow signed, explicitly activated Network Admin runtimes to create only missing managed checks automatically.
 - Require a verified signed package, exact approval file, change window when used, and mutation budgets before
   replacing changed generated checks or deactivating stale generated checks.
 
@@ -43,7 +48,8 @@ the integration as generally available.
 
 - Problem workflow: export only impacted app dependencies.
 - Scheduled workflow: refresh critical production mappings.
-- Manual workflow: build package, dry-run the Forward-side importer, review planned creates, then apply.
+- Manual workflow: build package, dry-run the Forward-side importer, review planned creates, then apply with Network
+  Admin when creation is intended.
 - Connector workflow: Forward-side connector pulls the latest package URL, validates manifest and checks, then performs
   deduped bulk check ingest.
 - Runtime workflow: deploy the connector with the systemd or Kubernetes scheduler templates and keep credentials in the
