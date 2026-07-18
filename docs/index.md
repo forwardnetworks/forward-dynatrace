@@ -58,15 +58,18 @@ listing every document.
 ## Security And Readiness
 
 - [Production readiness](production-readiness.md): pre-production checklist.
+- [Customer acceptance checklist](customer-acceptance-checklist.md): evidence-driven non-production promotion gate.
 - [Enterprise hardening](enterprise-hardening.md): control catalog and productization choices.
 - [Threat model](threat-model.md): trust boundaries, threats, and mitigations.
 - [Data handling](data-handling.md): publish-safe data and artifact rules.
 - [RBAC](rbac.md): least-privilege roles and separation.
 - [Validation matrix](validation-matrix.md): automated, live, synthetic, and remaining evidence.
+- [Customer one-pager](customer-one-pager.md): customer-facing value, boundary, deployment, and acceptance summary.
 
 ## Demonstrate And Explain
 
 - [Demo data](demo-data.md): fixture provenance and replay rules.
+- [Standalone live demo runbook](live-demo-runbook.md): real-evidence rehearsal, delivery, reset, and evidence capture.
 
 ## Plan Work
 

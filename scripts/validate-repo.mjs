@@ -31,6 +31,9 @@ const requiredFiles = [
   "docs/forward-api-compatibility.md",
   "docs/forward-importer.md",
   "docs/production-readiness.md",
+  "docs/customer-acceptance-checklist.md",
+  "docs/customer-one-pager.md",
+  "docs/live-demo-runbook.md",
   "docs/enterprise-hardening.md",
   "docs/operations-runbook.md",
   "docs/incident-response.md",
@@ -355,6 +358,9 @@ const publicBrandingFiles = [
   "docs/install.md",
   "docs/app-identities.md",
   "docs/production-readiness.md",
+  "docs/customer-acceptance-checklist.md",
+  "docs/customer-one-pager.md",
+  "docs/live-demo-runbook.md",
   "docs/enterprise-hardening.md",
   "docs/operations-runbook.md",
   "docs/incident-response.md",
@@ -968,6 +974,9 @@ for (const requiredPackagerText of [
   "docs/connector-runtime.md",
   "docs/cron-runtime.md",
   "docs/deployment-readiness.md",
+  "docs/customer-acceptance-checklist.md",
+  "docs/customer-one-pager.md",
+  "docs/live-demo-runbook.md",
   "deploy/systemd/forward-dynatrace-connector.service",
   "deploy/cron",
   "deploy/docker-compose/compose.yaml",
@@ -1112,6 +1121,41 @@ if (!Array.isArray(dashboardTemplate.queries) || dashboardTemplate.queries.lengt
 const textFiles = await walkTextFiles();
 for (const file of textFiles) {
   const content = await readText(file);
+
+  if (path.extname(file) === ".md") {
+    for (const match of content.matchAll(/!?\[[^\]]*\]\(([^)\n]+)\)/gu)) {
+      const rawTarget = match[1].trim();
+      const targetWithFragment = rawTarget.startsWith("<")
+        ? rawTarget.slice(1, rawTarget.indexOf(">"))
+        : rawTarget.split(/\s+/u)[0];
+      if (
+        !targetWithFragment ||
+        targetWithFragment.startsWith("#") ||
+        targetWithFragment.startsWith("//") ||
+        /^[A-Za-z][A-Za-z0-9+.-]*:/u.test(targetWithFragment)
+      ) {
+        continue;
+      }
+      let decodedTarget;
+      try {
+        decodedTarget = decodeURIComponent(targetWithFragment.split("#")[0].split("?")[0]);
+      } catch {
+        fail(`Markdown link target is not valid URI text in ${file}: ${targetWithFragment}`);
+        continue;
+      }
+      if (!decodedTarget) continue;
+      const absoluteTarget = path.resolve(path.dirname(path.join(root, file)), decodedTarget);
+      if (!absoluteTarget.startsWith(`${root}${path.sep}`)) {
+        fail(`Markdown link escapes the repository in ${file}: ${targetWithFragment}`);
+        continue;
+      }
+      try {
+        await stat(absoluteTarget);
+      } catch {
+        fail(`Broken local Markdown link in ${file}: ${targetWithFragment}`);
+      }
+    }
+  }
 
   if (path.extname(file) === ".md" && /forward-snow/iu.test(content)) {
     fail(`Documentation must not depend on a sibling integration repository: ${file}.`);

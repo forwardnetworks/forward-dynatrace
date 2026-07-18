@@ -115,6 +115,6 @@ const result = await queryClient.queryExecute({ body: { query: 'fetch logs | cou
 - `@dynatrace-sdk/client-*`: Query API clients, every service has its own client package
 
 ## Common Tasks
-- **Add Route**: Update `Routes` in [ui/app/App.tsx](ui/app/App.tsx) and add nav item to [ui/app/components/Header.tsx](ui/app/components/Header.tsx)
+- **Add Route**: Update `Routes` in [ui/app/App.tsx](../../ui/app/App.tsx) and add nav item to [ui/app/components/Header.tsx](../../ui/app/components/Header.tsx)
 - **Query Data**: Use `useDql` hook with DQL query string (Dynatrace Query Language)
 - **Style Components**: Import from `@dynatrace/strato-design-tokens/{colors,borders,box-shadows}` for design tokens
