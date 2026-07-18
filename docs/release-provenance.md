@@ -69,6 +69,9 @@ Every `v0.x` tag is a GitHub prerelease and publishes only a versioned GHCR imag
 Promoting a supported `v1.0.0` requires the explicit product, signing, support, and acceptance decisions recorded in
 the active pre-1.0 readiness plan.
 
+The prematurely published `v1.0.0` through `v1.0.2` releases are also marked prerelease and titled `RETIRED`. Their
+immutable tags and evidence remain available for audit only and are special-cased by the verifier as historical input.
+
 ## Verify A Release
 
 Use the checked end-to-end verifier from the matching release source:

@@ -103,6 +103,12 @@ test("requires pre-1.0 releases to remain prereleases", () => {
     () => validateReleaseMetadata({ ...preview, isPrerelease: false }, "v0.10.0"),
     /must be marked as prereleases/u,
   );
+  assert.equal(validateReleaseMetadata({
+    ...releaseMetadata,
+    tagName: "v1.0.2",
+    isPrerelease: true,
+    url: "https://github.com/forwardnetworks/forward-dynatrace/releases/tag/v1.0.2",
+  }, "v1.0.2").tagName, "v1.0.2");
   assert.throws(
     () => validateReleaseMetadata({ ...releaseMetadata, isPrerelease: true }, "v1.1.0"),
     /unexpectedly marked as a prerelease/u,

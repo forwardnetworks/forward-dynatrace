@@ -677,6 +677,7 @@ for (const requiredVerifierBoundary of [
   "--source-ref",
   "--deny-self-hosted-runners",
   "validateAttestationResults",
+  "RETIRED_PRERELEASE_RELEASES",
   "runInvocationURI",
   "runnerEnvironment",
   "tool?.driver?.name",

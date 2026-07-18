@@ -47,7 +47,8 @@ Actions. It is not published to PyPI.
 run, release maturity (`0.x` must be a prerelease), and zero-result Trivy SARIF all verify.
 
 For historical `v1.0.0` verification, the report retains the authorized retired workflow IDs and image digest as a
-durable tombstone. All `v1.0.0` through `v1.0.2` artifacts are retired and must not be installed.
+durable tombstone. All `v1.0.0` through `v1.0.2` artifacts are marked prerelease, titled `RETIRED`, and must not be
+installed.
 
 For a local archive smoke test after `npm run build`:
 

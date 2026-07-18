@@ -12,6 +12,7 @@ import { loadReleaseResetAuthorization } from "../lib/release-reset-authorizatio
 const REPORT_SCHEMA = "forward-dynatrace-published-release-verification/v1";
 const TRIVY_ARTIFACT = "forward-dynatrace-trivy-sarif";
 const DEFAULT_REPOSITORY = "forwardnetworks/forward-dynatrace";
+const RETIRED_PRERELEASE_RELEASES = new Set(["v1.0.0", "v1.0.1", "v1.0.2"]);
 const RELEASE_WORKFLOW = ".github/workflows/release.yml";
 const RELEASE_RUN_LIMIT = 100;
 const SLSA_PROVENANCE = "https://slsa.dev/provenance/v1";
@@ -117,11 +118,12 @@ export const validateReleaseMetadata = (metadata, releaseName, repository = DEFA
   }
   if (metadata.tagName !== releaseName) throw new Error("GitHub release tag does not match the requested tag.");
   if (metadata.isDraft) throw new Error("GitHub release is still a draft.");
-  const prereleaseExpected = releaseName.startsWith("v0.");
+  const prereleaseExpected =
+    releaseName.startsWith("v0.") || RETIRED_PRERELEASE_RELEASES.has(releaseName);
   if (Boolean(metadata.isPrerelease) !== prereleaseExpected) {
     throw new Error(
       prereleaseExpected
-        ? "Pre-1.0 GitHub releases must be marked as prereleases."
+        ? "Pre-1.0 and retired GitHub releases must be marked as prereleases."
         : "GitHub release is unexpectedly marked as a prerelease.",
     );
   }
