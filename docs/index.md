@@ -5,7 +5,7 @@ listing every document.
 
 ## Understand The System
 
-- [Workflow](workflow.md): end-to-end Dynatrace-to-Forward flow and screenshots.
+- [Workflow](workflow.md): end-to-end Dynatrace-to-Forward flow.
 - [Forward ingest contract](forward-ingest-contract.md): package, reconciliation, and ownership contract.
 - [Harness engineering](harness-engineering.md): agent-first repository model and feedback loop.
 - [Collaboration guide](collaboration.md): branch/worktree workflow, review loop, and evidence handoff.
@@ -28,7 +28,6 @@ listing every document.
 - [Dynatrace workflow trigger](dynatrace-workflow-trigger.md): schedule/problem payload contract.
 - [Site Reliability Guardian](site-reliability-guardian.md): lifecycle Guardian, execution context, Monaco package, and acceptance runs.
 - [Dynatrace status dashboard](dynatrace-status-dashboard.md): status events and DQL views.
-- [Screenshots](screenshots.md): real capture and refresh workflow.
 
 ## Build The Forward Evidence And Import Path
 
@@ -66,13 +65,12 @@ listing every document.
 - [Threat model](threat-model.md): trust boundaries, threats, and mitigations.
 - [Data handling](data-handling.md): publish-safe data and artifact rules.
 - [RBAC](rbac.md): least-privilege roles and separation.
-- [Validation matrix](validation-matrix.md): automated, live, synthetic, and remaining evidence.
+- [Validation matrix](validation-matrix.md): automated, live, and remaining evidence.
 - [Customer one-pager](customer-one-pager.md): customer-facing value, boundary, deployment, and acceptance summary.
 
 ## Demonstrate And Explain
 
-- [Demo data](demo-data.md): fixture provenance and replay rules.
-- [Standalone live demo runbook](live-demo-runbook.md): real-evidence rehearsal, delivery, reset, and evidence capture.
+- [Standalone live demo runbook](live-demo-runbook.md): live-evidence prestage, delivery, reset, and evidence capture.
 
 ## Plan Work
 

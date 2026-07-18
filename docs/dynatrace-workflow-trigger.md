@@ -15,7 +15,7 @@ Example payloads live in:
 
 The DQL starter query for dependency candidates lives at:
 
-- `deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql`
+- `deploy/dynatrace-dql/service-dependencies-smartscape.dql` or a customer-owned current-span query
 
 Validate the examples with:
 

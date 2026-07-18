@@ -12,9 +12,9 @@ This matrix records executable coverage and current live evidence for the indepe
 | Check-health transitions | `npm run forward:check-health:test` covers quiet baselines, stable transition IDs, restart safety, bounded publication, and retry behavior. | One customer-approved real failure/recovery pair. |
 | Security correlation | `npm run security:correlate:test` and `npm run dynatrace:security-correlation:publish:test` cover separate evidence facts, traceable identity mappings, bounded queues, and publication. | Customer-approved findings, exposure data, retention, and owner mapping. |
 | Runtime and release | `npm run runtime:validate`, `npm run systemd:install:test`, `npm run github-actions:validate`, release signature/ref/immutability/published-verifier tests, `npm run security:audit`, and `npm run release:package:smoke` cover deployment templates, protected mounted authorization, immutable GitHub Action pins, exact release membership, normal tag immutability, the bounded pre-customer `v1.0.0` reset ledger, and release provenance. Signed customer kit `v1.0.2` and its independent evidence report are published and verified. | Provision the dedicated least-privilege runtime identity and customer platform ownership. |
-| Dynatrace app | `npm run repo:validate`, `npm run dynatrace:deploy:test`, `npm run lint`, and `npm run build` guard the integration boundary, canonical `Forward` / `com.forward.dynatrace` identity, separate `my.forward` sandbox path, direct current-window instrumented-span discovery, explicit live/synthetic rendering, and production bundle. | Install `my.forward` in a sandbox with live instrumented traces, then verify the signed `com.forward.dynatrace` archive in non-production. |
+| Dynatrace app | `npm run repo:validate`, `npm run dynatrace:deploy:test`, `npm run lint`, and `npm run build` guard the integration boundary, canonical `Forward` / `com.forward.dynatrace` identity, separate `my.forward` sandbox path, direct current-window instrumented-span discovery, live-only provenance enforcement, and production bundle. | Install `my.forward` in a sandbox with live instrumented traces, then verify the signed `com.forward.dynatrace` archive in non-production. |
 | Site Reliability Guardian | `npm run dynatrace:guardian:validate`, `npm run dynatrace:guardian:readback:test`, `npm run schemas:validate`, and `npm run dynatrace:change-gate:publish:test` cover the lifecycle Guardian, Monaco Workflow, six DQL objectives, 30-second event-settling delay, bounded execution context, Automation execution/task join, exact gate correlation, non-Guardian compatibility, and the missing-evidence objectives. | Run one explicit no-event or no-span validation after the final Workflow package is deployed; the live pass and deliberate failure are complete. |
-| High-cardinality evidence | `npm run load:scale` validates 2,500 dependency rows, 2,304 eligible Network Admin checks, and six bounded apply batches; it remains a mechanical load fixture and is never accepted as demo evidence. The separate change-demo gate renders and validates 49 live containers, 38 Linux endpoints, 11 modeled network devices, 23 instrumented services, four transaction generators, 50 real HTTP/DNS relationships, and 50 persistent Forward checks. | Repeat the full reset/regression/recovery cycle for timing and resource budgets; the first create, idempotent reconciliation, 50 Grail relationships, path failure/recovery, and zero unexplained drift are complete. |
+| High-cardinality evidence | `npm run load:scale` validates 2,500 generated test rows, 2,304 eligible Network Admin checks, and six bounded apply batches; it is mechanical test coverage and never demo evidence. The separate change-demo gate renders and validates 49 live containers, 38 Linux endpoints, 11 modeled network devices, 23 instrumented services, ten transaction generators, and 240 actual HTTP/DNS relationships. The signed Network Admin run created 190 missing checks without updates or deactivations; post-apply verification and the next independent reconciliation both reported all 240 unchanged. | Repeat reset/regression/recovery cycles to record timing and resource budgets. |
 
 ## Current Live Evidence
 
@@ -32,14 +32,16 @@ This matrix records executable coverage and current live evidence for the indepe
   importer reference is `ghcr.io/forwardnetworks/forward-dynatrace-importer@sha256:9aec44d63602b43b1351602988232ce21b7a074dd4877f0482019002c8393050`.
 - On 2026-07-17, the dedicated live containerlab network produced distinct processed Forward snapshots for baseline,
   regression, and recovery. Tenant-specific snapshot identifiers remain in the protected acceptance record only.
-- The lab contains 49 running containers: 11 modeled network devices and 38 Linux endpoints. Twenty-three instrumented
-  HTTP services and four transaction generators produced 50 actual HTTP/DNS relationships through the modeled network.
-- Dynatrace queried those relationships from OpenTelemetry client and server spans. The recovered Guardian window
-  contained 119 scoped instrumented server spans; no dashboard rows or replay events supplied the relationship data.
-- Forward evaluated the same 50 relationships: `50/50` reachable at baseline, `4/50` reachable with 46 blocked after
-  the netlab-generated Ansible regression, and `50/50` reachable after the Ansible rollback.
-- Fifty persistent checks were created once, reconciled idempotently, and aligned with the current relationship
-  metadata with zero changed or stale checks.
+- On 2026-07-18, the lab contained 49 running containers: 11 modeled network devices and 38 Linux endpoints.
+  Twenty-three instrumented HTTP services and ten independent transaction generators produced 240 actual HTTP/DNS
+  relationships through the modeled network.
+- Dynatrace queried exactly 240 current relationships from OpenTelemetry client/server spans; the app has no seeded,
+  replay, fixture, or capture-data fallback.
+- Forward evaluated the same 240 relationships against the current processed snapshot: `240/240` reachable, zero
+  blocked, ambiguous, unmapped, or failed. Tenant-specific identifiers remain in protected acceptance state.
+- Forward reconciliation found the previous 50 checks unchanged and planned 190 create-missing actions. The signed,
+  immutable Network Admin plan created exactly those 190 checks with zero updates or deactivations; post-apply
+  verification and an independent rerun both reported `240 unchanged`, zero drift, and zero collisions.
 - The lifecycle Guardian returned FAIL for the regression and PASS for the recovery. The recovered validation reported
   four pass, zero warning/fail/error, and two informational objectives. Its single-event Workflow execution waited 31
   seconds before validation, proving the configured 30-second event-settling behavior.

@@ -139,7 +139,7 @@ cd importer
 npm ci
 npm run schemas:validate
 npm run acceptance:bundle -- \
-  --dependencies shared/demo-dependencies.json \
+  --dependencies /secure/export/dynatrace-dependencies.json \
   --output-dir out/acceptance \
   --source-instance-id dt-release-acceptance \
   --release-dir ..

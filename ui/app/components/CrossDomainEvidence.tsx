@@ -13,19 +13,6 @@ import { useDql } from "@dynatrace-sdk/react-hooks";
 
 type EvidenceRecord = Record<string, unknown>;
 
-type CaptureEvidence = {
-  ingestRows: EvidenceRecord[];
-  networkRows: EvidenceRecord[];
-  healthRows: EvidenceRecord[];
-  securityRows: EvidenceRecord[];
-  changeRows?: EvidenceRecord[];
-  guardianRows?: EvidenceRecord[];
-};
-
-declare global {
-  var __FORWARD_DYNATRACE_CAPTURE_EVIDENCE__: CaptureEvidence | undefined;
-}
-
 const INGEST_QUERY = [
   "fetch events, from: now() - 24h",
   "| filter event.type == \"forward.dynatrace.ingest.status\"",
@@ -164,13 +151,8 @@ const contextField = (record: EvidenceRecord | undefined, name: string, fallback
 const latest = (records: EvidenceRecord[] | undefined) => records?.[0];
 const evidenceClassLabel = (record: EvidenceRecord | undefined) => {
   const value = record?.["forward.dynatrace.synthetic"];
-  if (value === true) return "SYNTHETIC DEMO";
   if (value === false) return "LIVE";
-  const changeId = record?.["forward.dynatrace.change_id"];
-  if (typeof changeId === "string" && changeId.toUpperCase().includes("DEMO")) {
-    return "SYNTHETIC DEMO · LEGACY ID";
-  }
-  return "PROVENANCE UNSPECIFIED";
+  return "NOT ELIGIBLE";
 };
 const provenanceLabel = (record: EvidenceRecord | undefined) => {
   const source = field(record, "forward.dynatrace.evidence_source", "unspecified-source");
@@ -278,45 +260,44 @@ const EvidenceHeading = ({ title, detail }: { title: string; detail: string }) =
 );
 
 export const CrossDomainEvidence = () => {
-  const captureEvidence = globalThis.__FORWARD_DYNATRACE_CAPTURE_EVIDENCE__;
   const ingest = useDql<EvidenceRecord>(
     { query: INGEST_QUERY, maxResultRecords: 20 },
-    { enabled: !captureEvidence, staleTime: 0 },
+    { staleTime: 0 },
   );
   const network = useDql<EvidenceRecord>(
     { query: NETWORK_EVIDENCE_QUERY, maxResultRecords: 20 },
-    { enabled: !captureEvidence, staleTime: 0 },
+    { staleTime: 0 },
   );
   const health = useDql<EvidenceRecord>(
     { query: CHECK_HEALTH_QUERY, maxResultRecords: 50 },
-    { enabled: !captureEvidence, staleTime: 0 },
+    { staleTime: 0 },
   );
   const security = useDql<EvidenceRecord>(
     { query: SECURITY_QUERY, maxResultRecords: 50 },
-    { enabled: !captureEvidence, staleTime: 0 },
+    { staleTime: 0 },
   );
   const change = useDql<EvidenceRecord>(
     { query: CHANGE_VALIDATION_QUERY, maxResultRecords: 50 },
-    { enabled: !captureEvidence, staleTime: 0 },
+    { staleTime: 0 },
   );
   const guardian = useDql<EvidenceRecord>(
     { query: GUARDIAN_QUERY, maxResultRecords: 50 },
-    { enabled: !captureEvidence, staleTime: 0 },
+    { staleTime: 0 },
   );
 
-  const ingestRows = captureEvidence?.ingestRows || ingest.data?.records || [];
-  const networkRows = captureEvidence?.networkRows || network.data?.records || [];
-  const healthRows = captureEvidence?.healthRows || health.data?.records || [];
-  const securityRows = captureEvidence?.securityRows || security.data?.records || [];
-  const changeRows = captureEvidence?.changeRows || change.data?.records || [];
-  const guardianRows = captureEvidence?.guardianRows || guardian.data?.records || [];
+  const ingestRows = ingest.data?.records || [];
+  const networkRows = network.data?.records || [];
+  const healthRows = health.data?.records || [];
+  const securityRows = security.data?.records || [];
+  const changeRows = change.data?.records || [];
+  const guardianRows = guardian.data?.records || [];
   const ingestLatest = latest(ingestRows);
   const networkLatest = latest(networkRows);
   const healthLatest = latest(healthRows);
   const securityLatest = latest(securityRows);
   const changeLatest = latest(changeRows);
   const guardianLatest = latest(guardianRows);
-  const isFetching = !captureEvidence && (
+  const isFetching = (
     ingest.isFetching ||
     network.isFetching ||
     health.isFetching ||
@@ -324,16 +305,14 @@ export const CrossDomainEvidence = () => {
     change.isFetching ||
     guardian.isFetching
   );
-  const errors = captureEvidence
-    ? []
-    : [
-      ingest.error,
-      network.error,
-      health.error,
-      security.error,
-      change.error,
-      guardian.error,
-    ].filter(Boolean);
+  const errors = [
+    ingest.error,
+    network.error,
+    health.error,
+    security.error,
+    change.error,
+    guardian.error,
+  ].filter(Boolean);
 
   const refresh = async () => {
     await Promise.allSettled([
@@ -350,28 +329,21 @@ export const CrossDomainEvidence = () => {
     <section className="panel cross-domain-panel" aria-label="Forward and Dynatrace live evidence">
       <div className="cross-domain-header">
         <div>
-          <p className="eyebrow">
-            {captureEvidence ? "Synthetic rehearsal evidence" : "Live Grail network evidence"}
-          </p>
+          <p className="eyebrow">Live Grail network evidence</p>
           <Heading level={2}>Live intent and modeled-network evidence</Heading>
           <span>
-            {captureEvidence
-              ? "Checked safe/regression artifacts rendered in the real app. No external system was contacted."
-              : "Sanitized Forward-controlled events with traceable runs and snapshots. No Forward credentials, endpoints, devices, or path topology enter Dynatrace."}
+            Sanitized Forward-controlled events with traceable runs and snapshots. No Forward credentials,
+            endpoints, devices, or path topology enter Dynatrace.
           </span>
         </div>
         <div className="source-actions">
           {isFetching && <ProgressCircle aria-label="Loading cross-domain evidence" />}
-          {captureEvidence ? (
-            <span className="evidence-status controlled">SYNTHETIC DEMO REHEARSAL</span>
-          ) : (
-            <Button color="primary" variant="accent" onClick={() => void refresh()}>
-              <Button.Prefix>
-                <SyncIcon />
-              </Button.Prefix>
-              Refresh live evidence
-            </Button>
-          )}
+          <Button color="primary" variant="accent" onClick={() => void refresh()}>
+            <Button.Prefix>
+              <SyncIcon />
+            </Button.Prefix>
+            Refresh live evidence
+          </Button>
         </div>
       </div>
 

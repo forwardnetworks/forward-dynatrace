@@ -46,7 +46,6 @@ interface DependencyCandidate {
   owner: string;
   criticality: "critical" | "high" | "medium";
   confidence: number;
-  synthetic?: boolean;
   mappingState: "ready" | "needs-map" | "review";
 }
 
@@ -349,7 +348,6 @@ const toIntentCheck = (
     `environment:${toTagValue(dependency.environment)}`,
     `owner:${toTagValue(dependency.owner)}`,
     `criticality:${toTagValue(dependency.criticality)}`,
-    ...(dependency.synthetic === true ? ["provenance:synthetic"] : []),
   ],
   });
 };

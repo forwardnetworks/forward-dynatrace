@@ -48,13 +48,12 @@ test("rejects ambiguous or weakly typed source evidence before correlation", () 
   );
 });
 
-test("carries explicit synthetic provenance into the ranked artifact", () => {
-  const result = correlateSecurityExposure({
+test("rejects synthetic provenance before correlation", () => {
+  assert.throws(() => correlateSecurityExposure({
     findings: [finding],
     exposures: [exposure],
     mappings: [{ mappingId: "m1", findingId: "DT-VULN-1", exposureId: "FWD-1", confidence: "high" }],
     generatedAt: "2026-01-01T00:02:00Z",
-    provenance: { source: "trial-demo", synthetic: true },
-  });
-  assert.deepEqual(result.provenance, { source: "trial-demo", synthetic: true });
+    provenance: { source: "unit-test", synthetic: true },
+  }), /rejects synthetic evidence/);
 });

@@ -21,14 +21,18 @@ never gives Forward credentials to Dynatrace.
 - Store Dynatrace and Forward tokens in protected files outside the repository.
 - Choose 6–12 relationships with resolvable endpoints and recognizable business context.
 
-Run the full repository gate and a credential-free rehearsal before the meeting:
+Run the full repository gate and validate the exact live export before the meeting:
 
 ```bash
 npm run ci
-npm run demo:rehearsal -- --output-dir /tmp/forward-dynatrace-rehearsal
+npm run acceptance:bundle -- \
+  --dependencies /secure/export/dynatrace-dependencies.json \
+  --output-dir /tmp/forward-dynatrace-acceptance \
+  --source-instance-id <stable-opaque-source-id>
 ```
 
-The rehearsal is explicitly synthetic and proves only package mechanics. Do not show it as live evidence.
+The acceptance bundle contacts neither Dynatrace nor Forward; it validates only the exact live export captured for the
+meeting. The repository contains no seeded or replay demonstration lane.
 
 ## Run The Live Dry-Run
 
@@ -41,7 +45,7 @@ export FORWARD_NETWORK_ID=<network-id>
 export FORWARD_DYNATRACE_SOURCE_INSTANCE_ID=<stable-opaque-source-id>
 ```
 
-Query real Grail evidence and omit `--synthetic`:
+Query real Grail evidence:
 
 ```bash
 npm run demo:live -- \
@@ -53,7 +57,7 @@ npm run demo:live -- \
   --output-dir /tmp/forward-dynatrace-live
 ```
 
-Stop if the conductor reports replay/synthetic provenance, no usable rows, unresolved endpoints, no processed Forward
+Stop if the conductor reports non-live provenance, no usable rows, unresolved endpoints, no processed Forward
 snapshot, credential failure, or path evidence that cannot be tied to the selected snapshot.
 
 ## What To Show
@@ -86,7 +90,7 @@ Rerun the same package afterward and show zero new writes and all checks unchang
 - Re-query real Dynatrace evidence and use a new package/run ID.
 - Restore any deliberately changed non-production dependency or network state through its owning system.
 - Take a new Forward snapshot and wait for processing before the next path/reconciliation claim.
-- Never replay old status events as the current run.
+- Never present an old status event as the current run.
 
 ## Evidence To Retain
 

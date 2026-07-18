@@ -24,8 +24,7 @@ Options:
   --output-dir path   Write forward-ingest-status.json into this directory.
   --checksum path     Write sha256 checksum to this path.
   --event-output path Write publish-safe Dynatrace event payload JSON.
-  --evidence-source   Optional publish-safe provenance label; requires --synthetic.
-  --synthetic         Explicit true/false paired with --evidence-source.
+  --evidence-source   Optional publish-safe live provenance label.
 
 This script does not contact Forward or Dynatrace. It validates and republishes
 aggregate status for a customer-controlled package handoff location.
@@ -98,18 +97,17 @@ const sha256Hex = (text) => createHash("sha256").update(text, "utf8").digest("he
 
 const provenanceFromArgs = (args) => {
   const evidenceSource = args["evidence-source"];
-  const synthetic = args.synthetic;
-  if (evidenceSource === undefined && synthetic === undefined) return null;
+  if (args.synthetic !== undefined) {
+    throw new Error("--synthetic is not supported; status publication is live-only.");
+  }
+  if (evidenceSource === undefined) return null;
   if (
     typeof evidenceSource !== "string" ||
-    !EVIDENCE_SOURCE_PATTERN.test(evidenceSource) ||
-    !new Set(["true", "false"]).has(synthetic)
+    !EVIDENCE_SOURCE_PATTERN.test(evidenceSource)
   ) {
-    throw new Error(
-      "--evidence-source requires a publish-safe label and --synthetic true|false.",
-    );
+    throw new Error("--evidence-source requires a publish-safe live label.");
   }
-  return { evidenceSource, synthetic: synthetic === "true" };
+  return { evidenceSource, synthetic: false };
 };
 
 const eventSeverity = (artifact) => {

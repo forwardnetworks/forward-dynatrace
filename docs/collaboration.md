@@ -35,7 +35,7 @@ agent guide so the next collaborator receives the correction automatically.
 - Code claims require tests or direct source evidence.
 - UI claims require browser-driven validation against the built app.
 - Live integration claims require sanitized run, package, snapshot, and count evidence in the validation matrix.
-- Synthetic evidence must remain visibly labeled and cannot satisfy a live acceptance gate.
+- Replay, seeded, fixture, and synthetic evidence must fail closed before any demonstration or acceptance gate.
 - External policy or platform limitations must be linked to an authoritative source and recorded as an external gate.
 
 ## Review Handoff

@@ -23,7 +23,7 @@ Cross-product workflow orchestration and combined demonstrations are intentional
 ## Progress
 
 - [x] Validate the implementation on Node `v24.18.0`, including full CI, a 2,500-row scale smoke, a zero-vulnerability
-  production audit, Dynatrace app build, exact release membership, and checked screenshots.
+  production audit, Dynatrace app build, and exact release membership.
 - [x] Validate Forward import create, unchanged, changed, stale, and bounded failure behavior.
 - [x] Query sanitized aggregate status back from Dynatrace.
 - [x] Verify deterministic package checksums, authenticated handoff, host resolution, read-only path evidence,

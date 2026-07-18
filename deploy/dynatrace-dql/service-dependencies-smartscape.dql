@@ -1,18 +1,18 @@
 // Forward for Dynatrace starter query for Smartscape service calls.
-// Use this against a live Dynatrace demo tenant, then review/enrich endpoint mappings
+// Use this against a live Dynatrace environment, then review/enrich endpoint mappings
 // before creating Forward intent checks.
 
 smartscapeEdges "calls", from: now() - 24h
 | filter source_type == "SERVICE" and target_type == "SERVICE"
-| fieldsAdd `app.name` = "Dynatrace Demo"
-| fieldsAdd `app.environment` = "demo"
+| fieldsAdd `app.name` = "Dynatrace Application Dependencies"
+| fieldsAdd `app.environment` = "non-production"
 | fieldsAdd `dt.entity.service` = toString(source_id)
 | fieldsAdd `service.name` = getNodeName(source_id)
 | fieldsAdd `network.source` = getNodeName(source_id)
 | fieldsAdd `network.destination` = getNodeName(target_id)
 | fieldsAdd `network.protocol` = "tcp"
 | fieldsAdd `network.port` = "443"
-| fieldsAdd `owner.team` = "dynatrace-demo"
+| fieldsAdd `owner.team` = "unassigned"
 | fieldsAdd criticality = "medium"
 | fieldsAdd `dependency.confidence` = 80
 | fields

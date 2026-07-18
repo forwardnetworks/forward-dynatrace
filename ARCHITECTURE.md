@@ -33,7 +33,7 @@ checks, or own committed Forward NQE Library content.
 | Operator and runtime tools | `scripts/` | Query, normalize, package, resolve, analyze, reconcile, publish, validate, and release. |
 | Contracts | `schemas/` | Boundary validation for packages, approvals, status, change assurance, and evidence events. |
 | Runtime examples | `deploy/` | Kubernetes, systemd, cron, Docker Compose, Dynatrace workflow, DQL, and dashboard templates. |
-| Safe examples | `config/`, `shared/` | Secret-free configuration, trial fixtures, and explicitly labeled synthetic evidence. |
+| Safe examples | `config/` | Secret-free configuration and placeholder contracts; no seeded dependency evidence ships with the product. |
 | Knowledge system | `docs/` | Design contracts, runbooks, evidence records, and versioned execution plans. |
 | Feedback harness | `scripts/validate-repo.mjs`, CI | Structural, security, schema, test, build, scale, and release invariants. |
 

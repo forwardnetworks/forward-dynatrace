@@ -26,7 +26,7 @@ cd forward-dynatrace
 git checkout <reviewed-commit>
 npm ci
 npm run ci
-npm run acceptance:bundle -- --dependencies shared/demo-dependencies.json --output-dir out/acceptance --source-instance-id dt-acceptance-rehearsal
+npm run acceptance:bundle -- --dependencies /secure/export/dynatrace-dependencies.json --output-dir out/acceptance --source-instance-id <stable-opaque-source-id>
 ```
 
 The reset defines one production `v1` contract and no alternate-version compatibility path. Until a replacement immutable

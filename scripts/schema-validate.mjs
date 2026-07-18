@@ -3,7 +3,7 @@
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -63,7 +63,7 @@ Options:
   --security-correlation-event-batch path
                            Validate a sanitized security-correlation event batch.
 
-Without arguments, validates committed examples and a freshly generated demo package.
+Without arguments, validates committed examples and a freshly generated validation package.
 `;
 
 const parseArgs = (argv) => {
@@ -180,14 +180,34 @@ const validatePackageDir = async (validators, packageDir, results) => {
   );
 };
 
-const buildDemoArtifacts = async () => {
+const buildValidationArtifacts = async () => {
   const outputDir = await mkdtemp(path.join(tmpdir(), "forward-dynatrace-schema-"));
+  const dependenciesPath = path.join(outputDir, "validation-dependencies.json");
+  await writeFile(dependenciesPath, `${JSON.stringify([
+    {
+      id: "schema-validation-dependency",
+      appName: "Schema Validation",
+      environment: "test",
+      serviceEntityId: "SERVICE-SCHEMA-VALIDATION",
+      serviceName: "schema-validation-service",
+      sourceLabel: "schema-client",
+      source: "192.0.2.10/32",
+      destinationLabel: "schema-service",
+      destination: "198.51.100.20/32",
+      protocol: "tcp",
+      port: 443,
+      owner: "schema-validation",
+      criticality: "medium",
+      confidence: 100,
+      mappingState: "ready",
+    },
+  ], null, 2)}\n`);
   await runJson([
     "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON",
     "--experimental-strip-types",
     "scripts/build-forward-package.mjs",
     "--dependencies",
-    "shared/demo-dependencies.json",
+    dependenciesPath,
     "--output-dir",
     outputDir,
     "--source-instance-id",
@@ -278,10 +298,10 @@ const main = async () => {
       results,
     );
 
-    const demoPackageDir = await buildDemoArtifacts();
-    await validatePackageDir(validators, demoPackageDir, results);
-    const status = await readJson(path.join(demoPackageDir, "forward-ingest-status.json"));
-    validate(validators.ingestStatus, `${demoPackageDir}/forward-ingest-status.json`, status, results);
+    const validationPackageDir = await buildValidationArtifacts();
+    await validatePackageDir(validators, validationPackageDir, results);
+    const status = await readJson(path.join(validationPackageDir, "forward-ingest-status.json"));
+    validate(validators.ingestStatus, `${validationPackageDir}/forward-ingest-status.json`, status, results);
     validate(
       validators.ingestStatusEvent,
       "generated forward-ingest-status-event.json",
@@ -289,14 +309,6 @@ const main = async () => {
       results,
     );
 
-    const sharedStatus = await readJson("shared/demo-forward-ingest-status.json");
-    validate(validators.ingestStatus, "shared/demo-forward-ingest-status.json", sharedStatus, results);
-    validate(
-      validators.ingestStatusEvent,
-      "shared demo status event",
-      toDynatraceStatusEvent(sanitizeStatusArtifact(sharedStatus)),
-      results,
-    );
   }
 
   if (args["connector-config"]) {

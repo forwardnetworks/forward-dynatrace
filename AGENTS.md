@@ -24,7 +24,7 @@ and executable checks.
 - Optional NQE artifacts require Forward-owned query IDs and Forward-side allowlists.
 - Forward-side ingest validates packages, reads existing checks, reconciles, then creates missing checks only by default.
 - Changed and stale Dynatrace-managed checks are report-only unless approval-gated mutation is enabled.
-- Synthetic/demo evidence must remain visibly distinguishable from live customer evidence.
+- Product and demonstration paths accept current live evidence only; replay, seeded, fixture, and synthetic rows fail closed.
 
 ## Working Loop
 
@@ -40,5 +40,5 @@ and executable checks.
 - Keep root guidance short; put details in `docs/` and link them from `docs/index.md`.
 - Keep active plans in `docs/exec-plans/active/`; move completed work to `docs/exec-plans/completed/`.
 - Record deferred structural work in `docs/exec-plans/tech-debt-tracker.md` with a trigger and exit condition.
-- Keep screenshots real: capture from the app and update `docs/assets/screenshots/`.
+- Keep screenshots real and store them only in protected acceptance evidence unless they are reviewed for publication.
 - Never commit tenant URLs, customer data, credentials, or private token paths.

@@ -53,7 +53,7 @@ const parsedBooleanFields = (row, names) => {
   return values;
 };
 
-const syntheticField = (row) => {
+const requireLiveProvenance = (row) => {
   const explicit = parsedBooleanFields(row, [
     "demo.synthetic",
     "demo.replay",
@@ -67,14 +67,10 @@ const syntheticField = (row) => {
     row.owner === "dynatrace-demo",
     /^dynatrace-demo-/iu.test(String(row["dependency.id"] || row.id || "")),
   ];
-  const hasSyntheticMarker = explicit.some(({ value }) => value) || implicitMarkers.some(Boolean);
-  const hasLiveMarker = explicit.some(({ value }) => !value);
-  if (hasSyntheticMarker && hasLiveMarker) {
-    throw new Error("Dependency row contains conflicting live and synthetic provenance markers.");
+  const hasNonLiveMarker = explicit.some(({ value }) => value) || implicitMarkers.some(Boolean);
+  if (hasNonLiveMarker) {
+    throw new Error("Dependency row is replay, seeded, fixture, or synthetic evidence; live-only normalization rejected it.");
   }
-  if (hasSyntheticMarker) return true;
-  if (hasLiveMarker) return false;
-  return undefined;
 };
 
 const slug = (value) =>
@@ -128,6 +124,7 @@ export const normalizeDynatraceRows = (rows) => {
   }
 
   return rows.map((row, index) => {
+    requireLiveProvenance(row);
     const appName = field(row, ["app.name", "appName", "application"], "unknown-app");
     const environment = field(row, ["app.environment", "environment", "env"], "unknown");
     const serviceEntityId = field(row, ["dt.entity.service", "serviceEntityId", "service.id"]);
@@ -149,7 +146,6 @@ export const normalizeDynatraceRows = (rows) => {
     const owner = field(row, ["owner.team", "owner", "team"], "unknown-owner");
     const criticality = normalizeCriticality(field(row, ["criticality", "business.criticality"], "medium"));
     const confidence = numberField(row, ["dependency.confidence", "confidence", "mapping.confidence"], 0);
-    const synthetic = syntheticField(row);
     const id = field(
       row,
       ["dependency.id", "id"],
@@ -181,7 +177,6 @@ export const normalizeDynatraceRows = (rows) => {
       owner,
       criticality,
       confidence,
-      ...(synthetic === undefined ? {} : { synthetic }),
       mappingState:
         explicitMappingState ||
         mappingStateFor({

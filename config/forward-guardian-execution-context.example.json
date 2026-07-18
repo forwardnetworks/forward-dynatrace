@@ -37,6 +37,6 @@
   },
   "provenance": {
     "evidenceSource": "PLACEHOLDER-VALIDATION-SOURCE",
-    "synthetic": true
+    "synthetic": false
   }
 }

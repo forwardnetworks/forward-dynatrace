@@ -19,10 +19,9 @@ npm run security:correlate -- \
   --output security-correlation.json
 ```
 
-The correlator rejects duplicate evidence IDs, invalid timestamps, weakly typed booleans, unsupported severities, and
-invalid mapping confidence before it builds the queue. Use `--synthetic` only for explicitly labeled trial/demo
-evidence; the provenance label and synthetic flag are retained in every published Dynatrace event and shown in the
-portal.
+The correlator rejects duplicate evidence IDs, invalid timestamps, weakly typed booleans, unsupported severities,
+invalid mapping confidence, and any synthetic provenance before it builds the queue. The live evidence source is
+retained in every published Dynatrace event and shown in the portal.
 
 Each result retains exact evidence IDs and timestamps. Observed execution, vulnerability, modeled reachability,
 internet addressability, and policy findings remain separate facts. A low-confidence identity mapping is capped at

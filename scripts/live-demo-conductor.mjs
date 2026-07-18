@@ -14,21 +14,20 @@ Forward for Dynatrace live demo conductor
 Usage:
   npm run demo:live -- \\
     --dynatrace-environment-url https://your-environment-id.apps.dynatrace.com/ \\
+    --dynatrace-query-file /secure/queries/live-dependencies.dql \\
     --dynatrace-token-file /secure/path/platform-token \\
-    --evidence-source approved-trial-replay \\
-    --synthetic \\
+    --evidence-source opentelemetry-instrumented-transaction \\
     --output-dir /tmp/forward-dynatrace-live-demo
 
 Options:
   --dynatrace-environment-url   Dynatrace Apps environment URL.
-  --dynatrace-query-file        Customer-owned DQL file. Omit only for the checked replay query.
+  --dynatrace-query-file        Required customer-owned DQL file for current live evidence.
   --dynatrace-token-file        Platform Token file outside the repo.
   --evidence-source             Publish-safe source label; required.
   --output-dir                  Evidence directory. Default: ${DEFAULT_OUTPUT_DIR}
   --publish-dynatrace-status    Publish sanitized aggregate reconciliation status to Dynatrace.
   --showcase-limit              Clean unique rows retained for the demo. Default: ${DEFAULT_SHOWCASE_LIMIT}
   --skip-path-evidence          Skip the default read-only Forward bulk path analysis stage.
-  --synthetic                   Required when the query or any dependency is replay/seeded evidence.
   --help                        Show this help.
 
 Required Forward environment:
@@ -45,11 +44,13 @@ export const parseArgs = (argv) => {
   const args = {};
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
+    if (value === "--synthetic") {
+      throw new Error("--synthetic is not supported; the conductor accepts live evidence only.");
+    }
     if (
       value === "--help" ||
       value === "--publish-dynatrace-status" ||
       value === "--skip-path-evidence" ||
-      value === "--synthetic" ||
       value === "--with-path-evidence"
     ) {
       args[value.slice(2)] = true;
@@ -70,7 +71,7 @@ export const parseArgs = (argv) => {
 
 export const shouldRunPathEvidence = (args) => !args["skip-path-evidence"];
 
-const containsSyntheticDependency = (dependencies) => dependencies.some((dependency) =>
+const containsNonLiveDependency = (dependencies) => dependencies.some((dependency) =>
   dependency?.synthetic === true ||
   dependency?.["demo.synthetic"] === true ||
   dependency?.["demo.replay"] === true ||
@@ -87,20 +88,18 @@ export const validateConductorProvenance = ({ dependencies = [], provenance, que
     !provenance ||
     typeof provenance.evidenceSource !== "string" ||
     !EVIDENCE_SOURCE_PATTERN.test(provenance.evidenceSource) ||
-    typeof provenance.synthetic !== "boolean"
+    provenance.synthetic !== false
   ) {
     throw new Error(
-      "Demo provenance requires a publish-safe --evidence-source and explicit synthetic boolean.",
+      "Live provenance requires a publish-safe --evidence-source and synthetic=false.",
     );
   }
-  if (!queryFile && !provenance.synthetic) {
-    throw new Error(
-      "The checked default DQL reads replay evidence; add --synthetic or supply --dynatrace-query-file.",
-    );
+  if (!queryFile) {
+    throw new Error("A customer-owned --dynatrace-query-file is required for live evidence.");
   }
-  if (containsSyntheticDependency(dependencies) && !provenance.synthetic) {
+  if (containsNonLiveDependency(dependencies)) {
     throw new Error(
-      "Dynatrace query returned replay/seeded evidence; rerun with --synthetic and an explicit evidence source.",
+      "Dynatrace query returned replay, seeded, fixture, or synthetic evidence; live-only processing stopped before any Forward write.",
     );
   }
   return provenance;
@@ -110,7 +109,7 @@ const conductorProvenanceFromArgs = (args) => validateConductorProvenance({
   dependencies: [],
   provenance: {
     evidenceSource: String(args["evidence-source"] || "").trim(),
-    synthetic: Boolean(args.synthetic),
+    synthetic: false,
   },
   queryFile: args["dynatrace-query-file"],
 });
@@ -154,7 +153,7 @@ export const noShowcaseDependenciesMessage = ({ rowCount, dependencyCount }) => 
   const observed = rowCount === 0
     ? "Live Dynatrace query returned zero dependency rows."
     : `Live Dynatrace query returned ${rowCount} rows and ${dependencyCount} normalized dependencies, but none had a clean service name and unique flow.`;
-  return `${observed} No Forward call was attempted. Populate live customer-owned dependency evidence or, for an approved non-production demo tenant only, inspect \`npm run dynatrace:replay-demo -- --help\`; replay evidence must remain visibly synthetic.`;
+  return `${observed} No Forward call was attempted. Populate current customer-owned dependency evidence and rerun the live query.`;
 };
 
 export const buildNoShowcaseSummary = ({
@@ -390,8 +389,6 @@ const main = async () => {
     statusHandoffDir,
     "--evidence-source",
     provenance.evidenceSource,
-    "--synthetic",
-    String(provenance.synthetic),
   ]);
 
   let dynatraceStatusPublished = false;
@@ -404,7 +401,7 @@ const main = async () => {
       environmentUrl,
       ...(tokenFile ? ["--token-file", tokenFile] : []),
       "--run-id",
-      status.runId || `forward-dynatrace-demo-${Date.now()}`,
+      status.runId || `forward-dynatrace-live-${Date.now()}`,
       "--apply",
     ]);
     dynatraceStatusPublished = true;

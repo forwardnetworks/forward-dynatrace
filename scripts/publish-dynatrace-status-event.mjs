@@ -147,6 +147,9 @@ export const validateStatusEvent = (event) => {
   ) {
     throw new Error("Status event provenance requires paired publish-safe source and synthetic boolean.");
   }
+  if (synthetic === true) {
+    throw new Error("Status event publication rejects synthetic evidence.");
+  }
 
   const text = JSON.stringify(event);
   for (const pattern of forbiddenTextPatterns) {

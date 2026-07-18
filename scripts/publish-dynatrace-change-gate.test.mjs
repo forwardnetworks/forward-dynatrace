@@ -66,17 +66,17 @@ test("builds aggregate change-gate event without detailed path evidence", () => 
   assert.doesNotMatch(JSON.stringify(event), /queryUrl|endpoint|hops|rows/iu);
 });
 
-test("requires explicit paired provenance when a change event is labeled", () => {
+test("requires explicit live provenance when a change event is labeled", () => {
   const event = buildChangeGateEvent(gate, {
     runId: "gate-run-1",
     gateSha256: "a".repeat(64),
-    evidenceSource: "checked-dynatrace-demo-rehearsal",
-    synthetic: true,
+    evidenceSource: "live-instrumented-transactions",
+    synthetic: false,
   });
-  assert.equal(event.properties["forward.dynatrace.synthetic"], true);
+  assert.equal(event.properties["forward.dynatrace.synthetic"], false);
   assert.equal(
     event.properties["forward.dynatrace.evidence_source"],
-    "checked-dynatrace-demo-rehearsal",
+    "live-instrumented-transactions",
   );
   assert.throws(
     () => buildChangeGateEvent(gate, {
@@ -85,6 +85,15 @@ test("requires explicit paired provenance when a change event is labeled", () =>
       evidenceSource: "missing-boolean",
     }),
     /explicit boolean/,
+  );
+  assert.throws(
+    () => buildChangeGateEvent(gate, {
+      runId: "gate-run-1",
+      gateSha256: "a".repeat(64),
+      evidenceSource: "unit-test",
+      synthetic: true,
+    }),
+    /rejects synthetic evidence/,
   );
 });
 

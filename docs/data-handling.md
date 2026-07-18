@@ -1,16 +1,16 @@
 # Data Handling
 
-This repository must stay safe to publish. Use synthetic examples in docs, screenshots, test fixtures, and release
-artifacts.
+This repository must stay safe to publish. Product and demonstration artifacts contain no seeded dependency evidence.
+Isolated unit tests may generate fake records in temporary directories, but those records are not packaged, published,
+or accepted as live evidence.
 
 ## Allowed
 
-- Synthetic service names, app names, owners, and dependency rows.
 - Placeholder Forward URLs such as `https://forward.example.com`.
 - Placeholder Dynatrace Apps URLs such as `https://your-environment-id.apps.dynatrace.com/`.
-- Generated `source-key:sha256:*` values derived from synthetic rows.
+- Generated `source-key:sha256:*` values derived from isolated unit-test rows.
 - Forward query ID placeholders such as `FQ_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`.
-- Import reports from synthetic or sanitized non-production runs.
+- Sanitized import reports from reviewed non-production runs.
 
 ## Not Allowed
 
@@ -37,10 +37,10 @@ only. It must still be treated as operational evidence and reviewed before exter
 
 ## Release Gate
 
-Before publishing source, screenshots, docs, or release artifacts:
+Before publishing source, docs, or release artifacts:
 
 1. Run `npm run repo:validate`.
 2. Run `git diff --check`.
-3. Inspect screenshots for topology or tenant leakage.
+3. Confirm no replay, seeded, fixture, or synthetic dependency artifacts are included.
 4. Confirm `app.config.json` uses the placeholder Dynatrace environment URL.
 5. Confirm connector config examples contain no secrets.

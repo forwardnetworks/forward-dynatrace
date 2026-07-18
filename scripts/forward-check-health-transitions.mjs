@@ -22,7 +22,6 @@ Forward-managed check-health transition poller
   node scripts/forward-check-health-transitions.mjs --state state.json --output transitions.json
 
 Options:
-  --inventory path          Read a saved Forward check inventory instead of polling Forward.
   --state path              Durable Forward-side state file (required).
   --output path             Sanitized transition batch artifact (required).
   --apply                   Publish emitted transitions to Dynatrace OpenPipeline.
@@ -31,7 +30,6 @@ Options:
   --token-file path         Platform Token file for --apply.
   --max-transitions n       Refuse to advance state above this bound (max/default 100).
   --evidence-source label   Publish-safe source label.
-  --synthetic               Explicitly label saved demo inventory transitions.
   --help                    Show help.
 
 Live polling uses FORWARD_BASE_URL, FORWARD_AUTHORIZATION_FILE, and
@@ -43,9 +41,12 @@ export const parseArgs = (argv) => {
   const args = {};
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
+    if (value === "--synthetic" || value === "--inventory") {
+      throw new Error(`${value} is not supported; check-health feedback polls live Forward state only.`);
+    }
     if (!value.startsWith("--")) throw new Error(`Unexpected argument: ${value}`);
     const key = value.slice(2);
-    if (key === "apply" || key === "help" || key === "synthetic") {
+    if (key === "apply" || key === "help") {
       args[key] = true;
       continue;
     }
@@ -119,6 +120,9 @@ const transitionType = (before, after) => {
 };
 
 export const computeTransitions = (priorState, inventory, context) => {
+  if (context.provenance?.synthetic === true) {
+    throw new Error("Check-health feedback rejects synthetic provenance.");
+  }
   if (priorState && priorState.schemaVersion !== STATE_SCHEMA) {
     throw new Error(`State schemaVersion must be ${STATE_SCHEMA}.`);
   }
@@ -155,8 +159,8 @@ export const computeTransitions = (priorState, inventory, context) => {
       eventType: EVENT_TYPE,
       networkId: context.networkId,
       snapshotId: context.snapshotId,
-      provenance: context.provenance || {
-        source: "live-forward-poll",
+      provenance: {
+        source: context.provenance?.source || "live-forward-poll",
         synthetic: false,
       },
       counts: {
@@ -303,25 +307,17 @@ export const run = async (argv = process.argv.slice(2)) => {
   const outputPath = path.resolve(required(args.output, "option: --output"));
   const releaseLock = await acquirePollLock(statePath);
   try {
-    let checks;
-    let snapshotId;
-    const networkId = process.env.FORWARD_NETWORK_ID || "saved-inventory";
-    if (args.inventory) {
-      const input = JSON.parse(await readFile(args.inventory, "utf8"));
-      checks = Array.isArray(input) ? input : input.checks;
-      snapshotId = String(input.snapshotId || "saved-inventory");
-    } else {
-      ({ checks, snapshotId } = await pollForwardInventory({
-        baseUrl: required(process.env.FORWARD_BASE_URL, "environment: FORWARD_BASE_URL"),
-        authorization: await loadForwardAuthorization(
-          required(
-            process.env.FORWARD_AUTHORIZATION_FILE,
-            "environment: FORWARD_AUTHORIZATION_FILE",
-          ),
+    const networkId = required(process.env.FORWARD_NETWORK_ID, "environment: FORWARD_NETWORK_ID");
+    const { checks, snapshotId } = await pollForwardInventory({
+      baseUrl: required(process.env.FORWARD_BASE_URL, "environment: FORWARD_BASE_URL"),
+      authorization: await loadForwardAuthorization(
+        required(
+          process.env.FORWARD_AUTHORIZATION_FILE,
+          "environment: FORWARD_AUTHORIZATION_FILE",
         ),
-        networkId: required(process.env.FORWARD_NETWORK_ID, "environment: FORWARD_NETWORK_ID"),
-      }));
-    }
+      ),
+      networkId,
+    });
     const priorState = await readFile(statePath, "utf8").then(JSON.parse).catch((error) => {
       if (error.code === "ENOENT") return null;
       throw error;
@@ -331,10 +327,8 @@ export const run = async (argv = process.argv.slice(2)) => {
       networkId,
       snapshotId,
       provenance: {
-        source: evidenceSource(
-          args["evidence-source"] || (args.inventory ? "saved-inventory" : "live-forward-poll"),
-        ),
-        synthetic: Boolean(args.synthetic),
+        source: evidenceSource(args["evidence-source"] || "live-forward-poll"),
+        synthetic: false,
       },
     });
     await mkdir(path.dirname(outputPath), { recursive: true });

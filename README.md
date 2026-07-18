@@ -76,27 +76,15 @@ git checkout <reviewed-commit>
 npm ci
 npm run ci
 npm run acceptance:bundle -- \
-  --dependencies shared/demo-dependencies.json \
+  --dependencies /secure/export/dynatrace-dependencies.json \
   --output-dir out/acceptance \
-  --source-instance-id dt-acceptance-rehearsal \
+  --source-instance-id <stable-opaque-dynatrace-source-id> \
   --forward-access-profile read-only \
   --sync-mode data-connector
 ```
 
-The acceptance bundle is read-only. It builds a demo package, validates schemas and package integrity, writes
-`ACCEPTANCE.md`, and does not contact Forward.
-
-## Credential-Free Rehearsal
-
-Build and validate a Dynatrace-shaped Forward package before a meeting:
-
-```bash
-npm run demo:rehearsal -- --output-dir /tmp/forward-dynatrace-demo
-```
-
-The rehearsal turns checked Dynatrace-shaped dependencies into a checksum-bound Forward `NewNetworkCheck[]` package
-and validates it without a Forward call. It performs zero external reads or writes and labels its evidence synthetic.
-Replace those records with customer-owned evidence before making a live claim.
+The acceptance bundle is read-only. It builds a package from the supplied live export, validates schemas and package
+integrity, writes `ACCEPTANCE.md`, and does not contact Forward.
 
 ## Live Demo
 
@@ -114,18 +102,17 @@ export FORWARD_DYNATRACE_SOURCE_INSTANCE_ID=<stable-opaque-dynatrace-source-id>
 npm run demo:live -- \
   --dynatrace-environment-url https://<trial-sandbox-id>.apps.dynatrace.com/ \
   --dynatrace-token-file /secure/path/platform-token \
-  --evidence-source approved-trial-replay \
-  --synthetic \
+  --dynatrace-query-file /secure/queries/live-dependencies.dql \
+  --evidence-source opentelemetry-instrumented-transaction \
   --output-dir /tmp/forward-dynatrace-live-demo
 ```
 
-The checked default DQL reads replay events, so `--synthetic` is mandatory for this path. For customer-owned evidence,
-supply `--dynatrace-query-file /secure/queries/customer-dependencies.dql`, set a truthful `--evidence-source`, and omit
-`--synthetic`; replay markers fail closed before any Forward call. The default is a Forward dry-run; no checks are
-created. Persistent writes use the separate signed stage/approve/apply importer workflow. Add
+The conductor requires a customer-owned DQL file and fails closed on replay, seeded, fixture, or synthetic markers
+before Forward processing. The default is a Forward dry-run; no checks are created. Persistent writes use the
+separate signed stage/approve/apply importer workflow. Add
 `--publish-dynatrace-status` to send the aggregate reconciliation event back to Dynatrace. Path analysis is read-only
 and enabled by default for the demo; `--skip-path-evidence` is the explicit fallback when that permission is not
-available. See [docs/live-demo-runbook.md](docs/live-demo-runbook.md) for rehearsal and meeting steps.
+available. See [docs/live-demo-runbook.md](docs/live-demo-runbook.md) for prestage and meeting steps.
 
 ## Problem-Triggered Network Evidence
 
@@ -298,22 +285,6 @@ gh attestation verify "oci://ghcr.io/forwardnetworks/forward-dynatrace-importer:
 Release provenance, SBOM, Trivy scan evidence, and digest pinning guidance are in
 [docs/release-provenance.md](docs/release-provenance.md) and [docs/container-runtime.md](docs/container-runtime.md).
 
-## Screenshots
-
-These checked, credential-free captures use synthetic rehearsal records and placeholder target metadata. Each
-standalone evidence view labels that provenance; live Grail and customer-owned Forward readback remain the production
-proof sources.
-
-![Forward for Dynatrace overview](docs/assets/screenshots/01-overview.jpg)
-
-![Forward read-only NQE preview](docs/assets/screenshots/02-export-package-readiness.jpg)
-
-![Forward-side API sequence](docs/assets/screenshots/03-forward-side-api.jpg)
-
-![Forward intent check payload](docs/assets/screenshots/04-intent-check-payload.jpg)
-
-![Forward access profiles](docs/assets/screenshots/05-forward-access-profiles.jpg)
-
 ## Development
 
 Common commands:
@@ -324,7 +295,6 @@ npm run schemas:validate
 npm run forward:import:test
 npm run forward:package:test
 npm run runtime:validate
-npm run demo:rehearsal
 npm run security:audit
 npm run lint
 npm run build
@@ -356,7 +326,6 @@ deploy/    Docker Compose, Kubernetes, systemd, DQL, dashboard, and workflow tem
 docs/      implementation, operation, security, release, and customer-facing docs
 schemas/   JSON Schema contracts
 scripts/   package builder, importer, validators, release tools, and test helpers
-shared/    demo dependencies and sanitized status fixtures
 ui/        Dynatrace app UI
 ```
 

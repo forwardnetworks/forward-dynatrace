@@ -87,12 +87,10 @@ bodies. Use the DQL views in `deploy/dynatrace-dql/forward-network-evidence-late
 
 ## Live Validation Record
 
-The non-production demo workflow was validated on 2026-07-12:
+The non-production live workflow was validated on 2026-07-18:
 
-- Dynatrace Trial returned 100 normalized replay dependency rows.
-- Forward network `235937`, snapshot `1322821` evaluated 100 queryable paths with reachable `0`, blocked `100`,
-  ambiguous `0`, unmapped `0`, and failed `0`.
-- Host resolution produced 98 ready, 1 review, and 1 needs-map row.
-- Dynatrace accepted sanitized run `fd-problem-evidence-20260712T113700Z` with HTTP `202`.
-- Grail query-back returned exactly one matching event with the same problem ID, run ID, network, snapshot,
-  `consistent-with-network-policy-block` assessment, and aggregate counts.
+- Ten instrumented container sources produced 240 current HTTP/DNS relationships.
+- Dynatrace Grail returned exactly 240 client-span dependency rows from those transactions.
+- The current processed Forward snapshot evaluated all 240 queryable paths with reachable `240`, blocked `0`,
+  ambiguous `0`, unmapped `0`, and failed `0`; its tenant-specific ID remains in protected acceptance state.
+- The app and conductor have no replay, seeded, fixture, or capture-data fallback.

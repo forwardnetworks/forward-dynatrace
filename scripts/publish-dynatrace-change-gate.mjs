@@ -230,6 +230,9 @@ const provenanceProperties = ({ evidenceSource, synthetic }) => {
   if (typeof synthetic !== "boolean") {
     throw new Error("Synthetic provenance must be an explicit boolean.");
   }
+  if (synthetic !== false) {
+    throw new Error("Change-gate publication rejects synthetic evidence.");
+  }
   return {
     "forward.dynatrace.evidence_source": evidenceSource,
     "forward.dynatrace.synthetic": synthetic,

@@ -26,8 +26,6 @@ import {
 } from "@dynatrace/strato-icons";
 import { useAppFunction, useDql } from "@dynatrace-sdk/react-hooks";
 
-import demoForwardStatus from "../../../shared/demo-forward-ingest-status.json";
-import customerTrialDependencies from "../../../shared/customer-trial-dependencies.json";
 import { CrossDomainEvidence } from "../components/CrossDomainEvidence";
 import type {
   ForwardNqePreviewRequest,
@@ -40,16 +38,9 @@ import type {
   ForwardSyncRequest,
   ForwardSyncResponse,
 } from "../types/forward-sync";
-import type {
-  ForwardIngestStatusArtifact,
-  ForwardStatusRequest,
-  ForwardStatusResponse,
-} from "../types/forward-status";
 
 import "./Home.css";
 
-const dependencies = customerTrialDependencies as DependencyCandidate[];
-const sampleForwardStatus = demoForwardStatus as ForwardIngestStatusArtifact;
 const dynatraceLogoUrl = "assets/Dynatrace_Logo.svg";
 const forwardLogoUrl = "assets/forward-logo.svg";
 const LIVE_DEPENDENCY_QUERY = `
@@ -81,7 +72,6 @@ fetch spans, from: now()-15m
 | fieldsAdd
     \`forward.dynatrace.run_id\` = "live-trace-current-state",
     \`forward.dynatrace.evidence_source\` = "opentelemetry-instrumented-transaction",
-    \`demo.synthetic\` = false,
     appName = "Enterprise Containerlab Scale",
     environment = "lab",
     serviceEntityId = coalesce(modeledServiceEntityId, destinationService),
@@ -310,16 +300,11 @@ const downloadTextFile = (fileName: string, text: string, type: string) => {
 };
 
 export const Home = () => {
-  const captureMode = Boolean(globalThis.__FORWARD_DYNATRACE_CAPTURE_EVIDENCE__);
-  const [activeDependencyId, setActiveDependencyId] = useState(
-    captureMode ? dependencies[0].id : "",
-  );
+  const [activeDependencyId, setActiveDependencyId] = useState("");
   const [showcaseMode, setShowcaseMode] = useState(false);
   const [showAllDependencies, setShowAllDependencies] = useState(false);
   const [problemId, setProblemId] = useState("P-000000");
-  const [sourceInstanceId, setSourceInstanceId] = useState(
-    captureMode ? "dt-capture-rehearsal" : "",
-  );
+  const [sourceInstanceId, setSourceInstanceId] = useState("");
   const [forwardBaseUrl, setForwardBaseUrl] = useState("");
   const [forwardNetworkId, setForwardNetworkId] = useState("");
   const [endpointQueryId, setEndpointQueryId] = useState("");
@@ -337,37 +322,33 @@ export const Home = () => {
   const [syncRequest, setSyncRequest] = useState<
     ForwardSyncRequest | undefined
   >();
-  const [statusRequest, setStatusRequest] = useState<
-    ForwardStatusRequest | undefined
-  >();
-
   const liveDependencyQuery = useDql<DynatraceDependencyRow>(
     {
       query: LIVE_DEPENDENCY_QUERY,
       maxResultRecords: 500,
     },
-    { enabled: !captureMode, staleTime: 0 },
+    { staleTime: 0 },
   );
   const liveIngestStatusQuery = useDql<DynatraceDependencyRow>(
     {
       query: LIVE_INGEST_STATUS_QUERY,
       maxResultRecords: 1,
     },
-    { enabled: !captureMode, staleTime: 0 },
+    { staleTime: 0 },
   );
   const liveNetworkEvidenceQuery = useDql<DynatraceDependencyRow>(
     {
       query: LIVE_NETWORK_EVIDENCE_QUERY,
       maxResultRecords: 1,
     },
-    { enabled: !captureMode, staleTime: 0 },
+    { staleTime: 0 },
   );
   const liveDependencies = useMemo(
     () => normalizeLiveDependencies(liveDependencyQuery.data?.records || []),
     [liveDependencyQuery.data?.records],
   );
-  const isLiveSource = !captureMode && liveDependencies.length > 0;
-  const sourceDependencies = captureMode ? dependencies : liveDependencies;
+  const isLiveSource = liveDependencies.length > 0;
+  const sourceDependencies = liveDependencies;
   const liveRunId = rowField(
     liveDependencyQuery.data?.records?.[0] || {},
     ["forward.dynatrace.run_id"],
@@ -435,11 +416,6 @@ export const Home = () => {
     name: "forward-sync",
     data: syncRequest,
   }, { autoFetch: false, autoFetchOnUpdate: true });
-  const forwardStatus = useAppFunction<ForwardStatusResponse>({
-    name: "forward-status",
-    data: statusRequest,
-  }, { autoFetch: false, autoFetchOnUpdate: true });
-
   const effectiveDependencies = useMemo(
     () =>
       sourceDependencies.map((dependency) => ({
@@ -499,9 +475,7 @@ export const Home = () => {
         ? "Live service probes"
         : "Dynatrace application evidence",
       value: `${effectiveDependencies.length}`,
-      detail: captureMode
-        ? "saved rehearsal rows"
-        : `${liveEvidenceSource} · explicit live Grail rows`,
+      detail: `${liveEvidenceSource} · explicit live Grail rows`,
       tone: effectiveDependencies.length > 0 ? "ready" : "needs-work",
     },
     {
@@ -573,7 +547,7 @@ export const Home = () => {
   }, [activeDependencyId, effectiveDependencies]);
 
   useEffect(() => {
-    if (captureMode || !isLiveSource) return;
+    if (!isLiveSource) return;
     if (liveProblemId) {
       setProblemId((current) => current === "P-000000" ? liveProblemId : current);
     }
@@ -581,11 +555,10 @@ export const Home = () => {
       setForwardNetworkId((current) => current || liveNetworkId);
     }
     setSyncMode((current) => current === "manual-import" ? "data-connector" : current);
-  }, [captureMode, isLiveSource, liveNetworkId, liveProblemId]);
+  }, [isLiveSource, liveNetworkId, liveProblemId]);
 
   useEffect(() => {
     if (
-      captureMode ||
       !isLiveSource ||
       syncRequest ||
       !sourceInstanceId ||
@@ -604,7 +577,6 @@ export const Home = () => {
       dependencies: effectiveDependencies,
     });
   }, [
-    captureMode,
     effectiveDependencies,
     forwardBaseUrl,
     forwardAccessProfile,
@@ -686,12 +658,6 @@ export const Home = () => {
     });
   }
 
-  function loadForwardStatus() {
-    setStatusRequest({
-      statusArtifact: sampleForwardStatus,
-    });
-  }
-
   return (
     <Flex className="page" flexDirection="column" gap={24}>
       <TitleBar>
@@ -760,40 +726,26 @@ export const Home = () => {
 
       <section className={`source-banner ${isLiveSource ? "live" : "reference"}`} aria-label="Dynatrace data source">
         <div>
-          <Strong>
-            {captureMode
-              ? "Checked replay dependency data"
-              : isLiveSource
-                ? liveEvidenceLabel
-                : "No live instrumented dependency rows"}
-          </Strong>
+          <Strong>{isLiveSource ? liveEvidenceLabel : "No live instrumented dependency rows"}</Strong>
           <span>
-            {captureMode
-              ? `${dependencies.length} saved rows for the credential-free rehearsal; live Grail remains the production source.`
-              : isLiveSource
-                ? `${liveDependencies.length} deduplicated live rows from ${liveRunId}; source ${liveEvidenceSource}.`
-                : "Only current instrumented spans are eligible; saved rehearsal data is disabled."}
+            {isLiveSource
+              ? `${liveDependencies.length} deduplicated live rows from ${liveRunId}; source ${liveEvidenceSource}.`
+              : "Only current instrumented spans are eligible; the app has no seeded or replay fallback."}
           </span>
         </div>
         <div className="source-actions">
-          {captureMode ? (
-            <span className="evidence-status controlled">SYNTHETIC DEMO REHEARSAL</span>
-          ) : (
-            <>
-              {liveDependencyQuery.isFetching && <ProgressCircle aria-label="Loading live Dynatrace data" />}
-              <Button
-                color="primary"
-                variant="accent"
-                onClick={() => {
-                  void loadLiveDependencies();
-                }}
-              >
-                Refresh closed-loop evidence
-              </Button>
-            </>
-          )}
+          {liveDependencyQuery.isFetching && <ProgressCircle aria-label="Loading live Dynatrace data" />}
+          <Button
+            color="primary"
+            variant="accent"
+            onClick={() => {
+              void loadLiveDependencies();
+            }}
+          >
+            Refresh closed-loop evidence
+          </Button>
         </div>
-        {!captureMode && liveDependencyQuery.error && (
+        {liveDependencyQuery.error && (
           <Paragraph>Live query failed: {liveDependencyQuery.error.message}</Paragraph>
         )}
       </section>
@@ -983,7 +935,6 @@ export const Home = () => {
             icon={<UploadIcon />}
             title="Forward Package Inputs"
             detail="Dependency candidates and package metadata"
-            badge={captureMode ? "SYNTHETIC DEMO REHEARSAL" : undefined}
           />
           <div className="field-grid">
             <label>
@@ -1122,7 +1073,6 @@ export const Home = () => {
           icon={<PathIcon />}
           title="Forward Host Resolution And Path Evidence"
           detail="Read-only preflight before intent creation"
-          badge={captureMode ? "SYNTHETIC DEMO REHEARSAL" : undefined}
         />
         {nqePreview.isLoading && <ProgressCircle aria-label="Loading NQE preview" />}
         {nqePreview.data ? (
@@ -1231,23 +1181,15 @@ export const Home = () => {
           detail="Sanitized closed-loop status from Forward-side runtime"
         />
         <div className="status-actions">
-          {captureMode && (
-            <Button color="primary" variant="accent" onClick={loadForwardStatus}>
-              <Button.Prefix>
-                <DownloadIcon />
-              </Button.Prefix>
-              Load rehearsal status artifact
-            </Button>
-          )}
           <span>
             Forward publishes aggregate status back to Grail. No Forward
             credentials, hostnames, check names, or API bodies are shown here.
           </span>
         </div>
-        {(forwardStatus.isLoading || liveIngestStatusQuery.isFetching) && (
+        {liveIngestStatusQuery.isFetching && (
           <ProgressCircle aria-label="Loading Forward status" />
         )}
-        {!captureMode && liveStatusRow ? (
+        {liveStatusRow ? (
           <ResultBody
             status={liveImportState === "reconciled" && liveDriftChecks === 0 ? "ready" : "blocked"}
             summary={`Forward reconciliation ${liveImportState} package ${rowField(liveStatusRow, ["forward.dynatrace.package_id"])} against snapshot ${liveSnapshotId}.`}
@@ -1264,20 +1206,12 @@ export const Home = () => {
               ? ["No unresolved drift; the current package and Forward snapshot are reconciled."]
               : ["Review changed and stale checks in the Forward-side approval workflow."]}
           />
-        ) : forwardStatus.data ? (
-          <ResultBody
-            status={forwardStatus.data.status}
-            summary={forwardStatus.data.summary}
-            rows={forwardStatus.data.rows}
-            nextSteps={forwardStatus.data.nextSteps}
-          />
         ) : (
           <EmptyState text="No live Forward ingest status loaded yet." />
         )}
-        {!captureMode && liveIngestStatusQuery.error && (
+        {liveIngestStatusQuery.error && (
           <Paragraph>{liveIngestStatusQuery.error.message}</Paragraph>
         )}
-        {forwardStatus.error && <Paragraph>{forwardStatus.error.message}</Paragraph>}
       </section>
 
       <section className="panel">
@@ -1285,7 +1219,6 @@ export const Home = () => {
           icon={<AutomationEngineIcon />}
           title="Forward-Centric Ingest Package"
           detail="Built after Forward host resolution"
-          badge={captureMode ? "SYNTHETIC DEMO REHEARSAL" : undefined}
         />
         {sync.isLoading && <ProgressCircle aria-label="Loading export package" />}
         {sync.data ? (() => {
@@ -1395,9 +1328,6 @@ export const Home = () => {
                   <div className="intent-preview">
                     <div className="intent-preview-heading">
                       <Heading level={5}>Bulk intent check payload sample</Heading>
-                      {captureMode && (
-                        <span className="evidence-status controlled">SYNTHETIC DEMO REHEARSAL</span>
-                      )}
                     </div>
                     <Paragraph>
                       Showing 3 of {syncData.intentCheckCount}; the downloaded artifact contains the full package.

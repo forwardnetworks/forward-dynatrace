@@ -40,42 +40,6 @@ flowchart LR
     J --> K["Post-apply reconciliation"]
 ```
 
-## Screenshots
-
-### 1. Dynatrace Mapping Becomes Forward Intent Candidates
-
-The app starts from Dynatrace application dependencies, not generic infra telemetry.
-
-![Forward for Dynatrace overview](assets/screenshots/01-overview.jpg)
-
-### 2. Plan Read-Only NQE Evidence
-
-The preview can plan an approved read-only `POST /api/nqe` request before export. No Forward writes happen inside
-Dynatrace.
-
-![Forward read-only NQE preview](assets/screenshots/02-export-package-readiness.jpg)
-
-### 3. Build A Forward Package
-
-Forward-side tooling resolves eligible rows into Forward-native `NewNetworkCheck[]` JSON. Forward manual import or a
-Forward-side connector executes the API calls.
-
-![Forward-side API sequence](assets/screenshots/03-forward-side-api.jpg)
-
-### 4. Forward-Side Persistent Intent Checks
-
-Eligible dependency rows become persistent `Existential` checks with deterministic tags for dedupe, created by
-Forward-side ingest.
-
-![Forward intent check payload](assets/screenshots/04-intent-check-payload.jpg)
-
-### 5. Select The Forward Credential Profile
-
-The package records the customer-selected Read Only, Network Operator, or Network Admin profile. The Forward-side
-runtime must match it exactly; only Network Admin exposes managed intent-check write actions.
-
-![Forward access profiles](assets/screenshots/05-forward-access-profiles.jpg)
-
 ## Standard Forward-Centric Ingest Sequence
 
 1. Dynatrace app exports dependency rows from Dynatrace services, spans, tags, or ownership metadata.

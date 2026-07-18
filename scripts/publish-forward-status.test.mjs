@@ -105,9 +105,7 @@ test("publishes sanitized status and checksum to a handoff directory", async () 
       "--output-dir",
       outputDir,
       "--evidence-source",
-      "trial-replay",
-      "--synthetic",
-      "true",
+      "live-instrumented-transactions",
     ],
     {
       cwd: root,
@@ -147,8 +145,8 @@ test("publishes sanitized status and checksum to a handoff directory", async () 
   );
   assert.equal(published.packageSignature.status, "verified");
   assert.equal(event.eventType, "forward.dynatrace.ingest.status");
-  assert.equal(event.properties["forward.dynatrace.evidence_source"], "trial-replay");
-  assert.equal(event.properties["forward.dynatrace.synthetic"], true);
+  assert.equal(event.properties["forward.dynatrace.evidence_source"], "live-instrumented-transactions");
+  assert.equal(event.properties["forward.dynatrace.synthetic"], false);
   assert.equal(result.eventOutput, path.join(outputDir, "forward-ingest-status-event.json"));
   assert.match(checksum, /forward-ingest-status\.json/);
 });

@@ -15,8 +15,7 @@ npm run forward:check-health -- \
   --output /var/lib/forward-dynatrace/check-health-transitions.json
 ```
 
-Live polling is labeled `live-forward-poll`. When exercising the portal from a saved demo inventory, pass a bounded
-`--evidence-source` plus `--synthetic`; both fields are retained in the transition artifact and every published event.
+Live polling is labeled `live-forward-poll`; saved or generated inventories are not accepted by the operational path.
 
 The first run establishes a baseline. Later runs emit only `PASS_TO_FAIL`, `FAIL_TO_PASS`, `ERROR`, and `MISSING`.
 Unchanged cycles emit no events. Transition IDs include network, snapshot, identity hash, and state pair, making retry

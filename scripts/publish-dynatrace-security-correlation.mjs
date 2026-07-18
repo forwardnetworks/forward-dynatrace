@@ -73,6 +73,9 @@ export const validateSecurityCorrelation = (artifact) => {
   ) {
     throw new Error("Security correlation must contain explicit evidence provenance.");
   }
+  if (artifact.provenance.synthetic !== false) {
+    throw new Error("Security correlation publication rejects synthetic evidence.");
+  }
   if (artifact.investigationQueue.length > MAX_EVENTS) {
     throw new Error(`Security correlation exceeds ${MAX_EVENTS} publishable events.`);
   }

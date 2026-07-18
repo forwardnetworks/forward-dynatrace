@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
 import {
@@ -11,19 +10,16 @@ import {
   validateConductorProvenance,
 } from "./live-demo-conductor.mjs";
 
-test("selects clean unique showcase flows while preserving governance states", async () => {
-  const dependencies = JSON.parse(
-    await readFile("shared/demo-dependencies.json", "utf8"),
-  );
-  const governed = dependencies.map((dependency) => {
-    if (dependency.serviceName === "astroshop-shipping") {
-      return { ...dependency, mappingState: "review" };
-    }
-    if (dependency.serviceName === "easytrade-accountservice (AccountControllerV2)") {
-      return { ...dependency, mappingState: "needs-map" };
-    }
-    return dependency;
-  });
+test("selects clean unique live flows while preserving governance states", () => {
+  const governed = Array.from({ length: 14 }, (_, index) => ({
+    id: `unit-flow-${index + 1}`,
+    serviceName: index === 13 ? ":invalid" : `service-${index + 1}`,
+    source: `10.0.0.${index + 1}`,
+    destination: `192.0.2.${index + 1}`,
+    protocol: "tcp",
+    port: 443,
+    mappingState: index === 1 ? "review" : index === 2 ? "needs-map" : "ready",
+  }));
 
   const selected = selectShowcaseDependencies(governed, 12);
   assert.equal(selected.length, 12);
@@ -46,16 +42,15 @@ test("runs read-only path evidence by default and supports an explicit skip", ()
   assert.equal(shouldRunPathEvidence(parseArgs(["--skip-path-evidence"])), false);
 });
 
-test("parses Dynatrace status publication without a mutation bypass", () => {
+test("parses live Dynatrace status publication without a mutation bypass", () => {
   assert.deepEqual(parseArgs([
     "--publish-dynatrace-status",
-    "--evidence-source", "trial-replay",
-    "--synthetic",
+    "--evidence-source", "live-instrumented-transactions",
   ]), {
     "publish-dynatrace-status": true,
-    "evidence-source": "trial-replay",
-    synthetic: true,
+    "evidence-source": "live-instrumented-transactions",
   });
+  assert.throws(() => parseArgs(["--synthetic"]), /live evidence only/);
 });
 
 test("requires honest query and dependency provenance before any Forward work", () => {
@@ -64,7 +59,7 @@ test("requires honest query and dependency provenance before any Forward work", 
       dependencies: [],
       provenance: { evidenceSource: "live-customer-query", synthetic: false },
     }),
-    /default DQL reads replay evidence/,
+    /query-file is required/,
   );
   assert.deepEqual(
     validateConductorProvenance({
@@ -80,7 +75,7 @@ test("requires honest query and dependency provenance before any Forward work", 
       provenance: { evidenceSource: "live-customer-query", synthetic: false },
       queryFile: "/secure/queries/customer-dependencies.dql",
     }),
-    /returned replay\/seeded evidence/,
+    /live-only processing stopped/,
   );
 });
 
@@ -88,8 +83,7 @@ test("fails empty live evidence with an honest no-write recovery path", () => {
   const noRows = noShowcaseDependenciesMessage({ rowCount: 0, dependencyCount: 0 });
   assert.match(noRows, /returned zero dependency rows/u);
   assert.match(noRows, /No Forward call was attempted/u);
-  assert.match(noRows, /approved non-production demo tenant only/u);
-  assert.match(noRows, /replay evidence must remain visibly synthetic/u);
+  assert.match(noRows, /current customer-owned dependency evidence/u);
 
   const unusableRows = noShowcaseDependenciesMessage({ rowCount: 4, dependencyCount: 2 });
   assert.match(unusableRows, /returned 4 rows and 2 normalized dependencies/u);

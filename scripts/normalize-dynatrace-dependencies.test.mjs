@@ -1,41 +1,42 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
 import { normalizeDynatraceRows } from "./normalize-dynatrace-dependencies.mjs";
 
-const demoRows = JSON.parse(
-  await readFile("shared/demo-dynatrace-query-rows.json", "utf8"),
-);
+const liveRows = [{
+  "app.name": "Instrumented Application",
+  "app.environment": "test",
+  "dt.entity.service": "SERVICE-INSTRUMENTED-1",
+  "service.name": "checkout",
+  "network.source.label": "client-01",
+  "network.source": "192.0.2.10/32",
+  "network.destination.label": "checkout-api",
+  "network.destination": "198.51.100.20/32",
+  "network.protocol": "tcp",
+  "network.port": "443",
+  "dependency.confidence": "100",
+  "dependency.mapping_state": "ready",
+  "demo.synthetic": false,
+}];
 
 test("normalizes DQL-shaped rows into dependency candidates", () => {
-  const dependencies = normalizeDynatraceRows(demoRows);
+  const dependencies = normalizeDynatraceRows(liveRows);
 
-  assert.equal(dependencies.length, 100);
-  assert.equal(dependencies[0].appName, "Dynatrace Demo");
-  assert.equal(dependencies[0].serviceEntityId, "SERVICE-00677FCCD8F24235");
+  assert.equal(dependencies.length, 1);
+  assert.equal(dependencies[0].appName, "Instrumented Application");
+  assert.equal(dependencies[0].serviceEntityId, "SERVICE-INSTRUMENTED-1");
   assert.equal(dependencies[0].protocol, "tcp");
-  assert.equal(dependencies[0].source, "192.168.10.14/32");
-  assert.equal(dependencies[0].destination, "192.168.10.16/32");
+  assert.equal(dependencies[0].source, "192.0.2.10/32");
+  assert.equal(dependencies[0].destination, "198.51.100.20/32");
   assert.equal(dependencies[0].mappingState, "ready");
-  assert.equal(
-    dependencies.filter((dependency) => dependency.mappingState === "ready").length,
-    100,
-  );
-  assert.ok(
-    dependencies.some((dependency) =>
-      dependency.source === "192.168.10.14/32" &&
-      dependency.destination === "192.168.10.16/32" &&
-      dependency.serviceEntityId === "SERVICE-95D96EDE93AA13DB",
-    ),
-  );
+  assert.equal(dependencies[0].synthetic, undefined);
 });
 
 test("honors explicit dependency mapping state from DQL rows", () => {
   const [dependency] = normalizeDynatraceRows([
     {
-      "app.name": "Dynatrace Demo",
-      "app.environment": "demo",
+      "app.name": "Instrumented Application",
+      "app.environment": "test",
       "dt.entity.service": "SERVICE-EXPLICIT",
       "service.name": "checkout",
       "network.source.label": "branch-01",
@@ -46,17 +47,17 @@ test("honors explicit dependency mapping state from DQL rows", () => {
       "network.port": "443",
       "dependency.confidence": "80",
       "dependency.mapping_state": "ready",
-      "demo.synthetic": true,
+      "demo.synthetic": false,
     },
   ]);
 
   assert.equal(dependency.mappingState, "ready");
-  assert.equal(dependency.synthetic, true);
+  assert.equal(dependency.synthetic, undefined);
   assert.equal(dependency.sourceLabel, "branch-01");
   assert.equal(dependency.destinationLabel, "checkout-api");
 });
 
-test("preserves replay provenance and rejects ambiguous synthetic markers", () => {
+test("rejects replay, seeded, fixture, and synthetic provenance", () => {
   const baseRow = {
     "dt.entity.service": "SERVICE-SEEDED",
     "network.source": "10.0.0.10/32",
@@ -64,8 +65,7 @@ test("preserves replay provenance and rejects ambiguous synthetic markers", () =
     "network.port": "443",
     "forward.dynatrace.seeded": "true",
   };
-  const [dependency] = normalizeDynatraceRows([baseRow]);
-  assert.equal(dependency.synthetic, true);
+  assert.throws(() => normalizeDynatraceRows([baseRow]), /live-only normalization rejected/);
   assert.throws(
     () => normalizeDynatraceRows([{ ...baseRow, "forward.dynatrace.seeded": "unknown" }]),
     /must be a boolean when supplied/,
@@ -75,22 +75,20 @@ test("preserves replay provenance and rejects ambiguous synthetic markers", () =
       ...baseRow,
       "demo.synthetic": false,
     }]),
-    /conflicting live and synthetic provenance markers/,
+    /live-only normalization rejected/,
   );
 
-  const [providerMarked] = normalizeDynatraceRows([{
+  assert.throws(() => normalizeDynatraceRows([{
     ...baseRow,
     "forward.dynatrace.seeded": undefined,
     "event.provider": "forward-dynatrace-demo",
-  }]);
-  assert.equal(providerMarked.synthetic, true);
+  }]), /live-only normalization rejected/);
 
-  const [replayMarked] = normalizeDynatraceRows([{
+  assert.throws(() => normalizeDynatraceRows([{
     ...baseRow,
     "forward.dynatrace.seeded": undefined,
     "demo.replay": "true",
-  }]);
-  assert.equal(replayMarked.synthetic, true);
+  }]), /live-only normalization rejected/);
 });
 
 test("rejects non-array input", () => {

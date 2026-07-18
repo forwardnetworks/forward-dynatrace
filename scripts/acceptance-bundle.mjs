@@ -12,7 +12,7 @@ const usage = `
 Acceptance evidence bundle
 
 Usage:
-  node scripts/acceptance-bundle.mjs --dependencies shared/demo-dependencies.json --output-dir out/acceptance
+  node scripts/acceptance-bundle.mjs --dependencies /secure/export/dependencies.json --output-dir out/acceptance
 
 Options:
   --dependencies path                Normalized Dynatrace dependency candidates.

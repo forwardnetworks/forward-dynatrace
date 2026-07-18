@@ -34,11 +34,11 @@ const runSchemaValidate = async (args = []) =>
     });
   });
 
-test("validates committed examples and generated demo package", async () => {
+test("validates committed examples and generated validation package", async () => {
   const result = await runSchemaValidate();
   assert.equal(result.status, "ok");
   assert.ok(result.validated >= 10);
-  assert.ok(result.artifacts.includes("shared/demo-forward-ingest-status.json"));
+  assert.ok(result.artifacts.includes("generated forward-ingest-status-event.json"));
 });
 
 test("rejects connector configs that contain secret-shaped keys", async () => {

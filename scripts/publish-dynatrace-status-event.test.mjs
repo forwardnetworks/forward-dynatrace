@@ -51,7 +51,7 @@ test("validates status event schema and rejects credential-like content", () => 
       ...baseEvent,
       properties: {
         ...baseEvent.properties,
-        "forward.dynatrace.evidence_source": "trial-replay",
+        "forward.dynatrace.evidence_source": "live-instrumented-transactions",
       },
     }),
     /requires paired publish-safe source and synthetic boolean/,

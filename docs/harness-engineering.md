@@ -22,9 +22,9 @@ knowledge in the repository, treat plans as versioned artifacts, and enforce imp
 | Agent legibility | Compact root `AGENTS.md` plus task-oriented progressive disclosure |
 | First-class plans | `docs/exec-plans/active/`, `docs/exec-plans/completed/`, and `docs/exec-plans/tech-debt-tracker.md` |
 | Mechanical invariants | `npm run repo:validate`, importer tests, security audit, SBOM generation, lint, build, GitHub Actions |
-| Synthetic workflow validation | `npm run workflow:smoke` with a fake Forward API |
-| Saved demo replay path | `npm run dynatrace:replay-demo` dry-run by default |
-| Workflow evidence | `npm run demo:capture` writes real browser screenshots under `docs/assets/screenshots/` |
+| Isolated workflow tests | `npm run workflow:smoke` with a fake Forward API; test output is never demo evidence |
+| Live-only demonstration | `npm run demo:live` requires a customer-owned DQL file and rejects non-live provenance |
+| Workflow evidence | Screenshots and acceptance records are captured only from current live app and platform evidence |
 | Boundary enforcement | Importer validation, create-missing-only policy, no Forward credentials in Dynatrace |
 | Collaborator onboarding | `docs/collaboration.md`, active execution plans, PR checklist, and Node 24 CI |
 

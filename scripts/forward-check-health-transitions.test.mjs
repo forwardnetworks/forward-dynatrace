@@ -97,7 +97,7 @@ test("retries transient Dynatrace publication with stable event identity", async
       generatedAt: "2026-01-01T00:00:00Z",
       networkId: "n",
       snapshotId: "s",
-      provenance: { source: "unit-test", synthetic: true },
+      provenance: { source: "unit-test", synthetic: false },
       transitions: [{
         transitionId: "a".repeat(64),
         identityHash: "b".repeat(64),

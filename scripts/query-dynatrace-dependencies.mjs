@@ -8,10 +8,6 @@ import { normalizeDynatraceRows } from "./normalize-dynatrace-dependencies.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const appConfigPath = path.join(root, "app.config.json");
-const defaultQueryPath = path.join(
-  root,
-  "deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql",
-);
 
 const usage = `
 Dynatrace dependency query exporter
@@ -29,7 +25,7 @@ Options:
   --poll-interval-ms 1000         Delay between query polls.
   --poll-timeout-ms 60000         Maximum poll time for async query completion.
   --query text                    Inline DQL query.
-  --query-file path               DQL file. Defaults to the OpenPipeline dependency starter query.
+  --query-file path               Required unless --query supplies inline current-evidence DQL.
   --request-timeout-ms 30000      Initial query request wait timeout.
   --token-file path               Optional local token file outside the repo.
 
@@ -119,7 +115,10 @@ const readQuery = async (args) => {
   if (args.query) {
     return args.query;
   }
-  return readFile(args["query-file"] || defaultQueryPath, "utf8");
+  if (!args["query-file"]) {
+    throw new Error("Supply --query-file or --query with current live-evidence DQL.");
+  }
+  return readFile(args["query-file"], "utf8");
 };
 
 const readResponseJson = async (response, label) => {

@@ -32,7 +32,7 @@ bounded results through shared context and tags.
 - [ ] Install the unsigned sandbox identity and complete the smoke checklist.
 - [ ] Agree on the minimum dependency and execution-context tagging contract.
 - [ ] Validate a Site Reliability Guardian vertical slice.
-- [x] Exercise a high-cardinality lab package with 50 observed dependencies and 50 persistent intent checks, including
+- [x] Exercise a high-cardinality lab package with 240 observed dependencies and 240 persistent intent checks, including
   create, unchanged, regression, recovery, and live Forward/Grail readback.
 - [ ] Promote the signed app into non-production and validate against authoritative service evidence.
 - [x] Add explicit Read Only, Network Operator, and Network Admin package/runtime profiles with exact match enforcement,
@@ -116,8 +116,8 @@ Owner: Forward demo engineering in the separate change-demo repository
 
 - Add an upstream-native containerlab profile with 40–50 total nodes and at least 24 lightweight Linux client, API,
   application, database, queue, DNS, and shared-service endpoints.
-- Emit at least 50 distinct, source-labeled dependency candidates and resolve at least 40 into persistent Forward intent
-  checks; keep lab provenance explicit and distinguish observed container probes from generated fixtures.
+- Emit at least 200 distinct, source-labeled dependency candidates and resolve them into persistent Forward intent
+  checks; every demonstration relationship must come from a real instrumented container transaction.
 - Validate first-run create, second-run unchanged reconciliation, read-only path evidence, one bounded failure set, and
   a clean reset to baseline.
 - Add filtering, aggregation, and pagination so the app demonstrates scale without rendering an unreadable table.
@@ -127,10 +127,11 @@ Acceptance: the profile survives three reset/collect/reconcile cycles, produces 
 remains usable with the full evidence set. The active six-flow profile remains the fast smoke path.
 
 Implementation status: the separate change-demo repository deployed the isolated 49-node profile with 38 Linux
-endpoints, 11 modeled network devices, 23 instrumented services, four transaction generators, 50 observed
-relationships, and 50 persistent checks. First create, unchanged reconciliation, regression, recovery, Guardian
-pass/fail, and live Grail/Forward readback passed. Two additional clean reset cycles plus final timing and resource
-budgets remain open.
+endpoints, 11 modeled network devices, 23 instrumented services, ten transaction generators, and 240 current HTTP/DNS
+relationships. Grail returned exactly 240 live client-span relationships and Forward evaluated all 240 as reachable.
+The signed Network Admin plan created the 190 missing checks without updating or deactivating existing checks; both
+post-apply verification and a new independent reconciliation reported all 240 unchanged. Two additional clean reset
+cycles and final timing/resource budgets remain open.
 
 ### 6. Non-production promotion
 

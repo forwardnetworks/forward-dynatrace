@@ -21,7 +21,6 @@ Dynatrace and Forward security exposure correlator
 
 Options:
   --evidence-source label  Publish-safe provenance label (required).
-  --synthetic              Explicitly label demo/synthetic evidence.
 
 This command reads evidence files and writes a ranked investigation queue. It
 does not contact or mutate Dynatrace or Forward. Low-confidence mappings never
@@ -33,7 +32,9 @@ const parseArgs = (argv) => {
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
     if (value === "--help") { args.help = true; continue; }
-    if (value === "--synthetic") { args.synthetic = true; continue; }
+    if (value === "--synthetic") {
+      throw new Error("--synthetic is not supported; security correlation is live-only.");
+    }
     if (!value.startsWith("--")) throw new Error(`Unexpected argument: ${value}`);
     const next = argv[index + 1];
     if (!next || next.startsWith("--")) throw new Error(`Missing value for ${value}`);
@@ -119,7 +120,10 @@ const validateProvenance = (provenance = {}) => {
   if (source.length > 128 || !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/u.test(source)) {
     throw new Error("Evidence source must be a publish-safe label up to 128 characters.");
   }
-  return { source, synthetic: Boolean(provenance.synthetic) };
+  if (provenance.synthetic === true) {
+    throw new Error("Security correlation rejects synthetic evidence.");
+  }
+  return { source, synthetic: false };
 };
 
 const rankSeverity = (finding, exposure, confidence) => {
@@ -211,7 +215,7 @@ export const run = async (argv = process.argv.slice(2)) => {
     generatedAt: new Date().toISOString(),
     provenance: {
       source: required(args, "evidence-source"),
-      synthetic: Boolean(args.synthetic),
+      synthetic: false,
     },
   });
   const output = path.resolve(required(args, "output"));

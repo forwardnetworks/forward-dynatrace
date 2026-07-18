@@ -33,7 +33,7 @@ const queueItem = {
 const artifact = {
   schemaVersion: "forward-dynatrace-security-correlation/v1",
   generatedAt: "2026-01-01T00:02:00Z",
-  provenance: { source: "unit-test", synthetic: true },
+  provenance: { source: "unit-test", synthetic: false },
   counts: { rejectedMappings: 0 },
   investigationQueue: [queueItem],
 };
@@ -43,7 +43,7 @@ test("builds bounded security events with separate facts and evidence IDs", () =
   assert.equal(batch.records.length, 1);
   assert.equal(batch.records[0]["event.status"], "ERROR");
   assert.equal(batch.records[0]["forward.dynatrace.evidence_source"], "unit-test");
-  assert.equal(batch.records[0]["forward.dynatrace.synthetic"], true);
+  assert.equal(batch.records[0]["forward.dynatrace.synthetic"], false);
   assert.equal(batch.records[0]["forward.dynatrace.fact.modeled_reachability"], true);
   assert.equal(batch.records[0]["forward.dynatrace.dynatrace_finding_id"], "DT-1");
 });

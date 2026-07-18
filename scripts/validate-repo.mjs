@@ -59,15 +59,11 @@ const requiredFiles = [
   "docs/harness-engineering.md",
   "docs/collaboration.md",
   "docs/gitops.md",
-  "docs/demo-data.md",
   "docs/agent-guides/dynatrace-app.md",
   "docs/exec-plans/README.md",
   "docs/exec-plans/active/customer-production-readiness.md",
   "docs/exec-plans/active/design-partner-pilot.md",
   "docs/exec-plans/tech-debt-tracker.md",
-  "shared/demo-dependencies.json",
-  "shared/demo-dynatrace-query-rows.json",
-  "shared/demo-forward-ingest-status.json",
   "config/forward-connector.config.example.json",
   "config/forward-connector.network-operator.config.example.json",
   "config/forward-connector.network-admin.config.example.json",
@@ -160,7 +156,6 @@ const requiredFiles = [
   "scripts/build-forward-package.mjs",
   "scripts/normalize-dynatrace-dependencies.mjs",
   "scripts/normalize-dynatrace-dependencies.test.mjs",
-  "scripts/demo-rehearsal.mjs",
   "scripts/load-scale-smoke.mjs",
   "scripts/runtime-slo-check.mjs",
   "scripts/runtime-slo-check.test.mjs",
@@ -170,13 +165,8 @@ const requiredFiles = [
   "scripts/generate-dynatrace-workflows.mjs",
   "scripts/generate-dynatrace-workflows.test.mjs",
   "scripts/validate-dynatrace-guardian.mjs",
-  "scripts/replay-dynatrace-demo-data.mjs",
-  "scripts/replay-dynatrace-demo-data.test.mjs",
   "scripts/live-demo-conductor.mjs",
   "scripts/live-demo-conductor.test.mjs",
-  "deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql",
-  "deploy/dynatrace-dql/service-dependency-candidates-local-arm64-demo.dql",
-  "shared/local-arm64-change-dependencies.json",
   "deploy/dynatrace-dql/service-dependencies-smartscape.dql",
   "deploy/dynatrace-dql/forward-ingest-status-latest.dql",
   "deploy/dynatrace-dql/forward-ingest-status-attention.dql",
@@ -234,12 +224,14 @@ const requiredFiles = [
   "schemas/README.md",
 ];
 
-const requiredScreenshots = [
-  "docs/assets/screenshots/01-overview.jpg",
-  "docs/assets/screenshots/02-export-package-readiness.jpg",
-  "docs/assets/screenshots/03-forward-side-api.jpg",
-  "docs/assets/screenshots/04-intent-check-payload.jpg",
-  "docs/assets/screenshots/05-forward-access-profiles.jpg",
+const forbiddenSeededDemoFiles = [
+  "scripts/replay-dynatrace-demo-data.mjs",
+  "scripts/demo-rehearsal.mjs",
+  "scripts/build-demo-capture-evidence.mjs",
+  "scripts/capture-demo-screenshots.mjs",
+  "deploy/dynatrace-dql/service-dependency-candidates-local-arm64-demo.dql",
+  "deploy/dynatrace-dql/service-dependency-candidates-openpipeline-events.dql",
+  "docs/demo-data.md",
 ];
 
 const skippedDirectories = new Set([
@@ -392,7 +384,6 @@ const publicBrandingFiles = [
   "docs/governance.md",
   "docs/support-matrix.md",
   "docs/templates/customer-acceptance-record.md",
-  "docs/screenshots.md",
   "docs/validation-matrix.md",
   "docs/workflow.md",
   "docs/dynatrace-workflow-trigger.md",
@@ -504,15 +495,9 @@ for (const requiredFile of requiredFiles) {
   }
 }
 
-for (const screenshot of requiredScreenshots) {
-  const absolutePath = path.join(root, screenshot);
-  try {
-    const details = await stat(absolutePath);
-    if (details.size < 10_000) {
-      fail(`Screenshot is unexpectedly small: ${screenshot}`);
-    }
-  } catch {
-    fail(`Missing required screenshot: ${screenshot}`);
+for (const forbiddenFile of forbiddenSeededDemoFiles) {
+  if (await exists(forbiddenFile)) {
+    fail(`Seeded/replay demo artifact must not exist: ${forbiddenFile}`);
   }
 }
 
@@ -723,13 +708,13 @@ if (homePage.includes('filter event.type == "com.forward.application.dependency"
 for (const requiredProvenanceContract of [
   "`forward.dynatrace.evidence_source`, `forward.dynatrace.synthetic`",
   "| filter `forward.dynatrace.synthetic` == false",
-  "SYNTHETIC DEMO",
+  "NOT ELIGIBLE",
   "provenanceLabel(row)",
   "Live Grail network evidence",
 ]) {
   if (!crossDomainEvidence.includes(requiredProvenanceContract)) {
     fail(
-      `Cross-domain portal must render explicit live/synthetic provenance: ${requiredProvenanceContract}`,
+      `Cross-domain portal must preserve the live-only provenance boundary: ${requiredProvenanceContract}`,
     );
   }
 }
@@ -743,12 +728,14 @@ for (const uiFile of [
     fail(`Dynatrace UI must not contain unrelated product-specific content: ${uiFile}.`);
   }
 }
-if (
-  crossDomainEvidence.includes(
-    "filter isNull(`forward.dynatrace.synthetic`) or `forward.dynatrace.synthetic` == false",
-  )
-) {
-  fail("Cross-domain portal must label synthetic demo evidence instead of silently hiding it.");
+for (const forbiddenRuntimeText of [
+  "__FORWARD_DYNATRACE_CAPTURE_EVIDENCE__",
+  "SYNTHETIC DEMO REHEARSAL",
+  "Checked replay dependency data",
+]) {
+  if (homePage.includes(forbiddenRuntimeText) || crossDomainEvidence.includes(forbiddenRuntimeText)) {
+    fail(`Dynatrace app must not contain seeded/replay runtime behavior: ${forbiddenRuntimeText}`);
+  }
 }
 
 for (const file of publicBrandingFiles) {
@@ -858,7 +845,6 @@ for (const scriptName of [
   "runtime:slo:test",
   "dynatrace:workflow:validate",
   "dynatrace:workflow:generate:test",
-  "demo:rehearsal",
   "load:scale",
   "release:package:smoke",
   "security:audit",
@@ -901,8 +887,10 @@ if (!packageJson.scripts?.["dynatrace:query"]) {
 if (!packageJson.scripts?.["dynatrace:deploy"]) {
   fail("package.json must define npm script dynatrace:deploy.");
 }
-if (!packageJson.scripts?.["dynatrace:replay-demo"]) {
-  fail("package.json must define npm script dynatrace:replay-demo.");
+for (const forbiddenScript of ["dynatrace:replay-demo", "demo:capture", "demo:rehearsal"]) {
+  if (packageJson.scripts?.[forbiddenScript]) {
+    fail(`package.json must not expose seeded/replay workflow ${forbiddenScript}.`);
+  }
 }
 if (!packageJson.scripts?.["dynatrace:status:publish"]) {
   fail("package.json must define npm script dynatrace:status:publish.");
@@ -984,14 +972,11 @@ for (const requiredPackagerText of [
   "deploy/dynatrace-workflows",
   "deploy/dynatrace-dql",
   "deploy/dynatrace-dashboard",
-  "service-dependency-candidates-openpipeline-events.dql",
-  "service-dependency-candidates-local-arm64-demo.dql",
   "service-dependencies-smartscape.dql",
   "forward-ingest-status-latest.dql",
   "forward-ingest-status-attention.dql",
   "forward-ingest-status-dashboard.template.json",
   "forward-sync-on-demand.payload.example.json",
-  "docs/assets/screenshots",
   "docs/dynatrace-workflow-trigger.md",
   "docs/forward-ingest-contract.md",
   "docs/forward-host-resolution.md",
@@ -1048,11 +1033,9 @@ for (const requiredPackagerText of [
   "scripts/install-systemd-runtime.test.mjs",
   "scripts/publish-dynatrace-change-gate.mjs",
   "scripts/publish-dynatrace-security-correlation.mjs",
-  "scripts/replay-dynatrace-demo-data.mjs",
   "scripts/live-demo-conductor.mjs",
   "scripts/build-forward-package.mjs",
   "scripts/normalize-dynatrace-dependencies.mjs",
-  "scripts/demo-rehearsal.mjs",
   "scripts/load-scale-smoke.mjs",
   "scripts/runtime-slo-check.mjs",
   "forward-dynatrace-sbom-",
