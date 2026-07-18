@@ -8,7 +8,7 @@ repository CI alone does not convert an unverified customer environment into a s
 
 | Area | `v1` baseline | Verification | Production gate |
 | --- | --- | --- | --- |
-| Forward for Dynatrace | Immutable `v1.x` release; current verified kit is `v1.0.1` | Published-release verifier checks commit, checksums, signature, attestations, SBOM, image digest, and Trivy result | Install the exact verified release; never install a moved tag or mutable image tag |
+| Forward for Dynatrace | Immutable `v1.x` release; current verified kit is `v1.0.2` | Published-release verifier checks commit, checksums, signature, attestations, SBOM, image digest, and Trivy result | Install the exact verified release; never install a moved tag or mutable image tag |
 | Package schema | `forward-dynatrace/v1` | JSON Schema and import-plan tests | Reject unknown schema versions; no compatibility shim or silent downgrade |
 | Connector schema | `forward-dynatrace-connector/v1` | Schema and runtime-manifest tests | Customer config must validate before credentials or network calls are enabled |
 | Default mutation policy | Create missing checks only | Reconciliation and immutable-plan tests | Changed and stale mutations remain disabled unless separately approval-gated |

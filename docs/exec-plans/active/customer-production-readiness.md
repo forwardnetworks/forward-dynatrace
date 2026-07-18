@@ -63,6 +63,8 @@ Cross-product workflow orchestration and combined demonstrations are intentional
   membership checks for both `v1.0.2` release archives.
 - [x] Replace the non-existent CODEOWNERS placeholder with an accountable interim maintainer and document the exact
   two-reviewer/product-team gate before code-owner and administrator enforcement are enabled.
+- [x] Publish immutable `v1.0.2` from commit `de452ad`, pass release run `29624454929`, and pass independent verification
+  run `29624548725` with the action-pin gate, support matrix, and acceptance record in the customer kit.
 
 ## Plan
 

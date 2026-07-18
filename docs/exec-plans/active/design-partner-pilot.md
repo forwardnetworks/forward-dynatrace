@@ -25,7 +25,7 @@ bounded results through shared context and tags.
 - [x] Select production identity `com.forward.dynatrace` and sandbox identity `my.forward`.
 - [x] Define clean installation under the production or sandbox identity; experimental installs are removed, not
   migrated.
-- [x] Publish immutable `v1.0.1` release artifacts and verify checksums, release signature, SBOM, attestations, image
+- [x] Publish immutable `v1.0.2` release artifacts and verify checksums, release signature, SBOM, attestations, image
   digest, signer workflow, and zero-result vulnerability scan.
 - [ ] Produce and install the Dynatrace-signed `com.forward.dynatrace` archive; release checksum signing alone does not
   satisfy the Dynatrace production identity gate.
@@ -50,7 +50,7 @@ Owner: Forward engineering and product
 Acceptance: a tenant administrator can verify the archive and install it without repository-local credentials or
 author assistance.
 
-Implementation status: immutable `v1.0.1` source, app/importer archives, checksum signature, SBOM, attestations, GHCR
+Implementation status: immutable `v1.0.2` source, app/importer archives, checksum signature, SBOM, attestations, GHCR
 digest, and independent verification are published. A tenant-installable Dynatrace-signed production archive and named
 support ownership remain open.
 
