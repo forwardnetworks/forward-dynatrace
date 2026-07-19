@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://forwardnetworks.com/schemas/forward-security-correlation.schema.json",
+  "title": "Forward for Dynatrace security exposure correlation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "mode", "provenance", "counts", "investigationQueue", "rejectedMappings", "boundaries"],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace-security-correlation/v1" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "mode": { "const": "read-only-investigation" },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "synthetic"],
+      "properties": {
+        "source": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+        "synthetic": { "type": "boolean" }
+      }
+    },
+    "counts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["findings", "exposures", "mappings", "correlated", "rejectedMappings"],
+      "properties": {
+        "findings": { "type": "integer", "minimum": 0 }, "exposures": { "type": "integer", "minimum": 0 },
+        "mappings": { "type": "integer", "minimum": 0 }, "correlated": { "type": "integer", "minimum": 0 },
+        "rejectedMappings": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "investigationQueue": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["correlationId", "severity", "confidence", "owner", "evidence", "facts", "disposition"],
+        "properties": {
+          "correlationId": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "severity": { "enum": ["low", "medium", "high", "critical"] },
+          "confidence": { "enum": ["low", "medium", "high"] },
+          "owner": { "type": ["string", "null"] },
+          "evidence": {
+            "type": "object", "additionalProperties": false,
+            "required": ["dynatraceFindingId", "dynatraceObservedAt", "forwardExposureId", "forwardSnapshotId", "forwardObservedAt", "identityMappingId"],
+            "properties": {
+              "dynatraceFindingId": { "type": "string" }, "dynatraceObservedAt": { "type": "string", "format": "date-time" },
+              "forwardExposureId": { "type": "string" }, "forwardSnapshotId": { "type": "string" },
+              "forwardObservedAt": { "type": "string", "format": "date-time" }, "identityMappingId": { "type": "string" }
+            }
+          },
+          "facts": {
+            "type": "object", "additionalProperties": false,
+            "required": ["observedExecution", "vulnerableRuntime", "modeledReachability", "internetAddressability", "policyFinding"],
+            "properties": {
+              "observedExecution": { "type": "boolean" }, "vulnerableRuntime": { "type": "boolean" },
+              "modeledReachability": { "type": "boolean" }, "internetAddressability": { "type": "boolean" },
+              "policyFinding": { "type": "boolean" }
+            }
+          },
+          "disposition": { "enum": ["investigate", "identity-review-required"] }
+        }
+      }
+    },
+    "rejectedMappings": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false, "required": ["mappingId", "reason"],
+        "properties": { "mappingId": { "type": "string" }, "reason": { "const": "missing-evidence-or-invalid-confidence" } }
+      }
+    },
+    "boundaries": {
+      "type": "object", "additionalProperties": false,
+      "required": ["rawEvidenceRemainsInSourceSystems", "modeledReachabilityIsNotPolicyIntent", "automaticRemediation"],
+      "properties": {
+        "rawEvidenceRemainsInSourceSystems": { "const": true },
+        "modeledReachabilityIsNotPolicyIntent": { "const": true },
+        "automaticRemediation": { "const": false }
+      }
+    }
+  }
+}

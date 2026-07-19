@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "forward-dynatrace-change-context/v1",
+  "changeId": "CHG-EXAMPLE-001",
+  "deploymentId": "DEPLOY-EXAMPLE-001",
+  "observedAt": "2026-01-01T00:00:00.000Z",
+  "serviceEntityIds": ["SERVICE-EXAMPLE-CHECKOUT"],
+  "dynatrace": {
+    "deploymentState": "SUCCEEDED",
+    "serviceHealth": "HEALTHY",
+    "openProblemCount": 0
+  }
+}

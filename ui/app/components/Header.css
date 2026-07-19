@@ -1,0 +1,43 @@
+.app-shell-header {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 28px;
+  background: #0a2538;
+  border-bottom: 1px solid #173b52;
+}
+
+.app-shell-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.app-shell-logo {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  background: #071b29;
+  border: 1px solid #214d67;
+  border-radius: 8px;
+}
+
+.app-shell-logo img {
+  display: block;
+  width: 128px;
+  height: auto;
+}
+
+@media (max-width: 620px) {
+  .app-shell-header {
+    padding: 0 16px;
+  }
+
+  .app-shell-logo img {
+    width: 112px;
+  }
+}

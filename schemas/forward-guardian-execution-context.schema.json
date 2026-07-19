@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/forward-guardian-execution-context.schema.json",
+  "title": "Forward for Dynatrace Guardian execution context",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "correlationId",
+    "gateRunId",
+    "changeId",
+    "deploymentId",
+    "observedAt",
+    "evidenceWindow",
+    "scope",
+    "network",
+    "dependencies",
+    "mapping",
+    "provenance"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace-guardian-context/v1" },
+    "correlationId": { "$ref": "#/definitions/safeId" },
+    "gateRunId": { "$ref": "#/definitions/safeId" },
+    "changeId": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "deploymentId": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "evidenceWindow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": { "type": "string", "format": "date-time" },
+        "to": { "type": "string", "format": "date-time" }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mappingId",
+        "applicationId",
+        "environmentId",
+        "serviceEntityIds",
+        "owner",
+        "criticality"
+      ],
+      "properties": {
+        "mappingId": { "$ref": "#/definitions/safeId" },
+        "applicationId": { "$ref": "#/definitions/safeId" },
+        "environmentId": { "$ref": "#/definitions/safeId" },
+        "serviceEntityIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 255 }
+        },
+        "locations": {
+          "type": "array",
+          "maxItems": 25,
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/safeId" }
+        },
+        "owner": { "$ref": "#/definitions/safeId" },
+        "criticality": { "enum": ["critical", "high", "medium", "low"] }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["networkId", "beforeSnapshotId", "afterSnapshotId"],
+      "properties": {
+        "networkId": { "$ref": "#/definitions/safeId" },
+        "beforeSnapshotId": { "$ref": "#/definitions/safeId" },
+        "afterSnapshotId": { "$ref": "#/definitions/safeId" }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["protocol", "ports"],
+        "properties": {
+          "protocol": { "enum": ["TCP", "UDP", "SCTP", "ICMP", "OTHER"] },
+          "ports": {
+            "type": "array",
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": { "type": "integer", "minimum": 0, "maximum": 65535 }
+          }
+        }
+      }
+    },
+    "mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "confidence", "sourceRecordCount", "mappingSha256"],
+      "properties": {
+        "state": { "enum": ["resolved", "review", "ambiguous", "unmapped"] },
+        "confidence": { "enum": ["high", "medium", "low"] },
+        "sourceRecordCount": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "mappingSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceSource", "synthetic"],
+      "properties": {
+        "evidenceSource": { "$ref": "#/definitions/safeId" },
+        "synthetic": { "type": "boolean" }
+      }
+    }
+  },
+  "definitions": {
+    "safeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,254}$"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/forward-ingest-status-event.schema.json",
+  "title": "Forward for Dynatrace status event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "timestamp", "eventType", "severity", "title", "properties"],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace-status-event/v1" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "eventType": { "const": "forward.dynatrace.ingest.status" },
+    "severity": { "enum": ["INFO", "WARN", "ERROR"] },
+    "title": { "type": "string", "minLength": 1 },
+    "properties": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "number", "boolean", "null"] },
+      "properties": {
+        "forward.dynatrace.run_id": { "type": ["string", "null"] },
+        "forward.dynatrace.package_id": { "type": ["string", "null"] },
+        "forward.dynatrace.import_state": { "type": ["string", "null"] },
+        "forward.dynatrace.planned_checks": { "type": "integer", "minimum": 0 },
+        "forward.dynatrace.evidence_source": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+        "forward.dynatrace.synthetic": { "type": "boolean" }
+      },
+      "required": [
+        "forward.dynatrace.run_id",
+        "forward.dynatrace.package_id",
+        "forward.dynatrace.import_state",
+        "forward.dynatrace.planned_checks"
+      ],
+      "dependencies": {
+        "forward.dynatrace.evidence_source": ["forward.dynatrace.synthetic"],
+        "forward.dynatrace.synthetic": ["forward.dynatrace.evidence_source"]
+      }
+    }
+  }
+}

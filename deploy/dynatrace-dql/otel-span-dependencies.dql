@@ -1,0 +1,49 @@
+// Customer-neutral starting point for a dependency discovery profile.
+// Review every attribute mapping in the target tenant. Replace the application,
+// environment, and owner placeholders with authoritative fields or fixed values.
+
+fetch spans, from: now()-15m
+| filter span.kind == "client"
+| fieldsAdd
+    sourceAddress = coalesce(client.address, client.socket.address, network.local.address),
+    destinationAddress = coalesce(server.address, server.socket.address, network.peer.address),
+    destinationPort = coalesce(server.port, server.socket.port, network.peer.port),
+    transport = coalesce(network.transport, "tcp")
+| fieldsAdd
+    `dependency.id` = concat(toString(trace.id), "-", toString(span.id)),
+    `app.name` = "review-required",
+    `app.environment` = "review-required",
+    `dt.entity.service` = toString(dt.smartscape.service),
+    `service.name` = service.name,
+    `network.source` = sourceAddress,
+    `network.destination` = destinationAddress,
+    `network.protocol` = transport,
+    `network.port` = destinationPort,
+    `owner.team` = "review-required",
+    criticality = "medium",
+    `dependency.confidence` = 0,
+    `dependency.mapping_state` = if(
+      isNotNull(sourceAddress) and isNotNull(destinationAddress) and isNotNull(destinationPort),
+      "review",
+      else: "needs-map"
+    ),
+    `dependency.observed_at` = start_time,
+    `dependency.evidence_source` = "dynatrace-live-spans"
+| fields
+    `dependency.id`,
+    `app.name`,
+    `app.environment`,
+    `dt.entity.service`,
+    `service.name`,
+    `network.source`,
+    `network.destination`,
+    `network.protocol`,
+    `network.port`,
+    `owner.team`,
+    criticality,
+    `dependency.confidence`,
+    `dependency.mapping_state`,
+    `dependency.observed_at`,
+    `dependency.evidence_source`
+| sort `dependency.observed_at` desc
+| limit 500

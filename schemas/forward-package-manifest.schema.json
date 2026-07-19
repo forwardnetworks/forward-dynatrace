@@ -1,0 +1,168 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/forwardnetworks/forward-dynatrace/schemas/forward-package-manifest.schema.json",
+  "title": "Forward for Dynatrace package manifest",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "packageType",
+    "packageId",
+    "generatedAt",
+    "requestedIngestPath",
+    "requestedForwardAccessProfile",
+    "source",
+    "artifacts",
+    "integrity",
+    "dependencyRows",
+    "intentChecks",
+    "validation",
+    "reconciliation",
+    "bulkPolicy",
+    "workflowOptions"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "forward-dynatrace/v1" },
+    "packageType": { "const": "forward-intent-import" },
+    "packageId": { "type": "string", "minLength": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "requestedIngestPath": { "const": "direct-api" },
+    "requestedForwardAccessProfile": {
+      "enum": ["read-only", "network-operator", "network-admin"]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["platform", "app", "instanceId", "instanceTag", "writePolicy"],
+      "properties": {
+        "platform": { "const": "dynatrace" },
+        "app": { "const": "com.forward.dynatrace" },
+        "instanceId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{2,127}$" },
+        "instanceTag": { "type": "string", "pattern": "^source-instance:[a-z0-9][a-z0-9._:-]{2,127}$" },
+        "writePolicy": { "const": "dynatrace-app-backend-calls-forward-api" }
+      }
+    },
+    "forwardTargetMetadata": { "type": "object", "additionalProperties": true },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest", "intentChecks"],
+      "properties": {
+        "manifest": { "const": "forward-dynatrace-manifest.json" },
+        "intentChecks": { "const": "forward-intent-checks.json" },
+        "nqeChecks": { "const": "forward-nqe-checks.json" },
+        "nqeDiffRequests": { "const": "forward-nqe-diff-requests.json" }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "intentChecksSha256"],
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "intentChecksSha256": { "$ref": "#/definitions/sha256" },
+        "nqeChecksSha256": { "$ref": "#/definitions/sha256" },
+        "nqeDiffRequestsSha256": { "$ref": "#/definitions/sha256" }
+      }
+    },
+    "dependencyRows": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rowCount",
+        "rejectedRowCount",
+        "readyRowCount",
+        "reviewRowCount",
+        "needsMapRowCount",
+        "includedReviewRowCount",
+        "reviewOverrideEnabled"
+      ],
+      "properties": {
+        "rowCount": { "$ref": "#/definitions/nonNegativeInteger" },
+        "rejectedRowCount": { "$ref": "#/definitions/nonNegativeInteger" },
+        "readyRowCount": { "$ref": "#/definitions/nonNegativeInteger" },
+        "reviewRowCount": { "$ref": "#/definitions/nonNegativeInteger" },
+        "needsMapRowCount": { "$ref": "#/definitions/nonNegativeInteger" },
+        "includedReviewRowCount": { "$ref": "#/definitions/nonNegativeInteger" },
+        "reviewOverrideEnabled": { "type": "boolean" }
+      }
+    },
+    "intentChecks": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["count", "checkType", "payloadShape", "bulkEndpoint"],
+      "properties": {
+        "count": { "$ref": "#/definitions/nonNegativeInteger" },
+        "checkType": { "const": "Existential" },
+        "payloadShape": { "const": "NewNetworkCheck[]" },
+        "bulkEndpoint": { "const": "/api/snapshots/{snapshotId}/checks?bulk" }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "managedByTag",
+        "contractVersionTag",
+        "sourceInstanceTagPrefix",
+        "sourceKeyTagPrefix",
+        "ownershipTagsPerCheck",
+        "identityPolicy",
+        "duplicatePolicy",
+        "allowedCheckTypes",
+        "credentialPolicy"
+      ],
+      "properties": {
+        "managedByTag": { "const": "managed-by:com.forward.dynatrace" },
+        "contractVersionTag": { "const": "contract-version:1" },
+        "sourceInstanceTagPrefix": { "const": "source-instance:" },
+        "sourceKeyTagPrefix": { "const": "source-key:sha256:" },
+        "ownershipTagsPerCheck": { "const": 4 },
+        "identityPolicy": { "const": "strict-ownership-tuple" },
+        "duplicatePolicy": { "const": "reject-package" },
+        "allowedCheckTypes": { "const": ["Existential"] },
+        "credentialPolicy": { "const": "tenant-managed-secret-backend-only" }
+      }
+    },
+    "reconciliation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy",
+        "defaultApplyPolicy",
+        "changedChecks",
+        "staleChecks",
+        "collisionPolicy"
+      ],
+      "properties": {
+        "strategy": { "const": "source-scoped-desired-state" },
+    "defaultApplyPolicy": { "const": "exact-plan-create-and-update" },
+    "changedChecks": { "const": "exact-plan-approval-required" },
+        "staleChecks": { "const": "report-only" },
+        "collisionPolicy": { "const": "reject" }
+      }
+    },
+    "bulkPolicy": { "type": "object", "additionalProperties": true },
+    "workflowOptions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "owner", "writesForward", "summary"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "owner": { "type": "string", "minLength": 1 },
+          "writesForward": { "type": "boolean" },
+          "summary": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "nqeChecks": { "type": "object", "additionalProperties": true },
+    "nqeDiffRequests": { "type": "object", "additionalProperties": true }
+  },
+  "definitions": {
+    "nonNegativeInteger": { "type": "integer", "minimum": 0 },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

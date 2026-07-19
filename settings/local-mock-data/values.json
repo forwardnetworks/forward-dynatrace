@@ -1,0 +1,27 @@
+[
+  {
+    "schemaId": "forward-api-connection",
+    "value": {
+      "name": "Local Forward API",
+      "baseUrl": "https://forward.example.com/api",
+      "networkId": "network-1",
+      "username": "local-service-user",
+      "password": "local-development-password",
+      "forwardAccessProfile": "read-only"
+    },
+    "summary": "Local Forward API"
+  },
+  {
+    "schemaId": "dependency-discovery-profile",
+    "value": {
+      "name": "Local live spans",
+      "description": "Review the attribute mappings before using this profile against a tenant",
+      "status": "enabled",
+      "selection": "default",
+      "query": "fetch spans, from: now()-15m | filter span.kind == \"client\" | fieldsAdd `dependency.id` = trace.id, `app.name` = \"review-required\", `app.environment` = \"review-required\", `dt.entity.service` = dt.smartscape.service, `service.name` = service.name, `network.source` = client.address, `network.destination` = server.address, `network.protocol` = network.transport, `network.port` = server.port, `owner.team` = \"review-required\", criticality = \"medium\", `dependency.confidence` = 0, `dependency.mapping_state` = \"review\", `dependency.observed_at` = timestamp, `dependency.evidence_source` = \"dynatrace-live-spans\" | fields `dependency.id`, `app.name`, `app.environment`, `dt.entity.service`, `service.name`, `network.source`, `network.destination`, `network.protocol`, `network.port`, `owner.team`, criticality, `dependency.confidence`, `dependency.mapping_state`, `dependency.observed_at`, `dependency.evidence_source` | limit 100",
+      "maxResultRecords": "100",
+      "maxEvidenceAgeMinutes": "30"
+    },
+    "summary": "Local live spans"
+  }
+]

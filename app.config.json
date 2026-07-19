@@ -1,0 +1,44 @@
+{
+  "$schema": "./.dt-app/app.config.schema.json",
+  "environmentUrl": "https://your-environment-id.apps.dynatrace.com/",
+  "app": {
+    "name": "Forward",
+    "version": "0.11.0",
+    "description": "Application dependency evidence and modeled network assurance",
+    "id": "com.forward.dynatrace",
+    "scopes": [
+      {
+        "name": "storage:buckets:read",
+        "comment": "Read Grail buckets containing approved dependency evidence"
+      },
+      {
+        "name": "storage:events:read",
+        "comment": "Query approved Dynatrace dependency events from Grail"
+      },
+      {
+        "name": "storage:spans:read",
+        "comment": "Query current instrumented application dependency spans from Grail"
+      },
+      {
+        "name": "environment-api:entities:read",
+        "comment": "Read Dynatrace service/entity context before synchronizing Forward intent checks"
+      },
+      {
+        "name": "app-settings:objects:read",
+        "comment": "Read the selected tenant-managed Forward API connection in app functions"
+      }
+    ],
+    "actions": [
+      {
+        "name": "sync-forward-intent-checks",
+        "title": "Synchronize Forward intent checks",
+        "description": "Plan or apply Forward intent-check creates and updates by direct API through a tenant-managed connection. Read Only and Network Operator connections are plan-only; Network Admin apply requires exact approval."
+      },
+      {
+        "name": "run-forward-nqe-evidence",
+        "title": "Run Forward NQE evidence",
+        "description": "Execute an approved Forward Library NQE under Read Only or a reviewed arbitrary NQE under Network Operator or Network Admin through the tenant-managed app connection."
+      }
+    ]
+  }
+}

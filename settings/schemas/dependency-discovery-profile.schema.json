@@ -1,0 +1,136 @@
+{
+  "$schema": "https://developer.dynatrace.com/docs-assets/schema_strict_apps.json",
+  "dynatrace": "1",
+  "schemaId": "dependency-discovery-profile",
+  "version": "1.0.0",
+  "summaryPattern": "{name}",
+  "displayName": "Dependency discovery profile",
+  "description": "Tenant-owned spans-only DQL mapping from observed application calls to Forward dependency candidates",
+  "multiObject": true,
+  "maxObjects": 100,
+  "ordered": false,
+  "maturity": "EARLY_ADOPTER",
+  "ownerBasedAccessControl": true,
+  "enums": {
+    "ProfileStatus": {
+      "displayName": "Profile status",
+      "description": "Only enabled profiles are available to the app",
+      "documentation": "",
+      "items": [
+        { "value": "enabled", "displayName": "Enabled" },
+        { "value": "disabled", "displayName": "Disabled" }
+      ],
+      "type": "enum"
+    },
+    "ProfileSelection": {
+      "displayName": "Profile selection",
+      "description": "Mark one enabled profile as the tenant default",
+      "documentation": "",
+      "items": [
+        { "value": "default", "displayName": "Default" },
+        { "value": "available", "displayName": "Available" }
+      ],
+      "type": "enum"
+    }
+  },
+  "properties": {
+    "name": {
+      "displayName": "Profile name",
+      "description": "Operator-visible label for this application and environment mapping",
+      "type": "text",
+      "nullable": false,
+      "forceSecretResubmission": false,
+      "constraints": [
+        {
+          "type": "LENGTH",
+          "customMessage": "Name must be between 1 and 100 characters",
+          "minLength": 1,
+          "maxLength": 100
+        }
+      ],
+      "default": ""
+    },
+    "description": {
+      "displayName": "Scope description",
+      "description": "Application, environment, and ownership scope covered by the query",
+      "type": "text",
+      "nullable": true,
+      "forceSecretResubmission": false,
+      "constraints": [
+        {
+          "type": "LENGTH",
+          "customMessage": "Description must be no longer than 500 characters",
+          "minLength": 0,
+          "maxLength": 500
+        }
+      ]
+    },
+    "status": {
+      "displayName": "Status",
+      "description": "Disabled profiles cannot execute",
+      "type": { "$ref": "#/enums/ProfileStatus" },
+      "nullable": false,
+      "default": "enabled"
+    },
+    "selection": {
+      "displayName": "Selection",
+      "description": "Use Default for exactly one enabled profile",
+      "type": { "$ref": "#/enums/ProfileSelection" },
+      "nullable": false,
+      "default": "available"
+    },
+    "query": {
+      "displayName": "Dependency discovery DQL",
+      "description": "Reviewed query beginning with fetch spans and returning the documented canonical dependency and evidence fields",
+      "type": "text",
+      "nullable": false,
+      "forceSecretResubmission": false,
+      "constraints": [
+        {
+          "type": "LENGTH",
+          "customMessage": "Query must be between 1 and 5000 characters",
+          "minLength": 1,
+          "maxLength": 5000
+        }
+      ],
+      "default": "fetch spans, from: now()-15m\n| filter span.kind == \"client\"\n| fieldsAdd `dependency.id` = trace.id, `app.name` = \"review-required\", `app.environment` = \"review-required\", `dt.entity.service` = dt.smartscape.service, `service.name` = service.name, `network.source` = client.address, `network.destination` = server.address, `network.protocol` = network.transport, `network.port` = server.port, `owner.team` = \"review-required\", criticality = \"medium\", `dependency.confidence` = 0, `dependency.mapping_state` = \"review\", `dependency.observed_at` = start_time, `dependency.evidence_source` = \"dynatrace-live-spans\"\n| fields `dependency.id`, `app.name`, `app.environment`, `dt.entity.service`, `service.name`, `network.source`, `network.destination`, `network.protocol`, `network.port`, `owner.team`, criticality, `dependency.confidence`, `dependency.mapping_state`, `dependency.observed_at`, `dependency.evidence_source`\n| limit 100"
+    },
+    "maxResultRecords": {
+      "displayName": "Maximum result records",
+      "description": "Bounded query result limit from 1 through 1000",
+      "type": "text",
+      "nullable": false,
+      "forceSecretResubmission": false,
+      "constraints": [
+        {
+          "type": "PATTERN",
+          "customMessage": "Maximum result records must be an integer from 1 through 1000",
+          "pattern": "^(?:[1-9]|[1-9][0-9]|[1-9][0-9]{2}|1000)$"
+        }
+      ],
+      "default": "500"
+    },
+    "maxEvidenceAgeMinutes": {
+      "displayName": "Maximum evidence age in minutes",
+      "description": "Rows older than this fail closed; allowed range is 1 through 1440",
+      "type": "text",
+      "nullable": false,
+      "forceSecretResubmission": false,
+      "constraints": [
+        {
+          "type": "PATTERN",
+          "customMessage": "Maximum evidence age must be an integer from 1 through 1440",
+          "pattern": "^(?:[1-9]|[1-9][0-9]|[1-9][0-9]{2}|1[0-3][0-9]{2}|14[0-3][0-9]|1440)$"
+        }
+      ],
+      "default": "30"
+    }
+  },
+  "schemaConstraints": [
+    {
+      "type": "UNIQUE",
+      "customMessage": "A dependency discovery profile with the same name already exists",
+      "uniqueProperties": ["name"]
+    }
+  ]
+}

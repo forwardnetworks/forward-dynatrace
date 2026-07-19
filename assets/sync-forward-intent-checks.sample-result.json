@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "forward-dynatrace-direct-sync/v1",
+  "operation": "plan",
+  "packageId": "dynatrace-forward-20260718120000000-0123456789ab",
+  "generatedAt": "2026-07-18T12:00:00.000Z",
+  "forwardAccessProfile": "read-only",
+  "target": {
+    "networkId": "network-1",
+    "snapshotId": "snapshot-1"
+  },
+  "hostResolution": {
+    "counts": {
+      "total": 1,
+      "ready": 1,
+      "review": 0,
+      "needsMap": 0,
+      "ambiguous": 0,
+      "unresolved": 0
+    }
+  },
+  "pathEvidence": {
+    "status": "completed",
+    "modeledReachabilityAssessment": "no-modeled-policy-block",
+    "counts": {
+      "total": 1,
+      "queryable": 1,
+      "reachable": 1,
+      "blocked": 0,
+      "ambiguous": 0,
+      "unmapped": 0,
+      "failed": 0
+    }
+  },
+  "planDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "counts": {
+    "create": 1,
+    "unchanged": 0,
+    "changed": 0,
+    "stale": 0,
+    "collision": 0
+  },
+  "mutationCounts": {
+    "created": 0,
+    "updated": 0
+  },
+  "postApplyVerification": "not-run",
+  "boundary": "tenant-managed-secret-backend-only"
+}

@@ -1,0 +1,34 @@
+// Smartscape relationship inventory for mapping review only.
+// Smartscape proves a service relationship, not its network source, destination,
+// protocol, or port. Do not turn these rows into Forward intent until current
+// span evidence supplies those fields through a dependency discovery profile.
+
+smartscapeEdges "calls", from: now() - 24h
+| filter source_type == "SERVICE" and target_type == "SERVICE"
+| fieldsAdd `app.name` = "review-required"
+| fieldsAdd `app.environment` = "review-required"
+| fieldsAdd `dt.entity.service` = toString(source_id)
+| fieldsAdd `service.name` = getNodeName(source_id)
+| fieldsAdd `network.source` = ""
+| fieldsAdd `network.destination` = ""
+| fieldsAdd `network.protocol` = ""
+| fieldsAdd `network.port` = ""
+| fieldsAdd `owner.team` = "unassigned"
+| fieldsAdd criticality = "medium"
+| fieldsAdd `dependency.confidence` = 0
+| fieldsAdd `dependency.mapping_state` = "needs-map"
+| fields
+    `app.name`,
+    `app.environment`,
+    `dt.entity.service`,
+    `service.name`,
+    `network.source`,
+    `network.destination`,
+    `network.protocol`,
+    `network.port`,
+    `owner.team`,
+    criticality,
+    `dependency.confidence`,
+    `dependency.mapping_state`
+| dedup `dt.entity.service`, `service.name`
+| limit 100

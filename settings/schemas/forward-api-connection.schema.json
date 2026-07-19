@@ -1,0 +1,152 @@
+{
+  "$schema": "https://developer.dynatrace.com/docs-assets/schema_strict_apps.json",
+  "dynatrace": "1",
+  "schemaId": "forward-api-connection",
+  "version": "2.0.0",
+  "summaryPattern": "{name}",
+  "displayName": "Forward API connection",
+  "description": "Tenant-managed Forward API connection used only by the app backend",
+  "multiObject": true,
+  "maxObjects": 100,
+  "ordered": false,
+  "maturity": "EARLY_ADOPTER",
+  "ownerBasedAccessControl": true,
+  "enums": {
+    "ForwardAccessProfile": {
+      "displayName": "Forward access profile",
+      "description": "Declared Forward RBAC boundary enforced by the app",
+      "documentation": "",
+      "items": [
+        { "value": "read-only", "displayName": "Read Only" },
+        { "value": "network-operator", "displayName": "Network Operator" },
+        { "value": "network-admin", "displayName": "Network Admin" }
+      ],
+      "type": "enum"
+    }
+  },
+  "properties": {
+    "name": {
+      "displayName": "Connection name",
+      "description": "Operator-visible connection label",
+      "type": "text",
+      "nullable": false,
+      "forceSecretResubmission": false,
+      "constraints": [
+        {
+          "type": "LENGTH",
+          "customMessage": "Name must be between 1 and 100 characters",
+          "minLength": 1,
+          "maxLength": 100
+        }
+      ],
+      "default": ""
+    },
+    "baseUrl": {
+      "displayName": "Forward API URL",
+      "description": "Forward tenant API URL ending in /api",
+      "type": "text",
+      "subType": "url",
+      "nullable": false,
+      "forceSecretResubmission": true,
+      "constraints": [
+        {
+          "type": "LENGTH",
+          "customMessage": "URL must be between 1 and 2048 characters",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        {
+          "type": "PATTERN",
+          "customMessage": "URL must use HTTPS and end in /api",
+          "pattern": "^https://[^?#]+/api/?$"
+        }
+      ],
+      "default": "https://fwd.app/api"
+    },
+    "networkId": {
+      "displayName": "Forward network ID",
+      "description": "Exact Forward network managed by this connection",
+      "type": "text",
+      "nullable": false,
+      "forceSecretResubmission": false,
+      "constraints": [
+        {
+          "type": "LENGTH",
+          "customMessage": "Network ID must be between 1 and 128 characters",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      ],
+      "default": ""
+    },
+    "username": {
+      "displayName": "Forward username",
+      "description": "Dedicated Forward service identity",
+      "type": "text",
+      "nullable": false,
+      "forceSecretResubmission": true,
+      "constraints": [
+        {
+          "type": "LENGTH",
+          "customMessage": "Username must be between 1 and 255 characters",
+          "minLength": 1,
+          "maxLength": 255
+        }
+      ],
+      "default": ""
+    },
+    "password": {
+      "displayName": "Forward password",
+      "description": "Secret used only by the Dynatrace app backend",
+      "type": "secret",
+      "nullable": false,
+      "constraints": [
+        {
+          "type": "LENGTH",
+          "customMessage": "Password must be between 1 and 4096 characters",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      ],
+      "default": ""
+    },
+    "forwardAccessProfile": {
+      "displayName": "Forward access profile",
+      "description": "Declared Forward RBAC profile; the app enforces the corresponding workflow",
+      "type": {
+        "$ref": "#/enums/ForwardAccessProfile"
+      },
+      "nullable": false,
+      "default": "read-only"
+    },
+    "approvedLibraryQueryIds": {
+      "displayName": "Approved Forward Library NQE query IDs",
+      "description": "Comma or newline separated FQ_ query IDs that a Read Only connection may execute (maximum 5000 characters)",
+      "type": "text",
+      "nullable": true,
+      "forceSecretResubmission": false,
+      "constraints": [
+        {
+          "type": "LENGTH",
+          "customMessage": "Approved query ID list must be no longer than 5000 characters",
+          "minLength": 0,
+          "maxLength": 5000
+        }
+      ]
+    }
+  },
+  "constraints": [
+    {
+      "type": "SECRET_RESUBMISSION",
+      "customMessage": "Re-enter the Forward credentials when changing this connection",
+      "checkAllProperties": false
+    }
+  ],
+  "schemaConstraints": [
+    {
+      "type": "UNIQUE",
+      "customMessage": "A Forward API connection with the same name already exists",
+      "uniqueProperties": ["name"]
+    }
+  ]
+}

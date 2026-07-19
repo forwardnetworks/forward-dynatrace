@@ -1,0 +1,131 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  actions: read
+  artifact-metadata: write
+  attestations: write
+  contents: write
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      HAS_RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_PRIVATE_KEY_PEM != '' }}
+      DT_APP_ENVIRONMENT_URL: ${{ secrets.DT_APP_ENVIRONMENT_URL }}
+      DT_APP_OAUTH_CLIENT_ID: ${{ secrets.DT_APP_OAUTH_CLIENT_ID }}
+      DT_APP_OAUTH_CLIENT_SECRET: ${{ secrets.DT_APP_OAUTH_CLIENT_SECRET }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Validate release immutability before writes
+        id: immutability
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          node scripts/validate-release-immutability.mjs
+          --release-name "${GITHUB_REF_NAME}"
+          --repository "${GITHUB_REPOSITORY}"
+          --commit-sha "${GITHUB_SHA}"
+          --run-id "${GITHUB_RUN_ID}"
+          --run-attempt "${GITHUB_RUN_ATTEMPT}"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run release gates
+        run: npm run ci
+
+      - name: Validate release tag and repository version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: npm run release:ref:validate -- --release-name "${GITHUB_REF_NAME}"
+
+      - name: Validate Dynatrace bundle credentials
+        run: |
+          test -n "${DT_APP_ENVIRONMENT_URL}"
+          test -n "${DT_APP_OAUTH_CLIENT_ID}"
+          test -n "${DT_APP_OAUTH_CLIENT_SECRET}"
+
+      - name: Build tenant-validated Dynatrace app bundle
+        run: |
+          rm -rf out/release
+          mkdir -p out/release
+          npm run dynatrace:deploy -- \
+            --environment-url "${DT_APP_ENVIRONMENT_URL}" \
+            --app-id my.forward \
+            --app-version "${GITHUB_REF_NAME#v}" \
+            --dry-run \
+            --archive-output out/my.forward.zip \
+            --no-open \
+            --non-interactive
+
+      - name: Prepare release artifacts
+        run: |
+          npm run release:package -- \
+            --app-archive out/my.forward.zip \
+            --output-dir out/release \
+            --release-name "${GITHUB_REF_NAME}"
+
+      - name: Self-sign release checksums
+        if: startsWith(github.ref, 'refs/tags/') && env.HAS_RELEASE_SIGNING_KEY == 'true'
+        env:
+          RELEASE_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.RELEASE_SIGNING_PRIVATE_KEY_PEM }}
+        run: |
+          install -m 700 -d "${RUNNER_TEMP}/forward-dynatrace-release-signing"
+          printf '%s' "${RELEASE_SIGNING_PRIVATE_KEY_PEM}" > "${RUNNER_TEMP}/forward-dynatrace-release-signing/release-private.pem"
+          chmod 600 "${RUNNER_TEMP}/forward-dynatrace-release-signing/release-private.pem"
+          npm run release:sign -- \
+            --checksums out/release/SHA256SUMS \
+            --private-key "${RUNNER_TEMP}/forward-dynatrace-release-signing/release-private.pem" \
+            --signature out/release/SHA256SUMS.sig \
+            --public-key-output out/release/SHA256SUMS.pub
+
+      - name: Attest release artifacts
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        with:
+          subject-path: out/release/*
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: forward-dynatrace-release
+          path: out/release/*
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RELEASE_ARGS=()
+          RELEASE_NOTES_ARGS=(--notes "Forward for Dynatrace app release. The Dynatrace app is the only installable. Verify the app archive and SBOM with SHA256SUMS; if signature files are present, verify them before trusting the checksum file.")
+          if [[ "${GITHUB_REF_NAME}" == v0.* ]]; then
+            RELEASE_ARGS+=(--prerelease)
+          fi
+          if [[ -f "docs/releases/${GITHUB_REF_NAME}.md" ]]; then
+            RELEASE_NOTES_ARGS=(--notes-file "docs/releases/${GITHUB_REF_NAME}.md")
+          fi
+          gh release create "${GITHUB_REF_NAME}" out/release/* \
+            --verify-tag \
+            --title "${GITHUB_REF_NAME}" \
+            "${RELEASE_NOTES_ARGS[@]}" \
+            "${RELEASE_ARGS[@]}"

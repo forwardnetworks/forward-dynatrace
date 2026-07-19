@@ -1,0 +1,28 @@
+{
+  "sourceInstanceId": "dt-environment-example",
+  "syncMode": "direct-api",
+  "forwardAccessProfile": "network-operator",
+  "operation": "plan",
+  "maxCreates": 1000,
+  "maxUpdates": 100,
+  "runPathPreflight": true,
+  "approvedPlanDigest": "",
+  "approvedSourceKeys": [],
+  "dependencies": [
+    {
+      "id": "problem-impacted-inventory-cache",
+      "appName": "Inventory",
+      "environment": "prod",
+      "serviceEntityId": "SERVICE-EXAMPLE-INVENTORY",
+      "serviceName": "inventory-api",
+      "source": "inventory-vip",
+      "destination": "redis-cache",
+      "protocol": "tcp",
+      "port": "6379",
+      "owner": "supply-chain",
+      "criticality": "high",
+      "confidence": 87,
+      "mappingState": "ready"
+    }
+  ]
+}
