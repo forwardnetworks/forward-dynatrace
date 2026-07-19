@@ -22,7 +22,7 @@ is separate from the Forward service identity and is used only by the AppEngine 
 Download the app archive and all verification evidence from the same release:
 
 ```bash
-export RELEASE_TAG=v0.11.0
+export RELEASE_TAG=v0.12.0
 mkdir -p "/secure/forward-dynatrace/${RELEASE_TAG}"
 cd "/secure/forward-dynatrace/${RELEASE_TAG}"
 

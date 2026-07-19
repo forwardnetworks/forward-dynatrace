@@ -12,6 +12,8 @@ const requiredFiles = [
   "README.md",
   "ARCHITECTURE.md",
   "CONTRIBUTING.md",
+  "SECURITY.md",
+  "SUPPORT.md",
   "LICENSE",
   "app.config.json",
   "package.json",
@@ -40,6 +42,10 @@ const requiredFiles = [
   "docs/install.md",
   "docs/evaluation-guide.md",
   "docs/dependency-discovery.md",
+  "docs/compatibility-policy.md",
+  "docs/ownership.md",
+  "docs/release-communication.md",
+  "docs/soak-and-recovery.md",
   "docs/release.md",
   "docs/release-provenance.md",
   "docs/rbac.md",
@@ -89,6 +95,12 @@ const activeProductDocs = [
   "docs/problem-network-evidence.md",
   "docs/site-reliability-guardian.md",
   "docs/templates/customer-acceptance-record.md",
+  "SECURITY.md",
+  "SUPPORT.md",
+  "docs/compatibility-policy.md",
+  "docs/ownership.md",
+  "docs/release-communication.md",
+  "docs/soak-and-recovery.md",
 ];
 
 const skippedDirectories = new Set([".git", ".dt-app", ".state", "build", "dist", "node_modules", "out", "tmp"]);

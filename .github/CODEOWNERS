@@ -1,5 +1,4 @@
-# Interim accountable maintainer. Replace or augment this identity with the
-# product and integration teams before enabling required code-owner review.
+# Accountable maintainer for the enterprise preview release line.
 * @captainpacket
 
 /api/ @captainpacket

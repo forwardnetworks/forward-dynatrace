@@ -1,0 +1,47 @@
+name: Bug report
+description: Report a reproducible Forward for Dynatrace defect without secrets or customer data.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Do not include credentials, tokens, customer names, hostnames, endpoints, topology, or raw authenticated
+        responses. Use a private security advisory for a suspected vulnerability.
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Exact immutable version, such as 0.12.0.
+    validations:
+      required: true
+  - type: dropdown
+    id: profile
+    attributes:
+      label: Forward access profile
+      options:
+        - Read Only
+        - Network Operator
+        - Network Admin
+        - Not applicable
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Observed and expected behavior
+      description: Include sanitized reproduction steps and fail-closed behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Include correlation IDs, aggregate counts, and redacted logs only.
+  - type: checkboxes
+    id: hygiene
+    attributes:
+      label: Data handling
+      options:
+        - label: I removed credentials, customer data, topology, endpoints, and authenticated response bodies.
+          required: true

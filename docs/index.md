@@ -23,6 +23,9 @@
 
 ## Security And Governance
 
+- [Security policy and vulnerability reporting](../SECURITY.md)
+- [Support policy](../SUPPORT.md)
+- [Product ownership](ownership.md)
 - [Threat model](threat-model.md)
 - [Data handling](data-handling.md)
 - [Governance](governance.md)
@@ -40,10 +43,13 @@
 - [Deployment readiness](deployment-readiness.md)
 - [Customer acceptance](customer-acceptance-checklist.md)
 - [Support matrix](support-matrix.md)
+- [Compatibility policy](compatibility-policy.md)
+- [Soak and recovery validation](soak-and-recovery.md)
 
 ## Release Engineering
 
 - [Release process](release.md)
 - [Release provenance](release-provenance.md)
+- [Release communication](release-communication.md)
 - [Validation matrix](validation-matrix.md)
 - [Collaboration guide](collaboration.md)

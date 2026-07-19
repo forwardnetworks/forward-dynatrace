@@ -5,6 +5,9 @@ import assert from "node:assert/strict";
 import { createSyncForwardIntentAction } from "../actions/sync-forward-intent-checks.logic.mjs";
 
 const relationshipCount = 1_000;
+const iterations = Number.parseInt(process.env.FORWARD_DYNATRACE_SCALE_ITERATIONS || "1", 10);
+assert.ok(Number.isInteger(iterations) && iterations >= 1 && iterations <= 1_000,
+  "FORWARD_DYNATRACE_SCALE_ITERATIONS must be an integer from 1 through 1000");
 const checks = [];
 const bulkSizes = [];
 let nextId = 1;
@@ -101,10 +104,30 @@ assert.equal(applied.postApplyVerification, "verified");
 assert.equal(applied.counts.unchanged, relationshipCount);
 assert.deepEqual(bulkSizes, Array(10).fill(100));
 
+let maximumHeapBytes = process.memoryUsage().heapUsed;
+for (let cycle = 2; cycle <= iterations; cycle += 1) {
+  const repeatedPlan = await action({
+    connectionId: "scale-connection",
+    request: { ...baseRequest, operation: "plan" },
+  });
+  assert.deepEqual(repeatedPlan.counts, {
+    create: 0,
+    unchanged: relationshipCount,
+    changed: 0,
+    stale: 0,
+    collision: 0,
+  });
+  maximumHeapBytes = Math.max(maximumHeapBytes, process.memoryUsage().heapUsed);
+}
+
+assert.deepEqual(bulkSizes, Array(10).fill(100), "repeat plans must not mutate Forward");
+
 process.stdout.write(`${JSON.stringify({
   status: "ok",
   relationships: relationshipCount,
+  cycles: iterations,
   batches: bulkSizes.length,
   maximumBatchSize: Math.max(...bulkSizes),
+  maximumHeapMiB: Math.round(maximumHeapBytes / 1024 / 1024),
   elapsedMs: Math.round(performance.now() - startedAt),
 }, null, 2)}\n`);

@@ -12,13 +12,15 @@
 - stale report-only behavior with no delete action;
 - app-only release membership, SBOM, checksums, optional signature, and attestations;
 - customer-name, secret, agent-instruction, and external-runtime repository gates;
-- 1,000-relationship scale smoke and live pre/regression/recovery evidence.
+- named product, support, security, incident, compatibility, and release ownership;
+- 1,000-relationship scale smoke and 100-cycle idempotency soak in CI;
+- documented credential-rotation, rate-limit, partial-failure, and recovery exercises;
+- support, vulnerability reporting, upgrade, compatibility, and release communication policies.
 
-## Before Supported Production
+## External Gates Before Supported Production
 
-- official product ownership, support policy, and vulnerability response;
 - signed app identity and approved Dynatrace distribution channel;
 - independent security review and tenant data/privacy review;
-- long-duration rate-limit, credential-rotation, and partial-failure tests against supported Forward releases;
 - customer-operated evaluation and non-production acceptance;
-- documented Guardian scope taxonomy and change-control integration patterns.
+- customer-approved Guardian scope taxonomy and change-control integration patterns;
+- named commercial support and production-promotion record for the signed release.

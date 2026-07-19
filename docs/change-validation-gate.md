@@ -73,14 +73,13 @@ decision, reasons, evidence hashes, and output bytes.
 - Do not compare unrelated networks or silently substitute latest snapshots.
 - Missing, partial, or low-confidence evidence must not silently pass.
 
-## Live Evidence Exercise
+## Fail-Closed Acceptance Pattern
 
-On 2026-07-12, a non-production live exercise queried 100 Trial dependency rows and selected 12 showcase flows. Forward
-network `235937`, snapshot `1322821` returned 12 blocked path results with 0 ambiguous, unmapped, or failed rows. The
-Forward dry-run planned 10 creates with 0 changed or stale checks.
+Acceptance testing should include a deliberately invalid run that supplies the same processed snapshot as both the
+before and after input, plus at least one blocked path. The expected decision is `fail`, the expected reasons include
+`FORWARD_SNAPSHOT_UNCHANGED` and `FORWARD_BLOCKED_PATHS`, and `--fail-on-non-pass` must exit `2` after writing a
+schema-valid artifact. This proves that missing change evidence cannot silently become a successful closeout.
 
-The exercise intentionally supplied snapshot `1322821` as both before and after. The gate returned `fail` with
-`FORWARD_SNAPSHOT_UNCHANGED` and `FORWARD_BLOCKED_PATHS`; `--fail-on-non-pass` exited `2`. The output passed its public
-schema and had SHA-256 `c3691aea3a0d1a7fab1ba431ef0abedb29df81624b77f0ca7e0679c8ffacc34c`. This validates
-fail-closed behavior, not a safe-change result. A real before/after snapshot pair remains required for the Increment 2
-acceptance run.
+A passing acceptance run requires two distinct processed snapshots, executed path evidence for the approved scope,
+healthy Dynatrace evidence, and successful reconciliation against the after snapshot. Record environment-specific IDs
+and hashes in the customer-owned acceptance record, not in this product repository.

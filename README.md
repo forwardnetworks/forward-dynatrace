@@ -9,7 +9,7 @@ Forward for Dynatrace converts observed application dependencies into governed n
 evidence. Application, network, and change teams can validate the same business-critical relationships before and
 after a change while Dynatrace and Forward remain authoritative for their respective data.
 
-> **Release channel:** `0.11.0` enterprise preview for controlled evaluation and non-production use. The release is
+> **Release channel:** `0.12.0` enterprise preview for controlled evaluation and non-production use. The release is
 > delivered as one immutable Dynatrace app archive with checksums, an SBOM, and GitHub attestations.
 
 ![Forward for Dynatrace application overview](docs/assets/screenshots/dynatrace-app-overview.png)
@@ -80,8 +80,8 @@ approval of every changed managed source key, zero ownership collisions, and suc
 - Every release contains an app archive, CycloneDX SBOM, SHA-256 checksums, optional detached signature, and GitHub
   artifact attestations.
 
-See [Architecture](ARCHITECTURE.md), [RBAC](docs/rbac.md), [Data handling](docs/data-handling.md), and
-[Threat model](docs/threat-model.md) for the complete control boundary.
+See [Architecture](ARCHITECTURE.md), [RBAC](docs/rbac.md), [Data handling](docs/data-handling.md),
+[Threat model](docs/threat-model.md), and [Security policy](SECURITY.md) for the complete control boundary.
 
 ## Install An Immutable Release
 
@@ -99,7 +99,7 @@ The `/secure` path below is an example. Use an operator-owned directory with per
 evidence in your environment.
 
 ```bash
-export RELEASE_TAG=v0.11.0
+export RELEASE_TAG=v0.12.0
 mkdir -p "/secure/forward-dynatrace/${RELEASE_TAG}"
 cd "/secure/forward-dynatrace/${RELEASE_TAG}"
 
@@ -169,7 +169,8 @@ GitHub prereleases publish exactly one Dynatrace app archive plus verification e
 container image, operating-system package, Python package, or Forward-side runtime. Published tags are immutable; any
 change requires a new version.
 
-See [Release process](docs/release.md) and [Release provenance](docs/release-provenance.md).
+See [Release process](docs/release.md), [Release provenance](docs/release-provenance.md),
+[Compatibility policy](docs/compatibility-policy.md), and [Release communication](docs/release-communication.md).
 
 ## Development
 
@@ -180,7 +181,8 @@ npm run start
 ```
 
 Node.js 24 is the supported development runtime. `npm run ci` validates schemas, security controls, Workflow and
-Guardian assets, scale behavior, release integrity, linting, builds, and the installable archive.
+Guardian assets, 1,000-relationship scale behavior, 100 repeat reconciliation cycles, release integrity, linting,
+builds, and the installable archive.
 
 Repository layout:
 
@@ -195,7 +197,8 @@ scripts/   validation, packaging, installation, and release tooling
 docs/      architecture, security, operations, and integration guides
 ```
 
-See [Contributing](CONTRIBUTING.md) and the [documentation index](docs/index.md).
+See [Contributing](CONTRIBUTING.md), [Support](SUPPORT.md), [Ownership](docs/ownership.md), and the
+[documentation index](docs/index.md).
 
 ## License
 

@@ -14,7 +14,7 @@
       intent-check writes still require an exact-approved Network Admin request.
 - [ ] `docs/validation-matrix.md` updated if validation coverage changed.
 - [ ] Screenshots refreshed if UI workflow changed.
-- [ ] Active plan progress/decision log updated for multi-session work.
+- [ ] Durable design or operating documentation updated when the product contract changed.
 - [ ] New or repeated review feedback is encoded in a test, repository check, or routed doc.
 
 ## Evidence And Follow-Up
