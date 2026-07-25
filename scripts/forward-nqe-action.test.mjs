@@ -117,12 +117,8 @@ const harness = (
           ],
         });
       }
-      if (url.startsWith("https://forward.example.com/api/snapshots/")) {
-        const snapshotMatch = /\/api\/snapshots\/([^/?#]+)$/u.exec(url);
-        const snapshotId = snapshotMatch ? decodeURIComponent(snapshotMatch[1]) : "";
-        if (snapshotRecords[snapshotId]) {
-          return response(snapshotRecords[snapshotId]);
-        }
+      if (url.endsWith("/api/networks/network-1/snapshots")) {
+        return response({ snapshots: Object.values(snapshotRecords) });
       }
       throw new Error(`Unexpected request ${fetchOptions.method} ${url}`);
     },
@@ -276,15 +272,12 @@ test("Network Operator arbitrary NQE requires a processed, fresh caller-supplied
   const digest = digestQuery(query);
 
   const stale = harness("network-operator", "", digest, {
-    fetchMock: ({ url }) => {
-      if (url.endsWith("/api/snapshots/snapshot-stale")) {
-        return response({
+    snapshotRecords: {
+      "snapshot-stale": {
           id: "snapshot-stale",
           state: "PROCESSED",
           createdAt: "2026-07-01T00:00:00Z",
-        });
-      }
-      return undefined;
+      },
     },
   });
   await assert.rejects(
@@ -302,15 +295,12 @@ test("Network Operator arbitrary NQE requires a processed, fresh caller-supplied
 
   const fresh = harness("network-operator", "", digest, {
     resultSnapshotId: "snapshot-fresh",
-    fetchMock: ({ url }) => {
-      if (url.endsWith("/api/snapshots/snapshot-fresh")) {
-        return response({
+    snapshotRecords: {
+      "snapshot-fresh": {
           id: "snapshot-fresh",
           state: "PROCESSED",
           createdAt: "2026-07-17T12:00:00Z",
-        });
-      }
-      return undefined;
+      },
     },
   });
   const freshResult = await fresh.action({
@@ -323,6 +313,14 @@ test("Network Operator arbitrary NQE requires a processed, fresh caller-supplied
     },
   });
   assert.equal(freshResult.target.snapshotId, "snapshot-fresh");
+  assert.equal(
+    fresh.calls.some((call) => call.url.endsWith("/api/networks/network-1/snapshots")),
+    true,
+  );
+  assert.equal(
+    fresh.calls.some((call) => call.url.includes("/api/snapshots/snapshot-fresh")),
+    false,
+  );
 });
 
 test("NQE action fails closed on profile mismatch and credential-like parameters", async () => {

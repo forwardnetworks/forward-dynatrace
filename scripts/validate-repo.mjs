@@ -178,6 +178,17 @@ if (discoverySchema.version !== "1.0.0") {
 if (!String(discoverySchema.properties?.query?.default || "").startsWith("fetch spans")) {
   fail("Dependency discovery profile must default to a spans-only query template.");
 }
+const localMockSettings = JSON.parse(await readText("settings/local-mock-data/values.json"));
+const localMockDiscovery = Array.isArray(localMockSettings)
+  ? localMockSettings.find((object) => object?.schemaId === "dependency-discovery-profile")
+  : undefined;
+const localMockDiscoveryQuery = String(localMockDiscovery?.value?.query || "");
+if (!localMockDiscoveryQuery.includes("`dependency.observed_at` = start_time")) {
+  fail("Local dependency discovery must project the live span start_time as its evidence timestamp.");
+}
+if (!localMockDiscoveryQuery.includes("`dependency.evidence_source` = \"dynatrace-live-spans\"")) {
+  fail("Local dependency discovery must label its spans-only evidence source.");
+}
 
 const packageJson = JSON.parse(await readText("package.json"));
 if (packageJson.engines?.node !== ">=24.0.0 <25.0.0") fail("Node 24 must be the exact supported major.");

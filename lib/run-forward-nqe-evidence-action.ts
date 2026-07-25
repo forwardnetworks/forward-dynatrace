@@ -453,6 +453,18 @@ const parseSnapshotRecord = (value: unknown): SnapshotRecord => {
   return { id: String(id), state, createdAtMs };
 };
 
+const parseSnapshotList = (value: unknown): SnapshotRecord[] => {
+  const records = Array.isArray(value)
+    ? value
+    : isRecord(value) && Array.isArray(value.snapshots)
+      ? value.snapshots
+      : null;
+  if (records === null) {
+    throw new Error("Forward snapshot list did not return a usable snapshots array.");
+  }
+  return records.map(parseSnapshotRecord);
+};
+
 const isFreshSnapshot = (
   candidate: SnapshotRecord,
   reference: number,
@@ -486,14 +498,16 @@ const selectNqeSnapshot = async ({
   if (requestSnapshotId === undefined) {
     return latest.id;
   }
-  const requested = parseSnapshotRecord(
-    await client(
-      "GET",
-      `/snapshots/${encodeURIComponent(requestSnapshotId)}`,
-    ),
-  );
-  if (requested.id !== String(requestSnapshotId)) {
-    throw new Error("Forward snapshot lookup returned a mismatched snapshot ID.");
+  const requested = requestSnapshotId === latest.id
+    ? latest
+    : parseSnapshotList(
+      await client(
+        "GET",
+        `/networks/${encodeURIComponent(networkId)}/snapshots`,
+      ),
+    ).find((candidate) => candidate.id === requestSnapshotId);
+  if (requested === undefined) {
+    throw new Error("Forward snapshot is unavailable for the selected network.");
   }
   if (requested.state && requested.state !== "PROCESSED") {
     throw new Error("Forward snapshot lookup did not return a processed snapshot.");
