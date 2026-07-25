@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 
-import { createSyncForwardIntentAction } from "../actions/sync-forward-intent-checks.logic.mjs";
+import { createSyncForwardIntentAction } from "../actions/sync-forward-intent-checks.logic.ts";
 
 const relationshipCount = 1_000;
 const iterations = Number.parseInt(process.env.FORWARD_DYNATRACE_SCALE_ITERATIONS || "1", 10);
@@ -10,6 +10,7 @@ assert.ok(Number.isInteger(iterations) && iterations >= 1 && iterations <= 1_000
   "FORWARD_DYNATRACE_SCALE_ITERATIONS must be an integer from 1 through 1000");
 const checks = [];
 const bulkSizes = [];
+const pathBatchSizes = [];
 let nextId = 1;
 
 const dependencies = Array.from({ length: relationshipCount }, (_, index) => ({
@@ -43,6 +44,13 @@ const fetchImpl = async (url, options) => {
   if (url.endsWith("/api/snapshots/snapshot-scale/checks?type=Existential")) {
     return jsonResponse({ checks });
   }
+  if (url.includes("/api/networks/scale-network/paths-bulk") && options.method === "POST") {
+    const { queries } = JSON.parse(options.body);
+    pathBatchSizes.push(queries.length);
+    return jsonResponse(queries.map(() => ({
+      info: { paths: [{ forwardingOutcome: "DELIVERED", securityOutcome: "PERMITTED" }] },
+    })));
+  }
   if (url.endsWith("/api/snapshots/snapshot-scale/checks?bulk") && options.method === "POST") {
     const batch = JSON.parse(options.body);
     bulkSizes.push(batch.length);
@@ -74,7 +82,6 @@ const baseRequest = {
   dependencies,
   maxCreates: relationshipCount,
   maxUpdates: 0,
-  runPathPreflight: false,
 };
 
 const startedAt = performance.now();
@@ -103,6 +110,9 @@ assert.deepEqual(applied.mutationCounts, { created: relationshipCount, updated: 
 assert.equal(applied.postApplyVerification, "verified");
 assert.equal(applied.counts.unchanged, relationshipCount);
 assert.deepEqual(bulkSizes, Array(10).fill(100));
+// Apply is only reachable with complete modeled path evidence, so the scale
+// run must actually exercise bounded /paths-bulk batching.
+assert.deepEqual(pathBatchSizes.slice(0, 4), [250, 250, 250, 250]);
 
 let maximumHeapBytes = process.memoryUsage().heapUsed;
 for (let cycle = 2; cycle <= iterations; cycle += 1) {

@@ -23,17 +23,21 @@ const requiredFiles = [
   "api/forward-sync.function.ts",
   "api/dependency-discovery.function.ts",
   "actions/sync-forward-intent-checks.action.ts",
-  "actions/sync-forward-intent-checks.logic.mjs",
+  "actions/sync-forward-intent-checks.logic.ts",
   "actions/sync-forward-intent-checks.widget.tsx",
   "actions/run-forward-nqe-evidence.action.ts",
-  "actions/run-forward-nqe-evidence.logic.mjs",
+  "actions/run-forward-nqe-evidence.logic.ts",
   "actions/run-forward-nqe-evidence.widget.tsx",
   "settings/schemas/forward-api-connection.schema.json",
   "settings/schemas/dependency-discovery-profile.schema.json",
-  "lib/dependency-discovery.mjs",
-  "lib/managed-check-identity.mjs",
-  "lib/forward-access-profile.mjs",
-  "lib/forward-evidence.mjs",
+  "lib/dependency-discovery.ts",
+  "lib/managed-check-identity.ts",
+  "lib/forward-access-profile.ts",
+  "lib/forward-authorization.ts",
+  "lib/forward-evidence.ts",
+  "lib/types/index.ts",
+  "lib/types/forward.ts",
+  "lib/types/nqe.ts",
   "scripts/dynatrace-export-action.test.mjs",
   "scripts/deploy-dynatrace-app.mjs",
   "scripts/install-release-app.mjs",
@@ -80,7 +84,7 @@ const activeProductDocs = [
   "README.md",
   "ARCHITECTURE.md",
   "api/forward-nqe-preview.function.ts",
-  "actions/run-forward-nqe-evidence.logic.mjs",
+  "actions/run-forward-nqe-evidence.logic.ts",
   ".github/pull_request_template.md",
   "docs/index.md",
   "docs/install.md",
@@ -140,10 +144,16 @@ if (JSON.stringify(actionNames) !== JSON.stringify([
 
 const connectionSchema = JSON.parse(await readText("settings/schemas/forward-api-connection.schema.json"));
 if (connectionSchema.schemaId !== "forward-api-connection") fail("Forward connection schema ID is invalid.");
-if (connectionSchema.version !== "2.0.0") fail("Forward connection schema must use the clean v2 contract.");
+if (connectionSchema.version !== "2.1.0") fail("Forward connection schema must use the additive v2.1 contract.");
 if (connectionSchema.properties?.password?.type !== "secret") fail("Forward password must be a secret setting.");
 if (connectionSchema.properties?.approvedLibraryQueryIds?.type !== "text") {
   fail("Forward connection must expose a bounded Read Only Library-query allowlist.");
+}
+if (
+  connectionSchema.properties?.approvedQueryDigests?.type !== "text" ||
+  connectionSchema.properties?.approvedQueryDigests?.nullable !== true
+) {
+  fail("Forward connection arbitrary-query digest allowlist must remain optional and nullable.");
 }
 if (connectionSchema.properties?.baseUrl?.default !== "https://fwd.app/api") {
   fail("Forward API connection must default to the public Forward API root.");

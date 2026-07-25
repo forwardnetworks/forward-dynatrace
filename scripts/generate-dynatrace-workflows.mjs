@@ -5,7 +5,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { assertForwardAccessProfile } from "../lib/forward-access-profile.mjs";
+import { assertForwardAccessProfile } from "../lib/forward-access-profile.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const TEMPLATE_SCHEMA = "forward-dynatrace-workflow-template-set/v1";

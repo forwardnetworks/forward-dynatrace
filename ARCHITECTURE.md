@@ -19,8 +19,9 @@ Forward tenant
 ```
 
 The UI supplies dependency evidence and approval inputs. The app function loads the selected secret connection,
-overrides any target metadata supplied by the browser, and calls Forward directly. Credentials and Authorization
-headers never appear in action output, logs, plans, packages, or browser responses.
+creates the Workflow action inputs, while the Workflow action performs all Forward API calls using
+secret credentials loaded from app settings. Credentials and Authorization headers never appear in action output,
+logs, plans, packages, or browser responses.
 
 ## Ownership Rules
 
@@ -30,9 +31,11 @@ headers never appear in action output, logs, plans, packages, or browser respons
 4. Network Admin creates or updates only checks carrying the complete managed ownership tuple.
 5. Plan approval binds the exact snapshot, profile, source keys, and canonical payload fingerprints.
 6. Names alone never establish ownership. Collisions fail closed.
-7. Stale checks are reported, not deleted.
-8. Forward details returned to Dynatrace are bounded to the application workflow; secrets and raw error bodies are
-   always excluded.
+  7. Stale checks are reported, not deleted.
+  8. Forward details returned to Dynatrace are bounded to the application workflow; secrets and raw error bodies are
+     always excluded.
+9. NQE execution is async-first: action submit, status polling, and bounded result fetch. Optional sync execution remains
+   available only with `executeSync: true`.
 
 ## Direct Synchronization
 
@@ -41,19 +44,31 @@ The action performs this sequence:
 1. Load and validate `forward-api-connection` from Dynatrace app settings.
 2. Select the latest processed collection snapshot.
 3. Resolve endpoint names through the Forward host API with bounded concurrency and deduplicated lookups.
-4. By default, evaluate the resolved flows through `/paths-bulk` in bounded batches.
+4. Resolve modeled path evidence through `/paths-bulk` when `runPathPreflight` is true or defaulted.
 5. Build managed `NewNetworkCheck[]` payloads only from eligible resolved dependencies.
-6. Read current existential checks and reconcile by managed source key.
-7. Return host/path counts and a plan with create, unchanged, changed, stale, and collision counts plus an immutable
-   digest bound to the path evidence.
-8. On Network Admin `apply`, verify complete path evidence, the exact digest, changed-key approval, and mutation budgets.
-9. Create in bounded bulk batches and patch exact existing IDs.
-10. Read back and require zero remaining create, changed, or collision rows.
+6. Read current existential checks and parse them through `parseCheckList`, which rejects any paginated or
+   ambiguous response shape.
+7. Reconcile by strict managed ownership tuple (`managed-by`, `contract-version`, `source-instance`, `source-key`);
+   missing/ambiguous identity or foreign source-instance tuples are collisions.
+8. Return host/path counts and a plan with create, unchanged, changed, stale, and collision counts plus an immutable
+   digest bound to budgets, fingerprints, source-key set, and complete path-evidence quality.
+9. On Network Admin `apply`, enforce `runPathPreflight !== false`, exact digest match, exact approved changed key set,
+   complete path evidence (`ready` only), and mutation budgets before any mutating operation.
+10. Create in bounded bulk batches and patch exact existing IDs when budget and collision checks allow.
+11. Read back and require zero remaining create, changed, or collision rows.
 
 ## Failure Model
 
 - HTTPS only; the connection URL must terminate at `/api`.
-- Every request has a timeout, bounded retries for transient status codes, and a 5 MiB response cap.
+- Every request has a timeout.
+- Async execution uses 1-second minimum polling between `nqe-executions/{executionKey}` reads and bounded `limit` on result
+  fetches; 404 on status/result is treated as an explicit key-expired condition.
+- Read-only calls (including `GET` and selected `POST` usage such as `/paths-bulk`) have bounded retries for transient
+  status codes; mutating `POST`/`PATCH` on checks are never retried.
+- A 5 MiB bounded streaming transfer limit applies before JSON parsing. `Content-Length` is checked first; oversized
+  responses fail with the existing error contract before buffering.
+- Apply verifies `approvedPlanDigest` against current state and mutates nothing if any budget, ownership,
+  evidence, or digest constraint fails.
 - Apply stops after the first failed mutation and requires a new plan against current Forward state.
 - The action never logs or returns response bodies from failed authenticated calls.
 - Deletion is not implemented in the synchronization action.

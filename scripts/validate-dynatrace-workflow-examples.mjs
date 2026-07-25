@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import forwardSync from "../api/forward-sync.function.ts";
-import { createSyncForwardIntentAction } from "../actions/sync-forward-intent-checks.logic.mjs";
+import { createSyncForwardIntentAction } from "../actions/sync-forward-intent-checks.logic.ts";
 
 const examples = [
   "deploy/dynatrace-workflows/forward-sync-on-demand.payload.example.json",

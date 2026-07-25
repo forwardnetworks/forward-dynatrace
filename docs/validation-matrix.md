@@ -9,7 +9,7 @@ independent post-publication verification.
 | Fail-closed mapping | stale, malformed, review-required, and unmapped-row tests | Operator review of aggregate exclusion counts |
 | Read Only and Network Operator | action tests prove plan-only behavior and zero mutation calls | Read Only Workflow run against a processed snapshot |
 | Network Admin approval | digest, snapshot, budget, changed-key, collision, and readback tests | Approved create/update cycle with reconciliation readback |
-| Forward API compatibility | host resolution, path, NQE, pagination, retry, timeout, and response-cap tests | Supported Forward release and representative network |
+| Forward API compatibility | host resolution, path, NQE, pagination, timeout, streaming response-cap, invocation deadline, and retry tests | Supported: host/path/NQE/retry/pagination/streaming-cap/invocation-deadline response checks. Not covered: concurrent apply and partial failure handling inside a mutation bulk batch |
 | Site Reliability Guardian | manifest, DQL, workflow, and result readback validation | Pass, failure, recovery, and missing-evidence outcomes |
 | Scale and idempotency | 1,000-relationship scale smoke and deterministic package tests | Representative dependency volume and rate-limit observation |
 | Release supply chain | exact membership, checksum, SBOM, signature, tag, and attestation tests | Independent verification of the published release |

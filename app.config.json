@@ -3,7 +3,7 @@
   "environmentUrl": "https://your-environment-id.apps.dynatrace.com/",
   "app": {
     "name": "Forward",
-    "version": "0.12.0",
+    "version": "0.12.2",
     "description": "Application dependency evidence and modeled network assurance",
     "id": "com.forward.dynatrace",
     "scopes": [
@@ -18,10 +18,6 @@
       {
         "name": "storage:spans:read",
         "comment": "Query current instrumented application dependency spans from Grail"
-      },
-      {
-        "name": "environment-api:entities:read",
-        "comment": "Read Dynatrace service/entity context before synchronizing Forward intent checks"
       },
       {
         "name": "app-settings:objects:read",

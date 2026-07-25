@@ -75,6 +75,7 @@ export default defineConfig([
     files: ["**/*.ts", "**/*.tsx"],
     ignores: [
       "**/*.action.*",
+      "**/*.logic.ts",
       "**/*.widget.*",
       "**/*.test.ts",
       "**/test-utils.ts",
@@ -131,7 +132,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["**/*.action.ts", "**/*.widget.tsx"],
+    files: ["**/*.action.ts", "**/*.logic.ts", "**/*.widget.tsx"],
     ignores: ["**/*.test.ts", "**/test-utils.ts"],
     languageOptions: {
       parser: tseslint.parser,

@@ -5,7 +5,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import forwardSync from "../api/forward-sync.function.ts";
-import { isForwardAccessProfile } from "../lib/forward-access-profile.mjs";
+import { isForwardAccessProfile } from "../lib/forward-access-profile.ts";
 import {
   DEFAULT_NQE_CHECKS_PATH,
   DEFAULT_NQE_DIFF_REQUESTS_PATH,

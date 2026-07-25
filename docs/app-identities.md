@@ -4,8 +4,8 @@ Forward for Dynatrace has two installation identities. Both implement the same s
 
 | Use | App ID | Signing |
 | --- | --- | --- |
-| Production and non-production acceptance | `com.forward.dynatrace` | Signed archive required |
-| Sandbox and local development | `my.forward` | Unsigned install allowed |
+| Enterprise preview and sandbox | `my.forward` | Tenant-validated unsigned custom app |
+| Signed Dynatrace distribution | `com.forward.dynatrace` | Approved Dynatrace signing and distribution path |
 
 The display name is **Forward**. Documentation and release notes use **Forward for Dynatrace**. Repository, package,
 and runtime slugs remain `forward-dynatrace`.
@@ -20,8 +20,8 @@ release. Do not copy settings or generated artifacts from an experimental build.
 
 1. Disable experimental schedules and problem triggers.
 2. Uninstall the experimental app.
-3. Install `my.forward` in an isolated sandbox, or install the signed `com.forward.dynatrace` archive in a controlled
-   non-production or production environment.
+3. Install this enterprise-preview workflow in an isolated sandbox with `my.forward`, or install the signed
+   `com.forward.dynatrace` archive in a controlled production-compatible pathway.
 4. Generate Workflow templates from reviewed DQL:
 
    ```bash

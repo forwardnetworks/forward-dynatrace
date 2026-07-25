@@ -42,8 +42,9 @@ remain report-only.
 If the plan reports collisions, use `collisionReasonCounts` to identify the conflict class and
 `collisionSourceKeys` to review the affected opaque managed identities. Collisions are never automatically mutated.
 
-Apply is rejected when path evidence is failed, ambiguous, or unmapped, or when the snapshot, path result, or desired
-check payload changes after approval. Stage a new plan instead of retrying an old digest.
+Apply is rejected when path evidence is failed, ambiguous, or unmapped; when any part of the approved plan tuple changes (including snapshot, path
+evidence rows, budgets, and fingerprints); or when managed-identity collisions are present. Stage a new plan instead of
+retrying an old digest.
 
 ## Guardian
 

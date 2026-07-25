@@ -1,54 +1,10 @@
-type NqePreviewStatus = "planned" | "ready" | "blocked" | "failed";
-type ForwardAccessProfile = "read-only" | "network-operator" | "network-admin";
-type NqeTemplateId = "endpoint-inventory-smoke" | "approved-library-query";
-
-interface DependencyContext {
-  appName?: string;
-  environment?: string;
-  serviceEntityId?: string;
-  serviceName?: string;
-  source?: string;
-  destination?: string;
-  protocol?: "tcp" | "udp";
-  port?: string;
-  owner?: string;
-}
-
-interface ForwardNqePreviewRequest {
-  forwardAccessProfile?: ForwardAccessProfile;
-  forwardBaseUrl?: string;
-  forwardNetworkId?: string;
-  snapshotId?: string;
-  templateId?: NqeTemplateId;
-  queryId?: string;
-  query?: string;
-  commitId?: string;
-  parameters?: Record<string, unknown>;
-  maxRows?: number;
-  dependency?: DependencyContext;
-  execute?: boolean;
-}
-
-interface ForwardNqePreviewResponse {
-  status: NqePreviewStatus;
-  summary: string;
-  generatedAt: string;
-  templateId: NqeTemplateId;
-  requestPreview: {
-    method: "POST";
-    path: string;
-    body: Record<string, unknown>;
-  };
-  evidence: Array<{ label: string; value: string }>;
-  result?: {
-    snapshotId?: string;
-    totalRows: number;
-    returnedRows: number;
-    columns: string[];
-    sampleRows?: Array<Record<string, unknown>>;
-  };
-  nextSteps: string[];
-}
+import type {
+  ForwardAccessProfile,
+  ForwardNqePreviewRequest,
+  ForwardNqePreviewResponse,
+  NqeDependencyContext,
+  NqeTemplateId,
+} from "../lib/types/index.ts";
 
 const DEFAULT_TEMPLATE_ID: NqeTemplateId = "endpoint-inventory-smoke";
 const DEFAULT_MAX_ROWS = 25;
@@ -88,7 +44,7 @@ const templateQuery = (templateId: NqeTemplateId): string | undefined => {
 };
 
 const dependencyParameters = (
-  dependency: DependencyContext | undefined,
+  dependency: NqeDependencyContext | undefined,
 ): Record<string, unknown> => ({
   ...(dependency?.appName ? { application: dependency.appName } : {}),
   ...(dependency?.environment ? { environment: dependency.environment } : {}),

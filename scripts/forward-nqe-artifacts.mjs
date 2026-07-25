@@ -365,4 +365,4 @@ import {
   inspectManagedIdentity,
   requiredOwnershipTags,
   sourceKeyTag,
-} from "../lib/managed-check-identity.mjs";
+} from "../lib/managed-check-identity.ts";

@@ -4,12 +4,12 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { loadForwardAuthorization } from "../lib/forward-authorization.mjs";
+import { loadForwardAuthorization } from "../lib/forward-authorization.ts";
 import {
   assertForwardAccessProfile,
   canExecuteArbitraryNqe,
   canWriteIntentChecks,
-} from "../lib/forward-access-profile.mjs";
+} from "../lib/forward-access-profile.ts";
 import { executeForwardNqePreview } from "./forward-nqe-executor.mjs";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);

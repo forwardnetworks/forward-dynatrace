@@ -9,116 +9,26 @@ import {
   normalizeSourceInstanceId,
   requiredOwnershipTags,
   sourceInstanceTag,
-} from "../lib/managed-check-identity.mjs";
+} from "../lib/managed-check-identity.ts";
 import {
   canWriteIntentChecks,
   isForwardAccessProfile,
-} from "../lib/forward-access-profile.mjs";
+} from "../lib/forward-access-profile.ts";
+import type {
+  DependencyCandidate,
+  ForwardAccessProfile,
+  ForwardAction,
+  ForwardEndpoint,
+  ForwardIntentCheck,
+  ForwardLocationFilterType,
+  ForwardSyncMode,
+  ForwardSyncRequest,
+  ForwardSyncResponse,
+  MappedDependencyCandidate,
+  ReadinessCheck,
+} from "../lib/types/index.ts";
 
-type ForwardSyncMode = "direct-api";
-type ForwardAccessProfile = "read-only" | "network-operator" | "network-admin";
-type ForwardSyncStatus = "ready" | "blocked";
-type ForwardLocationFilterType =
-  | "HostFilter"
-  | "DeviceFilter"
-  | "SubnetLocationFilter";
-
-interface DependencyCandidate {
-  id: string;
-  appName: string;
-  environment: string;
-  serviceEntityId: string;
-  serviceName: string;
-  sourceLabel?: string;
-  source: string;
-  sourceFilterType?: ForwardLocationFilterType;
-  sourceResolvedValue?: string;
-  sourceResolvedFilterType?: ForwardLocationFilterType;
-  sourceResolutionStatus?: string;
-  destinationLabel?: string;
-  destination: string;
-  destinationFilterType?: ForwardLocationFilterType;
-  destinationResolvedValue?: string;
-  destinationResolvedFilterType?: ForwardLocationFilterType;
-  destinationResolutionStatus?: string;
-  protocol: "tcp" | "udp";
-  port: string;
-  owner: string;
-  criticality: "critical" | "high" | "medium";
-  confidence: number;
-  mappingState: "ready" | "needs-map" | "review";
-}
-
-export interface ForwardSyncRequest {
-  sourceInstanceId: string;
-  forwardBaseUrl?: string;
-  forwardNetworkId?: string;
-  syncMode: ForwardSyncMode;
-  forwardAccessProfile: ForwardAccessProfile;
-  includeReviewRows?: boolean;
-  enablePerformanceMonitoring?: boolean;
-  dependencies: DependencyCandidate[];
-}
-
-interface ForwardSyncResponse {
-  status: ForwardSyncStatus;
-  summary: string;
-  generatedAt: string;
-  disclaimer: string;
-  exportManifestPreview: string;
-  intentChecksPreview: string;
-  intentCheckCount: number;
-  rejectedDependencyCount: number;
-  actions: ForwardAction[];
-  readinessChecks: ReadinessCheck[];
-  workflowTrigger: string;
-  nextSteps: string[];
-}
-
-interface ForwardAction {
-  method: "GET" | "POST" | "PATCH";
-  path: string;
-  purpose: string;
-  bodyPreview?: string;
-  idempotencyKey?: string;
-}
-
-interface ReadinessCheck {
-  label: string;
-  status: "ready" | "needs-work" | "blocked";
-  detail: string;
-}
-
-interface ForwardIntentCheck {
-  definition: {
-    checkType: "Existential" | "Reachability";
-    filters: {
-      from: ForwardEndpoint;
-      to: ForwardEndpoint;
-      flowTypes?: string[];
-    };
-    headerFieldsWithDefaults: string[];
-    noiseTypes: string[];
-    returnPath?: "ANY" | "SYMMETRIC";
-  };
-  enabled: boolean;
-  perfMonitoringEnabled: boolean;
-  name: string;
-  note: string;
-  priority: "LOW" | "MEDIUM" | "HIGH";
-  tags: string[];
-}
-
-interface ForwardEndpoint {
-  location: {
-    type: ForwardLocationFilterType;
-    value: string;
-  };
-  headers?: Array<{
-    type: "PacketFilter";
-    values: Record<string, string[]>;
-  }>;
-}
+export type { ForwardSyncRequest } from "../lib/types/index.ts";
 
 interface ForwardExportManifest {
   schemaVersion: "forward-dynatrace/v1";
@@ -198,6 +108,8 @@ interface ForwardExportManifest {
 }
 
 const missing = (value: string | undefined): boolean => !value?.trim();
+const trimmedOrNull = (value: string | undefined): string | null =>
+  missing(value) ? null : value?.trim() || null;
 
 const INTEGRATION_BOUNDARY_DISCLAIMER =
   "Forward for Dynatrace is one installable Dynatrace app. Its backend uses a tenant-managed secret connection to call Forward APIs; credentials never enter the browser or generated evidence.";
@@ -205,11 +117,11 @@ const INTEGRATION_BOUNDARY_DISCLAIMER =
 const MANIFEST_FILE_NAME = "forward-dynatrace-manifest.json";
 const INTENT_CHECKS_FILE_NAME = "forward-intent-checks.json";
 
-const toBaseCheckName = (dependency: DependencyCandidate): string =>
+const toBaseCheckName = (dependency: MappedDependencyCandidate): string =>
   `[Dynatrace] ${dependency.appName} ${dependency.environment}: ${dependency.source} -> ${dependency.destination} ${dependency.protocol}/${dependency.port}`;
 
 const toCheckName = (
-  dependency: DependencyCandidate,
+  dependency: MappedDependencyCandidate,
   duplicateBaseNames: Set<string>,
 ): string => {
   const baseName = toBaseCheckName(dependency);
@@ -251,7 +163,7 @@ const toLocation = (
 ): ForwardEndpoint["location"] => ({ type, value });
 
 const resolvedLocationValue = (
-  dependency: DependencyCandidate,
+  dependency: MappedDependencyCandidate,
   role: "source" | "destination",
 ): string =>
   role === "source"
@@ -265,7 +177,7 @@ const isIpOrSubnet = (value: string): boolean =>
   );
 
 const resolvedLocationType = (
-  dependency: DependencyCandidate,
+  dependency: MappedDependencyCandidate,
   role: "source" | "destination",
 ): ForwardLocationFilterType => {
   const explicitType =
@@ -290,13 +202,13 @@ const resolutionNoteFields = (dependency: DependencyCandidate): string[] => [
 ];
 
 const toIntentCheck = (
-  dependency: DependencyCandidate,
+  dependency: MappedDependencyCandidate,
   duplicateBaseNames: Set<string>,
   sourceInstanceId: string,
   enablePerformanceMonitoring: boolean,
 ): ForwardIntentCheck => {
   const sourceKey = dependencySourceKeyTag(dependency, { sourceInstanceId });
-  const ownershipTags = requiredOwnershipTags({ sourceInstanceId, sourceKey }) as string[];
+  const ownershipTags = requiredOwnershipTags({ sourceInstanceId, sourceKey });
   return ({
   definition: {
     checkType: "Existential",
@@ -357,7 +269,7 @@ const toIntentCheck = (
 };
 
 const toIntentChecks = (
-  dependencies: DependencyCandidate[],
+  dependencies: MappedDependencyCandidate[],
   sourceInstanceId: string,
   enablePerformanceMonitoring: boolean,
 ): ForwardIntentCheck[] => {
@@ -397,7 +309,7 @@ const toManifestIdentitySha256 = ({
 }: {
   payload: ForwardSyncRequest;
   generatedAt: string;
-  exportableDependencies: DependencyCandidate[];
+  exportableDependencies: MappedDependencyCandidate[];
   rejectedDependencyCount: number;
   intentCheckCount: number;
   intentChecksSha256: string;
@@ -406,8 +318,8 @@ const toManifestIdentitySha256 = ({
   requestedIngestPath: payload.syncMode,
   requestedForwardAccessProfile: payload.forwardAccessProfile,
   sourceInstanceId: normalizeSourceInstanceId(payload.sourceInstanceId),
-  forwardBaseUrl: missing(payload.forwardBaseUrl) ? null : payload.forwardBaseUrl.trim(),
-  forwardNetworkId: missing(payload.forwardNetworkId) ? null : payload.forwardNetworkId.trim(),
+  forwardBaseUrl: trimmedOrNull(payload.forwardBaseUrl),
+  forwardNetworkId: trimmedOrNull(payload.forwardNetworkId),
   rowCount: payload.dependencies.length,
   rejectedDependencyCount,
   readyRowCount: payload.dependencies.filter((dependency) => dependency.mappingState === "ready").length,
@@ -432,7 +344,7 @@ const toExportManifest = ({
 }: {
   payload: ForwardSyncRequest;
   generatedAt: string;
-  exportableDependencies: DependencyCandidate[];
+  exportableDependencies: MappedDependencyCandidate[];
   rejectedDependencyCount: number;
   intentChecks: ForwardIntentCheck[];
   intentChecksSha256: string;
@@ -461,10 +373,8 @@ const toExportManifest = ({
     writePolicy: "dynatrace-app-backend-calls-forward-api",
   },
   forwardTargetMetadata: {
-    baseUrl: missing(payload.forwardBaseUrl) ? null : payload.forwardBaseUrl.trim(),
-    networkId: missing(payload.forwardNetworkId)
-      ? null
-      : payload.forwardNetworkId.trim(),
+    baseUrl: trimmedOrNull(payload.forwardBaseUrl),
+    networkId: trimmedOrNull(payload.forwardNetworkId),
     requiredAtImport:
       missing(payload.forwardBaseUrl) || missing(payload.forwardNetworkId),
   },
@@ -623,7 +533,7 @@ const toReadinessChecks = (
 const isExportableDependency = (
   dependency: DependencyCandidate,
   includeReviewRows: boolean | undefined,
-): boolean =>
+): dependency is MappedDependencyCandidate =>
   (dependency.mappingState === "ready" ||
     (Boolean(includeReviewRows) && dependency.mappingState === "review")) &&
   Boolean(

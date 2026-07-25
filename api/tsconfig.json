@@ -1,8 +1,11 @@
 {
   "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
     "module": "esnext",
     "moduleResolution": "node",
     "target": "esnext",
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "lib": ["esnext", "es2021.intl"],
@@ -11,6 +14,7 @@
       "../node_modules/@dynatrace/js-runtime/types",
       "../node_modules/@types"
     ],
-    "types": ["node", "runtime", "jest"]
-  }
+    "types": ["node", "runtime"]
+  },
+  "include": ["**/*.function.ts"]
 }

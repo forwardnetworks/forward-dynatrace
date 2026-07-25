@@ -17,7 +17,8 @@ Every release must pass:
 
 1. schema and contract tests for every request and bounded result;
 2. Read Only, Network Operator, and Network Admin policy tests;
-3. pagination, timeout, retry, response-cap, batching, collision, partial-failure, and readback tests;
+3. pagination, timeout, retry, streaming response cap, total invocation deadline, batching, collision, partial-failure, and readback tests; concurrent apply and
+   partial-failure inside a mutation bulk batch are still not covered;
 4. Dynatrace bundle validation and installation in a current SaaS environment;
 5. Forward read/path/check compatibility against a current processed snapshot;
 6. independent release checksum, signature, SBOM, and attestation verification.

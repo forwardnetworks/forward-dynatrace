@@ -6,44 +6,13 @@ import {
   discoveryConfigurationMessage,
   normalizeDiscoveryRows,
   selectDiscoveryProfile,
-} from "../lib/dependency-discovery.mjs";
+} from "../lib/dependency-discovery.ts";
+import type {
+  DependencyDiscoveryResponse,
+} from "../lib/types/index.ts";
 
 interface DependencyDiscoveryRequest {
   profileId?: string;
-}
-
-interface DiscoveryProfile {
-  id: string;
-  name: string;
-  description: string;
-  isDefault: boolean;
-  query: string;
-  maxResultRecords: number;
-  maxEvidenceAgeMinutes: number;
-}
-
-interface DiscoverySelection {
-  profile: DiscoveryProfile | null;
-  profiles: Array<Pick<DiscoveryProfile, "id" | "name" | "description" | "isDefault">>;
-  reason: string | null;
-}
-
-interface DependencyDiscoveryResponse {
-  status: "ready" | "configuration-required" | "blocked";
-  summary: string;
-  selectedProfile: { id: string; name: string } | null;
-  profiles: Array<{ id: string; name: string; description: string; isDefault: boolean }>;
-  dependencies: Array<Record<string, unknown>>;
-  evidence: {
-    queriedRows: number;
-    acceptedRows: number;
-    rejectedRows: number;
-    newestObservedAt: string | null;
-    sources: string[];
-    runIds: string[];
-  } | null;
-  rejectedRows: Array<{ row: number; reason: string }>;
-  nextSteps: string[];
 }
 
 const terminalStates = new Set(["SUCCEEDED", "FAILED", "CANCELLED", "RESULT_GONE"]);
@@ -76,9 +45,7 @@ const runQuery = async (query: string, maxResultRecords: number) => {
   if (response.state !== "SUCCEEDED" || !response.result) {
     throw new Error(`Dynatrace dependency query ended in state ${response.state}.`);
   }
-  return response.result.records.filter(
-    (record): record is Record<string, unknown> => Boolean(record),
-  );
+  return response.result.records.filter((record) => Boolean(record));
 };
 
 const emptyEvidence = null;
@@ -105,9 +72,9 @@ export default async function (
     const selected = selectDiscoveryProfile(
       objects.items || [],
       payload?.profileId?.trim(),
-    ) as DiscoverySelection;
+    );
     if (!selected.profile) {
-      const summary = discoveryConfigurationMessage(selected.reason) as string;
+      const summary = discoveryConfigurationMessage(selected.reason);
       return {
         status: "configuration-required",
         summary,
@@ -128,7 +95,7 @@ export default async function (
     const normalized = normalizeDiscoveryRows(records, {
       maxEvidenceAgeMinutes: selected.profile.maxEvidenceAgeMinutes,
     });
-    const dependencies = normalized.dependencies as Array<Record<string, unknown>>;
+    const dependencies = normalized.dependencies;
     const rejectedRows = normalized.rejected as Array<{ row: number; reason: string }>;
     const hasAcceptedRows = dependencies.length > 0;
 
