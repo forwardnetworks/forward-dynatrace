@@ -31,14 +31,23 @@ const requiredFiles = [
   "settings/schemas/forward-api-connection.schema.json",
   "settings/schemas/dependency-discovery-profile.schema.json",
   "lib/dependency-discovery.ts",
+  "lib/dependency-discovery-handler.ts",
   "lib/managed-check-identity.ts",
   "lib/forward-access-profile.ts",
   "lib/forward-authorization.ts",
+  "lib/forward-client.ts",
+  "lib/forward-connection.ts",
   "lib/forward-evidence.ts",
+  "lib/forward-nqe-preview.ts",
+  "lib/intent-builder.ts",
+  "lib/reconciliation.ts",
+  "lib/run-forward-nqe-evidence-action.ts",
+  "lib/sync-forward-intent-action.ts",
   "lib/types/index.ts",
   "lib/types/forward.ts",
   "lib/types/nqe.ts",
   "scripts/dynatrace-export-action.test.mjs",
+  "scripts/plan-digest-stability.test.mjs",
   "scripts/deploy-dynatrace-app.mjs",
   "scripts/install-release-app.mjs",
   "scripts/package-release-artifacts.mjs",
@@ -176,6 +185,57 @@ for (const name of Object.keys(packageJson.scripts || {})) {
   if (/^(?:systemd|forward:(?:handoff|import|cron)|runtime:)/u.test(name)) {
     fail(`Obsolete external-runtime npm script must be removed: ${name}`);
   }
+}
+if (packageJson.scripts?.["plan-digest:test"] !==
+  "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/plan-digest-stability.test.mjs") {
+  fail("The byte-stable plan digest regression test must remain available as plan-digest:test.");
+}
+if (!String(packageJson.scripts?.ci || "").includes("npm run plan-digest:test")) {
+  fail("CI must run the byte-stable plan digest regression test.");
+}
+
+const adapterFiles = [
+  "api/dependency-discovery.function.ts",
+  "api/forward-nqe-preview.function.ts",
+  "api/forward-sync.function.ts",
+  "actions/run-forward-nqe-evidence.logic.ts",
+  "actions/sync-forward-intent-checks.logic.ts",
+];
+for (const file of adapterFiles) {
+  const text = await readText(file);
+  if (/from\s+["'][^"']*(?:\/api\/|\/actions\/|\.\.\/api\/|\.\.\/actions\/|\.\.\/sync-forward-intent-checks\.logic)/u.test(text)) {
+    fail(`${file} must depend on lib modules, not another API or action adapter.`);
+  }
+}
+const syncAction = await readText("actions/sync-forward-intent-checks.logic.ts");
+if (!syncAction.includes('from "../lib/sync-forward-intent-action.ts"')) {
+  fail("The synchronization action must remain a thin adapter over lib/sync-forward-intent-action.ts.");
+}
+const syncActionImplementation = await readText("lib/sync-forward-intent-action.ts");
+if (!syncActionImplementation.includes('from "./intent-builder.ts"')) {
+  fail("The synchronization implementation must build typed intent packages through lib/intent-builder.ts.");
+}
+if (
+  syncActionImplementation.includes("exportManifestPreview") ||
+  syncActionImplementation.includes("intentChecksPreview")
+) {
+  fail("The synchronization runtime must not stringify and reparse generated intent artifacts.");
+}
+const nqeAction = await readText("actions/run-forward-nqe-evidence.logic.ts");
+if (!nqeAction.includes('from "../lib/run-forward-nqe-evidence-action.ts"')) {
+  fail("The NQE action must remain a thin adapter over lib/run-forward-nqe-evidence-action.ts.");
+}
+const discoveryFunction = await readText("api/dependency-discovery.function.ts");
+if (!discoveryFunction.includes('from "../lib/dependency-discovery-handler.ts"')) {
+  fail("The dependency discovery app function must remain a thin adapter over lib/dependency-discovery-handler.ts.");
+}
+const syncFunction = await readText("api/forward-sync.function.ts");
+if (!syncFunction.includes('from "../lib/intent-builder.ts"')) {
+  fail("The Forward sync app function must remain an adapter over lib/intent-builder.ts.");
+}
+const nqePreviewFunction = await readText("api/forward-nqe-preview.function.ts");
+if (!nqePreviewFunction.includes('from "../lib/forward-nqe-preview.ts"')) {
+  fail("The Forward NQE preview app function must remain an adapter over lib/forward-nqe-preview.ts.");
 }
 
 const releaseWorkflow = await readText(".github/workflows/release.yml");

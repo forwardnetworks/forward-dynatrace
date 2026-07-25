@@ -3,10 +3,14 @@ import test from "node:test";
 
 import {
   createSyncForwardIntentAction,
+} from "../actions/sync-forward-intent-checks.logic.ts";
+import {
   createForwardClient,
   parseCheckList,
+} from "../lib/forward-client.ts";
+import {
   validateConnection,
-} from "../actions/sync-forward-intent-checks.logic.ts";
+} from "../lib/forward-connection.ts";
 import {
   dependencySourceKeyTag,
   MANAGED_BY_TAG,
