@@ -27,6 +27,7 @@
 - [Support policy](../SUPPORT.md)
 - [Product ownership](ownership.md)
 - [Threat model](threat-model.md)
+- [Productionization design](productionization-design.md)
 - [Data handling](data-handling.md)
 - [Governance](governance.md)
 - [Application identities](app-identities.md)

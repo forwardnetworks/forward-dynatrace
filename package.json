@@ -17,6 +17,7 @@
     "github-actions:validate": "node scripts/validate-github-action-pins.mjs",
     "github-actions:validate:test": "node --test scripts/validate-github-action-pins.test.mjs",
     "load:scale": "node scripts/load-scale-smoke.mjs",
+    "forward:patch-throughput": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/measure-forward-patch-throughput.mjs",
     "load:soak": "FORWARD_DYNATRACE_SCALE_ITERATIONS=100 node scripts/load-scale-smoke.mjs",
     "dynatrace:workflow:validate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/validate-dynatrace-workflow-examples.mjs",
     "dynatrace:workflow:generate": "node scripts/generate-dynatrace-workflows.mjs",

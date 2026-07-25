@@ -1,4 +1,11 @@
 import {
+  getTrustedActionContext,
+} from "@dynatrace-sdk/automation-action-utils/actions";
+import type {
+  TrustedActionContext,
+} from "@dynatrace-sdk/automation-action-utils/actions";
+
+import {
   sourceInstanceTag,
 } from "./managed-check-identity.ts";
 import {
@@ -37,6 +44,11 @@ const DEFAULT_BATCH_SIZE = 100;
 const MAX_CREATE_BUDGET = 2_500;
 const MAX_UPDATE_BUDGET = 1_000;
 const MAX_DEPENDENCIES = 2_500;
+// A live single-item PATCH/restore probe on Forward network 252606 observed a
+// raw 735-update arithmetic ceiling under the 120-second action deadline.
+// Five hundred reserves roughly 32% of that deadline for evidence collection,
+// reconciliation, full-inventory reads, readback, and latency variance.
+const SAFE_SEQUENTIAL_UPDATE_LIMIT = 500;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -352,6 +364,7 @@ const synchronizationInput = (
 };
 
 type ConnectionLoader = (connectionId: string) => Promise<unknown>;
+type TrustedActionContextLoader = () => TrustedActionContext | null;
 
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) &&
@@ -422,9 +435,11 @@ const isForwardIntentCheck = (
 export const createSyncForwardIntentAction = ({
   loadConnection = loadDynatraceConnection,
   fetchImpl = globalThis.fetch,
+  loadTrustedActionContext = getTrustedActionContext,
 }: {
   loadConnection?: ConnectionLoader;
   fetchImpl?: typeof globalThis.fetch;
+  loadTrustedActionContext?: TrustedActionContextLoader;
 } = {}) => async (payload: unknown): Promise<unknown> => {
   if (
     !isRecord(payload) ||
@@ -436,6 +451,7 @@ export const createSyncForwardIntentAction = ({
   const connectionId = requiredString(payload.connectionId, "Input field 'connectionId'", 255);
   const connection = validateConnection(await loadConnection(connectionId));
   const input = synchronizationInput(parseRequest(payload.request));
+  const trustedActionContext = loadTrustedActionContext();
   if (input.syncRequest.syncMode !== "direct-api") {
     throw new Error("syncMode must be direct-api.");
   }
@@ -519,6 +535,18 @@ export const createSyncForwardIntentAction = ({
     mutationCounts: { created: 0, updated: 0 },
     postApplyVerification: "not-run",
     boundary: "tenant-managed-secret-backend-only",
+    ...(trustedActionContext
+      ? {
+          executionContext: {
+            trustedWorkflowInvocation: true,
+            approverIdentityAvailable: false,
+            usedForAuthorization: false,
+            ...(trustedActionContext.approval
+              ? { approvalOutcome: trustedActionContext.approval.outcome }
+              : {}),
+          },
+        }
+      : {}),
   };
 
   if (input.operation === "plan") return baseResponse;
@@ -574,6 +602,11 @@ export const createSyncForwardIntentAction = ({
   if (reconciliation.changed.length > input.maxUpdates) {
     throw new Error("Update count exceeds the approved mutation budget.");
   }
+  if (reconciliation.changed.length > SAFE_SEQUENTIAL_UPDATE_LIMIT) {
+    throw new Error(
+      `Update count ${reconciliation.changed.length} exceeds the safe per-invocation limit of ${SAFE_SEQUENTIAL_UPDATE_LIMIT} sequential Forward PATCH requests under the 120-second AppEngine deadline. Split dependencies into smaller independently planned and approved applies; no Forward mutations were attempted.`,
+    );
+  }
   const changedKeys = reconciliation.changed.map(({ key }) => key).sort();
   const approvedKeys = [...new Set(input.approvedSourceKeys)].sort();
   if (stableJson(changedKeys) !== stableJson(approvedKeys)) {
@@ -582,6 +615,8 @@ export const createSyncForwardIntentAction = ({
 
   let created = 0;
   let updated = 0;
+  const plannedCreates = reconciliation.create.length;
+  const plannedUpdates = reconciliation.changed.length;
   try {
     for (const batch of chunk(reconciliation.create, DEFAULT_BATCH_SIZE)) {
       await api(
@@ -602,13 +637,24 @@ export const createSyncForwardIntentAction = ({
   } catch (error) {
     const status = String(error instanceof Error ? error.message : "")
       .match(/HTTP (\d{3})/u)?.[1] || "unknown";
-    throw new Error(`Forward apply stopped with HTTP ${status}; reconcile current state and stage a new plan.`);
+    throw new Error(
+      `Forward apply stopped with HTTP ${status}; reconcile current state and stage a new plan. Confirmed progress before the failed request: created ${created}/${plannedCreates}, updated ${updated}/${plannedUpdates}.`,
+    );
   }
 
-  const verificationResponse = await api(
-    "GET",
-    `/snapshots/${encodeURIComponent(snapshotId)}/checks?type=Existential`,
-  );
+  let verificationResponse: unknown;
+  try {
+    verificationResponse = await api(
+      "GET",
+      `/snapshots/${encodeURIComponent(snapshotId)}/checks?type=Existential`,
+    );
+  } catch (error) {
+    const status = String(error instanceof Error ? error.message : "")
+      .match(/HTTP (\d{3})/u)?.[1] || "unknown";
+    throw new Error(
+      `Forward post-apply verification stopped with HTTP ${status}; reconcile current state and stage a new plan. Mutation progress before readback: created ${created}/${plannedCreates}, updated ${updated}/${plannedUpdates}.`,
+    );
+  }
   reconciliation = reconcileChecks(
     plannedChecks,
     parseCheckList(verificationResponse),
@@ -620,7 +666,9 @@ export const createSyncForwardIntentAction = ({
     verificationCounts.changed !== 0 ||
     verificationCounts.collision !== 0
   ) {
-    throw new Error("Forward post-apply verification failed; stage a new plan before another mutation.");
+    throw new Error(
+      `Forward post-apply verification failed; stage a new plan before another mutation. Mutation progress: created ${created}/${plannedCreates}, updated ${updated}/${plannedUpdates}.`,
+    );
   }
 
   return {

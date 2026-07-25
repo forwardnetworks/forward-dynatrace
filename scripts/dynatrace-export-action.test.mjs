@@ -63,6 +63,7 @@ const harness = ({
   profile = "read-only",
   initialChecks = [],
   fetchMock,
+  trustedActionContext = null,
 } = {}) => {
   const calls = [];
   const checks = structuredClone(initialChecks);
@@ -128,6 +129,7 @@ const harness = ({
         return connection(profile);
       },
       fetchImpl,
+      loadTrustedActionContext: () => trustedActionContext,
     }),
     calls,
     checks,
@@ -155,6 +157,27 @@ test("Read Only connection plans direct API creates without mutating Forward", a
   assert.equal(calls.every((call) => call.url.startsWith("https://forward.example.com/api/")), true);
   assert.equal(JSON.stringify(result).includes("service-password"), false);
   assert.equal(JSON.stringify(result).includes("service-user"), false);
+});
+
+test("trusted Workflow context is returned as bounded telemetry without inferred identity", async () => {
+  const { action } = harness({
+    trustedActionContext: {
+      approval: {
+        originalResult: { sensitive: "not-returned" },
+        approvalEvent: { actor: "untyped-and-not-authoritative" },
+        outcome: "APPROVED",
+      },
+    },
+  });
+  const result = await action({ connectionId: "connection-1", request: request() });
+  assert.deepEqual(result.executionContext, {
+    trustedWorkflowInvocation: true,
+    approverIdentityAvailable: false,
+    usedForAuthorization: false,
+    approvalOutcome: "APPROVED",
+  });
+  assert.equal(JSON.stringify(result).includes("sensitive"), false);
+  assert.equal(JSON.stringify(result).includes("untyped-and-not-authoritative"), false);
 });
 
 test("Network Operator remains plan-only", async () => {
@@ -763,7 +786,7 @@ test("mutating POST is not retried after transient failures", async () => {
         approvedPlanDigest: createPlan.planDigest,
       }),
     }),
-    /Forward apply stopped with HTTP 503/,
+    /Forward apply stopped with HTTP 503;.*created 0\/1, updated 0\/0/,
   );
   assert.equal(postAttempts.count, 1);
 });
@@ -807,9 +830,103 @@ test("mutating PATCH is not retried after transient failures", async () => {
         approvedSourceKeys: updatePlan.changedSourceKeys,
       }),
     }),
-    /Forward apply stopped with HTTP 503/,
+    /Forward apply stopped with HTTP 503;.*created 0\/0, updated 0\/1/,
   );
   assert.equal(patchAttempts.count, 1);
+});
+
+test("interrupted PATCH apply reports confirmed progress before the failed request", async () => {
+  const patchAttempts = { count: 0 };
+  const dependencies = [
+    dependency,
+    {
+      ...dependency,
+      id: "checkout-payments",
+      serviceEntityId: "SERVICE-PAYMENTS",
+      serviceName: "payments-api",
+      source: "10.0.1.1",
+      destination: "10.0.1.2",
+    },
+  ];
+  const seed = harness({
+    profile: "network-admin",
+    fetchMock: ({ url, options }) => {
+      if (options.method === "PATCH" && url.includes("/api/snapshots/snapshot-1/checks/")) {
+        patchAttempts.count += 1;
+        if (patchAttempts.count === 2) return response({}, 503);
+      }
+      return undefined;
+    },
+  });
+  const twoCheckRequest = (overrides = {}) => request("network-admin", {
+    dependencies,
+    maxCreates: 2,
+    maxUpdates: 2,
+    ...overrides,
+  });
+  const createPlan = await seed.action({
+    connectionId: "connection-1",
+    request: twoCheckRequest(),
+  });
+  await seed.action({
+    connectionId: "connection-1",
+    request: twoCheckRequest({
+      operation: "apply",
+      approvedPlanDigest: createPlan.planDigest,
+    }),
+  });
+  for (const check of seed.checks) check.note = `${check.note}; drifted-before-progress-test`;
+  const updatePlan = await seed.action({
+    connectionId: "connection-1",
+    request: twoCheckRequest(),
+  });
+  await assert.rejects(
+    seed.action({
+      connectionId: "connection-1",
+      request: twoCheckRequest({
+        operation: "apply",
+        approvedPlanDigest: updatePlan.planDigest,
+        approvedSourceKeys: updatePlan.changedSourceKeys,
+      }),
+    }),
+    /Confirmed progress before the failed request: created 0\/0, updated 1\/2/,
+  );
+  assert.equal(patchAttempts.count, 2);
+});
+
+test("post-apply readback interruption reports completed mutation progress", async () => {
+  let mutationAccepted = false;
+  const seed = harness({
+    profile: "network-admin",
+    fetchMock: ({ url, options }) => {
+      if (options.method === "POST" && url.includes("/checks?bulk")) {
+        mutationAccepted = true;
+        return undefined;
+      }
+      if (
+        mutationAccepted &&
+        options.method === "GET" &&
+        url.endsWith("/api/snapshots/snapshot-1/checks?type=Existential")
+      ) {
+        return response({}, 503);
+      }
+      return undefined;
+    },
+  });
+  const plan = await seed.action({
+    connectionId: "connection-1",
+    request: request("network-admin"),
+  });
+  await assert.rejects(
+    seed.action({
+      connectionId: "connection-1",
+      request: request("network-admin", {
+        operation: "apply",
+        approvedPlanDigest: plan.planDigest,
+      }),
+    }),
+    /Forward post-apply verification stopped with HTTP 503;.*created 1\/1, updated 0\/0/,
+  );
 });
 
 test("read-only GET requests retry on network errors without a response", async () => {
@@ -859,6 +976,58 @@ test("mutating requests do not retry after network errors", async () => {
     /Forward apply stopped with HTTP unknown; reconcile current state and stage a new plan\./,
   );
   assert.equal(createAttempts.count, 1);
+});
+
+test("apply rejects more than 500 sequential updates before the first PATCH", async () => {
+  const updateCount = 501;
+  const dependencies = Array.from({ length: updateCount }, (_, index) => ({
+    ...dependency,
+    id: `dependency-${index}`,
+    serviceEntityId: `SERVICE-${index}`,
+    serviceName: `service-${index}`,
+    source: `10.0.${Math.floor(index / 250)}.${(index % 250) + 1}`,
+    destination: `10.1.${Math.floor(index / 250)}.${(index % 250) + 1}`,
+  }));
+  const seed = harness({ profile: "network-admin" });
+  const boundedRequest = (overrides = {}) => request("network-admin", {
+    dependencies,
+    maxCreates: updateCount,
+    maxUpdates: updateCount,
+    ...overrides,
+  });
+  const createPlan = await seed.action({
+    connectionId: "connection-1",
+    request: boundedRequest(),
+  });
+  await seed.action({
+    connectionId: "connection-1",
+    request: boundedRequest({
+      operation: "apply",
+      approvedPlanDigest: createPlan.planDigest,
+    }),
+  });
+  for (const check of seed.checks) check.note = `${check.note}; drifted-for-cap-test`;
+  const updatePlan = await seed.action({
+    connectionId: "connection-1",
+    request: boundedRequest(),
+  });
+  assert.equal(updatePlan.counts.changed, updateCount);
+  const patchCountBeforeApply = seed.calls.filter((call) => call.method === "PATCH").length;
+  await assert.rejects(
+    seed.action({
+      connectionId: "connection-1",
+      request: boundedRequest({
+        operation: "apply",
+        approvedPlanDigest: updatePlan.planDigest,
+        approvedSourceKeys: updatePlan.changedSourceKeys,
+      }),
+    }),
+    /Update count 501 exceeds the safe per-invocation limit of 500.*no Forward mutations were attempted/,
+  );
+  assert.equal(
+    seed.calls.filter((call) => call.method === "PATCH").length,
+    patchCountBeforeApply,
+  );
 });
 
 test("HTTP redirects are rejected explicitly", async () => {

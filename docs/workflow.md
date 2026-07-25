@@ -46,6 +46,10 @@ Apply is rejected when path evidence is failed, ambiguous, or unmapped; when any
 evidence rows, budgets, and fingerprints); or when managed-identity collisions are present. Stage a new plan instead of
 retrying an old digest.
 
+Because Forward has no documented bulk PATCH for checks, updates are sequential. Apply rejects more than 500 updates
+before the first mutation under the 120-second AppEngine deadline. Partition a larger dependency set into smaller,
+independently planned and approved applies; do not raise `maxUpdates` to bypass this execution-safety limit.
+
 ## Guardian
 
 Forward and Dynatrace answer different questions:
