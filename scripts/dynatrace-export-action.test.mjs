@@ -64,6 +64,8 @@ const harness = ({
   initialChecks = [],
   fetchMock,
   trustedActionContext = null,
+  approvalNonce = "engine-approval-nonce",
+  now = Date.now,
 } = {}) => {
   const calls = [];
   const checks = structuredClone(initialChecks);
@@ -129,7 +131,13 @@ const harness = ({
         return connection(profile);
       },
       fetchImpl,
-      loadTrustedActionContext: () => trustedActionContext,
+      loadTrustedActionContext: () => typeof trustedActionContext === "function"
+        ? trustedActionContext()
+        : trustedActionContext,
+      loadApprovalNonce: () => typeof approvalNonce === "function"
+        ? approvalNonce()
+        : approvalNonce,
+      now,
     }),
     calls,
     checks,
@@ -178,6 +186,185 @@ test("trusted Workflow context is returned as bounded telemetry without inferred
   });
   assert.equal(JSON.stringify(result).includes("sensitive"), false);
   assert.equal(JSON.stringify(result).includes("untyped-and-not-authoritative"), false);
+});
+
+test("engine-approval mode accepts only a fresh matching engine approval and records evidence", async () => {
+  let trustedActionContext = null;
+  let nowMs = Date.now();
+  const { action, calls } = harness({
+    profile: "network-admin",
+    trustedActionContext: () => trustedActionContext,
+    approvalNonce: "trusted-engine-nonce",
+    now: () => nowMs,
+  });
+  const plan = await action({
+    connectionId: "connection-1",
+    request: request("network-admin"),
+  });
+  nowMs = Date.parse(plan.generatedAt) + 60_000;
+  trustedActionContext = {
+    approval: {
+      originalResult: plan,
+      approvalEvent: { actor: "untyped-and-not-authoritative" },
+      outcome: "APPROVED",
+    },
+  };
+
+  const result = await action({
+    connectionId: "connection-1",
+    request: request("network-admin", {
+      operation: "apply",
+      approvalMode: "engine-approval",
+      approvalNonce: "trusted-engine-nonce",
+      approvedPlanDigest: plan.planDigest,
+      approvedSourceKeys: [],
+    }),
+  });
+
+  assert.deepEqual(result.authorization, {
+    mode: "engine-approval",
+    approvalOutcome: "APPROVED",
+    approvalNonceSha256: "83f93b5f268ab9068a01e1523fbb5c9e50a95ace22d83ba6f310e3c17e5aad26",
+    planGeneratedAt: plan.generatedAt,
+    expiresAt: new Date(Date.parse(plan.generatedAt) + 15 * 60_000).toISOString(),
+    ttlSeconds: 900,
+  });
+  assert.equal(result.executionContext.usedForAuthorization, true);
+  assert.equal(result.executionContext.approverIdentityAvailable, false);
+  assert.equal(JSON.stringify(result).includes("trusted-engine-nonce"), false);
+  assert.equal(JSON.stringify(result).includes("untyped-and-not-authoritative"), false);
+  assert.equal(calls.filter((call) => call.method === "POST" && call.url.includes("/checks?bulk")).length, 1);
+});
+
+test("engine-approval mode rejects missing trusted approval context before mutation", async () => {
+  const { action, calls } = harness({ profile: "network-admin" });
+  const plan = await action({
+    connectionId: "connection-1",
+    request: request("network-admin"),
+  });
+
+  await assert.rejects(
+    action({
+      connectionId: "connection-1",
+      request: request("network-admin", {
+        operation: "apply",
+        approvalMode: "engine-approval",
+        approvalNonce: "engine-approval-nonce",
+        approvedPlanDigest: plan.planDigest,
+        approvedSourceKeys: [],
+      }),
+    }),
+    /requires trusted Dynatrace Workflow approval context/,
+  );
+  assert.equal(calls.some((call) => call.method === "POST" && call.url.includes("/checks?bulk")), false);
+});
+
+test("engine-approval mode rejects stale original plan approval before mutation", async () => {
+  let trustedActionContext = null;
+  let nowMs = Date.now();
+  const { action, calls } = harness({
+    profile: "network-admin",
+    trustedActionContext: () => trustedActionContext,
+    now: () => nowMs,
+  });
+  const plan = await action({
+    connectionId: "connection-1",
+    request: request("network-admin"),
+  });
+  trustedActionContext = {
+    approval: { originalResult: plan, outcome: "APPROVED" },
+  };
+  nowMs = Date.parse(plan.generatedAt) + 15 * 60_000 + 1;
+
+  await assert.rejects(
+    action({
+      connectionId: "connection-1",
+      request: request("network-admin", {
+        operation: "apply",
+        approvalMode: "engine-approval",
+        approvalNonce: "engine-approval-nonce",
+        approvedPlanDigest: plan.planDigest,
+        approvedSourceKeys: [],
+      }),
+    }),
+    /original plan is stale/,
+  );
+  assert.equal(calls.some((call) => call.method === "POST" && call.url.includes("/checks?bulk")), false);
+});
+
+test("engine-approval mode rejects non-approved outcomes and nonce mismatches", async () => {
+  let trustedActionContext = null;
+  let nowMs = Date.now();
+  const { action, calls } = harness({
+    profile: "network-admin",
+    trustedActionContext: () => trustedActionContext,
+    approvalNonce: "trusted-engine-nonce",
+    now: () => nowMs,
+  });
+  const plan = await action({
+    connectionId: "connection-1",
+    request: request("network-admin"),
+  });
+  nowMs = Date.parse(plan.generatedAt) + 60_000;
+  trustedActionContext = {
+    approval: { originalResult: plan, outcome: "DECLINED" },
+  };
+  const applyRequest = request("network-admin", {
+    operation: "apply",
+    approvalMode: "engine-approval",
+    approvalNonce: "wrong-nonce",
+    approvedPlanDigest: plan.planDigest,
+    approvedSourceKeys: [],
+  });
+
+  await assert.rejects(
+    action({ connectionId: "connection-1", request: applyRequest }),
+    /requires an APPROVED engine outcome; received DECLINED/,
+  );
+  trustedActionContext = {
+    approval: { originalResult: plan, outcome: "APPROVED" },
+  };
+  await assert.rejects(
+    action({ connectionId: "connection-1", request: applyRequest }),
+    /approvalNonce does not match the engine-provided approval nonce/,
+  );
+  assert.equal(calls.some((call) => call.method === "POST" && call.url.includes("/checks?bulk")), false);
+});
+
+test("engine-approval mode rejects approval for a different original plan", async () => {
+  let trustedActionContext = null;
+  let nowMs = Date.now();
+  const { action, calls } = harness({
+    profile: "network-admin",
+    trustedActionContext: () => trustedActionContext,
+    now: () => nowMs,
+  });
+  const plan = await action({
+    connectionId: "connection-1",
+    request: request("network-admin"),
+  });
+  nowMs = Date.parse(plan.generatedAt) + 60_000;
+  trustedActionContext = {
+    approval: {
+      originalResult: { ...plan, planDigest: "0".repeat(64) },
+      outcome: "APPROVED",
+    },
+  };
+
+  await assert.rejects(
+    action({
+      connectionId: "connection-1",
+      request: request("network-admin", {
+        operation: "apply",
+        approvalMode: "engine-approval",
+        approvalNonce: "engine-approval-nonce",
+        approvedPlanDigest: plan.planDigest,
+        approvedSourceKeys: [],
+      }),
+    }),
+    /original plan does not match the current immutable plan/,
+  );
+  assert.equal(calls.some((call) => call.method === "POST" && call.url.includes("/checks?bulk")), false);
 });
 
 test("Network Operator remains plan-only", async () => {
@@ -259,6 +446,182 @@ test("Network Admin updates only the exact approved managed source keys", async 
   assert.equal(result.postApplyVerification, "verified");
   assert.equal(seed.calls.filter((call) => call.url.endsWith("/api/public/csrf")).length, 5);
   assert.equal(seed.calls.find((call) => call.method === "PATCH").csrfToken, "csrf-test-token");
+});
+
+test("partitioned apply updates only its exact subset and reports outstanding work", async () => {
+  const dependencies = Array.from({ length: 3 }, (_, index) => ({
+    ...dependency,
+    id: `partition-dependency-${index}`,
+    serviceEntityId: `PARTITION-SERVICE-${index}`,
+    serviceName: `partition-service-${index}`,
+    source: `10.10.0.${index + 1}`,
+    destination: `10.20.0.${index + 1}`,
+  }));
+  const seed = harness({ profile: "network-admin" });
+  const partitionRequest = (overrides = {}) => request("network-admin", {
+    dependencies,
+    maxCreates: 3,
+    maxUpdates: 3,
+    ...overrides,
+  });
+  const createPlan = await seed.action({
+    connectionId: "connection-1",
+    request: partitionRequest(),
+  });
+  await seed.action({
+    connectionId: "connection-1",
+    request: partitionRequest({
+      operation: "apply",
+      approvedPlanDigest: createPlan.planDigest,
+    }),
+  });
+  for (const check of seed.checks) check.note = `${check.note}; partition-drift`;
+  const updatePlan = await seed.action({
+    connectionId: "connection-1",
+    request: partitionRequest(),
+  });
+  const applySourceKeys = updatePlan.changedSourceKeys.slice(0, 2);
+  const patchCountBeforeApply = seed.calls.filter((call) => call.method === "PATCH").length;
+
+  const result = await seed.action({
+    connectionId: "connection-1",
+    request: partitionRequest({
+      operation: "apply",
+      approvedPlanDigest: updatePlan.planDigest,
+      applySourceKeys,
+      approvedSourceKeys: applySourceKeys,
+    }),
+  });
+
+  assert.deepEqual(result.mutationCounts, { created: 0, updated: 2 });
+  assert.equal(result.postApplyVerification, "verified");
+  assert.deepEqual(result.authorization, { mode: "digest" });
+  assert.deepEqual(result.applyScope, {
+    mode: "partition",
+    appliedSourceKeys: applySourceKeys,
+    outstandingSourceKeys: updatePlan.changedSourceKeys.slice(2),
+    outstandingCount: 1,
+  });
+  assert.equal(result.counts.changed, 1);
+  assert.equal(
+    seed.calls.filter((call) => call.method === "PATCH").length - patchCountBeforeApply,
+    2,
+  );
+
+  await assert.rejects(
+    seed.action({
+      connectionId: "connection-1",
+      request: partitionRequest({
+        operation: "apply",
+        approvedPlanDigest: updatePlan.planDigest,
+        applySourceKeys: result.applyScope.outstandingSourceKeys,
+        approvedSourceKeys: result.applyScope.outstandingSourceKeys,
+      }),
+    }),
+    /approvedPlanDigest does not match the current immutable plan/,
+  );
+  const nextPlan = await seed.action({
+    connectionId: "connection-1",
+    request: partitionRequest(),
+  });
+  assert.notEqual(nextPlan.planDigest, updatePlan.planDigest);
+  assert.deepEqual(nextPlan.changedSourceKeys, result.applyScope.outstandingSourceKeys);
+});
+
+test("partitioned apply rejects a key outside the current changed set before mutation", async () => {
+  const seed = harness({ profile: "network-admin" });
+  const createPlan = await seed.action({
+    connectionId: "connection-1",
+    request: request("network-admin"),
+  });
+  await seed.action({
+    connectionId: "connection-1",
+    request: request("network-admin", {
+      operation: "apply",
+      approvedPlanDigest: createPlan.planDigest,
+    }),
+  });
+  seed.checks[0].note = `${seed.checks[0].note}; changed`;
+  const updatePlan = await seed.action({
+    connectionId: "connection-1",
+    request: request("network-admin"),
+  });
+  const unknownSourceKey = `source-key:sha256:${"f".repeat(64)}`;
+  const patchCountBeforeApply = seed.calls.filter((call) => call.method === "PATCH").length;
+
+  await assert.rejects(
+    seed.action({
+      connectionId: "connection-1",
+      request: request("network-admin", {
+        operation: "apply",
+        approvedPlanDigest: updatePlan.planDigest,
+        applySourceKeys: [unknownSourceKey],
+        approvedSourceKeys: [unknownSourceKey],
+      }),
+    }),
+    /applySourceKeys must be a subset of the current plan's changed managed checks/,
+  );
+  assert.equal(
+    seed.calls.filter((call) => call.method === "PATCH").length,
+    patchCountBeforeApply,
+  );
+});
+
+test("partitioned apply rejects a drifted whole plan before mutating its subset", async () => {
+  const dependencies = [
+    dependency,
+    {
+      ...dependency,
+      id: "partition-drift-peer",
+      serviceEntityId: "PARTITION-DRIFT-PEER",
+      serviceName: "partition-drift-peer",
+      source: "10.30.0.1",
+      destination: "10.40.0.1",
+    },
+  ];
+  const seed = harness({ profile: "network-admin" });
+  const partitionRequest = (overrides = {}) => request("network-admin", {
+    dependencies,
+    maxCreates: 2,
+    maxUpdates: 2,
+    ...overrides,
+  });
+  const createPlan = await seed.action({
+    connectionId: "connection-1",
+    request: partitionRequest(),
+  });
+  await seed.action({
+    connectionId: "connection-1",
+    request: partitionRequest({
+      operation: "apply",
+      approvedPlanDigest: createPlan.planDigest,
+    }),
+  });
+  for (const check of seed.checks) check.note = `${check.note}; planned-drift`;
+  const updatePlan = await seed.action({
+    connectionId: "connection-1",
+    request: partitionRequest(),
+  });
+  seed.checks[1].note = `${seed.checks[1].note}; after-plan-drift`;
+  const applySourceKeys = updatePlan.changedSourceKeys.slice(0, 1);
+  const patchCountBeforeApply = seed.calls.filter((call) => call.method === "PATCH").length;
+
+  await assert.rejects(
+    seed.action({
+      connectionId: "connection-1",
+      request: partitionRequest({
+        operation: "apply",
+        approvedPlanDigest: updatePlan.planDigest,
+        applySourceKeys,
+        approvedSourceKeys: applySourceKeys,
+      }),
+    }),
+    /approvedPlanDigest does not match the current immutable plan/,
+  );
+  assert.equal(
+    seed.calls.filter((call) => call.method === "PATCH").length,
+    patchCountBeforeApply,
+  );
 });
 
 test("Direct sync plans expose safe collision evidence without mutating Forward", async () => {
@@ -1027,6 +1390,24 @@ test("apply rejects more than 500 sequential updates before the first PATCH", as
   assert.equal(
     seed.calls.filter((call) => call.method === "PATCH").length,
     patchCountBeforeApply,
+  );
+
+  const applySourceKeys = updatePlan.changedSourceKeys.slice(0, 500);
+  const partitionResult = await seed.action({
+    connectionId: "connection-1",
+    request: boundedRequest({
+      operation: "apply",
+      approvedPlanDigest: updatePlan.planDigest,
+      applySourceKeys,
+      approvedSourceKeys: applySourceKeys,
+    }),
+  });
+  assert.deepEqual(partitionResult.mutationCounts, { created: 0, updated: 500 });
+  assert.equal(partitionResult.applyScope.mode, "partition");
+  assert.equal(partitionResult.applyScope.outstandingCount, 1);
+  assert.deepEqual(
+    partitionResult.applyScope.outstandingSourceKeys,
+    updatePlan.changedSourceKeys.slice(500),
   );
 });
 

@@ -1,21 +1,21 @@
 # Productionization design: approval and scalable apply
 
-Status: design basis for this additive hardening pass. Expiry, nonce enforcement, required approver identity, and
-resumable apply remain deliberately out of scope until the mutation contract is explicitly versioned and approved.
+Status: implemented additive hardening. Engine approval and single-invocation update partitioning are available as
+opt-in request fields; the legacy request shape and deterministic plan digest are unchanged. Durable nonce
+consumption, typed human approver identity, and resumable cross-invocation execution remain deferred.
 
 ## Executive decision
 
-- **Approval:** the current action cannot obtain a trustworthy human caller or approver identity. Move the eventual
-  approval boundary to an engine-owned Dynatrace Workflow approval action and treat its audit history as the approval
-  record. A future v2 apply must require the engine-validated approval outcome and approval nonce, plus a short expiry,
-  instead of treating possession of `planDigest` as approval. Do not accept a caller-supplied identity as authority.
-  If the configured Workflow approval/audit system cannot prove the human actor, this requirement cannot be done well
-  inside the current app; use an external signed approval service or wait for a typed Dynatrace identity capability.
-- **Apply scale:** Forward's checked-in Checks OpenAPI specification has no bulk or batch PATCH operation. Keep PATCHes
-  sequential until Forward documents stronger semantics. In this pass, reject more than 500 planned updates before the
-  first mutation and report confirmed progress on an interrupted apply. For the eventual v2 contract, use Dynatrace's
-  stateful action facility to persist a reconciliation-aware progress envelope between invocations, subject to a
-  focused validation of state retention, size, retry, and at-least-once behavior.
+- **Approval:** `approvalMode` defaults to `digest`, preserving the existing possession-based authorization contract.
+  `engine-approval` additionally requires the engine-validated `APPROVED` outcome, the engine-carried original plan,
+  an exact caller/engine nonce match, and a fixed 15-minute TTL based on the original plan's trusted result. The action
+  returns bounded authorization evidence and never interprets the untyped approval event as identity. Workflow audit
+  history remains the human approval record because the SDK still exposes no typed approver identity.
+- **Apply scale:** Forward's checked-in Checks OpenAPI specification has no bulk or batch PATCH operation, so PATCHes
+  remain sequential. An apply can now select `applySourceKeys`, an exact subset of the current plan's changed keys.
+  The action verifies the whole plan digest and budgets before mutation, caps the selected partition at 500 updates,
+  verifies that partition by readback, and reports current outstanding keys. Every later partition needs a fresh plan,
+  digest, and approval because the prior partition changed Forward state.
 
 The current `planDigest` algorithm and value must not change in this pass.
 
@@ -83,7 +83,7 @@ work and variance. Therefore 735 is the measured arithmetic ceiling; 500 is the 
 The harness is locked to network `252606`, requires a second explicit network confirmation before mutation, accepts
 only an integration-managed check, performs no bulk mutation, and does not print credentials.
 
-## A. Replace possession-based approval
+## A. Add opt-in engine approval
 
 ### Options
 
@@ -91,32 +91,38 @@ only an integration-managed check, performs no bulk mutation, and does not print
 | --- | --- | --- | --- |
 | Keep `planDigest` as the only approval token | Nothing immediately. | Auditor exception, operating procedure, and acceptance of indefinite replay when state returns to the same shape. | No implementation work; deterministic plans remain easy to compare. It does not solve the blocker. |
 | Add caller-supplied `approverId`, `issuedAt`, and nonce to the digest | Every existing apply caller must send the new fields; every old approved digest fails. Stable repeated plans disappear if time or randomness enters `planDigest`. | UI and Workflow changes, validation, versioning, and operator retraining. | Stateless expiry if time is bound, but no trustworthy identity. A supplied approver ID is forgeable, and a nonce is replayable unless consumption is stored. |
-| Use a Dynatrace Workflow approval action and require its trusted outcome and nonce in v2 **(recommended)** | Direct v1 apply can no longer be the production mutation path. Existing apply Workflows must add the approval lifecycle and consume a new result shape. | Workflow migration, approval-action implementation, timeout/error UX, audit-retention policy, and validation of SDK approval semantics. | Engine-owned approval outcome, engine-issued nonce, Workflow execution audit, and a natural place for human approval. It removes the digest string from the role of bearer authorization. |
+| Add an opt-in Dynatrace Workflow engine-approval mode **(implemented)** | No existing caller. Callers opt in per apply; changing the default later would be a breaking policy change. | Approval-enabled Workflow configuration, nonce wiring, timeout/error UX, and audit-retention policy. | Engine-owned outcome, engine-issued nonce, bounded freshness, and Workflow audit while preserving deterministic plans. |
 | Require an externally signed approval envelope | All applies must call or be fed by the approval service; old calls fail after enforcement. | External service/database, signing-key custody and rotation, availability, incident response, and integration scopes. | Strong explicit approver identity, expiry, one-time nonce, revocation, and durable audit with independently defined semantics. |
 | Treat the Forward connection or Workflow executor as the approver | No request-schema break, but it invalidates the claimed separation of duties. | Mostly documentation, plus an auditor exception. | Attribution to an automation/service identity only. It does not identify the human who approved the plan. |
 
-### Recommendation and v2 contract
+### Implemented additive contract
 
-Build a versioned approval lifecycle around a Dynatrace Workflow approval action:
+`approvalMode` accepts `digest` or `engine-approval` and defaults to `digest`. The default is intentionally
+byte-compatible at the request and digest-computation boundaries, but it remains **authorization by possession of the
+digest and is not the production-grade mode**. A future default flip or removal of `digest` would invalidate existing
+apply callers and therefore requires a separately announced migration.
 
-1. The initial invocation produces the current plan plus an approval challenge containing the unchanged v1
-   `planDigest`, an engine-generated nonce, `issuedAt`, and `expiresAt` (recommended initial TTL: 15 minutes).
-2. The Workflow approval UI shows the network, snapshot, counts, budgets, digest, and complete changed-source-key set.
-3. The post-approval invocation accepts only the engine-validated `APPROVED` outcome and the approval-action nonce. It
-   applies the exact plan carried in or referenced by the engine-owned original result.
-4. The Workflow execution/audit record is the durable approval record. If the product must return the human approver
-   in its own action result, production must wait for a documented typed Dynatrace approver identity or integrate an
-   approval service that supplies a verifiable signed subject. An untyped event field is not enough.
-5. Enforce expiry before mutation. Enforce single use through the approval engine's one-shot lifecycle or a durable
-   consumed-nonce store; a random value alone prevents guessing, not replay.
+For an `engine-approval` apply, before the first mutation the action requires all of the following:
 
-Do not put the time or nonce into the existing `planDigest`. Introduce a separate versioned `approvalChallengeDigest`
-or signed envelope that includes `{ planDigest, nonce, issuedAt, expiresAt, workflow/approval execution reference }`.
-This preserves deterministic plan comparison while correctly making v2 approval instances unique.
+1. `getTrustedActionContext()` contains an approval result with engine-determined outcome `APPROVED`.
+2. The engine-carried `originalResult` is this action's `plan` result and its `planDigest` exactly equals both the
+   submitted digest and the current full-plan digest.
+3. The request's `approvalNonce` exactly matches `getApprovalNonce()` from engine runtime metadata. A caller-supplied
+   nonce has no authority by itself.
+4. The original plan's action-generated `generatedAt` is valid, is not in the future, and is no more than 15 minutes
+   old. Caller-supplied issue or expiry timestamps are not accepted.
 
-The break is quantifiable: plan-only callers can remain compatible, but **100% of existing apply callers and all
-previously issued digest-only approvals become invalid once v2 enforcement is enabled**. A staged migration can emit
-both v1 plan data and the v2 challenge first, update Workflow templates, then disable digest-only production apply.
+The nonce, time, approval event, and authorization mode stay out of `planDigest`. Successful apply evidence contains
+the mode and, for engine approval, the outcome, TTL window, original plan time, and SHA-256 of the nonce. It never
+returns the raw nonce or untyped approval event. The publish-safe status projection accepts `approval.mode` and emits
+only `forward.dynatrace.authorization_mode`.
+
+The earlier claim that this necessarily required a breaking v2 was too broad: mandatory enforcement would break all
+current apply callers, but a per-request opt-in does not. The remaining limit is narrower. The action cannot name the
+human approver, independently prove audit retention, revoke an approval, or atomically consume a nonce. It trusts the
+AutomationEngine's protected approval lifecycle and keeps the validity window short. Deployments that require an
+action-owned one-time-use record or signed human subject still need a least-privileged external approval service or a
+future typed Dynatrace capability.
 
 ### Durable record choices
 
@@ -140,16 +146,37 @@ The app currently has `app-settings:objects:read` and no storage write scope.
 | Use a Forward bulk PATCH | Cannot be implemented against the inspected contract. | Forward product/API work and a documented atomicity/partial-failure contract. | Fewer round trips and the best eventual scale, if Forward adds it. There is no such checks endpoint today. |
 | Convert to a Dynatrace stateful/resumable action **(recommended target)** | Action lifecycle and result shape change; callers can no longer assume one invocation is terminal. Current “fresh plan after any partial failure” semantics need a v2 definition. | Validation of AutomationEngine persistence, state limits, retention, retry/at-least-once behavior, and a reconciliation-aware state machine. | Durable progress without an app storage write scope, bounded chunks across invocations, and one Workflow execution/audit trail. |
 | Persist progress in app settings, a document, Grail, or an external store | Adds scopes or infrastructure and changes failure/retry semantics. | Concurrency control, encryption/access, cleanup, retention, and recovery logic; Grail is not a compare-and-set store. | Cross-invocation resume independent of action-runner state. A document or external transactional service is more credible than Grail; app settings has the unacceptable credential-scope issue above. |
-| Narrow each plan/apply to at most 500 updates | Large desired sets require multiple separately selected dependency partitions and approvals. | Workflow partitioning, repeated path evidence/inventory reads, multiple approval records, and more operator time. | Works with today's stateless contract, preserves stop-and-restage semantics, and bounds each failure domain. |
-| Enforce a 500-update fail-fast cap **(recommended now)** | Requests with 501–1,000 updates were syntactically allowed and will now be rejected. They were not supportable under the measured deadline; plan remains available for partitioning. | A documented limit and clear remediation. Capacity must be re-measured after material Forward/AppEngine changes. | No mid-apply timeout for the known oversized class, no mutation before rejection, and an honest operating envelope. |
+| Select an approved update subset per invocation **(implemented)** | No existing caller; `applySourceKeys` is optional. | Fresh plan/digest/approval and repeated reads for every later partition. | First-class bounded progress while preserving stateless stop-and-restage semantics. |
+| Enforce a 500-update fail-fast cap | Legacy full applies above 500 still reject. Explicit partitions above 500 also reject. | A documented limit and clear remediation. Capacity must be re-measured after material Forward/AppEngine changes. | No mid-apply timeout for the known oversized class and no mutation before rejection. |
 | Parallelize individual PATCHes | Stop-on-first semantics cease to be literal because requests are already in flight; rate-limit and partial-failure exposure increase. | Concurrency tuning, Forward load testing, 429 behavior, idempotency analysis, and much more complex recovery. | Higher throughput without a new endpoint. Reject until Forward documents safe concurrency and update idempotency. |
 | Keep the 1,000-update allowance and accept timeouts | Nothing immediately. | Indeterminate partial applies, repeated replans, incident handling, and a production blocker. | No engineering work. Reject. |
 
+### Implemented partition semantics
+
+Omitting `applySourceKeys` retains the legacy full-plan behavior: `approvedSourceKeys` must equal the complete changed
+set and readback must find no remaining creates, changes, or collisions. Supplying `applySourceKeys` selects a
+non-empty, duplicate-free subset of the current changed set. `approvedSourceKeys` must exactly equal that subset.
+
+The action still computes and rechecks `approvedPlanDigest` over the **whole** current plan immediately before the
+first write. Collisions, incomplete path evidence, a stale digest, or a full-plan create/update budget overrun block
+the partition before mutation. Creates are not partitioned: every planned create is still applied under the existing
+create budget. Only the selected changed rows are PATCHed, and their count must be at most 500.
+
+Readback requires all creates and selected updates to have converged and requires zero collisions. It returns current
+reconciliation counts plus `applyScope.appliedSourceKeys`, `outstandingSourceKeys`, and `outstandingCount`. Outstanding
+keys are operator guidance, not a continuation token.
+
+There is deliberately no fiction that one digest authorizes a mutation sequence. A successful partition changes
+existing fingerprints, so the old whole-plan digest becomes stale. Before applying any outstanding key, the operator
+must stage and approve a new plan against current Forward state. Drift in any part of the plan before a partition
+causes the full digest recheck to fail, even if the selected subset itself did not drift. Drift during mutation can be
+reported as outstanding, while failure of a selected key to converge stops the apply and requires replanning.
+
 ### Resume semantics without an app write scope
 
-Today there is no resume. After a partial mutation the current-state reconciliation produces a different digest, so
-the action intentionally requires a new plan. A caller-provided `updatedSoFar` counter would be forgeable and would not
-prove which objects were updated.
+There is no automatic resume. After a partition or partial mutation the current-state reconciliation produces a
+different digest, so the action intentionally requires a new plan. A caller-provided `updatedSoFar` counter would be
+forgeable and would not prove which objects were updated.
 
 The installed automation SDK supports stateful actions whose intermediate result is supplied by AutomationEngine on a
 later invocation. A v2 resumable action can use that engine state instead of adding app write scope. Its durable
@@ -165,18 +192,17 @@ not adequate, resumable apply cannot be done well without a transactional extern
 
 ### Recommended sequence
 
-1. This additive pass: preserve `planDigest`; expose only bounded trusted-context telemetry; enforce the 500-update
-   pre-mutation cap; include confirmed created/updated progress in interruption and verification errors.
-2. Contract v2: combine Workflow approval outcome/nonce/expiry with stateful chunked apply. Keep item PATCH sequential,
-   leave time-based safety margin before yielding, and re-read/reconcile on every invocation.
-3. Revisit only if Forward publishes a checks bulk-update endpoint with explicit validation, atomicity, per-item error,
+1. Pilot `engine-approval` and explicit `applySourceKeys` partitions while retaining the compatibility default.
+2. If tenant evidence proves the Workflow audit and lifecycle guarantees, migrate production callers and separately
+   govern a future default flip. Add stateful chunking only after its retry and persistence semantics are validated.
+3. Revisit the update transport only if Forward publishes a checks bulk-update endpoint with explicit validation, atomicity, per-item error,
    retry, and idempotency semantics.
 
 ## Deliberately deferred
 
-- No expiry or TTL is added to `planDigest`.
-- No nonce is generated or required.
-- No caller or approver identity is required or inferred.
+- No expiry, nonce, authorization mode, or partition selection is added to `planDigest`.
+- No typed caller or approver identity is required or inferred; the untyped approval event is never authorization.
+- No action-owned consumed-nonce store, revocation record, or durable approval record is introduced.
 - No durable progress store or resumable/stateful apply is introduced.
 - No parallel PATCH execution is introduced.
 - No Forward network other than the single restored timing probe on `252606` is mutated.

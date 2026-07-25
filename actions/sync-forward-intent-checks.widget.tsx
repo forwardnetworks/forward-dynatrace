@@ -20,6 +20,7 @@ const defaultRequest = JSON.stringify(
     syncMode: "direct-api",
     forwardAccessProfile: "read-only",
     operation: "plan",
+    approvalMode: "digest",
     maxCreates: 1000,
     maxUpdates: 100,
     runPathPreflight: true,
@@ -36,10 +37,12 @@ const MAX_CREATE_BUDGET = 2_500;
 const MAX_UPDATE_BUDGET = 1_000;
 
 interface ApplyReview {
+  approvalMode: string;
   digest: string;
   maxCreates: string;
   maxUpdates: string;
   pathPreflight: string;
+  partition: string;
   sourceKeys: string;
   stageable: boolean;
 }
@@ -66,11 +69,17 @@ const applyReview = (request: string): ApplyReview => {
     if (isRecord(parsed)) {
       const approvedDigest = parsed.approvedPlanDigest;
       const approvedKeys = parsed.approvedSourceKeys;
+      const approvalMode = parsed.approvalMode ?? "digest";
+      const approvalNonce = parsed.approvalNonce;
+      const applyKeys = parsed.applySourceKeys;
       const maxCreates = parsed.maxCreates;
       const maxUpdates = parsed.maxUpdates;
       const expression = (value: unknown): boolean =>
         typeof value === "string" && value.includes("{{");
       return {
+        approvalMode: typeof approvalMode === "string"
+          ? approvalMode
+          : "workflow expression or missing",
         digest: typeof approvedDigest === "string"
           ? approvedDigest
           : "workflow expression or missing",
@@ -81,6 +90,9 @@ const applyReview = (request: string): ApplyReview => {
           ? String(maxUpdates)
           : "workflow expression or missing",
         pathPreflight: parsed.runPathPreflight === true ? "required" : "not confirmed",
+        partition: Array.isArray(applyKeys)
+          ? `${applyKeys.length} selected update key(s)`
+          : "full changed set",
         sourceKeys: Array.isArray(approvedKeys)
           ? `${approvedKeys.length} exact changed key(s)`
           : "workflow expression or missing",
@@ -94,6 +106,13 @@ const applyReview = (request: string): ApplyReview => {
             maxUpdates >= 0 && maxUpdates <= MAX_UPDATE_BUDGET) ||
             expression(maxUpdates)) &&
           parsed.runPathPreflight === true &&
+          (approvalMode === "digest" ||
+            (approvalMode === "engine-approval" &&
+              (typeof approvalNonce === "string" &&
+                (approvalNonce.length > 0 || expression(approvalNonce))))) &&
+          (applyKeys === undefined ||
+            (Array.isArray(applyKeys) &&
+              applyKeys.every((key) => typeof key === "string"))) &&
           ((Array.isArray(approvedKeys) && approvedKeys.every((key) => typeof key === "string")) ||
             expression(approvedKeys)),
       };
@@ -103,10 +122,12 @@ const applyReview = (request: string): ApplyReview => {
   }
   const pathPreflightRequired = /['\"]runPathPreflight['\"]\s*:\s*true/u.test(request);
   return {
+    approvalMode: "resolved from workflow expression at execution",
     digest: "resolved from workflow expression at execution",
     maxCreates: "resolved from workflow expression at execution",
     maxUpdates: "resolved from workflow expression at execution",
     pathPreflight: pathPreflightRequired ? "required" : "not confirmed",
+    partition: "resolved from workflow expression at execution",
     sourceKeys: "resolved from workflow expression at execution",
     stageable: pathPreflightRequired,
   };
@@ -155,7 +176,8 @@ const SyncForwardIntentChecksWidget: ActionWidget<SyncForwardIntentChecksWidgetI
           </Paragraph>
           <Paragraph>
             Digest: {review.digest}; creates: {review.maxCreates}; updates: {review.maxUpdates};
-            path preflight: {review.pathPreflight}; changed keys: {review.sourceKeys}.
+            path preflight: {review.pathPreflight}; authorization: {review.approvalMode};
+            apply scope: {review.partition}; approved keys: {review.sourceKeys}.
           </Paragraph>
         </FormField>
       ) : (

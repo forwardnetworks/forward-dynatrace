@@ -1,4 +1,5 @@
 import {
+  getApprovalNonce,
   getTrustedActionContext,
 } from "@dynatrace-sdk/automation-action-utils/actions";
 import type {
@@ -49,6 +50,7 @@ const MAX_DEPENDENCIES = 2_500;
 // Five hundred reserves roughly 32% of that deadline for evidence collection,
 // reconciliation, full-inventory reads, readback, and latency variance.
 const SAFE_SEQUENTIAL_UPDATE_LIMIT = 500;
+const ENGINE_APPROVAL_TTL_MS = 15 * 60 * 1_000;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -261,8 +263,11 @@ const validateDependency = (
 
 interface SynchronizationInput {
   operation: "plan" | "apply";
+  approvalMode: "digest" | "engine-approval";
+  approvalNonce: unknown;
   approvedPlanDigest: unknown;
   approvedSourceKeys: string[];
+  applySourceKeys: string[] | null;
   maxCreates: number;
   maxUpdates: number;
   runPathPreflight: boolean;
@@ -278,13 +283,19 @@ const synchronizationInput = (
       "sourceInstanceId", "syncMode", "forwardAccessProfile", "includeReviewRows",
       "enablePerformanceMonitoring", "dependencies", "operation", "approvedPlanDigest",
       "approvedSourceKeys", "maxCreates", "maxUpdates", "forwardBaseUrl", "forwardNetworkId",
-      "runPathPreflight",
+      "runPathPreflight", "approvalMode", "approvalNonce", "applySourceKeys",
     ]),
     "Forward synchronization request",
   );
   const operation = request.operation || "plan";
   if (operation !== "plan" && operation !== "apply") {
     throw new Error("operation must be plan or apply.");
+  }
+  const approvalMode = request.approvalMode === undefined
+    ? "digest"
+    : request.approvalMode;
+  if (approvalMode !== "digest" && approvalMode !== "engine-approval") {
+    throw new Error("approvalMode must be digest or engine-approval.");
   }
   const approvedSourceKeys = request.approvedSourceKeys || [];
   if (
@@ -294,6 +305,22 @@ const synchronizationInput = (
     )
   ) {
     throw new Error("approvedSourceKeys must be an array of managed source-key tags.");
+  }
+  const applySourceKeysValue = request.applySourceKeys;
+  if (
+    applySourceKeysValue !== undefined &&
+    (!Array.isArray(applySourceKeysValue) ||
+      !applySourceKeysValue.every(
+        (value): value is string => typeof value === "string",
+      ))
+  ) {
+    throw new Error("applySourceKeys must be an array of managed source-key tags.");
+  }
+  const applySourceKeys = applySourceKeysValue === undefined
+    ? null
+    : applySourceKeysValue;
+  if (applySourceKeys && new Set(applySourceKeys).size !== applySourceKeys.length) {
+    throw new Error("applySourceKeys must not contain duplicate managed source-key tags.");
   }
   if (!Array.isArray(request.dependencies) || request.dependencies.length === 0) {
     throw new Error("No dependency rows selected for Forward synchronization.");
@@ -347,8 +374,11 @@ const synchronizationInput = (
   );
   return {
     operation,
+    approvalMode,
+    approvalNonce: request.approvalNonce,
     approvedPlanDigest: request.approvedPlanDigest,
     approvedSourceKeys,
+    applySourceKeys,
     maxCreates: nonNegativeInteger(request.maxCreates, 1_000, MAX_CREATE_BUDGET, "maxCreates"),
     maxUpdates: nonNegativeInteger(request.maxUpdates, 100, MAX_UPDATE_BUDGET, "maxUpdates"),
     runPathPreflight: request.runPathPreflight !== false,
@@ -365,6 +395,98 @@ const synchronizationInput = (
 
 type ConnectionLoader = (connectionId: string) => Promise<unknown>;
 type TrustedActionContextLoader = () => TrustedActionContext | null;
+type ApprovalNonceLoader = () => string;
+type Clock = () => number;
+
+interface AuthorizationEvidence {
+  mode: "digest" | "engine-approval";
+  approvalOutcome?: "APPROVED";
+  approvalNonceSha256?: string;
+  planGeneratedAt?: string;
+  expiresAt?: string;
+  ttlSeconds?: number;
+}
+
+const engineApprovalEvidence = ({
+  approvalNonce,
+  approvedPlanDigest,
+  loadApprovalNonce,
+  now,
+  trustedActionContext,
+}: {
+  approvalNonce: unknown;
+  approvedPlanDigest: string;
+  loadApprovalNonce: ApprovalNonceLoader;
+  now: Clock;
+  trustedActionContext: TrustedActionContext | null;
+}): AuthorizationEvidence => {
+  const approval = trustedActionContext?.approval;
+  if (!approval) {
+    throw new Error(
+      "engine-approval mode requires trusted Dynatrace Workflow approval context.",
+    );
+  }
+  if (approval.outcome !== "APPROVED") {
+    throw new Error(
+      `engine-approval mode requires an APPROVED engine outcome; received ${approval.outcome}.`,
+    );
+  }
+  if (!isRecord(approval.originalResult)) {
+    throw new Error(
+      "engine-approval mode requires the engine-carried original plan result.",
+    );
+  }
+  const originalResult = approval.originalResult;
+  if (
+    originalResult.schemaVersion !== "forward-dynatrace-direct-sync/v1" ||
+    originalResult.operation !== "plan" ||
+    originalResult.planDigest !== approvedPlanDigest
+  ) {
+    throw new Error(
+      "engine-approval original plan does not match the current immutable plan.",
+    );
+  }
+  const planGeneratedAt = requiredString(
+    originalResult.generatedAt,
+    "engine-approval original plan generatedAt",
+    64,
+  );
+  const generatedAtMs = Date.parse(planGeneratedAt);
+  const ageMs = now() - generatedAtMs;
+  if (!Number.isFinite(generatedAtMs) || ageMs < 0 || ageMs > ENGINE_APPROVAL_TTL_MS) {
+    throw new Error(
+      "engine-approval original plan is stale or has an invalid generation time.",
+    );
+  }
+  const suppliedNonce = requiredString(
+    approvalNonce,
+    "approvalNonce",
+    512,
+  );
+  let trustedNonce: string;
+  try {
+    trustedNonce = requiredString(
+      loadApprovalNonce(),
+      "engine-provided approval nonce",
+      512,
+    );
+  } catch {
+    throw new Error(
+      "engine-approval mode requires an engine-provided approval nonce.",
+    );
+  }
+  if (suppliedNonce !== trustedNonce) {
+    throw new Error("approvalNonce does not match the engine-provided approval nonce.");
+  }
+  return {
+    mode: "engine-approval",
+    approvalOutcome: "APPROVED",
+    approvalNonceSha256: sha256(trustedNonce),
+    planGeneratedAt,
+    expiresAt: new Date(generatedAtMs + ENGINE_APPROVAL_TTL_MS).toISOString(),
+    ttlSeconds: ENGINE_APPROVAL_TTL_MS / 1_000,
+  };
+};
 
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) &&
@@ -436,10 +558,14 @@ export const createSyncForwardIntentAction = ({
   loadConnection = loadDynatraceConnection,
   fetchImpl = globalThis.fetch,
   loadTrustedActionContext = getTrustedActionContext,
+  loadApprovalNonce = getApprovalNonce,
+  now = Date.now,
 }: {
   loadConnection?: ConnectionLoader;
   fetchImpl?: typeof globalThis.fetch;
   loadTrustedActionContext?: TrustedActionContextLoader;
+  loadApprovalNonce?: ApprovalNonceLoader;
+  now?: Clock;
 } = {}) => async (payload: unknown): Promise<unknown> => {
   if (
     !isRecord(payload) ||
@@ -602,21 +728,44 @@ export const createSyncForwardIntentAction = ({
   if (reconciliation.changed.length > input.maxUpdates) {
     throw new Error("Update count exceeds the approved mutation budget.");
   }
-  if (reconciliation.changed.length > SAFE_SEQUENTIAL_UPDATE_LIMIT) {
+  const changedKeys = reconciliation.changed.map(({ key }) => key).sort();
+  const applyKeys = input.applySourceKeys === null
+    ? changedKeys
+    : [...input.applySourceKeys].sort();
+  const changedKeySet = new Set(changedKeys);
+  if (applyKeys.some((key) => !changedKeySet.has(key))) {
+    throw new Error("applySourceKeys must be a subset of the current plan's changed managed checks.");
+  }
+  if (input.applySourceKeys !== null && applyKeys.length === 0) {
+    throw new Error("applySourceKeys must select at least one current changed managed check.");
+  }
+  if (applyKeys.length > SAFE_SEQUENTIAL_UPDATE_LIMIT) {
     throw new Error(
-      `Update count ${reconciliation.changed.length} exceeds the safe per-invocation limit of ${SAFE_SEQUENTIAL_UPDATE_LIMIT} sequential Forward PATCH requests under the 120-second AppEngine deadline. Split dependencies into smaller independently planned and approved applies; no Forward mutations were attempted.`,
+      input.applySourceKeys === null
+        ? `Update count ${applyKeys.length} exceeds the safe per-invocation limit of ${SAFE_SEQUENTIAL_UPDATE_LIMIT} sequential Forward PATCH requests under the 120-second AppEngine deadline. Split dependencies into smaller independently planned and approved applies; no Forward mutations were attempted.`
+        : `Update count ${applyKeys.length} exceeds the safe per-invocation limit of ${SAFE_SEQUENTIAL_UPDATE_LIMIT} sequential Forward PATCH requests under the 120-second AppEngine deadline. Select a smaller applySourceKeys partition and obtain an exact approval; no Forward mutations were attempted.`,
     );
   }
-  const changedKeys = reconciliation.changed.map(({ key }) => key).sort();
   const approvedKeys = [...new Set(input.approvedSourceKeys)].sort();
-  if (stableJson(changedKeys) !== stableJson(approvedKeys)) {
-    throw new Error("approvedSourceKeys must exactly match every changed managed check in the plan.");
+  if (stableJson(applyKeys) !== stableJson(approvedKeys)) {
+    throw new Error("approvedSourceKeys must exactly match the changed managed checks selected for this apply.");
   }
+  const authorization: AuthorizationEvidence = input.approvalMode === "engine-approval"
+    ? engineApprovalEvidence({
+        approvalNonce: input.approvalNonce,
+        approvedPlanDigest: approvedDigest,
+        loadApprovalNonce,
+        now,
+        trustedActionContext,
+      })
+    : { mode: "digest" };
+  const applyKeySet = new Set(applyKeys);
+  const selectedChanges = reconciliation.changed.filter(({ key }) => applyKeySet.has(key));
 
   let created = 0;
   let updated = 0;
   const plannedCreates = reconciliation.create.length;
-  const plannedUpdates = reconciliation.changed.length;
+  const plannedUpdates = selectedChanges.length;
   try {
     for (const batch of chunk(reconciliation.create, DEFAULT_BATCH_SIZE)) {
       await api(
@@ -626,7 +775,7 @@ export const createSyncForwardIntentAction = ({
       );
       created += batch.length;
     }
-    for (const item of reconciliation.changed) {
+    for (const item of selectedChanges) {
       await api(
         "PATCH",
         `/snapshots/${encodeURIComponent(snapshotId)}/checks/${encodeURIComponent(item.existingId)}`,
@@ -661,10 +810,14 @@ export const createSyncForwardIntentAction = ({
     sourceInstanceTag(input.syncRequest.sourceInstanceId),
   );
   const verificationCounts = reconciliationCounts(reconciliation);
+  const outstandingSourceKeys = reconciliation.changed.map(({ key }) => key).sort();
+  const unconvergedAppliedSourceKeys = outstandingSourceKeys.filter((key) =>
+    applyKeySet.has(key));
   if (
     verificationCounts.create !== 0 ||
-    verificationCounts.changed !== 0 ||
-    verificationCounts.collision !== 0
+    verificationCounts.collision !== 0 ||
+    unconvergedAppliedSourceKeys.length !== 0 ||
+    (input.applySourceKeys === null && verificationCounts.changed !== 0)
   ) {
     throw new Error(
       `Forward post-apply verification failed; stage a new plan before another mutation. Mutation progress: created ${created}/${plannedCreates}, updated ${updated}/${plannedUpdates}.`,
@@ -676,6 +829,21 @@ export const createSyncForwardIntentAction = ({
     counts: verificationCounts,
     mutationCounts: { created, updated },
     postApplyVerification: "verified",
+    authorization,
+    applyScope: {
+      mode: input.applySourceKeys === null ? "full-plan" : "partition",
+      appliedSourceKeys: applyKeys,
+      outstandingSourceKeys,
+      outstandingCount: outstandingSourceKeys.length,
+    },
+    ...(input.approvalMode === "engine-approval" && baseResponse.executionContext
+      ? {
+          executionContext: {
+            ...baseResponse.executionContext,
+            usedForAuthorization: true,
+          },
+        }
+      : {}),
   };
 };
 

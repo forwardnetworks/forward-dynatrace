@@ -144,6 +144,15 @@ export const sanitizeStatusArtifact = (artifact) => {
     }
   }
 
+  const approvalMode = artifact.approval?.mode;
+  if (
+    approvalMode !== undefined &&
+    approvalMode !== "digest" &&
+    approvalMode !== "engine-approval"
+  ) {
+    throw new Error("Status artifact approval.mode must be digest or engine-approval.");
+  }
+
   return {
     schemaVersion: artifact.schemaVersion,
     generatedAt: artifact.generatedAt || null,
@@ -153,6 +162,7 @@ export const sanitizeStatusArtifact = (artifact) => {
     forwardAccessProfile: artifact.forwardAccessProfile || null,
     importState: artifact.importState || null,
     applyPolicy: artifact.applyPolicy || null,
+    ...(approvalMode ? { approval: { mode: approvalMode } } : {}),
     packageIntegrity: artifact.packageIntegrity || null,
     packageSignature: {
       status: artifact.packageSignature?.status || "not-provided",
@@ -222,6 +232,9 @@ export const toDynatraceStatusEvent = (artifact, provenance = null) => ({
     "forward.dynatrace.access_profile": artifact.forwardAccessProfile,
     "forward.dynatrace.import_state": artifact.importState,
     "forward.dynatrace.apply_policy": artifact.applyPolicy,
+    ...(artifact.approval
+      ? { "forward.dynatrace.authorization_mode": artifact.approval.mode }
+      : {}),
     "forward.dynatrace.signature_status": artifact.packageSignature.status,
     "forward.dynatrace.target.network_id": artifact.target.networkId,
     "forward.dynatrace.target.snapshot_id": artifact.target.snapshotId,
