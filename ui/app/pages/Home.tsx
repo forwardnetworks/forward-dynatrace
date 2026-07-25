@@ -52,7 +52,9 @@ fetch events, from: -24h
     \`forward.dynatrace.target.network_id\`, \`forward.dynatrace.target.snapshot_id\`,
     \`forward.dynatrace.planned_checks\`, \`forward.dynatrace.count.create\`,
     \`forward.dynatrace.count.unchanged\`, \`forward.dynatrace.count.changed\`,
-    \`forward.dynatrace.count.stale\`
+    \`forward.dynatrace.count.stale\`, \`forward.dynatrace.count.collision\`,
+    \`forward.dynatrace.mutation.created\`, \`forward.dynatrace.mutation.updated\`,
+    \`forward.dynatrace.verification.state\`
 | limit 1
 `;
 const LIVE_NETWORK_EVIDENCE_QUERY = `
@@ -236,10 +238,36 @@ export const Home = () => {
     liveStatusRow || {},
     "forward.dynatrace.count.unchanged",
   );
-  const liveDriftChecks = rowNumber(
+  const liveChangedChecks = rowNumber(
     liveStatusRow || {},
     "forward.dynatrace.count.changed",
-  ) + rowNumber(liveStatusRow || {}, "forward.dynatrace.count.stale");
+  );
+  const liveStaleChecks = rowNumber(
+    liveStatusRow || {},
+    "forward.dynatrace.count.stale",
+  );
+  const liveCollisionChecks = rowNumber(
+    liveStatusRow || {},
+    "forward.dynatrace.count.collision",
+  );
+  const liveUnresolvedChecks = liveChangedChecks + liveStaleChecks + liveCollisionChecks;
+  const liveCreatedChecks = rowNumber(
+    liveStatusRow || {},
+    "forward.dynatrace.mutation.created",
+  );
+  const liveUpdatedChecks = rowNumber(
+    liveStatusRow || {},
+    "forward.dynatrace.mutation.updated",
+  );
+  const liveVerificationState = rowField(
+    liveStatusRow || {},
+    ["forward.dynatrace.verification.state"],
+    "not-run",
+  );
+  const liveReconciliationReady = liveUnresolvedChecks === 0 && (
+    liveImportState === "reconciled" ||
+    (liveImportState === "applied" && liveVerificationState === "verified")
+  );
   const liveReachablePaths = rowNumber(
     liveNetworkRow || {},
     "forward.dynatrace.count.reachable",
@@ -351,11 +379,9 @@ export const Home = () => {
       title: "Forward status feedback",
       value: liveImportState,
       detail: liveStatusRow
-        ? `${liveUnchangedChecks} unchanged / ${liveDriftChecks} drift`
+        ? `${liveChangedChecks} changed / ${liveStaleChecks} stale / ${liveCollisionChecks} collisions`
         : "sanitized reconciliation events",
-      tone: liveImportState === "reconciled" && liveDriftChecks === 0
-        ? "ready"
-        : "controlled",
+      tone: liveReconciliationReady ? "ready" : "controlled",
     },
   ];
 
@@ -540,7 +566,9 @@ export const Home = () => {
           </Button>
         </div>
         {dependencyDiscovery.error && (
-          <Paragraph>Live query failed: {dependencyDiscovery.error.message}</Paragraph>
+          <Paragraph>
+            Live dependency discovery failed. Review the app-function execution details, then retry.
+          </Paragraph>
         )}
       </section>
 
@@ -611,7 +639,9 @@ export const Home = () => {
           icon={<CheckmarkIcon />}
           label="Forward status"
           value={liveImportState}
-          detail={liveStatusRow ? `${liveDriftChecks} unresolved drift` : "live Grail readback pending"}
+          detail={liveStatusRow
+            ? `${liveChangedChecks} changed · ${liveStaleChecks} stale · ${liveCollisionChecks} collisions`
+            : "live Grail readback pending"}
         />
       </section>
 
@@ -888,26 +918,35 @@ export const Home = () => {
         )}
         {liveStatusRow ? (
           <ResultBody
-            status={liveImportState === "reconciled" && liveDriftChecks === 0 ? "ready" : "blocked"}
+            status={liveReconciliationReady ? "ready" : "blocked"}
             summary={`Forward reconciliation ${liveImportState} package ${rowField(liveStatusRow, ["forward.dynatrace.package_id"])} against snapshot ${liveSnapshotId}.`}
             rows={[
               { label: "Planned", value: `${livePlannedChecks}` },
               { label: "Create", value: rowField(liveStatusRow, ["forward.dynatrace.count.create"], "0") },
               { label: "Unchanged", value: `${liveUnchangedChecks}` },
-              { label: "Drift", value: `${liveDriftChecks}` },
+              { label: "Changed", value: `${liveChangedChecks}` },
+              { label: "Stale (report-only)", value: `${liveStaleChecks}` },
+              { label: "Collisions", value: `${liveCollisionChecks}` },
+              { label: "Created", value: `${liveCreatedChecks}` },
+              { label: "Updated", value: `${liveUpdatedChecks}` },
+              { label: "Post-apply verification", value: liveVerificationState },
               { label: "Signature", value: rowField(liveStatusRow, ["forward.dynatrace.signature_status"]) },
               { label: "Mode", value: rowField(liveStatusRow, ["forward.dynatrace.mode"]) },
               { label: "Forward profile", value: rowField(liveStatusRow, ["forward.dynatrace.access_profile"], "unknown") },
             ]}
-            nextSteps={liveDriftChecks === 0
-              ? ["No unresolved drift; the current package and Forward snapshot are reconciled."]
-              : ["Review changed and stale checks, then stage a new exact plan approval."]}
+            nextSteps={liveReconciliationReady
+              ? ["No changed, stale, or colliding checks remain; apply verification is complete when required."]
+              : liveUnresolvedChecks > 0
+                ? ["Review changed, report-only stale, and colliding checks, then stage a new exact plan approval."]
+                : ["Review post-apply verification before closing the synchronization run."]}
           />
         ) : (
           <EmptyState text="No live Forward ingest status loaded yet." />
         )}
         {liveIngestStatusQuery.error && (
-          <Paragraph>{liveIngestStatusQuery.error.message}</Paragraph>
+          <Paragraph>
+            Forward status refresh failed. Review the Dynatrace query execution details, then retry.
+          </Paragraph>
         )}
       </section>
 
@@ -1045,7 +1084,11 @@ export const Home = () => {
             <FlowStep icon={<CheckmarkIcon />} title="Import" text="Forward /checks?bulk" />
           </div>
         )}
-        {sync.error && <Paragraph>{sync.error.message}</Paragraph>}
+        {sync.error && (
+          <Paragraph>
+            Forward plan preview failed. Review the app-function execution details, then rebuild the plan.
+          </Paragraph>
+        )}
       </section>
     </Flex>
   );

@@ -27,7 +27,9 @@ const INGEST_QUERY = [
   "    `forward.dynatrace.target.network_id`, `forward.dynatrace.target.snapshot_id`,",
   "    `forward.dynatrace.planned_checks`, `forward.dynatrace.count.create`,",
   "    `forward.dynatrace.count.unchanged`, `forward.dynatrace.count.changed`,",
-  "    `forward.dynatrace.count.stale`",
+  "    `forward.dynatrace.count.stale`, `forward.dynatrace.count.collision`,",
+  "    `forward.dynatrace.mutation.created`, `forward.dynatrace.mutation.updated`,",
+  "    `forward.dynatrace.verification.state`",
   "| sort timestamp desc",
   "| limit 20",
 ].join("\n");
@@ -200,9 +202,6 @@ const detailWithProvenance = (
     "unspecified-source",
   )}`
   : fallback;
-const driftCount = (record: EvidenceRecord | undefined) =>
-  numberField(record, "forward.dynatrace.count.changed") +
-  numberField(record, "forward.dynatrace.count.stale");
 const incompleteCount = (record: EvidenceRecord | undefined) =>
   numberField(record, "forward.dynatrace.count.ambiguous") +
   numberField(record, "forward.dynatrace.count.unmapped") +
@@ -410,8 +409,9 @@ export const CrossDomainEvidence = () => {
           )}
           metrics={[
             { label: "Planned", value: field(ingestLatest, "forward.dynatrace.planned_checks", "0") },
-            { label: "Unchanged", value: field(ingestLatest, "forward.dynatrace.count.unchanged", "0") },
-            { label: "Drift", value: String(driftCount(ingestLatest)) },
+            { label: "Changed", value: field(ingestLatest, "forward.dynatrace.count.changed", "0") },
+            { label: "Stale (report-only)", value: field(ingestLatest, "forward.dynatrace.count.stale", "0") },
+            { label: "Collisions", value: field(ingestLatest, "forward.dynatrace.count.collision", "0") },
           ]}
         />
         <EvidenceCard
@@ -472,9 +472,9 @@ export const CrossDomainEvidence = () => {
           status={field(ingestLatest, "forward.dynatrace.signature_status", "not loaded")}
           detail={field(ingestLatest, "forward.dynatrace.package_id", "No live package")}
           metrics={[
-            { label: "Mode", value: field(ingestLatest, "forward.dynatrace.mode") },
-            { label: "Create", value: field(ingestLatest, "forward.dynatrace.count.create", "0") },
-            { label: "Stable", value: field(ingestLatest, "forward.dynatrace.count.unchanged", "0") },
+            { label: "Created", value: field(ingestLatest, "forward.dynatrace.mutation.created", "0") },
+            { label: "Updated", value: field(ingestLatest, "forward.dynatrace.mutation.updated", "0") },
+            { label: "Verification", value: field(ingestLatest, "forward.dynatrace.verification.state", "not-run") },
           ]}
         />
         <EvidenceCard
@@ -586,13 +586,13 @@ export const CrossDomainEvidence = () => {
       <div className="evidence-table-section">
         <EvidenceHeading
           title="Forward reconciliation history"
-          detail="Package history, apply mode, target snapshot, and unresolved drift."
+          detail="Package history, target snapshot, reconciliation, mutations, and verification."
         />
         {ingestRows.length > 0 ? (
           <div className="evidence-table-wrap">
             <table className="evidence-table">
               <thead>
-                <tr><th>Time</th><th>Run / package</th><th>State</th><th>Target</th><th>Planned</th><th>Create</th><th>Unchanged</th><th>Drift</th></tr>
+                <tr><th>Time</th><th>Run / package</th><th>State</th><th>Target</th><th>Planned</th><th>Create</th><th>Unchanged</th><th>Changed</th><th>Stale</th><th>Collisions</th><th>Mutated</th><th>Verification</th></tr>
               </thead>
               <tbody>
                 {ingestRows.slice(0, 10).map((row, index) => (
@@ -604,7 +604,11 @@ export const CrossDomainEvidence = () => {
                     <td>{field(row, "forward.dynatrace.planned_checks", "0")}</td>
                     <td>{field(row, "forward.dynatrace.count.create", "0")}</td>
                     <td>{field(row, "forward.dynatrace.count.unchanged", "0")}</td>
-                    <td><span className={`evidence-status ${driftCount(row) > 0 ? "needs-work" : "ready"}`}>{driftCount(row)}</span></td>
+                    <td>{field(row, "forward.dynatrace.count.changed", "0")}</td>
+                    <td><span className={`evidence-status ${numberField(row, "forward.dynatrace.count.stale") > 0 ? "needs-work" : "ready"}`}>{field(row, "forward.dynatrace.count.stale", "0")}</span></td>
+                    <td><span className={`evidence-status ${numberField(row, "forward.dynatrace.count.collision") > 0 ? "needs-work" : "ready"}`}>{field(row, "forward.dynatrace.count.collision", "0")}</span></td>
+                    <td>{field(row, "forward.dynatrace.mutation.created", "0")} / {field(row, "forward.dynatrace.mutation.updated", "0")}</td>
+                    <td>{field(row, "forward.dynatrace.verification.state", "not-run")}</td>
                   </tr>
                 ))}
               </tbody>
@@ -702,7 +706,7 @@ export const CrossDomainEvidence = () => {
       {errors.length > 0 && (
         <div className="evidence-error">
           {errors.length} live evidence {errors.length === 1 ? "query" : "queries"} failed. The
-          remaining evidence views were still refreshed. {errors[0]?.message}
+          remaining evidence views were still refreshed. Review the Dynatrace query execution details.
         </div>
       )}
     </section>
