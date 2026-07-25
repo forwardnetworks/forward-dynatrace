@@ -89,6 +89,19 @@ test("rejects malformed NQE checks", () => {
   );
 });
 
+test("reports malformed tag containers without crashing the validator", () => {
+  const checks = buildNqeChecksFromDependencies(dependencies, { queryId, sourceInstanceId });
+  checks[0].tags = "not-an-array";
+
+  assert.throws(
+    () =>
+      validateNqeChecks(checks, {
+        allowedQueryIds: parseQueryIdAllowlist(queryId),
+      }),
+    /tags must be an array/u,
+  );
+});
+
 test("builds and validates NQE diff requests", () => {
   const requests = buildNqeDiffRequestsFromDependencies(dependencies, {
     queryId,

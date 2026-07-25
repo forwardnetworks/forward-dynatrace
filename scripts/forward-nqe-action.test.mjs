@@ -393,7 +393,7 @@ test("resume flow skips submit and still returns result rows", async () => {
 
 test("resume does not require approvedQueryDigest and still enforces limit", async () => {
   const { action, calls } = harness("network-operator", "", "", {
-    fetchMock: ({ url, options }) => {
+    fetchMock: ({ url, options: _options }) => {
       if (url.includes("/api/networks/network-1/nqe-executions/X_execution01/result")) {
         return response({
           snapshotId: "snapshot-1",
@@ -634,7 +634,7 @@ test("status polling retries on transient while eventually completing", async ()
 
 test("happy async path SUBMITTED→EXECUTING→COMPLETED/OK reaches result", async () => {
   const { action, calls } = harness("read-only", approvedQueryId, "", {
-    fetchMock: ({ url, options }) => {
+    fetchMock: ({ url, options: _options }) => {
       if (url.includes("/api/networks/network-1/nqe-executions/X_execution01/result")) {
         return response({
           snapshotId: "snapshot-1",
@@ -767,7 +767,7 @@ test("deadline exhaustion during polling includes executionKey and server-side c
 
 test("limit is sent to the async result endpoint", async () => {
   const { action, calls } = harness("read-only", approvedQueryId, "", {
-    fetchMock: ({ url, options }) => {
+    fetchMock: ({ url, options: _options }) => {
       if (url.includes("/api/networks/network-1/nqe-executions/X_execution01/result")) {
         return response({
           snapshotId: "snapshot-1",
