@@ -22,3 +22,8 @@ Forward RBAC and app policy allow it. Intent-check writes still require Network 
 NQE executionKey-based status/result endpoints are bounded by Forward API invocation retry behavior. Resume requests use
 the same bounded polling path as async submissions, and execution keys should be treated as session-scoped recovery values.
 Execution keys remain valid until the next major Forward release; this is not intended as durable recovery.
+
+Forward updates the server-managed `editedAt` timestamp on a check when it is PATCHed. `editedAt` is excluded from the
+canonical check fingerprint and source key, so this timestamp-only change is not intent drift. Test mocks do not model
+the server-side timestamp update; tooling must compare canonical identities and fingerprints rather than byte-compare
+pre- and post-PATCH inventory responses.

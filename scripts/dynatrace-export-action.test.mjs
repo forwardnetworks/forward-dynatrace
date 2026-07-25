@@ -573,6 +573,52 @@ test("existing foreign-source-instance managed check is a collision and blocks a
   assert.equal(calls.some((call) => call.method === "POST" && call.url.includes("/checks?bulk")), false);
 });
 
+test("duplicate existing managed source keys are a collision and block apply", async () => {
+  const seed = harness({ profile: "network-admin" });
+  const createPlan = await seed.action({
+    connectionId: "connection-1",
+    request: request("network-admin"),
+  });
+  await seed.action({
+    connectionId: "connection-1",
+    request: request("network-admin", {
+      operation: "apply",
+      approvedPlanDigest: createPlan.planDigest,
+    }),
+  });
+  const sourceKey = seed.checks[0].tags.find((tag) => tag.startsWith("source-key:"));
+  seed.checks.push({
+    ...structuredClone(seed.checks[0]),
+    id: "duplicate-managed",
+  });
+  seed.calls.length = 0;
+
+  const collisionPlan = await seed.action({
+    connectionId: "connection-1",
+    request: request("network-admin"),
+  });
+  assert.equal(collisionPlan.counts.collision, 1);
+  assert.deepEqual(collisionPlan.collisionSourceKeys, [sourceKey]);
+  assert.deepEqual(collisionPlan.collisionReasonCounts, {
+    "duplicate-existing-source-key": 1,
+  });
+  await assert.rejects(
+    seed.action({
+      connectionId: "connection-1",
+      request: request("network-admin", {
+        operation: "apply",
+        approvedPlanDigest: collisionPlan.planDigest,
+      }),
+    }),
+    /Forward apply is blocked by managed identity or name collisions/,
+  );
+  assert.equal(seed.calls.filter((call) => call.method === "PATCH").length, 0);
+  assert.equal(
+    seed.calls.filter((call) => call.method === "POST" && call.url.includes("/checks?bulk")).length,
+    0,
+  );
+});
+
 test("plan digest binds existing check fingerprints while change bucket membership stays stable", async () => {
   const seed = harness({ profile: "network-admin" });
   const createPlan = await seed.action({ connectionId: "connection-1", request: request("network-admin") });

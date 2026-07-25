@@ -31,9 +31,9 @@ logs, plans, packages, or browser responses.
 4. Network Admin creates or updates only checks carrying the complete managed ownership tuple.
 5. Plan approval binds the exact snapshot, profile, source keys, and canonical payload fingerprints.
 6. Names alone never establish ownership. Collisions fail closed.
-  7. Stale checks are reported, not deleted.
-  8. Forward details returned to Dynatrace are bounded to the application workflow; secrets and raw error bodies are
-     always excluded.
+7. Stale checks are reported, not deleted.
+8. Forward details returned to Dynatrace are bounded to the application workflow; secrets and raw error bodies are
+   always excluded.
 9. NQE execution is async-first: action submit, status polling, and bounded result fetch. Optional sync execution remains
    available only with `executeSync: true`.
 
@@ -52,10 +52,11 @@ The action performs this sequence:
    missing/ambiguous identity or foreign source-instance tuples are collisions.
 8. Return host/path counts and a plan with create, unchanged, changed, stale, and collision counts plus an immutable
    digest bound to budgets, fingerprints, source-key set, and complete path-evidence quality.
-9. On Network Admin `apply`, enforce `runPathPreflight !== false`, exact digest match, exact approved changed key set,
-   complete path evidence (`ready` only), and mutation budgets before any mutating operation.
+9. On Network Admin `apply`, enforce `runPathPreflight !== false`, then re-read current checks, reconcile again, and
+   re-verify the exact approved digest, changed key set, complete path evidence (`ready` only), and mutation budgets
+   immediately before the first mutating operation.
 10. Create in bounded bulk batches and patch exact existing IDs when budget and collision checks allow.
-11. Read back and require zero remaining create, changed, or collision rows.
+11. Read back after mutation and require zero remaining create, changed, or collision rows.
 
 ## Failure Model
 
@@ -69,6 +70,13 @@ The action performs this sequence:
   responses fail with the existing error contract before buffering.
 - Apply verifies `approvedPlanDigest` against current state and mutates nothing if any budget, ownership,
   evidence, or digest constraint fails.
+- Concurrent apply is not fully prevented. The pre-mutation re-read and digest re-verification narrow the race window,
+  mutation budgets bound each invocation, and post-apply readback verifies the result, but there is no durable
+  cross-invocation lock.
+- A settings-backed lock was rejected because `app-settings:objects:write` would also allow modification of the
+  credential-bearing `forward-api-connection` object and its access profile. If simultaneous applies both create the
+  same managed check, the next plan reports `duplicate-existing-source-key` and blocks apply fail-closed. The
+  duplicates require manual cleanup because deletion is not implemented.
 - Apply stops after the first failed mutation and requires a new plan against current Forward state.
 - The action never logs or returns response bodies from failed authenticated calls.
 - Deletion is not implemented in the synchronization action.
