@@ -34,6 +34,12 @@ Start from the matching template:
 Review every attribute and placeholder against the target tenant before saving it. Both templates intentionally use
 zero confidence and require review. A service, process, or host name is not automatically a routable Forward endpoint.
 
+The distributed-trace template prefers standard OpenTelemetry client/server address attributes and then accepts the
+explicit `forward.network.source.address` and `forward.network.destination.address` attributes when an instrumented
+transaction supplies them. It similarly prefers a stable `forward.dependency.id`, retains only the latest observation
+of each relationship, and caps the review set at 1,000 unique relationships. Replace or remove these optional
+fallbacks when the target tenant uses a different authoritative convention.
+
 OneAgent network-flow profiles require OneAgent 1.337 or later and **Settings > Collect and capture > Infrastructure >
 Network connection monitoring**. Full relationship discovery normally requires **Reported connections: All**; the
 default **Critical connections** mode intentionally omits healthy established traffic. Review the aggregation interval,
