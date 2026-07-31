@@ -21,9 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HAS_RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_PRIVATE_KEY_PEM != '' }}
-      DT_APP_ENVIRONMENT_URL: ${{ secrets.DT_APP_ENVIRONMENT_URL }}
-      DT_APP_OAUTH_CLIENT_ID: ${{ secrets.DT_APP_OAUTH_CLIENT_ID }}
-      DT_APP_OAUTH_CLIENT_SECRET: ${{ secrets.DT_APP_OAUTH_CLIENT_SECRET }}
 
     steps:
       - name: Checkout
@@ -58,24 +55,14 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: npm run release:ref:validate -- --release-name "${GITHUB_REF_NAME}"
 
-      - name: Validate Dynatrace bundle credentials
-        run: |
-          test -n "${DT_APP_ENVIRONMENT_URL}"
-          test -n "${DT_APP_OAUTH_CLIENT_ID}"
-          test -n "${DT_APP_OAUTH_CLIENT_SECRET}"
-
-      - name: Build tenant-validated Dynatrace app bundle
+      - name: Build Dynatrace app archive
         run: |
           rm -rf out/release
           mkdir -p out/release
-          npm run dynatrace:deploy -- \
-            --environment-url "${DT_APP_ENVIRONMENT_URL}" \
+          npm run dynatrace:archive -- \
             --app-id my.forward \
             --app-version "${GITHUB_REF_NAME#v}" \
-            --dry-run \
-            --archive-output out/my.forward.zip \
-            --no-open \
-            --non-interactive
+            --output out/my.forward.zip
 
       - name: Prepare release artifacts
         run: |

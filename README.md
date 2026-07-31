@@ -101,7 +101,7 @@ The `/secure` path below is an example. Use an operator-owned directory with per
 evidence in your environment.
 
 ```bash
-export RELEASE_TAG=v0.13.0
+export RELEASE_TAG=v0.13.1
 mkdir -p "/secure/forward-dynatrace/${RELEASE_TAG}"
 cd "/secure/forward-dynatrace/${RELEASE_TAG}"
 

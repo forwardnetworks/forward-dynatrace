@@ -1,6 +1,6 @@
 # Release Provenance
 
-The release boundary contains one tenant-validated Dynatrace app archive and its verification evidence.
+The release boundary contains one pinned-toolkit-built Dynatrace app archive and its verification evidence.
 
 ## Evidence Chain
 
