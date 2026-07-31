@@ -16,7 +16,7 @@ Usage:
     --output-dir out/release \\
     --release-name v0.11.0
 
-Validates and publishes one tenant-validated Dynatrace app bundle plus its SBOM and SHA256SUMS.
+Validates and publishes one pinned-toolkit-built Dynatrace app bundle plus its SBOM and SHA256SUMS.
 There is no Forward runtime, container image, service, agent, or second installable.
 `;
 

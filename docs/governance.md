@@ -7,5 +7,5 @@
 - Require a Read Only acceptance pass before enabling a Network Admin connection.
 - Require exact plan approval and post-apply readback for every mutation workflow.
 - Never move or reuse a published tag; create a new version.
-- Publish one tenant-validated Dynatrace app bundle plus checksum, SBOM, optional signature, and attestation evidence.
+- Publish one pinned-toolkit-built Dynatrace app bundle plus checksum, SBOM, optional signature, and attestation evidence.
 - Record live evidence and remaining gaps in the validation matrix before promotion.

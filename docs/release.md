@@ -1,6 +1,6 @@
 # Release Process
 
-Every tag publishes one installable product: the tenant-validated Forward for Dynatrace app archive.
+Every tag publishes one installable product: the Forward for Dynatrace app archive.
 
 ## Release Contents
 
@@ -22,28 +22,26 @@ The project does not publish a Forward runtime, container image, operating-syste
 ```bash
 npm ci
 npm run ci
-git tag -a v0.12.0 -m "Forward for Dynatrace v0.12.0"
-git push origin v0.12.0
+git tag -a v0.13.1 -m "Forward for Dynatrace v0.13.1"
+git push origin v0.13.1
 ```
 
 Tags beginning with `v0.` are GitHub prereleases. The tag workflow validates that no prior workflow or release state
-exists for the version, runs every release gate, builds a tenant-validated app archive, generates the SBOM and
-checksums, optionally signs the checksum file, attests every file, and publishes the release.
+exists for the version, runs every release gate, builds the app archive with the repository's exact pinned Dynatrace
+toolkit, generates the SBOM and checksums, optionally signs the checksum file, attests every file, and publishes the
+release. Archive publication is tenant-independent; installation remains an authenticated tenant operation.
 
-Required Actions secrets:
+Optional Actions secret:
 
-- `DT_APP_ENVIRONMENT_URL`
-- `DT_APP_OAUTH_CLIENT_ID`
-- `DT_APP_OAUTH_CLIENT_SECRET`
-- optional `RELEASE_SIGNING_PRIVATE_KEY_PEM`
+- `RELEASE_SIGNING_PRIVATE_KEY_PEM` for the detached `SHA256SUMS` signature
 
 ## Independent Verification
 
 ```bash
 npm run release:published:verify -- \
-  --release-name v0.12.0 \
+  --release-name v0.13.1 \
   --repository forwardnetworks/forward-dynatrace \
-  --output-dir /secure/evidence/forward-dynatrace-v0.12.0
+  --output-dir /secure/evidence/forward-dynatrace-v0.13.1
 ```
 
 The output directory must be new or empty. The verifier checks exact asset membership, checksums, optional signature,
