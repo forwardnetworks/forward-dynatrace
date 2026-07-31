@@ -2,7 +2,7 @@
 
 | Threat | Control |
 | --- | --- |
-| Credential exposure to UI or logs | Secret app setting; backend-only load; sanitized errors and output. |
+| Credential exposure to settings, UI, or logs | APP_ENGINE-scoped Credential Vault entry; settings store only the entity ID; backend-only resolution; sanitized errors and output. |
 | Target substitution from browser data | URL, network, and profile come from the selected connection; request profile must match. |
 | Server-side request forgery | HTTPS-only URL ending `/api`, tenant external-request allowlist, no credentials in URL. |
 | Unauthorized mutation | Read Only and Network Operator are plan-only; Network Admin requires exact plan approval. `engine-approval` additionally requires protected Workflow approval context, engine outcome and nonce, and bounded freshness. |
@@ -46,8 +46,8 @@ apply remains subject to the concurrent-apply risk below.
 ## Concurrent Apply Residual Risk
 
 A durable cross-invocation lock was rejected. Implementing one in app settings would require
-`app-settings:objects:write`, which would also let the app modify its credential-bearing `forward-api-connection`
-object, including the Forward credential and access profile. That permanent privilege expansion is not justified for
+`app-settings:objects:write`, which would also let the app modify its `forward-api-connection` object, including the
+Credential Vault reference and access profile. That permanent privilege expansion is not justified for
 a race that requires two Network Admin applies to run simultaneously against the same approved digest.
 
 Concurrent apply is therefore not fully prevented. The pre-mutation re-read and digest re-verification narrow the

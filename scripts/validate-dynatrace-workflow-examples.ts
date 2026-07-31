@@ -44,10 +44,14 @@ for (const example of examples) {
         name: "validation",
         baseUrl: "https://forward.example.com/api",
         networkId: "network-1",
-        username: "validation-user",
-        password: "validation-password",
+        credentialVaultId: "CREDENTIALS_VAULT-0000000000000001",
         forwardAccessProfile: payload.forwardAccessProfile,
       },
+    }),
+    loadCredential: () => Promise.resolve({
+      type: "USERNAME_PASSWORD",
+      username: "validation-user",
+      password: "validation-password",
     }),
     fetchImpl: (input, options) => {
       const url = input instanceof Request

@@ -1,4 +1,5 @@
 import * as appSettingsV2 from "@dynatrace-sdk/client-app-settings-v2";
+import * as classicEnvironmentV2 from "@dynatrace-sdk/client-classic-environment-v2";
 
 import { isForwardAccessProfile } from "./forward-access-profile.ts";
 import type { ForwardAccessProfile } from "./types/index.ts";
@@ -14,13 +15,27 @@ export interface ForwardConnection {
   approvedQueryDigests: string[];
 }
 
+export interface ForwardConnectionReference {
+  baseUrl: string;
+  networkId: string;
+  credentialVaultId: string;
+  forwardAccessProfile: ForwardAccessProfile;
+  approvedLibraryQueryIds: string[];
+  approvedQueryDigests: string[];
+}
+
 interface AppSettingsConnectionClient {
   getAppSettingsObjectByObjectId: (input: {
     objectId: string;
   }) => Promise<unknown>;
 }
 
+interface CredentialVaultClient {
+  getCredentialsDetails: (input: { id: string }) => Promise<unknown>;
+}
+
 export type ConnectionLoader = (connectionId: string) => Promise<unknown>;
+export type CredentialLoader = (credentialVaultId: string) => Promise<unknown>;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -30,6 +45,11 @@ const isAppSettingsConnectionClient = (
 ): value is AppSettingsConnectionClient =>
   isRecord(value) &&
   typeof value.getAppSettingsObjectByObjectId === "function";
+
+const isCredentialVaultClient = (
+  value: unknown,
+): value is CredentialVaultClient =>
+  isRecord(value) && typeof value.getCredentialsDetails === "function";
 
 const defaultAppSettingsExport: unknown = Reflect.get(appSettingsV2, "default");
 const defaultAppSettingsClient = isRecord(defaultAppSettingsExport)
@@ -42,6 +62,20 @@ const appSettingsObjectsClient = isAppSettingsConnectionClient(
   ? namedAppSettingsClient
   : isAppSettingsConnectionClient(defaultAppSettingsClient)
     ? defaultAppSettingsClient
+    : undefined;
+
+const defaultClassicExport: unknown = Reflect.get(classicEnvironmentV2, "default");
+const defaultCredentialVaultClient = isRecord(defaultClassicExport)
+  ? defaultClassicExport.credentialVaultClient
+  : undefined;
+const namedCredentialVaultClient: unknown = Reflect.get(
+  classicEnvironmentV2,
+  "credentialVaultClient",
+);
+const credentialVaultClient = isCredentialVaultClient(namedCredentialVaultClient)
+  ? namedCredentialVaultClient
+  : isCredentialVaultClient(defaultCredentialVaultClient)
+    ? defaultCredentialVaultClient
     : undefined;
 
 const requiredString = (
@@ -84,8 +118,18 @@ export const loadDynatraceConnection: ConnectionLoader = async (
 ) =>
   appSettingsObjectsClient?.getAppSettingsObjectByObjectId({ objectId: connectionId });
 
+export const loadDynatraceCredential: CredentialLoader = async (
+  credentialVaultId,
+) => {
+  if (!credentialVaultClient) {
+    throw new Error("Dynatrace Credential Vault client is unavailable.");
+  }
+  return credentialVaultClient.getCredentialsDetails({ id: credentialVaultId });
+};
+
 const FORWARD_QUERY_ID = /^FQ_[A-Fa-f0-9]{40}$/u;
 const FORWARD_QUERY_DIGEST = /^[a-fA-F0-9]{64}$/u;
+const CREDENTIAL_VAULT_ID = /^CREDENTIALS_VAULT-[A-Za-z0-9_-]{1,128}$/u;
 
 const approvedLibraryQueryIds = (value: unknown): string[] => {
   if (value === undefined || value === null || value === "") return [];
@@ -111,7 +155,9 @@ const approvedQueryDigests = (value: unknown): string[] => {
   return digests.map((digest) => digest.toLowerCase());
 };
 
-export const validateConnection = (connection: unknown): ForwardConnection => {
+export const validateConnectionReference = (
+  connection: unknown,
+): ForwardConnectionReference => {
   if (!isRecord(connection)) {
     throw new Error("Forward connection could not be loaded.");
   }
@@ -128,8 +174,7 @@ export const validateConnection = (connection: unknown): ForwardConnection => {
       "name",
       "baseUrl",
       "networkId",
-      "username",
-      "password",
+      "credentialVaultId",
       "forwardAccessProfile",
       "approvedLibraryQueryIds",
       "approvedQueryDigests",
@@ -145,15 +190,64 @@ export const validateConnection = (connection: unknown): ForwardConnection => {
   if (!isForwardAccessProfile(forwardAccessProfile)) {
     throw new Error("Forward access profile must be read-only, network-operator, or network-admin.");
   }
-  const username = requiredString(value.username, "Forward username", 255);
-  const password = requiredString(value.password, "Forward password", 4096);
-  if (username.includes(":")) throw new Error("Forward username must not contain a colon.");
+  const credentialVaultId = requiredString(
+    value.credentialVaultId,
+    "Dynatrace Credential Vault ID",
+    160,
+  );
+  if (!CREDENTIAL_VAULT_ID.test(credentialVaultId)) {
+    throw new Error("Dynatrace Credential Vault ID must use the CREDENTIALS_VAULT- entity form.");
+  }
   return {
     baseUrl: validateForwardBaseUrl(value.baseUrl),
     networkId: requiredString(value.networkId, "Forward network ID", 128),
-    authorization: `Basic ${Buffer.from(`${username}:${password}`, "utf8").toString("base64")}`,
+    credentialVaultId,
     forwardAccessProfile,
     approvedLibraryQueryIds: approvedLibraryQueryIds(value.approvedLibraryQueryIds),
     approvedQueryDigests: approvedQueryDigests(value.approvedQueryDigests),
   };
+};
+
+const authorizationFromCredential = (
+  credential: unknown,
+  expectedCredentialVaultId: string,
+): string => {
+  if (!isRecord(credential) || credential.type !== "USERNAME_PASSWORD") {
+    throw new Error("Forward credential must be a Dynatrace Credential Vault username/password entry.");
+  }
+  if (
+    typeof credential.id === "string" &&
+    credential.id.trim() &&
+    credential.id.trim() !== expectedCredentialVaultId
+  ) {
+    throw new Error("Dynatrace Credential Vault returned a different credential entity.");
+  }
+  const username = requiredString(credential.username, "Forward service username", 255);
+  const password = requiredString(credential.password, "Forward service password", 4096);
+  if (username.includes(":")) throw new Error("Forward service username must not contain a colon.");
+  return `Basic ${Buffer.from(`${username}:${password}`, "utf8").toString("base64")}`;
+};
+
+export const validateConnection = (
+  connection: unknown,
+  credential: unknown,
+): ForwardConnection => {
+  const reference = validateConnectionReference(connection);
+  return {
+    baseUrl: reference.baseUrl,
+    networkId: reference.networkId,
+    forwardAccessProfile: reference.forwardAccessProfile,
+    approvedLibraryQueryIds: reference.approvedLibraryQueryIds,
+    approvedQueryDigests: reference.approvedQueryDigests,
+    authorization: authorizationFromCredential(credential, reference.credentialVaultId),
+  };
+};
+
+export const resolveForwardConnection = async (
+  connection: unknown,
+  loadCredential: CredentialLoader = loadDynatraceCredential,
+): Promise<ForwardConnection> => {
+  const reference = validateConnectionReference(connection);
+  const credential = await loadCredential(reference.credentialVaultId);
+  return validateConnection(connection, credential);
 };

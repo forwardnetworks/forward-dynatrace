@@ -120,7 +120,7 @@ const trimmedOrNull = (value: string | undefined): string | null =>
   missing(value) ? null : value?.trim() || null;
 
 const INTEGRATION_BOUNDARY_DISCLAIMER =
-  "Forward for Dynatrace is one installable Dynatrace app. Its backend uses a tenant-managed secret connection to call Forward APIs; credentials never enter the browser or generated evidence.";
+  "Forward for Dynatrace is one installable Dynatrace app. Its backend resolves a tenant-managed Credential Vault reference to call Forward APIs; credentials never enter app settings, the browser, or generated evidence.";
 
 const MANIFEST_FILE_NAME = "forward-dynatrace-manifest.json";
 const INTENT_CHECKS_FILE_NAME = "forward-intent-checks.json";
@@ -489,7 +489,7 @@ const toReadinessChecks = (
       label: "Tenant-managed Forward connection",
       status: "ready",
       detail:
-        "The app backend reads the selected secret connection at execution; credentials never enter the browser, plan, status, or logs.",
+        "The app backend resolves the selected Credential Vault reference at execution; credentials never enter app settings, the browser, plan, status, or logs.",
     },
     {
       label: "Single installable",

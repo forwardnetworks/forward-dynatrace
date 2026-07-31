@@ -78,16 +78,40 @@ const dependencySlug = (value: string): string =>
     .replace(/^-|-$/gu, "")
     .slice(0, 80);
 
-export const validateDependencyQuery = (value: unknown): string => {
+const isDiscoverySourceType = (
+  value: unknown,
+): value is DependencyDiscoverySourceType =>
+  value === "distributed-traces" || value === "network-flows";
+
+export const validateDependencyQuery = (
+  value: unknown,
+  sourceType: DependencyDiscoverySourceType,
+): string => {
   const query = requiredString(value, "Dependency discovery query", MAX_QUERY_LENGTH);
   const withoutLeadingComments = query.replace(/^(?:\s*\/\/[^\n]*\n)*/gu, "").trimStart();
-  if (!/^fetch\s+spans\b/iu.test(withoutLeadingComments)) {
-    throw new Error("Dependency discovery query must begin with fetch spans.");
-  }
   const fetchSources = [...query.matchAll(/\bfetch\s+([A-Za-z0-9_.]+)/giu)]
     .map((match) => match[1].toLowerCase());
-  if (fetchSources.some((source) => source !== "spans")) {
-    throw new Error("Dependency discovery query may read only spans.");
+  if (sourceType === "distributed-traces") {
+    if (!/^fetch\s+spans\b/iu.test(withoutLeadingComments)) {
+      throw new Error("Distributed trace discovery query must begin with fetch spans.");
+    }
+    if (fetchSources.some((source) => source !== "spans")) {
+      throw new Error("Distributed trace discovery query may read only spans.");
+    }
+  } else {
+    const networkFlowFetch = /\bfetch\s+events\s*,\s*bucket\s*:\s*\{\s*"default_network_flows"\s*\}/giu;
+    if (!/^fetch\s+events\s*,\s*bucket\s*:\s*\{\s*"default_network_flows"\s*\}/iu.test(withoutLeadingComments)) {
+      throw new Error(
+        'Network flow discovery query must begin with fetch events, bucket:{"default_network_flows"}.',
+      );
+    }
+    if (fetchSources.some((source) => source !== "events")) {
+      throw new Error("Network flow discovery query may read only network-flow events.");
+    }
+    const approvedFetchCount = [...query.matchAll(networkFlowFetch)].length;
+    if (approvedFetchCount !== fetchSources.length) {
+      throw new Error("Network flow discovery query may read only the default_network_flows bucket.");
+    }
   }
   if (/\b(?:data|record)\s+/iu.test(query)) {
     throw new Error("Dependency discovery query may not construct substitute records.");
@@ -113,6 +137,9 @@ export const validateDiscoveryProfile = (
   if (selection !== "default" && selection !== "available") {
     throw new Error("Dependency discovery profile selection is invalid.");
   }
+  if (!isDiscoverySourceType(value.sourceType)) {
+    throw new Error("Dependency discovery source type is invalid.");
+  }
 
   return {
     id: requiredString(object.objectId, "Dependency discovery profile ID", 255),
@@ -120,7 +147,8 @@ export const validateDiscoveryProfile = (
     description: typeof value.description === "string" ? value.description.trim().slice(0, 500) : "",
     enabled: status === "enabled",
     isDefault: selection === "default",
-    query: validateDependencyQuery(value.query),
+    sourceType: value.sourceType,
+    query: validateDependencyQuery(value.query, value.sourceType),
     maxResultRecords: boundedInteger(
       value.maxResultRecords || "500",
       "Maximum result records",
@@ -146,11 +174,12 @@ export const selectDiscoveryProfile = (
   }
 
   const profiles = objects.map(validateDiscoveryProfile).filter((profile) => profile.enabled);
-  const publicProfiles = profiles.map(({ id, name, description, isDefault }) => ({
+  const publicProfiles = profiles.map(({ id, name, description, isDefault, sourceType }) => ({
     id,
     name,
     description,
     isDefault,
+    sourceType,
   }));
 
   if (profiles.length === 0) {
@@ -386,5 +415,6 @@ import type {
   DependencyCriticality,
   DependencyDiscoveryProfile,
   DependencyDiscoverySelection,
+  DependencyDiscoverySourceType,
   NormalizedDiscoveryRows,
 } from "./types/index.ts";

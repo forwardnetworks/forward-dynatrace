@@ -7,6 +7,7 @@ export type {
   DependencyDiscoveryResponse,
   DependencyDiscoverySelection,
   DependencyDiscoverySelectionReason,
+  DependencyDiscoverySourceType,
   ExistingForwardIntentCheck,
   ForwardAccessProfile,
   ForwardApiClient,

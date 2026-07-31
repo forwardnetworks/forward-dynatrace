@@ -85,7 +85,7 @@ export default async function (
         rejectedRows: [],
         nextSteps: [
           "Open Settings > Apps > Dependency discovery profile.",
-          "Use a reviewed spans-only DQL query that returns the documented canonical fields.",
+          "Choose distributed traces or OneAgent network flows and use the matching reviewed DQL template.",
           "Mark exactly one enabled profile as default or select a profile in the app.",
         ],
       };
@@ -98,13 +98,20 @@ export default async function (
     const dependencies = normalized.dependencies;
     const rejectedRows = normalized.rejected as Array<{ row: number; reason: string }>;
     const hasAcceptedRows = dependencies.length > 0;
+    const sourceLabel = selected.profile.sourceType === "distributed-traces"
+      ? "distributed-trace"
+      : "OneAgent network-flow";
 
     return {
       status: hasAcceptedRows ? "ready" : "blocked",
       summary: hasAcceptedRows
-        ? `Loaded ${dependencies.length} current trace-backed dependencies from ${selected.profile.name}.`
+        ? `Loaded ${dependencies.length} current ${sourceLabel} dependencies from ${selected.profile.name}.`
         : "The selected profile returned no current eligible dependency rows.",
-      selectedProfile: { id: selected.profile.id, name: selected.profile.name },
+      selectedProfile: {
+        id: selected.profile.id,
+        name: selected.profile.name,
+        sourceType: selected.profile.sourceType,
+      },
       profiles: selected.profiles,
       dependencies,
       evidence: normalized.evidence,
@@ -115,7 +122,7 @@ export default async function (
             "Treat rejected rows as fail-closed mapping follow-up.",
           ]
         : [
-            "Verify the profile query against current spans and its evidence window.",
+            `Verify the profile query against current ${sourceLabel} evidence and its evidence window.`,
             "Populate real endpoint, protocol, port, ownership, and evidence-time fields.",
             "Do not add seeded or replay fallback rows.",
           ],
@@ -131,7 +138,7 @@ export default async function (
       rejectedRows: [],
       nextSteps: [
         "Review the tenant-owned discovery profile and Workflow/app permissions.",
-        "Keep the query spans-only and bounded to current evidence.",
+        "Keep the query restricted to its declared discovery source and bounded to current evidence.",
       ],
     };
   }

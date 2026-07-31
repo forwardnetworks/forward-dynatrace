@@ -5,7 +5,8 @@
 - [Architecture](../ARCHITECTURE.md): product boundary, trust model, synchronization sequence, and failure behavior.
 - [Installation](install.md): prerequisites, release verification, installation, upgrade, and uninstall.
 - [Enterprise evaluation](evaluation-guide.md): complete first-install and Read Only acceptance sequence.
-- [Dependency discovery](dependency-discovery.md): spans-only DQL and canonical mapping contract.
+- [Dependency discovery](dependency-discovery.md): distributed-trace and OneAgent network-flow DQL contracts.
+- [Design-partner evaluation](design-partner-evaluation.md): sandbox-to-non-production acceptance and open decisions.
 - [Workflow](workflow.md): discovery, Forward plan/apply, and Guardian lifecycle.
 - [RBAC](rbac.md): Read Only, Network Operator, and Network Admin controls.
 

@@ -14,12 +14,18 @@ const connection = (profile, approvedLibraryQueryIds = "", approvedQueryDigests 
     name: `${profile}-connection`,
     baseUrl: "https://forward.example.com/api",
     networkId: "network-1",
-    username: "service-user",
-    password: "service-password",
+    credentialVaultId: "CREDENTIALS_VAULT-0000000000000001",
     forwardAccessProfile: profile,
     approvedLibraryQueryIds,
     approvedQueryDigests,
   },
+});
+
+const vaultCredential = () => ({
+  id: "CREDENTIALS_VAULT-0000000000000001",
+  type: "USERNAME_PASSWORD",
+  username: "service-user",
+  password: "service-password",
 });
 
 const response = (value, status = 200, headers = {}) => new Response(
@@ -60,6 +66,10 @@ const harness = (
     loadConnection: async (connectionId) => {
       assert.equal(connectionId, "connection-1");
       return connection(profile, approvedLibraryQueryIds, approvedQueryDigests);
+    },
+    loadCredential: async (credentialVaultId) => {
+      assert.equal(credentialVaultId, "CREDENTIALS_VAULT-0000000000000001");
+      return vaultCredential();
     },
     forwardClientOptions,
     fetchImpl: async (url, fetchOptions) => {

@@ -31,8 +31,9 @@ release. Do not copy settings or generated artifacts from an experimental build.
      --output-dir /secure/generated-workflows
    ```
 
-5. Create a `forward-api-connection` in the Dynatrace credential store. Never place secret values in Git or
-   Workflow JSON.
+5. Create the Forward username/password in an APP_ENGINE-scoped Dynatrace Credential Vault entry, then create a
+   `forward-api-connection` that stores only its `CREDENTIALS_VAULT-*` entity ID. Never place secret values in app
+   settings, Git, or Workflow JSON.
 6. Import the generated templates, select the new connection, and run an on-demand plan.
 7. Verify the plan digest, target snapshot, reconciliation counts, and sanitized status before enabling a schedule or
    problem trigger. Enable apply only with a dedicated Network Admin connection and the documented approval gate.

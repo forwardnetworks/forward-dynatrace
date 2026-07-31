@@ -6,15 +6,18 @@ integration does not require a Forward-side service, connector, container, agent
 ## Prerequisites
 
 - Dynatrace SaaS with AppEngine and Workflow enabled.
-- Permission to install custom apps and manage app settings.
+- Permission to install custom apps, manage app settings, and create or share APP_ENGINE-scoped Credential Vault entries.
 - Tenant approval for the Forward API hostname under **Settings > General > External requests**. Use EdgeConnect only
   when the Forward API is reachable exclusively through a private network.
-- A dedicated Forward service identity and a network with a processed snapshot.
+- A dedicated, auditable Forward service identity and a network with a processed snapshot. Use Read Only for initial acceptance.
+- For non-instrumented discovery, OneAgent 1.337 or later with network connection monitoring enabled and current
+  `default_network_flows` events in Grail.
 - An OAuth client with `app-engine:apps:install` and `app-engine:apps:run`; add `app-engine:apps:delete` only when
   uninstall automation is required.
 - Node.js 24 for the supplied verification and installation tooling.
 
-The app scopes declared in `app.config.json` cover approved spans, entities, events, and app settings. Deployment OAuth
+The app scopes declared in `app.config.json` cover approved spans, network-flow events, app settings, and read access
+to the selected Credential Vault entry. Deployment OAuth
 is separate from the Forward service identity and is used only by the AppEngine Registry.
 
 ## Download And Verify
@@ -22,7 +25,7 @@ is separate from the Forward service identity and is used only by the AppEngine 
 Download the app archive and all verification evidence from the same release:
 
 ```bash
-export RELEASE_TAG=v0.12.0
+export RELEASE_TAG=v0.13.0
 mkdir -p "/secure/forward-dynatrace/${RELEASE_TAG}"
 cd "/secure/forward-dynatrace/${RELEASE_TAG}"
 
@@ -74,15 +77,20 @@ change the Forward API architecture or access model. See [application identities
 ## Configure Forward Access
 
 1. Approve only the exact Forward API hostname in Dynatrace external requests.
-2. Create a reviewed **Dependency discovery profile**. Its DQL must begin with `fetch spans` and return the canonical
-   current-evidence fields in [dependency discovery](dependency-discovery.md).
-3. In Workflow, add **Synchronize Forward intent checks**.
-4. Create a **Forward API connection** with the HTTPS `/api` URL, exact network ID, dedicated username, secret
-   password, declared access profile, and optional allowlisted Forward Library query IDs.
-5. Begin with `operation: plan` and Read Only.
-6. Enable Network Admin apply only after approval ownership, mutation budgets, and post-change closeout are defined.
+2. Create the dedicated Forward service identity. Name it so Forward audit records identify this integration rather
+   than a person, and grant Read Only for initial acceptance.
+3. In Dynatrace Credential Vault, create a username/password entry for that identity with **AppEngine** scope. Record
+   its `CREDENTIALS_VAULT-*` entity ID and grant only the required app users access.
+4. Create a reviewed **Dependency discovery profile**. Choose **Distributed traces** or **OneAgent network flows**, then
+   use the matching template and canonical fields in [dependency discovery](dependency-discovery.md).
+5. In Workflow, add **Synchronize Forward intent checks**.
+6. Create a **Forward API connection** with the HTTPS `/api` URL, exact network ID, Credential Vault entity ID,
+   declared access profile, and optional allowlisted Forward Library query IDs.
+7. Begin with `operation: plan` and Read Only.
+8. Enable Network Admin apply only after approval ownership, mutation budgets, and post-change closeout are defined.
 
-The browser and Workflow result never receive the Forward credential.
+The app settings object, browser, and Workflow result never receive the Forward username or password. See Dynatrace's
+[Credential Vault guidance](https://developer.dynatrace.com/develop/guides/security/manage-secrets/).
 
 ## Development Deployment
 
@@ -101,7 +109,7 @@ npm run dynatrace:deploy -- \
 1. Download and verify the new immutable release into a new evidence directory.
 2. Run the release installer from the matching tag with the new archive and checksum file.
 3. Confirm the registry reports the exact version as ready.
-4. Reopen both settings schemas and confirm the discovery profile, connection metadata, and masked secret remain valid.
+4. Reopen both settings schemas and confirm the discovery profile, connection metadata, and Credential Vault reference remain valid.
 5. Run a Read Only plan before re-enabling scheduled or write-enabled workflows.
 
 ## Uninstall

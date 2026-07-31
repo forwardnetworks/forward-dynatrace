@@ -67,10 +67,14 @@ const action = createSyncForwardIntentAction({
       name: "scale",
       baseUrl: "https://forward.example.com/api",
       networkId: "scale-network",
-      username: "scale-user",
-      password: "scale-password",
+      credentialVaultId: "CREDENTIALS_VAULT-0000000000000001",
       forwardAccessProfile: "network-admin",
     },
+  }),
+  loadCredential: async () => ({
+    type: "USERNAME_PASSWORD",
+    username: "scale-user",
+    password: "scale-password",
   }),
   fetchImpl,
 });

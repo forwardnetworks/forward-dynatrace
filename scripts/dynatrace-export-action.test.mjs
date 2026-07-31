@@ -9,6 +9,7 @@ import {
   parseCheckList,
 } from "../lib/forward-client.ts";
 import {
+  resolveForwardConnection,
   validateConnection,
 } from "../lib/forward-connection.ts";
 import {
@@ -39,10 +40,16 @@ const connection = (forwardAccessProfile = "read-only") => ({
     name: "nonproduction",
     baseUrl: "https://forward.example.com/api",
     networkId: "network-1",
-    username: "service-user",
-    password: "service-password",
+    credentialVaultId: "CREDENTIALS_VAULT-0000000000000001",
     forwardAccessProfile,
   },
+});
+
+const vaultCredential = () => ({
+  id: "CREDENTIALS_VAULT-0000000000000001",
+  type: "USERNAME_PASSWORD",
+  username: "service-user",
+  password: "service-password",
 });
 
 const request = (forwardAccessProfile = "read-only", overrides = {}) => ({
@@ -129,6 +136,10 @@ const harness = ({
       loadConnection: async (connectionId) => {
         assert.equal(connectionId, "connection-1");
         return connection(profile);
+      },
+      loadCredential: async (credentialVaultId) => {
+        assert.equal(credentialVaultId, "CREDENTIALS_VAULT-0000000000000001");
+        return vaultCredential();
       },
       fetchImpl,
       loadTrustedActionContext: () => typeof trustedActionContext === "function"
@@ -673,13 +684,66 @@ test("plan resolves host evidence and runs bounded modeled path preflight", asyn
 
 test("connection and request validation fail closed", async () => {
   assert.throws(
-    () => validateConnection({ ...connection(), value: { ...connection().value, baseUrl: "http://forward.example.com/api" } }),
+    () => validateConnection(
+      { ...connection(), value: { ...connection().value, baseUrl: "http://forward.example.com/api" } },
+      vaultCredential(),
+    ),
     /must use HTTPS/,
   );
   assert.throws(
-    () => validateConnection({ ...connection(), value: { ...connection().value, baseUrl: "https://forward.example.com" } }),
+    () => validateConnection(
+      { ...connection(), value: { ...connection().value, baseUrl: "https://forward.example.com" } },
+      vaultCredential(),
+    ),
     /must end with \/api/,
   );
+  assert.throws(
+    () => validateConnection(
+      {
+        ...connection(),
+        value: { ...connection().value, username: "must-not-be-stored" },
+      },
+      vaultCredential(),
+    ),
+    /unsupported fields: username/u,
+  );
+  assert.throws(
+    () => validateConnection(
+      {
+        ...connection(),
+        value: { ...connection().value, credentialVaultId: "not-a-vault-id" },
+      },
+      vaultCredential(),
+    ),
+    /CREDENTIALS_VAULT/u,
+  );
+  assert.throws(
+    () => validateConnection(connection(), { type: "TOKEN", token: "not-supported" }),
+    /username\/password entry/u,
+  );
+  assert.throws(
+    () => validateConnection(
+      connection(),
+      { type: "USERNAME_PASSWORD", username: "service-user", password: "" },
+    ),
+    /password must be a non-empty string/u,
+  );
+  assert.throws(
+    () => validateConnection(
+      connection(),
+      { ...vaultCredential(), id: "CREDENTIALS_VAULT-ANOTHER000000001" },
+    ),
+    /different credential entity/u,
+  );
+  let loadedVaultId = "";
+  const resolved = await resolveForwardConnection(connection(), async (credentialVaultId) => {
+    loadedVaultId = credentialVaultId;
+    return vaultCredential();
+  });
+  assert.equal(loadedVaultId, "CREDENTIALS_VAULT-0000000000000001");
+  assert.equal(resolved.authorization, "Basic c2VydmljZS11c2VyOnNlcnZpY2UtcGFzc3dvcmQ=");
+  assert.equal(Object.hasOwn(resolved, "credentialVaultId"), false);
+  assert.equal(JSON.stringify(resolved).includes("service-password"), false);
   const { action } = harness();
   await assert.rejects(
     action({ connectionId: "connection-1", request: request("network-operator") }),

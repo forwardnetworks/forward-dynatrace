@@ -12,4 +12,10 @@ requires a new semantic version; an additive optional property stays on the curr
 Schema `forward-api-connection` started at `1.0.0`. Version `2.0.0` established the current connection contract.
 Version `2.1.0` adds the optional, nullable `approvedQueryDigests` defense-in-depth allowlist. The property addition
 requires a new version, but does not require a major-version migration because existing v2 objects remain valid when
-the field is absent. Secret migrations must never expose or copy plaintext values through the UI.
+the field is absent. Version `3.0.0` removes raw username/password properties and requires a
+`CREDENTIALS_VAULT-*` reference to an APP_ENGINE-scoped username/password entry. It is a deliberate breaking
+migration: administrators recreate or update the object with the Vault entity ID; the app never reads or copies an
+old plaintext setting.
+
+Schema `dependency-discovery-profile` version `2.0.0` adds the required source contract. Every profile explicitly
+declares `distributed-traces` or `network-flows`, and its DQL is validated against that source before execution.

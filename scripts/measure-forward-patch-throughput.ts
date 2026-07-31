@@ -101,17 +101,19 @@ const main = async (): Promise<void> => {
   }
   const username = requiredString(process.env.FORWARD_USER, "FORWARD_USER");
   const password = requiredString(process.env.FORWARD_PASS, "FORWARD_PASS");
-  const connection = validateConnection({
-    schemaId: "forward-api-connection",
-    value: {
-      name: "PATCH throughput probe",
-      baseUrl: apiBaseUrl(args.forwardBaseUrl),
-      networkId: args.forwardNetworkId,
-      username,
-      password,
-      forwardAccessProfile: "network-admin",
+  const connection = validateConnection(
+    {
+      schemaId: "forward-api-connection",
+      value: {
+        name: "PATCH throughput probe",
+        baseUrl: apiBaseUrl(args.forwardBaseUrl),
+        networkId: args.forwardNetworkId,
+        credentialVaultId: "CREDENTIALS_VAULT-LOCALTHROUGHPUT01",
+        forwardAccessProfile: "network-admin",
+      },
     },
-  });
+    { type: "USERNAME_PASSWORD", username, password },
+  );
   const api = createForwardClient({ connection });
   const snapshotId = latestProcessedSnapshot(await api(
     "GET",

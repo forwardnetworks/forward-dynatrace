@@ -203,7 +203,7 @@ export const buildForwardNqePreview = (
     nextSteps: [
       ...(targetSupplied ? [] : ["Add Forward URL and network ID metadata before execution."]),
       "Confirm this optional NQE has a separately reviewed network-policy purpose.",
-      `Execute with the bundled Dynatrace NQE action using a ${accessProfileLabel} secret connection.`,
+      `Execute with the bundled Dynatrace NQE action using a ${accessProfileLabel} Vault-backed connection.`,
       "Return only sanitized aggregate evidence to Dynatrace.",
     ],
   };

@@ -164,7 +164,12 @@ for (const directory of ["deploy/systemd", "deploy/kubernetes", "deploy/cron", "
 const readText = async (relativePath: string): Promise<string> =>
   readFile(path.join(root, relativePath), "utf8");
 const appConfig = JSON.parse(await readText("app.config.json")) as {
-  app?: { id?: string; name?: string; actions?: Array<{ name: string }> };
+  app?: {
+    id?: string;
+    name?: string;
+    actions?: Array<{ name: string }>;
+    scopes?: Array<{ name?: string }>;
+  };
 };
 if (appConfig.app?.id !== "com.forward.dynatrace") fail("Dynatrace app ID must be com.forward.dynatrace.");
 if (appConfig.app?.name !== "Forward") fail("Dynatrace app display name must be Forward.");
@@ -175,6 +180,9 @@ if (JSON.stringify(actionNames) !== JSON.stringify([
 ])) {
   fail("The app must register exactly the bundled synchronization and NQE evidence actions.");
 }
+if (!appConfig.app?.scopes?.some((scope) => scope.name === "environment-api:credentials:read")) {
+  fail("The app must declare Credential Vault read scope for APP_ENGINE credentials.");
+}
 
 const connectionSchema = JSON.parse(
   await readText("settings/schemas/forward-api-connection.schema.json"),
@@ -184,8 +192,13 @@ const connectionSchema = JSON.parse(
   properties?: Record<string, { type?: string; nullable?: boolean; default?: string }>;
 };
 if (connectionSchema.schemaId !== "forward-api-connection") fail("Forward connection schema ID is invalid.");
-if (connectionSchema.version !== "2.1.0") fail("Forward connection schema must use the additive v2.1 contract.");
-if (connectionSchema.properties?.password?.type !== "secret") fail("Forward password must be a secret setting.");
+if (connectionSchema.version !== "3.0.0") fail("Forward connection schema must use the Credential Vault v3 contract.");
+if (connectionSchema.properties?.credentialVaultId?.type !== "text") {
+  fail("Forward connection must reference a Dynatrace Credential Vault entry.");
+}
+if (connectionSchema.properties?.username || connectionSchema.properties?.password) {
+  fail("Forward connection settings must not store raw username or password properties.");
+}
 if (connectionSchema.properties?.approvedLibraryQueryIds?.type !== "text") {
   fail("Forward connection must expose a bounded Read Only Library-query allowlist.");
 }
@@ -204,16 +217,22 @@ const discoverySchema = JSON.parse(
 ) as {
   schemaId?: string;
   version?: string;
-  properties?: { query?: { default?: string } };
+  properties?: {
+    sourceType?: { default?: string };
+    query?: { default?: string };
+  };
 };
 if (discoverySchema.schemaId !== "dependency-discovery-profile") {
   fail("Dependency discovery profile schema ID is invalid.");
 }
-if (discoverySchema.version !== "1.0.0") {
-  fail("Dependency discovery profile must use the initial v1 contract.");
+if (discoverySchema.version !== "2.0.0") {
+  fail("Dependency discovery profile must use the explicit dual-source v2 contract.");
+}
+if (discoverySchema.properties?.sourceType?.default !== "distributed-traces") {
+  fail("Dependency discovery profile must declare an explicit discovery source.");
 }
 if (!String(discoverySchema.properties?.query?.default || "").startsWith("fetch spans")) {
-  fail("Dependency discovery profile must default to a spans-only query template.");
+  fail("Dependency discovery profile must default to its distributed-trace query template.");
 }
 const localMockSettings = JSON.parse(
   await readText("settings/local-mock-data/values.json"),
@@ -221,7 +240,7 @@ const localMockSettings = JSON.parse(
 const localMockDiscovery = Array.isArray(localMockSettings)
   ? localMockSettings.find((object: unknown): object is {
       schemaId: string;
-      value?: { query?: string };
+      value?: { query?: string; sourceType?: string };
     } => Boolean(
       object &&
       typeof object === "object" &&
@@ -230,12 +249,46 @@ const localMockDiscovery = Array.isArray(localMockSettings)
       object.schemaId === "dependency-discovery-profile",
     ))
   : undefined;
+const localMockConnection = Array.isArray(localMockSettings)
+  ? localMockSettings.find((object: unknown): object is {
+      schemaId: string;
+      value?: Record<string, unknown>;
+    } => Boolean(
+      object &&
+      typeof object === "object" &&
+      !Array.isArray(object) &&
+      "schemaId" in object &&
+      object.schemaId === "forward-api-connection",
+    ))
+  : undefined;
+const localMockCredentialVaultId = localMockConnection?.value?.credentialVaultId;
+if (
+  typeof localMockCredentialVaultId !== "string" ||
+  !localMockCredentialVaultId.startsWith("CREDENTIALS_VAULT-")
+) {
+  fail("Local Forward connection must reference a Credential Vault entity.");
+}
+if (localMockDiscovery?.value?.sourceType !== "distributed-traces") {
+  fail("Local dependency discovery must declare distributed trace evidence explicitly.");
+}
+if (localMockConnection?.value?.username || localMockConnection?.value?.password) {
+  fail("Local Forward connection must not contain raw credential fields.");
+}
 const localMockDiscoveryQuery = String(localMockDiscovery?.value?.query || "");
 if (!localMockDiscoveryQuery.includes("`dependency.observed_at` = start_time")) {
   fail("Local dependency discovery must project the live span start_time as its evidence timestamp.");
 }
 if (!localMockDiscoveryQuery.includes("`dependency.evidence_source` = \"dynatrace-live-spans\"")) {
-  fail("Local dependency discovery must label its spans-only evidence source.");
+  fail("Local dependency discovery must label its distributed-trace evidence source.");
+}
+const networkFlowDql = await readText(
+  "deploy/dynatrace-dql/oneagent-network-flow-dependencies.dql",
+);
+if (!networkFlowDql.includes('fetch events, bucket:{"default_network_flows"}')) {
+  fail("OneAgent network-flow discovery must be restricted to default_network_flows.");
+}
+if (!networkFlowDql.includes('`dependency.evidence_source` = "dynatrace-oneagent-network-flows"')) {
+  fail("OneAgent network-flow discovery must identify its live evidence source.");
 }
 
 const packageJson = JSON.parse(await readText("package.json")) as {

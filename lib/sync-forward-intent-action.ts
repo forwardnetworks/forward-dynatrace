@@ -23,8 +23,12 @@ import {
   parseCheckList,
 } from "./forward-client.ts";
 import {
+  loadDynatraceCredential,
   loadDynatraceConnection,
-  validateConnection,
+  resolveForwardConnection,
+} from "./forward-connection.ts";
+import type {
+  CredentialLoader,
 } from "./forward-connection.ts";
 import { buildForwardIntentPackage } from "./intent-builder.ts";
 import {
@@ -556,12 +560,14 @@ const isForwardIntentCheck = (
 
 export const createSyncForwardIntentAction = ({
   loadConnection = loadDynatraceConnection,
+  loadCredential = loadDynatraceCredential,
   fetchImpl = globalThis.fetch,
   loadTrustedActionContext = getTrustedActionContext,
   loadApprovalNonce = getApprovalNonce,
   now = Date.now,
 }: {
   loadConnection?: ConnectionLoader;
+  loadCredential?: CredentialLoader;
   fetchImpl?: typeof globalThis.fetch;
   loadTrustedActionContext?: TrustedActionContextLoader;
   loadApprovalNonce?: ApprovalNonceLoader;
@@ -575,7 +581,10 @@ export const createSyncForwardIntentAction = ({
     throw new Error("Input field 'request' is missing.");
   }
   const connectionId = requiredString(payload.connectionId, "Input field 'connectionId'", 255);
-  const connection = validateConnection(await loadConnection(connectionId));
+  const connection = await resolveForwardConnection(
+    await loadConnection(connectionId),
+    loadCredential,
+  );
   const input = synchronizationInput(parseRequest(payload.request));
   const trustedActionContext = loadTrustedActionContext();
   if (input.syncRequest.syncMode !== "direct-api") {

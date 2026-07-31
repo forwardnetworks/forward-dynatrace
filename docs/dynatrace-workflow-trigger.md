@@ -1,7 +1,7 @@
 # Dynatrace Workflow Action
 
 The app registers **Synchronize Forward intent checks** and **Run Forward NQE evidence**. Both call Forward APIs only
-from the app backend through the selected tenant-managed secret connection.
+from the app backend through the selected tenant-managed Credential Vault reference.
 
 ## Configure
 

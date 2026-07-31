@@ -40,5 +40,6 @@ require a fresh plan, digest, and approval. Partial failure stops the run and re
 
 ## Secret And Error Boundary
 
-Connection credentials exist only in Dynatrace secret app settings and app-function memory. Results never contain the
+Connection credentials exist only in an APP_ENGINE-scoped Dynatrace Credential Vault entry and app-function memory. App
+settings retain only the Vault entity ID. Results never contain the
 username, password, Authorization header, raw authenticated response body, or detailed topology.

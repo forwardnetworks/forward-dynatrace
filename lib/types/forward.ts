@@ -192,7 +192,12 @@ export interface DependencyDiscoveryProfileSummary {
   name: string;
   description: string;
   isDefault: boolean;
+  sourceType: DependencyDiscoverySourceType;
 }
+
+export type DependencyDiscoverySourceType =
+  | "distributed-traces"
+  | "network-flows";
 
 export interface DependencyDiscoveryProfile
   extends DependencyDiscoveryProfileSummary {
@@ -237,7 +242,11 @@ export interface NormalizedDiscoveryRows {
 export interface DependencyDiscoveryResponse {
   status: "ready" | "configuration-required" | "blocked";
   summary: string;
-  selectedProfile: { id: string; name: string } | null;
+  selectedProfile: {
+    id: string;
+    name: string;
+    sourceType: DependencyDiscoverySourceType;
+  } | null;
   profiles: DependencyDiscoveryProfileSummary[];
   dependencies: DependencyCandidate[];
   evidence: DependencyDiscoveryEvidence | null;

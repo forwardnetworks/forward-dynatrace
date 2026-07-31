@@ -7,10 +7,12 @@ import type {
   ForwardClientOptions,
 } from "./forward-client.ts";
 import {
+  loadDynatraceCredential,
   loadDynatraceConnection,
-  validateConnection,
+  resolveForwardConnection,
 } from "./forward-connection.ts";
 import type {
+  CredentialLoader,
   ForwardConnection,
 } from "./forward-connection.ts";
 import {
@@ -680,10 +682,12 @@ const isResumeRequest = (
 
 export const createRunForwardNqeAction = ({
   loadConnection = loadDynatraceConnection,
+  loadCredential = loadDynatraceCredential,
   fetchImpl = globalThis.fetch,
   forwardClientOptions = {},
 }: {
   loadConnection?: ConnectionLoader;
+  loadCredential?: CredentialLoader;
   fetchImpl?: typeof globalThis.fetch;
   forwardClientOptions?: ForwardClientOptions;
 } = {}) => async (payload: unknown): Promise<unknown> => {
@@ -696,7 +700,10 @@ export const createRunForwardNqeAction = ({
     256,
   );
   const request = parseRequest(payload.request);
-  const connection = validateConnection(await loadConnection(selectedConnectionId));
+  const connection = await resolveForwardConnection(
+    await loadConnection(selectedConnectionId),
+    loadCredential,
+  );
   if (request.forwardAccessProfile !== connection.forwardAccessProfile) {
     throw new Error("Request and Forward connection access profiles must match exactly.");
   }

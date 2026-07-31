@@ -76,7 +76,7 @@ SBOM and vulnerability report: <reference>
 | Idempotent rerun | `<pass/fail and unchanged count>` |
 | Dynatrace status query-back | `<event/execution reference>` |
 
-- [ ] Read Only planning used the backend secret connection, called only approved Forward read APIs, and made no
+- [ ] Read Only planning used the backend Vault-backed connection, called only approved Forward read APIs, and made no
       mutation request.
 - [ ] Planning used the selected processed snapshot and produced a reviewable immutable plan.
 - [ ] Approval matched the exact package, plan, snapshot, network, policy, and action arrays.

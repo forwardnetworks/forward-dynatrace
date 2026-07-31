@@ -5,9 +5,10 @@
 - [ ] Verify the immutable app release, checksum, SBOM, signature when present, and attestations.
 - [ ] Install the exact verified archive only in the approved evaluation environment.
 - [ ] Approve only the exact Forward API host for outbound requests.
-- [ ] Create one reviewed tenant-owned spans-only dependency discovery profile.
+- [ ] Create at least one reviewed tenant-owned distributed-trace or OneAgent network-flow discovery profile.
 - [ ] Confirm application, environment, endpoint, protocol, port, owner, and evidence-time mappings are authoritative.
-- [ ] Store a dedicated Read Only Forward identity in the secret connection.
+- [ ] Store a dedicated Read Only Forward integration identity in an APP_ENGINE-scoped Credential Vault entry.
+- [ ] Confirm the Forward connection stores only the Vault entity ID, not a username or password.
 - [ ] Confirm the browser and Workflow result cannot reveal the credential.
 
 ## Data And Evidence

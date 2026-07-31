@@ -12,7 +12,7 @@
 
 ## Recovery
 
-- Authentication failure: rotate the secret connection; do not place credentials in Workflow JSON or logs.
+- Authentication failure: verify Vault sharing and rotate the Credential Vault entry; do not place credentials in app settings, Workflow JSON, or logs.
 - External-request denial: approve the exact Forward host in Dynatrace tenant settings.
 - Snapshot changed: discard the digest and create a new plan.
 - Collision: resolve the unmanaged name or duplicate managed source key in Forward; never force adoption.

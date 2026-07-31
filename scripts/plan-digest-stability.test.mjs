@@ -59,10 +59,14 @@ const action = createSyncForwardIntentAction({
       name: "digest-fixture",
       baseUrl: "https://forward.example.com/api",
       networkId: "network-digest",
-      username: "fixture-user",
-      password: "fixture-password",
+      credentialVaultId: "CREDENTIALS_VAULT-0000000000000001",
       forwardAccessProfile: "network-admin",
     },
+  }),
+  loadCredential: async () => ({
+    type: "USERNAME_PASSWORD",
+    username: "fixture-user",
+    password: "fixture-password",
   }),
   fetchImpl,
 });

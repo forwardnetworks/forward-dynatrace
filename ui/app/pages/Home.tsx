@@ -511,7 +511,7 @@ export const Home = () => {
         <Strong>Integration boundary</Strong>
         <span>
           The Dynatrace app is the only installable. Its backend calls Forward APIs through a
-          tenant-managed secret connection. Read Only and Network Operator are plan-only; Network Admin
+          tenant-managed Vault-backed connection. Read Only and Network Operator are plan-only; Network Admin
           creates or exact-approved updates managed checks. Credentials never enter the browser.
         </span>
       </section>
@@ -522,7 +522,7 @@ export const Home = () => {
           <span>
             {isLiveSource
               ? `${liveDependencies.length} current rows from ${dependencyDiscovery.data?.selectedProfile?.name || "the selected tenant profile"}; run ${liveRunId}; source ${liveEvidenceSource}.`
-              : "Create or select a tenant-owned spans-only profile. The app has no seeded or replay fallback."}
+              : "Create or select a tenant-owned trace or OneAgent network-flow profile. The app has no seeded or replay fallback."}
           </span>
           {dependencyDiscovery.data?.evidence?.rejectedRows ? (
             <span>{dependencyDiscovery.data.evidence.rejectedRows} rows failed closed during evidence validation.</span>
@@ -549,7 +549,8 @@ export const Home = () => {
               <option value="">Tenant default</option>
               {(dependencyDiscovery.data?.profiles || []).map((profile) => (
                 <option key={profile.id} value={profile.id}>
-                  {profile.name}{profile.isDefault ? " (default)" : ""}
+                  {profile.name} [{profile.sourceType === "distributed-traces" ? "traces" : "network flows"}]
+                  {profile.isDefault ? " (default)" : ""}
                 </option>
               ))}
             </select>
@@ -605,7 +606,7 @@ export const Home = () => {
           </div>
           <div>
             <Strong>App backend and Forward APIs</Strong>
-            <span>Use the secret connection to resolve paths, plan changes, apply policy, and verify readback.</span>
+            <span>Use the Vault-backed connection to resolve paths, plan changes, apply policy, and verify readback.</span>
           </div>
         </div>
       </section>
@@ -763,7 +764,7 @@ export const Home = () => {
               <TextInput
                 value={forwardBaseUrl}
                 onChange={setForwardBaseUrl}
-                placeholder="Authoritative URL comes from the selected secret connection"
+                placeholder="Authoritative URL comes from the selected Vault-backed connection"
               />
             </label>
             <label>
