@@ -6,10 +6,14 @@ const MAX_EVIDENCE_AGE_MINUTES = 1_440;
 const FUTURE_CLOCK_SKEW_MS = 5 * 60 * 1_000;
 const FORBIDDEN_EVIDENCE_PATTERN = /(?:synthetic|fixture|seed(?:ed)?|replay(?:ed)?|capture(?:d)?)/iu;
 
-const isRecord = (value) =>
+const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-const requiredString = (value, label, maximumLength = 2_048) => {
+const requiredString = (
+  value: unknown,
+  label: string,
+  maximumLength = 2_048,
+): string => {
   if (typeof value !== "string" || !value.trim()) {
     throw new Error(`${label} is required.`);
   }
@@ -20,7 +24,12 @@ const requiredString = (value, label, maximumLength = 2_048) => {
   return normalized;
 };
 
-const boundedInteger = (value, label, minimum, maximum) => {
+const boundedInteger = (
+  value: unknown,
+  label: string,
+  minimum: number,
+  maximum: number,
+): number => {
   const normalized = String(value).trim();
   if (!/^-?\d+$/u.test(normalized)) {
     throw new Error(`${label} must be an integer from ${minimum} through ${maximum}.`);
@@ -32,7 +41,11 @@ const boundedInteger = (value, label, minimum, maximum) => {
   return parsed;
 };
 
-const boundedOptionalString = (value, label, maximumLength) => {
+const boundedOptionalString = (
+  value: string,
+  label: string,
+  maximumLength: number,
+): string => {
   if (!value) return "";
   if (value.length > maximumLength) {
     throw new Error(`${label} exceeds ${maximumLength} characters.`);
@@ -40,7 +53,11 @@ const boundedOptionalString = (value, label, maximumLength) => {
   return value;
 };
 
-const field = (row, names, fallback = "") => {
+const field = (
+  row: Record<string, unknown>,
+  names: string[],
+  fallback = "",
+): string => {
   for (const name of names) {
     const value = row[name];
     if (
@@ -53,7 +70,7 @@ const field = (row, names, fallback = "") => {
   return fallback;
 };
 
-const dependencySlug = (value) =>
+const dependencySlug = (value: string): string =>
   value
     .trim()
     .toLowerCase()
@@ -61,16 +78,40 @@ const dependencySlug = (value) =>
     .replace(/^-|-$/gu, "")
     .slice(0, 80);
 
-export const validateDependencyQuery = (value) => {
+const isDiscoverySourceType = (
+  value: unknown,
+): value is DependencyDiscoverySourceType =>
+  value === "distributed-traces" || value === "network-flows";
+
+export const validateDependencyQuery = (
+  value: unknown,
+  sourceType: DependencyDiscoverySourceType,
+): string => {
   const query = requiredString(value, "Dependency discovery query", MAX_QUERY_LENGTH);
   const withoutLeadingComments = query.replace(/^(?:\s*\/\/[^\n]*\n)*/gu, "").trimStart();
-  if (!/^fetch\s+spans\b/iu.test(withoutLeadingComments)) {
-    throw new Error("Dependency discovery query must begin with fetch spans.");
-  }
   const fetchSources = [...query.matchAll(/\bfetch\s+([A-Za-z0-9_.]+)/giu)]
     .map((match) => match[1].toLowerCase());
-  if (fetchSources.some((source) => source !== "spans")) {
-    throw new Error("Dependency discovery query may read only spans.");
+  if (sourceType === "distributed-traces") {
+    if (!/^fetch\s+spans\b/iu.test(withoutLeadingComments)) {
+      throw new Error("Distributed trace discovery query must begin with fetch spans.");
+    }
+    if (fetchSources.some((source) => source !== "spans")) {
+      throw new Error("Distributed trace discovery query may read only spans.");
+    }
+  } else {
+    const networkFlowFetch = /\bfetch\s+events\s*,\s*bucket\s*:\s*\{\s*"default_network_flows"\s*\}/giu;
+    if (!/^fetch\s+events\s*,\s*bucket\s*:\s*\{\s*"default_network_flows"\s*\}/iu.test(withoutLeadingComments)) {
+      throw new Error(
+        'Network flow discovery query must begin with fetch events, bucket:{"default_network_flows"}.',
+      );
+    }
+    if (fetchSources.some((source) => source !== "events")) {
+      throw new Error("Network flow discovery query may read only network-flow events.");
+    }
+    const approvedFetchCount = [...query.matchAll(networkFlowFetch)].length;
+    if (approvedFetchCount !== fetchSources.length) {
+      throw new Error("Network flow discovery query may read only the default_network_flows bucket.");
+    }
   }
   if (/\b(?:data|record)\s+/iu.test(query)) {
     throw new Error("Dependency discovery query may not construct substitute records.");
@@ -78,7 +119,9 @@ export const validateDependencyQuery = (value) => {
   return query;
 };
 
-export const validateDiscoveryProfile = (object) => {
+export const validateDiscoveryProfile = (
+  object: unknown,
+): DependencyDiscoveryProfile => {
   if (!isRecord(object)) throw new Error("Dependency discovery profile is invalid.");
   if (object.schemaId !== PROFILE_SCHEMA_ID) {
     throw new Error(`Dependency discovery profile must use schema ${PROFILE_SCHEMA_ID}.`);
@@ -94,6 +137,9 @@ export const validateDiscoveryProfile = (object) => {
   if (selection !== "default" && selection !== "available") {
     throw new Error("Dependency discovery profile selection is invalid.");
   }
+  if (!isDiscoverySourceType(value.sourceType)) {
+    throw new Error("Dependency discovery source type is invalid.");
+  }
 
   return {
     id: requiredString(object.objectId, "Dependency discovery profile ID", 255),
@@ -101,7 +147,8 @@ export const validateDiscoveryProfile = (object) => {
     description: typeof value.description === "string" ? value.description.trim().slice(0, 500) : "",
     enabled: status === "enabled",
     isDefault: selection === "default",
-    query: validateDependencyQuery(value.query),
+    sourceType: value.sourceType,
+    query: validateDependencyQuery(value.query, value.sourceType),
     maxResultRecords: boundedInteger(
       value.maxResultRecords || "500",
       "Maximum result records",
@@ -117,18 +164,22 @@ export const validateDiscoveryProfile = (object) => {
   };
 };
 
-export const selectDiscoveryProfile = (objects, requestedProfileId) => {
+export const selectDiscoveryProfile = (
+  objects: unknown,
+  requestedProfileId: string | undefined,
+): DependencyDiscoverySelection => {
   if (!Array.isArray(objects)) throw new Error("Dependency discovery profile list is invalid.");
   if (objects.length > MAX_PROFILE_COUNT) {
     throw new Error(`Dependency discovery profile list exceeds ${MAX_PROFILE_COUNT} objects.`);
   }
 
   const profiles = objects.map(validateDiscoveryProfile).filter((profile) => profile.enabled);
-  const publicProfiles = profiles.map(({ id, name, description, isDefault }) => ({
+  const publicProfiles = profiles.map(({ id, name, description, isDefault, sourceType }) => ({
     id,
     name,
     description,
     isDefault,
+    sourceType,
   }));
 
   if (profiles.length === 0) {
@@ -156,7 +207,25 @@ export const selectDiscoveryProfile = (objects, requestedProfileId) => {
   return { profile: null, profiles: publicProfiles, reason: "profile-selection-required" };
 };
 
-const normalizeDependency = (row, index) => {
+const isDependencyCriticality = (
+  value: string,
+): value is DependencyCriticality =>
+  value === "critical" ||
+  value === "high" ||
+  value === "medium" ||
+  value === "low";
+
+const normalizeDependency = (
+  row: unknown,
+  index: number,
+): {
+  dependency: DependencyCandidate;
+  evidence: {
+    observedAt: string;
+    evidenceSource: string;
+    runId: string;
+  };
+} => {
   if (!isRecord(row)) throw new Error("row is not an object");
 
   const appName = requiredString(field(row, ["app.name", "appName"]), "app.name", 255);
@@ -222,7 +291,7 @@ const normalizeDependency = (row, index) => {
   if (!Number.isInteger(confidenceValue) || confidenceValue < 0 || confidenceValue > 100) {
     throw new Error("dependency.confidence must be an integer from 0 through 100");
   }
-  if (!["critical", "high", "medium", "low"].includes(criticalityValue)) {
+  if (!isDependencyCriticality(criticalityValue)) {
     throw new Error("criticality must be critical, high, medium, or low");
   }
 
@@ -271,9 +340,15 @@ const normalizeDependency = (row, index) => {
 };
 
 export const normalizeDiscoveryRows = (
-  rows,
-  { maxEvidenceAgeMinutes, now = new Date() },
-) => {
+  rows: unknown,
+  {
+    maxEvidenceAgeMinutes,
+    now = new Date(),
+  }: {
+    maxEvidenceAgeMinutes: number;
+    now?: Date | string | number;
+  },
+): NormalizedDiscoveryRows => {
   if (!Array.isArray(rows)) throw new Error("Dynatrace query records are invalid.");
   if (rows.length > MAX_RESULT_RECORDS) {
     throw new Error(`Dynatrace query returned more than ${MAX_RESULT_RECORDS} records.`);
@@ -282,10 +357,10 @@ export const normalizeDiscoveryRows = (
   const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
   if (!Number.isFinite(nowMs)) throw new Error("Current time is invalid.");
   const maximumAgeMs = maxEvidenceAgeMinutes * 60 * 1_000;
-  const dependencies = [];
-  const rejected = [];
-  const sources = new Set();
-  const runIds = new Set();
+  const dependencies: DependencyCandidate[] = [];
+  const rejected: Array<{ row: number; reason: string }> = [];
+  const sources = new Set<string>();
+  const runIds = new Set<string>();
   let newestObservedAtMs = 0;
 
   rows.forEach((row, index) => {
@@ -325,11 +400,21 @@ export const normalizeDiscoveryRows = (
   };
 };
 
-export const discoveryConfigurationMessage = (reason) => ({
+export const discoveryConfigurationMessage = (
+  reason: string | null,
+): string => ({
   "no-enabled-profile": "Create and enable a tenant-owned dependency discovery profile.",
   "profile-not-accessible": "The selected dependency discovery profile is unavailable or disabled.",
   "multiple-default-profiles": "Exactly one enabled dependency discovery profile may be marked default.",
   "profile-selection-required": "Select one of the enabled dependency discovery profiles.",
-}[reason] || "Dependency discovery configuration requires review.");
+}[reason || ""] || "Dependency discovery configuration requires review.");
 
 export { PROFILE_SCHEMA_ID };
+import type {
+  DependencyCandidate,
+  DependencyCriticality,
+  DependencyDiscoveryProfile,
+  DependencyDiscoverySelection,
+  DependencyDiscoverySourceType,
+  NormalizedDiscoveryRows,
+} from "./types/index.ts";

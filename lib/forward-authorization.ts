@@ -1,8 +1,10 @@
 import { readFile, stat } from "node:fs/promises";
 
-const AUTHORIZATION_PATTERN = /^(?:Basic|Bearer) [A-Za-z0-9._~+\/-]+=*$/u;
+const AUTHORIZATION_PATTERN = /^(?:Basic|Bearer) [A-Za-z0-9._~+/-]+=*$/u;
 
-export const loadForwardAuthorization = async (authorizationFile) => {
+export const loadForwardAuthorization = async (
+  authorizationFile: string | undefined,
+): Promise<string> => {
   if (!authorizationFile) {
     throw new Error(
       "Missing FORWARD_AUTHORIZATION_FILE for the local API test tool.",

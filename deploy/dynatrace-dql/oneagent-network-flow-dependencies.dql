@@ -1,0 +1,66 @@
+// Customer-neutral starting point for non-instrumented dependency discovery.
+// Requires OneAgent network connection monitoring and current records in the
+// default_network_flows Grail bucket. Review application, environment, owner,
+// and endpoint mappings in the target tenant before enabling this profile.
+
+fetch events, bucket:{"default_network_flows"}, from: now()-15m
+| filter in(network_flow.network.transport, array("TCP", "UDP"))
+| filter isNotNull(network_flow.source.address)
+    and isNotNull(network_flow.destination.address)
+    and isNotNull(network_flow.destination.port)
+| summarize
+    observedAt = max(timestamp),
+    by: {
+      network_flow.source.address,
+      network_flow.destination.address,
+      network_flow.destination.port,
+      network_flow.network.transport,
+      dt.smartscape.host,
+      dt.smartscape.process_group_instance
+    }
+| fieldsAdd
+    `dependency.id` = concat(
+      toString(network_flow.source.address),
+      "-",
+      toString(network_flow.destination.address),
+      "-",
+      toString(network_flow.destination.port),
+      "-",
+      lower(network_flow.network.transport)
+    ),
+    `app.name` = "review-required",
+    `app.environment` = "review-required",
+    `dt.entity.service` = "",
+    `service.name` = coalesce(
+      toString(dt.smartscape.process_group_instance),
+      toString(dt.smartscape.host),
+      "network-flow-review"
+    ),
+    `network.source` = network_flow.source.address,
+    `network.destination` = network_flow.destination.address,
+    `network.protocol` = lower(network_flow.network.transport),
+    `network.port` = network_flow.destination.port,
+    `owner.team` = "review-required",
+    criticality = "medium",
+    `dependency.confidence` = 0,
+    `dependency.mapping_state` = "needs-map",
+    `dependency.observed_at` = observedAt,
+    `dependency.evidence_source` = "dynatrace-oneagent-network-flows"
+| fields
+    `dependency.id`,
+    `app.name`,
+    `app.environment`,
+    `dt.entity.service`,
+    `service.name`,
+    `network.source`,
+    `network.destination`,
+    `network.protocol`,
+    `network.port`,
+    `owner.team`,
+    criticality,
+    `dependency.confidence`,
+    `dependency.mapping_state`,
+    `dependency.observed_at`,
+    `dependency.evidence_source`
+| sort `dependency.observed_at` desc
+| limit 500

@@ -10,7 +10,8 @@
 ## Identity And Data
 
 - [ ] Create a dedicated Read Only Forward service identity for initial acceptance.
-- [ ] Create and review the tenant-owned spans-only dependency discovery profile.
+- [ ] Create and review the tenant-owned distributed-trace and/or OneAgent network-flow discovery profiles.
+- [ ] Store the dedicated identity in an APP_ENGINE-scoped Dynatrace Credential Vault entry.
 - [ ] Verify the canonical application, environment, endpoint, protocol, port, owner, and evidence-time mappings.
 - [ ] Confirm secrets remain masked and absent from browser, Workflow, and release evidence.
 

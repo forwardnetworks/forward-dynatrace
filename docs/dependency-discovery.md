@@ -1,8 +1,13 @@
 # Dependency Discovery Profiles
 
-A dependency discovery profile is the tenant-owned contract that converts current Dynatrace spans into bounded
-application relationships that Forward can resolve and evaluate. The app does not ship a customer topology query,
-guess missing ports, or require environment-specific span attributes.
+A dependency discovery profile is the tenant-owned contract that converts current Dynatrace evidence into bounded
+application relationships that Forward can resolve and evaluate. A profile authorizes exactly one source:
+
+- **Distributed traces** for instrumented service-to-service calls.
+- **OneAgent network flows** for infrastructure-centric or third-party dependencies that are not fully instrumented.
+
+The app does not ship a customer topology query, guess missing ports, infer business importance, or require
+environment-specific attributes.
 
 ## Create A Profile
 
@@ -15,14 +20,30 @@ environment scope.
 | Scope description | State the application, environment, owner, and intended evidence window. |
 | Status | Only `Enabled` profiles can run. |
 | Selection | Mark exactly one enabled profile `Default`, or select another profile in the app. |
-| Dependency discovery DQL | Must begin with `fetch spans` and return the canonical fields below. |
+| Discovery source | Select `Distributed traces` or `OneAgent network flows`; it is enforced at execution. |
+| Dependency discovery DQL | Must use the fetch contract for the selected source and return the canonical fields below. |
 | Query size | At most `5,000` characters, matching the Dynatrace app-settings bound. |
 | Maximum result records | `1` through `1000`; start with `100` for the first review. |
 | Maximum evidence age | `1` through `1440` minutes; start with `30`. |
 
-Start from `deploy/dynatrace-dql/otel-span-dependencies.dql`. Review every attribute and placeholder against the target
-tenant before saving it. The included query intentionally marks rows `review` with zero confidence. It is not an
-automatic assertion that a service name is a routable endpoint.
+Start from the matching template:
+
+- `deploy/dynatrace-dql/otel-span-dependencies.dql`
+- `deploy/dynatrace-dql/oneagent-network-flow-dependencies.dql`
+
+Review every attribute and placeholder against the target tenant before saving it. Both templates intentionally use
+zero confidence and require review. A service, process, or host name is not automatically a routable Forward endpoint.
+
+The distributed-trace template prefers standard OpenTelemetry client/server address attributes and then accepts the
+explicit `forward.network.source.address` and `forward.network.destination.address` attributes when an instrumented
+transaction supplies them. It similarly prefers a stable `forward.dependency.id`, retains only the latest observation
+of each relationship, and caps the review set at 1,000 unique relationships. Replace or remove these optional
+fallbacks when the target tenant uses a different authoritative convention.
+
+OneAgent network-flow profiles require OneAgent 1.337 or later and **Settings > Collect and capture > Infrastructure >
+Network connection monitoring**. Full relationship discovery normally requires **Reported connections: All**; the
+default **Critical connections** mode intentionally omits healthy established traffic. Review the aggregation interval,
+rate limit, ingestion cost, duplicate same-host/container records, and the experimental field contract before use.
 
 ## Canonical Query Output
 
@@ -33,7 +54,7 @@ automatic assertion that a service name is a routable endpoint.
 | `app.environment` | Stable environment identifier. |
 | `dt.entity.service` | Dynatrace service entity when available; a missing value forces `needs-map`. |
 | `service.name` | Operator-readable service identity. |
-| `network.source` | Actual source IP, CIDR, hostname, or reviewed Forward host specifier from the span mapping. |
+| `network.source` | Actual source IP, CIDR, hostname, or reviewed Forward host specifier from the selected evidence. |
 | `network.destination` | Actual destination IP, CIDR, hostname, or reviewed Forward host specifier. |
 | `network.protocol` | `tcp` or `udp`. |
 | `network.port` | Observed destination port from `1` through `65535`. |
@@ -41,16 +62,17 @@ automatic assertion that a service name is a routable endpoint.
 | `criticality` | `low`, `medium`, `high`, or `critical`. |
 | `dependency.confidence` | Integer from `0` through `100`; tenant policy decides the automatic threshold. |
 | `dependency.mapping_state` | `ready`, `review`, or `needs-map`. |
-| `dependency.observed_at` | Timestamp of the current span evidence, normally the span `start_time`. |
-| `dependency.evidence_source` | Stable source label such as `dynatrace-live-spans`. |
+| `dependency.observed_at` | Timestamp of the current evidence: span `start_time` or network-flow event `timestamp`. |
+| `dependency.evidence_source` | Stable source label such as `dynatrace-live-spans` or `dynatrace-oneagent-network-flows`. |
 
 Optional `network.source.label`, `network.destination.label`, and `dependency.run_id` fields improve operator context
 without changing Forward endpoint authority.
 
 ## Fail-Closed Rules
 
-- Only a query beginning with `fetch spans` may execute. Queries reading logs, events, business events, security
-  events, or metrics are rejected.
+- A distributed-trace query must begin with `fetch spans` and may not fetch any other source.
+- A network-flow query must begin with `fetch events, bucket:{"default_network_flows"}`. Every fetch in that profile
+  must use the same bucket; logs, other events, spans, business events, security events, and metrics are rejected.
 - Query text that constructs substitute `data` or `record` rows is rejected.
 - Evidence source labels containing synthetic, fixture, seeded, replay, or captured markers are rejected.
 - Rows explicitly marked synthetic are rejected.
@@ -76,3 +98,14 @@ Before the first customer-data run, record and approve:
 
 Do not mark a profile default until its current query output has been reviewed in a Notebook and the same endpoints
 can be resolved in the selected Forward network.
+
+## Application Grouping And Business Priority
+
+The integration groups managed checks with deterministic Forward tags for application, environment, owner,
+criticality, contract version, and source identity. This is the current portable grouping contract; the app does not
+assume an undocumented Forward folder API.
+
+Business criticality is tenant-owned enrichment. A query may derive it from reviewed Dynatrace tags or from an
+approved upstream mapping maintained by an application inventory or CMDB. The app does not connect to a specific
+CMDB product, and it never promotes an unreviewed placeholder to an automatic write. At large scale, use separate
+profiles or query filters to select high-value applications before expanding coverage.

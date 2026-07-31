@@ -40,12 +40,31 @@ const baseStatus = {
 };
 
 test("sanitizes status artifact to publish-safe fields", () => {
-  const sanitized = sanitizeStatusArtifact(baseStatus);
+  const sanitized = sanitizeStatusArtifact({
+    ...baseStatus,
+    approval: {
+      mode: "engine-approval",
+      approvalNonceSha256: "not-published",
+      approvalEvent: { actor: "not-published" },
+    },
+  });
 
   assert.equal(sanitized.schemaVersion, "forward-dynatrace-status/v1");
   assert.equal(sanitized.packageSignature.status, "verified");
   assert.equal("publicKeySource" in sanitized.packageSignature, false);
   assert.equal(sanitized.plannedNqeChecks, 1);
+  assert.deepEqual(sanitized.approval, { mode: "engine-approval" });
+  assert.equal(JSON.stringify(sanitized).includes("not-published"), false);
+});
+
+test("rejects an unsupported authorization mode", () => {
+  assert.throws(
+    () => sanitizeStatusArtifact({
+      ...baseStatus,
+      approval: { mode: "caller-asserted" },
+    }),
+    /approval.mode must be digest or engine-approval/,
+  );
 });
 
 test("rejects unknown status artifact fields", () => {
@@ -80,6 +99,7 @@ test("builds publish-safe Dynatrace status event", () => {
         updated: 0,
         deactivated: 0,
       },
+      approval: { mode: "digest" },
     }),
   );
 
@@ -87,6 +107,7 @@ test("builds publish-safe Dynatrace status event", () => {
   assert.equal(event.severity, "WARN");
   assert.equal(event.properties["forward.dynatrace.count.create"], 1);
   assert.equal(event.properties["forward.dynatrace.unresolved.changed"], 1);
+  assert.equal(event.properties["forward.dynatrace.authorization_mode"], "digest");
   assert.equal(JSON.stringify(event).includes("checkout-vip"), false);
 });
 

@@ -9,7 +9,7 @@ Forward for Dynatrace converts observed application dependencies into governed n
 evidence. Application, network, and change teams can validate the same business-critical relationships before and
 after a change while Dynatrace and Forward remain authoritative for their respective data.
 
-> **Release channel:** `0.12.0` enterprise preview for controlled evaluation and non-production use. The release is
+> **Release channel:** `0.13.0` enterprise preview for controlled evaluation and non-production use. The release is
 > delivered as one immutable Dynatrace app archive with checksums, an SBOM, and GitHub attestations.
 
 ![Forward for Dynatrace application overview](docs/assets/screenshots/dynatrace-app-overview.png)
@@ -27,23 +27,24 @@ after a change while Dynatrace and Forward remain authoritative for their respec
 
 ```mermaid
 flowchart LR
-  DT["Dynatrace<br/>spans, entities, Workflow, Guardian"]
+  DT["Dynatrace<br/>spans, OneAgent network flows, Workflow, Guardian"]
   APP["Forward for Dynatrace<br/>UI, app functions, actions, settings"]
   FWD["Forward<br/>snapshots, paths, NQE, intent checks"]
 
   DT -->|observed dependencies and health| APP
   APP -->|sanitized modeled-network evidence| DT
-  APP -->|HTTPS API requests through a secret connection| FWD
+  APP -->|HTTPS API requests through a Vault-backed connection| FWD
   FWD -->|host resolution, path results, check state| APP
 ```
 
 The Dynatrace app is the only installable component. Forward communication is direct HTTPS API traffic from Dynatrace
-app functions through a tenant-managed secret connection. The integration requires no Forward-side service,
+app functions through a tenant-managed Credential Vault reference. The integration requires no Forward-side service,
 container, agent, package, or browser-held credential.
 
 ## Capabilities
 
-- Discover current service-to-service relationships from Dynatrace spans and entity context.
+- Discover current service-to-service relationships from distributed traces, plus infrastructure-centric connections
+  from OneAgent network connection monitoring when applications are not instrumented.
 - Normalize application, environment, endpoint, protocol, port, owner, and evidence-time metadata through a
   tenant-owned discovery profile.
 - Resolve endpoints and evaluate modeled paths against the latest processed Forward snapshot.
@@ -70,7 +71,8 @@ approval of every changed managed source key, zero ownership collisions, and suc
 
 ## Security And Governance
 
-- Forward credentials are secret Dynatrace app settings and are loaded only by app functions.
+- Forward credentials are stored only in a dedicated APP_ENGINE-scoped Dynatrace Credential Vault entry. App settings
+  retain its entity ID; only app functions resolve the secret at invocation time.
 - Forward API targets require HTTPS, the exact `/api` root, and tenant outbound-host approval.
 - Requests use strict schemas, timeouts, bounded retries, response-size limits, concurrency limits, and mutation budgets.
 - Plans bind the network, snapshot, access profile, managed identities, and canonical check fingerprints.
@@ -88,9 +90,9 @@ See [Architecture](ARCHITECTURE.md), [RBAC](docs/rbac.md), [Data handling](docs/
 ### Prerequisites
 
 - Dynatrace SaaS with AppEngine and Workflow enabled.
-- Permission to install custom apps, manage app settings, and approve the Forward API host under
+- Permission to install custom apps, manage app settings and Credential Vault entries, and approve the Forward API host under
   **Settings > General > External requests**.
-- A dedicated Forward service identity and a network with a processed snapshot.
+- A dedicated, auditable Forward service identity and a network with a processed snapshot. Start with Read Only.
 - Node.js 24 and an authenticated GitHub CLI for the supplied verification and installation tooling.
 
 ### 1. Download And Verify
@@ -99,7 +101,7 @@ The `/secure` path below is an example. Use an operator-owned directory with per
 evidence in your environment.
 
 ```bash
-export RELEASE_TAG=v0.12.0
+export RELEASE_TAG=v0.13.0
 mkdir -p "/secure/forward-dynatrace/${RELEASE_TAG}"
 cd "/secure/forward-dynatrace/${RELEASE_TAG}"
 
@@ -140,12 +142,15 @@ For upgrades, rollback, signed-app identity, and tenant scopes, see the [install
 ![Dynatrace app settings for dependency discovery and Forward API connections](docs/assets/screenshots/dynatrace-settings-apps.png)
 
 1. Approve the exact Forward API hostname in Dynatrace external requests.
-2. Create a **Dependency discovery profile** with reviewed spans-only DQL and an explicit freshness window.
-3. Create a **Forward API connection** with the exact `/api` URL, network ID, dedicated identity, secret password, and
-   declared access profile.
-4. Open **Apps > Forward**, select the discovery profile, and confirm current dependency and mapping evidence.
-5. Add **Synchronize Forward intent checks** to an on-demand Workflow and begin with `operation: plan` under Read Only.
-6. Add Network Admin apply only after approval ownership, budgets, and post-change closeout policy are established.
+2. Create one or more **Dependency discovery profiles** using the matching reviewed distributed-trace or OneAgent
+   network-flow DQL template and an explicit freshness window.
+3. Store the dedicated Forward service identity as an APP_ENGINE-scoped username/password entry in Dynatrace
+   Credential Vault.
+4. Create a **Forward API connection** with the exact `/api` URL, network ID, Credential Vault entity ID, and declared
+   access profile.
+5. Open **Apps > Forward**, select the discovery profile, and confirm current dependency and mapping evidence.
+6. Add **Synchronize Forward intent checks** to an on-demand Workflow and begin with `operation: plan` under Read Only.
+7. Add Network Admin apply only after approval ownership, budgets, and post-change closeout policy are established.
 
 The [enterprise evaluation guide](docs/evaluation-guide.md) provides a complete click-by-click acceptance sequence.
 

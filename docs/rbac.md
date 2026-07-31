@@ -29,11 +29,14 @@ Stale checks are report-only. The action has no delete path.
 ## Separation Of Duties
 
 - Dynatrace app viewers inspect only the bounded action result; credentials never appear in that result or the browser.
-- A tenant connection administrator stores the Forward service identity as an owner-controlled, secret-type app
-  setting and shares it only with the required workflow actors through tenant IAM.
+- A tenant connection administrator stores the Forward service identity in an APP_ENGINE-scoped Dynatrace Credential
+  Vault username/password entry. App settings retain only its entity ID; Vault sharing is limited through tenant IAM.
 - A workflow editor selects dependencies and stages plans.
 - A change approver reviews the digest, mutation counts, and changed source keys.
 - Only an explicitly configured Network Admin connection can perform apply.
 
 Use separate connections for plan-only and write-enabled workflows. Start every installation with Read Only, then add
 a Network Admin connection only after acceptance evidence and tenant approval exist.
+
+The Forward service identity must be named for the integration so Forward audit records attribute its activity to
+automation rather than a person. Human approval remains a separate tenant workflow and audit responsibility.

@@ -18,6 +18,7 @@
         "forward.dynatrace.run_id": { "type": ["string", "null"] },
         "forward.dynatrace.package_id": { "type": ["string", "null"] },
         "forward.dynatrace.import_state": { "type": ["string", "null"] },
+        "forward.dynatrace.authorization_mode": { "enum": ["digest", "engine-approval"] },
         "forward.dynatrace.planned_checks": { "type": "integer", "minimum": 0 },
         "forward.dynatrace.evidence_source": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
         "forward.dynatrace.synthetic": { "type": "boolean" }

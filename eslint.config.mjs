@@ -75,6 +75,7 @@ export default defineConfig([
     files: ["**/*.ts", "**/*.tsx"],
     ignores: [
       "**/*.action.*",
+      "**/*.logic.ts",
       "**/*.widget.*",
       "**/*.test.ts",
       "**/test-utils.ts",
@@ -121,6 +122,7 @@ export default defineConfig([
       "noSecrets/no-secrets": [
         "error",
         {
+          ignoreContent: ["--disable-warning=MODULE_TYPELESS_PACKAGE_JSON"],
           additionalRegexes: {
             "Dynatrace Token":
               "dt0[a-zA-Z]{1}[0-9]{2}\\.[A-Z0-9]{8,24}\\.[A-Z0-9]{64}",
@@ -131,7 +133,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["**/*.action.ts", "**/*.widget.tsx"],
+    files: ["**/*.action.ts", "**/*.logic.ts", "**/*.widget.tsx"],
     ignores: ["**/*.test.ts", "**/test-utils.ts"],
     languageOptions: {
       parser: tseslint.parser,
@@ -178,6 +180,7 @@ export default defineConfig([
       "noSecrets/no-secrets": [
         "error",
         {
+          ignoreContent: ["--disable-warning=MODULE_TYPELESS_PACKAGE_JSON"],
           additionalRegexes: {
             "Dynatrace Token":
               "dt0[a-zA-Z]{1}[0-9]{2}\\.[A-Z0-9]{8,24}\\.[A-Z0-9]{64}",
@@ -185,6 +188,47 @@ export default defineConfig([
         },
       ],
       "no-restricted-imports": noRestrictedImportsDynatraceStratoRule,
+    },
+  },
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: {
+        AbortController: "readonly",
+        AbortSignal: "readonly",
+        Buffer: "readonly",
+        console: "readonly",
+        fetch: "readonly",
+        process: "readonly",
+        performance: "readonly",
+        Request: "readonly",
+        Response: "readonly",
+        setTimeout: "readonly",
+        structuredClone: "readonly",
+        URL: "readonly",
+        URLSearchParams: "readonly",
+      },
+    },
+    plugins: {
+      noSecrets,
+      security,
+    },
+    extends: [eslint.configs.recommended],
+    rules: {
+      "no-eval": "error",
+      "no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      "noSecrets/no-secrets": [
+        "error",
+        {
+          tolerance: 5,
+          additionalRegexes: {
+            "Dynatrace Token":
+              "dt0[a-zA-Z]{1}[0-9]{2}\\.[A-Z0-9]{8,24}\\.[A-Z0-9]{64}",
+          },
+        },
+      ],
     },
   },
 ]);

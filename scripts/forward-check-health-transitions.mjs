@@ -5,8 +5,8 @@ import { mkdir, open, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { loadForwardAuthorization } from "../lib/forward-authorization.mjs";
-import { inspectManagedIdentity } from "../lib/managed-check-identity.mjs";
+import { loadForwardAuthorization } from "../lib/forward-authorization.ts";
+import { inspectManagedIdentity } from "../lib/managed-check-identity.ts";
 import { readToken, toOpenPipelineApiBaseUrl } from "./publish-dynatrace-status-event.mjs";
 
 const STATE_SCHEMA = "forward-dynatrace-check-health-state/v1";

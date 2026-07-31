@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { loadForwardAuthorization } from "../lib/forward-authorization.mjs";
+import { loadForwardAuthorization } from "../lib/forward-authorization.ts";
 
 const DEFAULT_MAX_RETRIES = 2;
 const TRANSIENT_STATUS_CODES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);

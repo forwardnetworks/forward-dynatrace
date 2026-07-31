@@ -142,7 +142,7 @@ export const parseChecksums = (text) => {
   const entries = new Map();
   const lines = String(text).trim().split(/\r?\n/u).filter(Boolean);
   for (const line of lines) {
-    const match = /^([a-f0-9]{64})  ([A-Za-z0-9][A-Za-z0-9._-]*)$/u.exec(line);
+    const match = /^([a-f0-9]{64}) {2}([A-Za-z0-9][A-Za-z0-9._-]*)$/u.exec(line);
     if (!match) throw new Error(`Invalid SHA256SUMS line: ${line}`);
     if (entries.has(match[2])) throw new Error(`Duplicate SHA256SUMS entry: ${match[2]}`);
     entries.set(match[2], match[1]);

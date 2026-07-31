@@ -6,7 +6,7 @@ runtime and without claiming that the network caused the problem.
 ## Boundary
 
 - Dynatrace supplies the problem ID, affected service context, and impacted dependency candidates.
-- The `sync-forward-intent-checks` action loads the selected owner-controlled secret connection in its app function.
+- The `sync-forward-intent-checks` action resolves the selected owner-controlled Credential Vault reference in its app function.
 - The app function selects one processed Forward snapshot, resolves endpoints, and runs bounded `/paths-bulk` analysis
   through direct HTTPS APIs.
 - The action returns aggregate mapping, reachability, snapshot, and plan evidence. It never returns the credential,
@@ -55,7 +55,7 @@ or Forward response bodies in Dynatrace evidence.
 - Do not translate `blocked` into a root-cause assertion.
 - Do not auto-remediate a path, a Forward check, or a Dynatrace problem from this evidence.
 - Treat `inconclusive`, `failed`, ambiguous, and unmapped results as operator follow-up.
-- If the secret connection, processed snapshot, endpoint mapping, or path preflight is unavailable, fail closed.
+- If the Vault-backed connection, processed snapshot, endpoint mapping, or path preflight is unavailable, fail closed.
 
 ## Live Validation Record
 

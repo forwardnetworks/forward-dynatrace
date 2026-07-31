@@ -32,12 +32,20 @@
     }
   },
   "planDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "changedSourceKeys": [],
+  "staleSourceKeys": [],
+  "collisionSourceKeys": [
+    "source-key:sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  ],
+  "collisionReasonCounts": {
+    "foreign-source-instance": 1
+  },
   "counts": {
-    "create": 1,
+    "create": 0,
     "unchanged": 0,
     "changed": 0,
     "stale": 0,
-    "collision": 0
+    "collision": 1
   },
   "mutationCounts": {
     "created": 0,

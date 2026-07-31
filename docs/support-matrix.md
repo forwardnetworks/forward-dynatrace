@@ -7,7 +7,7 @@
 | Forward | HTTPS `/api`, processed collection snapshots, host/path/check APIs, and approved NQE APIs |
 | Application runtime | Dynatrace AppEngine; no external runtime |
 | Development and release tooling | Node.js 24 |
-| Dependency evidence | Current spans normalized by a tenant-owned discovery profile |
+| Dependency evidence | Current distributed traces or OneAgent network-flow events normalized by a tenant-owned discovery profile |
 | Intent synchronization | Read Only/Network Operator plan; Network Admin exact-approved create and update |
 | Deletion | Not implemented; stale managed checks are report-only |
 | Distribution | Tenant-validated GitHub prerelease; signed Dynatrace distribution required for supported production |

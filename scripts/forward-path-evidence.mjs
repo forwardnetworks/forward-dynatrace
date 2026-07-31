@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { loadForwardAuthorization } from "../lib/forward-authorization.mjs";
+import { loadForwardAuthorization } from "../lib/forward-authorization.ts";
 
 import {
   isIpOrSubnet,

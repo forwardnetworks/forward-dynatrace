@@ -90,7 +90,13 @@
         }
       }
     },
-    "approval": { "type": ["object", "null"], "additionalProperties": true },
+    "approval": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "properties": {
+        "mode": { "enum": ["digest", "engine-approval"] }
+      }
+    },
     "importPlan": { "type": ["object", "null"], "additionalProperties": true },
     "plannedChecks": { "$ref": "#/definitions/nonNegativeInteger" },
     "plannedNqeChecks": { "$ref": "#/definitions/nonNegativeInteger" },

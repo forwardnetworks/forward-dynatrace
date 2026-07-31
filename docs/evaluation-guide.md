@@ -9,8 +9,8 @@ The Dynatrace administrator provides:
 
 - a Dynatrace SaaS environment with AppEngine and Workflow;
 - an OAuth client with `app-engine:apps:install` and `app-engine:apps:run`;
-- permission to manage app settings and the outbound-host allowlist;
-- a reviewed spans-only DQL mapping for the applications in scope.
+- permission to manage app settings, APP_ENGINE Credential Vault entries, and the outbound-host allowlist;
+- a reviewed distributed-trace or OneAgent network-flow DQL mapping for the applications in scope.
 
 The Forward administrator provides:
 
@@ -19,13 +19,13 @@ The Forward administrator provides:
 - a processed snapshot for the target network;
 - optional committed Library NQE query IDs approved for the connection.
 
-Never send OAuth, Forward, or telemetry-ingest secrets through source control, Workflow JSON, meeting chat, or the app
-UI.
+Never send OAuth, Forward, or telemetry-ingest secrets through source control, Workflow JSON, meeting chat, or app
+settings. Forward credentials belong only in Dynatrace Credential Vault.
 
 ## 1. Verify The Release
 
 ```bash
-export RELEASE_TAG=v0.12.0
+export RELEASE_TAG=v0.13.0
 mkdir -p "/secure/forward-dynatrace/${RELEASE_TAG}"
 cd "/secure/forward-dynatrace/${RELEASE_TAG}"
 
@@ -74,37 +74,48 @@ Expected: the registry reports the exact app ID and version as ready. The instal
 2. Click **New object**.
 3. Enter the profile name and scope description.
 4. Set **Status** to **Enabled** and **Selection** to **Default**.
-5. Paste reviewed spans-only DQL based on `deploy/dynatrace-dql/otel-span-dependencies.dql`.
-6. Set explicit row and evidence-age limits, then save.
+5. Select **Distributed traces** or **OneAgent network flows**.
+6. Paste reviewed DQL from the matching template in `deploy/dynatrace-dql/`.
+7. Set explicit row and evidence-age limits, then save.
 
 Expected: exactly one profile is the default, and its Notebook review returns current source, destination, protocol,
 port, application, environment, owner, and evidence-time values.
 
-## 5. Configure Read Only Forward Access
+## 5. Store The Read Only Forward Identity
+
+1. Open **Settings > Connections > Credential vault**.
+2. Create a **Username and password** credential for the dedicated Forward integration identity.
+3. Select **AppEngine** scope and share it only with the required app administrators and Workflow actors.
+4. Save, then copy the `CREDENTIALS_VAULT-*` entity ID. Do not copy the username or password into app settings.
+
+Expected: the secret is independently rotatable, access-controlled by Dynatrace, and attributable to a dedicated
+integration identity in Forward audit records.
+
+## 6. Configure Read Only Forward Access
 
 1. Open **Settings > Apps > Forward API connection**.
 2. Click **New object**.
 3. Enter a connection name, the HTTPS Forward URL ending in `/api`, and the exact network ID.
-4. Enter the dedicated service username and secret password.
+4. Enter the Credential Vault entity ID from the previous section.
 5. Select **Read Only**.
 6. Add only approved committed Library NQE query IDs when NQE evidence is in scope.
-7. Save and reopen the object to confirm the secret remains masked.
+7. Save and reopen the object to confirm it contains only connection metadata and the Vault reference.
 
 Expected: no credential appears in the browser URL, Workflow definition, or app result.
 
-## 6. Verify Current Discovery
+## 7. Verify Current Discovery
 
 ![Forward app showing current Dynatrace dependency evidence](assets/screenshots/dynatrace-app-overview.png)
 
 1. Open **Apps > Forward**.
 2. Select the reviewed discovery profile.
 3. Click **Refresh closed-loop evidence**.
-4. Confirm the source banner reports current Dynatrace span dependencies.
+4. Confirm the source banner identifies current distributed-trace or OneAgent network-flow dependencies.
 5. Review accepted, review-required, unmapped, freshness, and mapping-readiness counts.
 
 Expected: only current telemetry appears. Review-required and unmapped rows remain ineligible for automatic apply.
 
-## 7. Run A Read Only Plan
+## 8. Run A Read Only Plan
 
 1. Open **Workflows** and create an **On demand** workflow.
 2. Add **Synchronize Forward intent checks**.
@@ -117,13 +128,13 @@ Expected: only current telemetry appears. Review-required and unmapped rows rema
 Expected: the task succeeds; target snapshot, mapping, path, and reconciliation counts are present; mutation counts are
 zero; credentials, raw API bodies, endpoint inventory, and detailed path topology are absent.
 
-## 8. Validate Guardian Correlation
+## 9. Validate Guardian Correlation
 
 Run the scoped Site Reliability Guardian and confirm its objectives distinguish application health from Forward
 modeled reachability. Both evidence sources may contribute to a change gate; neither is presented as root cause by
 itself.
 
-## 9. Record Acceptance
+## 10. Record Acceptance
 
 Complete `docs/templates/customer-acceptance-record.md`. Record the release, app identity, connection profile,
 discovery profile, evidence window, snapshot, aggregate counts, Workflow execution, defects, and ownership. Do not

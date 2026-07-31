@@ -2,10 +2,10 @@
   "$schema": "https://developer.dynatrace.com/docs-assets/schema_strict_apps.json",
   "dynatrace": "1",
   "schemaId": "dependency-discovery-profile",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "summaryPattern": "{name}",
   "displayName": "Dependency discovery profile",
-  "description": "Tenant-owned spans-only DQL mapping from observed application calls to Forward dependency candidates",
+  "description": "Tenant-owned DQL mapping from distributed traces or OneAgent network flows to Forward dependency candidates",
   "multiObject": true,
   "maxObjects": 100,
   "ordered": false,
@@ -29,6 +29,16 @@
       "items": [
         { "value": "default", "displayName": "Default" },
         { "value": "available", "displayName": "Available" }
+      ],
+      "type": "enum"
+    },
+    "DiscoverySource": {
+      "displayName": "Discovery source",
+      "description": "Dynatrace evidence source authorized for this profile",
+      "documentation": "",
+      "items": [
+        { "value": "distributed-traces", "displayName": "Distributed traces" },
+        { "value": "network-flows", "displayName": "OneAgent network flows" }
       ],
       "type": "enum"
     }
@@ -79,9 +89,16 @@
       "nullable": false,
       "default": "available"
     },
+    "sourceType": {
+      "displayName": "Discovery source",
+      "description": "Restricts the profile to distributed spans or the default_network_flows event bucket",
+      "type": { "$ref": "#/enums/DiscoverySource" },
+      "nullable": false,
+      "default": "distributed-traces"
+    },
     "query": {
       "displayName": "Dependency discovery DQL",
-      "description": "Reviewed query beginning with fetch spans and returning the documented canonical dependency and evidence fields",
+      "description": "Reviewed query matching the selected discovery source and returning the documented canonical dependency and evidence fields",
       "type": "text",
       "nullable": false,
       "forceSecretResubmission": false,

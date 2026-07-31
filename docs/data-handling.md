@@ -3,7 +3,8 @@
 ## Stored In Dynatrace
 
 - observed dependency evidence and application/entity identifiers;
-- app settings connection metadata and an encrypted secret password;
+- app settings connection metadata and the opaque Dynatrace Credential Vault entity ID;
+- the dedicated Forward username and password only in an APP_ENGINE-scoped Credential Vault entry;
 - Workflow plans, aggregate synchronization results, and Guardian history;
 - bounded Forward network/snapshot identifiers and evidence counts.
 
@@ -16,6 +17,7 @@
 ## Never Exposed To The Browser Or Result
 
 - Forward username, password, or Authorization header;
+- resolved Credential Vault values or Vault entity metadata beyond the selected ID;
 - deployment OAuth secrets;
 - raw authenticated error bodies;
 - complete Forward inventory or detailed path topology.

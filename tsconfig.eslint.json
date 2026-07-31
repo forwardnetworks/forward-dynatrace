@@ -2,6 +2,7 @@
   "compileOnSave": false,
   "compilerOptions": {
     "allowJs": true,
+    "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "declaration": true,
     "emitDecoratorMetadata": true,
@@ -18,7 +19,8 @@
     "skipDefaultLibCheck": true,
     "skipLibCheck": true /* Skip type checking of declaration files. */,
     "sourceMap": true,
-    "strictNullChecks": true,
+    "strict": true,
+    "noEmit": true,
     "target": "ESNext",
     "types": ["node"],
     "typeRoots": ["./node_modules/@types", "./node_modules/@dynatrace"]

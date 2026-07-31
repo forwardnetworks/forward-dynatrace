@@ -8,9 +8,30 @@ export const SOURCE_KEY_TAG_PREFIX = "source-key:sha256:";
 const SOURCE_INSTANCE_PATTERN = /^[a-z0-9][a-z0-9._:-]{2,127}$/u;
 const SOURCE_KEY_PATTERN = /^source-key:sha256:[a-f0-9]{64}$/u;
 
-const stableObject = (value) => {
+interface DependencyIdentityInput {
+  destinationEntityId?: unknown;
+  destinationServiceEntityId?: unknown;
+  destination?: unknown;
+  port?: unknown;
+  protocol?: unknown;
+  serviceEntityId?: unknown;
+  sourceEntityId?: unknown;
+  source?: unknown;
+}
+
+export interface ManagedCheckIdentity {
+  managed: boolean;
+  errors: string[];
+  sourceInstance: string | null;
+  sourceKey: string | null;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const stableObject = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(stableObject);
-  if (value && typeof value === "object") {
+  if (isRecord(value)) {
     return Object.fromEntries(
       Object.entries(value)
         .sort(([left], [right]) => left.localeCompare(right))
@@ -20,12 +41,13 @@ const stableObject = (value) => {
   return value;
 };
 
-export const stableJson = (value) => JSON.stringify(stableObject(value));
+export const stableJson = (value: unknown): string =>
+  JSON.stringify(stableObject(value));
 
-export const sha256Hex = (value) =>
+export const sha256Hex = (value: string): string =>
   createHash("sha256").update(value, "utf8").digest("hex");
 
-export const normalizeSourceInstanceId = (value) => {
+export const normalizeSourceInstanceId = (value: unknown): string => {
   const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
   if (!SOURCE_INSTANCE_PATTERN.test(normalized)) {
     throw new Error(
@@ -35,12 +57,20 @@ export const normalizeSourceInstanceId = (value) => {
   return normalized;
 };
 
-export const sourceInstanceTag = (sourceInstanceId) =>
+export const sourceInstanceTag = (sourceInstanceId: unknown): string =>
   `${SOURCE_INSTANCE_TAG_PREFIX}${normalizeSourceInstanceId(sourceInstanceId)}`;
 
-const identityValue = (value) => String(value ?? "").trim();
+const identityValue = (value: unknown): string =>
+  typeof value === "string" ||
+  typeof value === "number" ||
+  typeof value === "boolean"
+    ? String(value).trim()
+    : "";
 
-export const dependencyIdentity = (dependency, { kind = "intent" } = {}) => ({
+export const dependencyIdentity = (
+  dependency: DependencyIdentityInput,
+  { kind = "intent" }: { kind?: string } = {},
+) => ({
   destination: identityValue(
     dependency.destinationEntityId ||
       dependency.destinationServiceEntityId ||
@@ -53,7 +83,13 @@ export const dependencyIdentity = (dependency, { kind = "intent" } = {}) => ({
   source: identityValue(dependency.sourceEntityId || dependency.source),
 });
 
-export const sourceKeyTag = ({ sourceInstanceId, identity }) => {
+export const sourceKeyTag = ({
+  sourceInstanceId,
+  identity,
+}: {
+  sourceInstanceId: unknown;
+  identity: unknown;
+}): string => {
   const scopedIdentity = {
     identity,
     sourceInstanceId: normalizeSourceInstanceId(sourceInstanceId),
@@ -61,26 +97,35 @@ export const sourceKeyTag = ({ sourceInstanceId, identity }) => {
   return `${SOURCE_KEY_TAG_PREFIX}${sha256Hex(stableJson(scopedIdentity))}`;
 };
 
-export const dependencySourceKeyTag = (dependency, options) =>
+export const dependencySourceKeyTag = (
+  dependency: DependencyIdentityInput,
+  options: { sourceInstanceId: unknown; kind?: string },
+): string =>
   sourceKeyTag({
     sourceInstanceId: options.sourceInstanceId,
     identity: dependencyIdentity(dependency, options),
   });
 
-export const requiredOwnershipTags = ({ sourceInstanceId, sourceKey }) => [
+export const requiredOwnershipTags = ({
+  sourceInstanceId,
+  sourceKey,
+}: {
+  sourceInstanceId: unknown;
+  sourceKey: string;
+}): string[] => [
   MANAGED_BY_TAG,
   CONTRACT_VERSION_TAG,
   sourceInstanceTag(sourceInstanceId),
   sourceKey,
 ];
 
-const tagsWithPrefix = (tags, prefix) =>
+const tagsWithPrefix = (tags: unknown, prefix: string): string[] =>
   (Array.isArray(tags) ? tags : []).filter((tag) =>
     typeof tag === "string" && tag.startsWith(prefix),
-  );
+  ) as string[];
 
-export const inspectManagedIdentity = (check) => {
-  const tags = Array.isArray(check?.tags) ? check.tags : [];
+export const inspectManagedIdentity = (check: unknown): ManagedCheckIdentity => {
+  const tags = isRecord(check) && Array.isArray(check.tags) ? check.tags : [];
   const managedByCount = tags.filter((tag) => tag === MANAGED_BY_TAG).length;
   const contractVersionCount = tags.filter(
     (tag) => tag === CONTRACT_VERSION_TAG,
@@ -115,9 +160,10 @@ export const inspectManagedIdentity = (check) => {
   };
 };
 
-export const managedSourceKey = (check) => {
+export const managedSourceKey = (check: unknown): string | null => {
   const identity = inspectManagedIdentity(check);
   return identity.managed ? identity.sourceKey : null;
 };
 
-export const isManagedCheck = (check) => inspectManagedIdentity(check).managed;
+export const isManagedCheck = (check: unknown): boolean =>
+  inspectManagedIdentity(check).managed;

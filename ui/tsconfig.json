@@ -2,6 +2,8 @@
   "compileOnSave": false,
   "compilerOptions": {
     "baseUrl": ".",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
     "declaration": true,
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
@@ -13,7 +15,7 @@
     "moduleResolution": "bundler",
     "paths": {},
     "resolveJsonModule": true,
-    "rootDir": ".",
+    "rootDir": "..",
     "skipDefaultLibCheck": true,
     "skipLibCheck": true /* Skip type checking of declaration files. */,
     "sourceMap": true,
