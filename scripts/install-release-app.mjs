@@ -187,6 +187,19 @@ const responseError = async (response, label) => {
   throw new Error(`${label} failed with HTTP ${response.status}${text ? `: ${text}` : "."}`);
 };
 
+const installationFailureDetails = (resourceStatus) => {
+  if (!Array.isArray(resourceStatus?.subResourceStatuses)) return "";
+  const details = resourceStatus.subResourceStatuses.flatMap((resource) => {
+    if (!resource || resource.status !== "FAILED") return [];
+    const label = String(resource.type || resource.name || resource.resourceType || "resource").slice(0, 100);
+    const message = String(
+      resource.errorMessage || resource.message || resource.statusMessage || "installation failed",
+    ).replace(/\s+/gu, " ").trim().slice(0, 500);
+    return [`${label}: ${message}`];
+  });
+  return details.length ? ` ${details.slice(0, 5).join("; ")}` : "";
+};
+
 const oauthToken = async ({ fetchImpl, env }) => {
   const clientId = env.DT_APP_OAUTH_CLIENT_ID;
   const clientSecret = env.DT_APP_OAUTH_CLIENT_SECRET;
@@ -251,7 +264,10 @@ export const installReleaseArchive = async ({
     if (!statusResponse.ok) await responseError(statusResponse, "Dynatrace app status");
     const app = await statusResponse.json();
     if (app.resourceStatus?.status === "ERROR" || app.resourceStatus?.status === "DEACTIVATED") {
-      throw new Error(`Dynatrace app installation ended in ${app.resourceStatus.status}.`);
+      throw new Error(
+        `Dynatrace app installation ended in ${app.resourceStatus.status}.` +
+        installationFailureDetails(app.resourceStatus),
+      );
     }
     if (app.resourceStatus?.status === "OK" && app.version === archive.appVersion) {
       return {

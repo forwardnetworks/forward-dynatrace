@@ -2,7 +2,7 @@
 
 | Area | Current support boundary |
 | --- | --- |
-| Product maturity | `0.12.x` enterprise preview; controlled evaluation and non-production use |
+| Product maturity | `0.13.x` enterprise preview; controlled evaluation and non-production use |
 | Dynatrace | SaaS with AppEngine, Workflow, Grail spans, app settings, and Site Reliability Guardian |
 | Forward | HTTPS `/api`, processed collection snapshots, host/path/check APIs, and approved NQE APIs |
 | Application runtime | Dynatrace AppEngine; no external runtime |
