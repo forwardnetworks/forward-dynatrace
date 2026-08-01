@@ -2,7 +2,7 @@
   "$schema": "https://developer.dynatrace.com/docs-assets/schema_strict_apps.json",
   "dynatrace": "1",
   "schemaId": "forward-api-connection",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "summaryPattern": "{name}",
   "displayName": "Forward API connection",
   "description": "Tenant-managed Forward API connection used only by the app backend",
@@ -30,7 +30,6 @@
       "description": "Operator-visible connection label",
       "type": "text",
       "nullable": false,
-      "forceSecretResubmission": false,
       "constraints": [
         {
           "type": "LENGTH",
@@ -47,7 +46,6 @@
       "type": "text",
       "subType": "url",
       "nullable": false,
-      "forceSecretResubmission": true,
       "constraints": [
         {
           "type": "LENGTH",
@@ -68,7 +66,6 @@
       "description": "Exact Forward network managed by this connection",
       "type": "text",
       "nullable": false,
-      "forceSecretResubmission": false,
       "constraints": [
         {
           "type": "LENGTH",
@@ -84,7 +81,6 @@
       "description": "APP_ENGINE-scoped Dynatrace Credential Vault username/password entry for the dedicated Forward service identity",
       "type": "text",
       "nullable": false,
-      "forceSecretResubmission": false,
       "constraints": [
         {
           "type": "LENGTH",
@@ -114,7 +110,6 @@
       "description": "Comma or newline separated FQ_ query IDs that a Read Only connection may execute (maximum 5000 characters)",
       "type": "text",
       "nullable": true,
-      "forceSecretResubmission": false,
       "constraints": [
         {
           "type": "LENGTH",
@@ -129,7 +124,6 @@
       "description": "Comma or newline separated sha256 digests for reviewed arbitrary NQE queries (maximum 5000 characters)",
       "type": "text",
       "nullable": true,
-      "forceSecretResubmission": false,
       "constraints": [
         {
           "type": "LENGTH",

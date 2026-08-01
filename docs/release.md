@@ -22,8 +22,8 @@ The project does not publish a Forward runtime, container image, operating-syste
 ```bash
 npm ci
 npm run ci
-git tag -a v0.13.1 -m "Forward for Dynatrace v0.13.1"
-git push origin v0.13.1
+git tag -a v0.13.2 -m "Forward for Dynatrace v0.13.2"
+git push origin v0.13.2
 ```
 
 Tags beginning with `v0.` are GitHub prereleases. The tag workflow validates that no prior workflow or release state
@@ -39,9 +39,9 @@ Optional Actions secret:
 
 ```bash
 npm run release:published:verify -- \
-  --release-name v0.13.1 \
+  --release-name v0.13.2 \
   --repository forwardnetworks/forward-dynatrace \
-  --output-dir /secure/evidence/forward-dynatrace-v0.13.1
+  --output-dir /secure/evidence/forward-dynatrace-v0.13.2
 ```
 
 The output directory must be new or empty. The verifier checks exact asset membership, checksums, optional signature,

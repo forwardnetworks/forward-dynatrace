@@ -189,15 +189,36 @@ const connectionSchema = JSON.parse(
 ) as {
   schemaId?: string;
   version?: string;
-  properties?: Record<string, { type?: string; nullable?: boolean; default?: string }>;
+  properties?: Record<string, {
+    type?: string;
+    nullable?: boolean;
+    default?: string;
+    forceSecretResubmission?: boolean;
+    constraints?: Array<{ type?: string }>;
+  }>;
+  schemaConstraints?: Array<{ type?: string }>;
 };
 if (connectionSchema.schemaId !== "forward-api-connection") fail("Forward connection schema ID is invalid.");
-if (connectionSchema.version !== "3.0.0") fail("Forward connection schema must use the Credential Vault v3 contract.");
+if (connectionSchema.version !== "3.0.1") fail("Forward connection schema must use the installable Credential Vault v3 contract.");
 if (connectionSchema.properties?.credentialVaultId?.type !== "text") {
   fail("Forward connection must reference a Dynatrace Credential Vault entry.");
 }
 if (connectionSchema.properties?.username || connectionSchema.properties?.password) {
   fail("Forward connection settings must not store raw username or password properties.");
+}
+const connectionProperties = Object.values(connectionSchema.properties || {});
+if (connectionProperties.some((property) => property.type === "secret")) {
+  fail("Forward connection settings must not store inline secrets.");
+}
+if (connectionProperties.some((property) => "forceSecretResubmission" in property)) {
+  fail("Vault-reference settings must not declare inline-secret resubmission metadata.");
+}
+const connectionConstraints = [
+  ...(connectionSchema.schemaConstraints || []),
+  ...connectionProperties.flatMap((property) => property.constraints || []),
+];
+if (connectionConstraints.some((constraint) => constraint.type === "SECRET_RESUBMISSION")) {
+  fail("Vault-reference settings must not declare a SECRET_RESUBMISSION constraint.");
 }
 if (connectionSchema.properties?.approvedLibraryQueryIds?.type !== "text") {
   fail("Forward connection must expose a bounded Read Only Library-query allowlist.");

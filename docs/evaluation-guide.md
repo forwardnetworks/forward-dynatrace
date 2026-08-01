@@ -25,7 +25,7 @@ settings. Forward credentials belong only in Dynatrace Credential Vault.
 ## 1. Verify The Release
 
 ```bash
-export RELEASE_TAG=v0.13.1
+export RELEASE_TAG=v0.13.2
 mkdir -p "/secure/forward-dynatrace/${RELEASE_TAG}"
 cd "/secure/forward-dynatrace/${RELEASE_TAG}"
 

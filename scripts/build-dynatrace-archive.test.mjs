@@ -8,14 +8,14 @@ test("parses the release archive arguments", () => {
     "--app-id",
     "my.forward",
     "--app-version",
-    "0.13.1",
+    "0.13.2",
     "--output",
     "out/my.forward.zip",
   ]);
   validateArgs(args);
   assert.deepEqual(args, {
     appId: "my.forward",
-    appVersion: "0.13.1",
+    appVersion: "0.13.2",
     output: "out/my.forward.zip",
   });
 });

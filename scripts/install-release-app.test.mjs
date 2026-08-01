@@ -121,3 +121,39 @@ test("uploads the exact verified bytes and waits for the matching ready version"
   assert.equal(calls[0].options.headers.Authorization, "Bearer protected-test-token");
   assert.equal(JSON.stringify(result).includes("protected-test-token"), false);
 });
+
+test("reports bounded failed subresource diagnostics without exposing the bearer token", async () => {
+  const files = await fixture();
+  const archive = await verifyReleaseArchive(files);
+  const responses = [
+    new Response(JSON.stringify({ id: "my.forward", warnings: [] }), { status: 202 }),
+    new Response(JSON.stringify({
+      id: "my.forward",
+      version: "0.11.0",
+      resourceStatus: {
+        status: "ERROR",
+        subResourceStatuses: [{
+          type: "SETTINGS_SCHEMAS",
+          status: "FAILED",
+          errorMessage: "Schema validation failed",
+        }],
+      },
+    }), { status: 200 }),
+  ];
+
+  await assert.rejects(
+    () => installReleaseArchive({
+      environmentUrl: "https://abc123.apps.dynatrace.com/",
+      archive,
+      token: "protected-test-token",
+      fetchImpl: async () => responses.shift(),
+      sleep: async () => {},
+      timeoutSeconds: 30,
+    }),
+    (error) => {
+      assert.match(error.message, /ERROR\. SETTINGS_SCHEMAS: Schema validation failed/u);
+      assert.equal(error.message.includes("protected-test-token"), false);
+      return true;
+    },
+  );
+});
