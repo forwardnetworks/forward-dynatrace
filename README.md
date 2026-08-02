@@ -1,7 +1,7 @@
 # Forward for Dynatrace
 
 [![CI](https://github.com/forwardnetworks/forward-dynatrace/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/forwardnetworks/forward-dynatrace/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/forwardnetworks/forward-dynatrace?include_prereleases&sort=semver)](https://github.com/forwardnetworks/forward-dynatrace/releases)
+[![Release](https://img.shields.io/github/v/release/forwardnetworks/forward-dynatrace?sort=semver)](https://github.com/forwardnetworks/forward-dynatrace/releases/latest)
 [![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=nodedotjs&logoColor=white)](.node-version)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
 
@@ -152,6 +152,11 @@ For upgrades, rollback, signed-app identity, and tenant scopes, see the [install
 6. Add **Synchronize Forward intent checks** to an on-demand Workflow and begin with `operation: plan` under Read Only.
 7. Add Network Admin apply only after approval ownership, budgets, and post-change closeout policy are established.
 
+In v0.13.x the network ID is entered manually; Credential Vault stores authentication and does not populate a dynamic
+network list. Private or internal-CA Forward endpoints require EdgeConnect with the CA configured for verified TLS.
+The app does not provide a certificate-verification bypass. See the
+[installation limitations](docs/install.md#on-premises-and-lab-forward-apis).
+
 The [enterprise evaluation guide](docs/evaluation-guide.md) provides a complete click-by-click acceptance sequence.
 
 ## Operate
@@ -170,7 +175,7 @@ See the [workflow guide](docs/workflow.md), [operations runbook](docs/operations
 
 ## Release Integrity
 
-GitHub prereleases publish exactly one Dynatrace app archive plus verification evidence. The project does not publish a
+GitHub releases publish exactly one Dynatrace app archive plus verification evidence. The project does not publish a
 container image, operating-system package, Python package, or Forward-side runtime. Published tags are immutable; any
 change requires a new version.
 
