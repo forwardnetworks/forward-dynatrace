@@ -3,6 +3,7 @@
   "syncMode": "direct-api",
   "forwardAccessProfile": "network-operator",
   "operation": "plan",
+  "approvalMode": "digest",
   "maxCreates": 1000,
   "maxUpdates": 100,
   "runPathPreflight": true,

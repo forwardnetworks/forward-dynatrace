@@ -25,7 +25,7 @@ settings. Forward credentials belong only in Dynatrace Credential Vault.
 ## 1. Verify The Release
 
 ```bash
-export RELEASE_TAG=v0.13.2
+export RELEASE_TAG=v0.13.4
 mkdir -p "/secure/forward-dynatrace/${RELEASE_TAG}"
 cd "/secure/forward-dynatrace/${RELEASE_TAG}"
 
@@ -85,11 +85,16 @@ port, application, environment, owner, and evidence-time values.
 
 1. Open **Settings > Connections > Credential vault**.
 2. Create a **Username and password** credential for the dedicated Forward integration identity.
-3. Select **AppEngine** scope and share it only with the required app administrators and Workflow actors.
-4. Save, then copy the `CREDENTIALS_VAULT-*` entity ID. Do not copy the username or password into app settings.
+3. Select **AppEngine** scope, keep **Allow access without app context** off, and retain owner-only user access unless
+   additional Workflow actors are explicitly approved.
+4. Under **Dynatrace apps with access**, select only the exact installed app when the tenant offers it. If an unsigned
+   enterprise-preview app is not a selectable candidate, record the sandbox exception and retain **All applications**
+   so the Workflow remains functional; do not treat that fallback as production-ready least privilege.
+5. Save, then copy the `CREDENTIALS_VAULT-*` entity ID. Do not copy the username or password into app settings.
 
 Expected: the secret is independently rotatable, access-controlled by Dynatrace, and attributable to a dedicated
-integration identity in Forward audit records.
+integration identity in Forward audit records. An app-selector exception or a human-backed/overprivileged Forward
+identity is an acceptance finding, not a completed production control.
 
 ## 6. Configure Read Only Forward Access
 

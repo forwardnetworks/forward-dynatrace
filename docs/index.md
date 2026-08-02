@@ -38,6 +38,7 @@
 ## Operations And Assurance
 
 - [Operations runbook](operations-runbook.md)
+- [v0.13.4 live sandbox acceptance](acceptance/2026-08-02-v0.13.4-live-sandbox.md)
 - [Incident response](incident-response.md)
 - [Change-validation gate](change-validation-gate.md)
 - [Check-health feedback](check-health-transition-feedback.md)

@@ -28,7 +28,10 @@ const jsonResponse = (value: unknown): Response => new Response(JSON.stringify(v
 });
 
 for (const example of examples) {
-  const payload = JSON.parse(await readFile(example, "utf8")) as ForwardSyncRequest;
+  const payload = JSON.parse(await readFile(example, "utf8")) as ForwardSyncRequest & {
+    approvalMode?: string;
+  };
+  assert.equal(payload.approvalMode, "digest", `${example} should make plan approval mode explicit`);
   const preview = forwardSync(payload);
   assert.equal(preview.status, "ready", `${example} should produce a ready plan preview`);
   assert.ok(preview.intentCheckCount > 0, `${example} should generate intent checks`);

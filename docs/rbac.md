@@ -31,6 +31,9 @@ Stale checks are report-only. The action has no delete path.
 - Dynatrace app viewers inspect only the bounded action result; credentials never appear in that result or the browser.
 - A tenant connection administrator stores the Forward service identity in an APP_ENGINE-scoped Dynatrace Credential
   Vault username/password entry. App settings retain only its entity ID; Vault sharing is limited through tenant IAM.
+  Ad hoc/no-app-context access remains off. The credential is restricted to the exact installed app when the tenant
+  exposes that app in the selector; an unsigned-preview fallback to **All applications** is a recorded sandbox
+  exception and a production blocker.
 - A workflow editor selects dependencies and stages plans.
 - A change approver reviews the digest, mutation counts, and changed source keys.
 - Only an explicitly configured Network Admin connection can perform apply.
@@ -40,3 +43,6 @@ a Network Admin connection only after acceptance evidence and tenant approval ex
 
 The Forward service identity must be named for the integration so Forward audit records attribute its activity to
 automation rather than a person. Human approval remains a separate tenant workflow and audit responsibility.
+Organization-wide administrator credentials are not a substitute for the service identity, even when the Workflow is
+plan-only. If API-token administration cannot enumerate or provision the dedicated identity, a Forward administrator
+must create it and rotate the Vault entry through the approved identity-management process.

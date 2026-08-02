@@ -73,3 +73,25 @@ Forward and Dynatrace answer different questions:
 - Dynatrace Guardian: did observed service health remain within accepted objectives?
 
 A mature change workflow requires both results. Neither is labeled root cause solely because the other failed.
+
+## On-Demand Read Only Acceptance
+
+Use an on-demand trigger for first acceptance. Do not add a schedule or Network Admin connection until cadence,
+ownership, write approval, and rollback are separately approved.
+
+1. Query a current evidence window from Grail and project the normalized dependency fields. For distributed tracing,
+   require current client/server spans from the applications in scope; payload examples are request-shape fixtures and
+   are not telemetry evidence.
+2. Feed `result("query_dependencies")["records"]` into the synchronization action with `operation: "plan"`,
+   `approvalMode: "digest"`, `runPathPreflight: true`, and the Read Only profile.
+3. Before deployment, open the action task and require the widget to render **Forward API connection** and
+   **Forward synchronization request draft**. A generic widget-load error is a release defect, not an acceptable
+   headless configuration path.
+4. Deploy only after confirming the trigger still reads **On demand**. Run once and retain the Workflow execution ID,
+   DQL query ID, aggregate host/path counts, reconciliation counts, package ID, and plan digest.
+5. Require the result boundary to be `tenant-managed-secret-backend-only`, the operation to be `plan`, and every
+   mutation count to remain zero. A second run should report the managed set as unchanged.
+
+Current lab acceptance may use generated application transactions only when they traverse the running lab network and
+arrive as current instrumented OTLP spans. Record that provenance as live sandbox traffic, not production customer
+traffic, and never substitute static, replayed, seeded, or payload-example rows.

@@ -60,6 +60,7 @@ test("builds environment-agnostic on-demand, schedule, and problem templates", (
   );
   assert.match(schedule.workflow.tasks.sync_forward_intent_checks.input.request, /"syncMode": "direct-api"/u);
   assert.match(schedule.workflow.tasks.sync_forward_intent_checks.input.request, /"operation": "plan"/u);
+  assert.match(schedule.workflow.tasks.sync_forward_intent_checks.input.request, /"approvalMode": "digest"/u);
   assert.match(schedule.workflow.tasks.sync_forward_intent_checks.input.request, /"runPathPreflight": true/u);
   assert.equal(schedule.workflow.trigger.schedule.trigger.intervalMinutes, 15);
   assert.equal(

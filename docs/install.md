@@ -25,7 +25,7 @@ is separate from the Forward service identity and is used only by the AppEngine 
 Download the app archive and all verification evidence from the same release:
 
 ```bash
-export RELEASE_TAG=v0.13.2
+export RELEASE_TAG=v0.13.4
 mkdir -p "/secure/forward-dynatrace/${RELEASE_TAG}"
 cd "/secure/forward-dynatrace/${RELEASE_TAG}"
 
@@ -80,7 +80,11 @@ change the Forward API architecture or access model. See [application identities
 2. Create the dedicated Forward service identity. Name it so Forward audit records identify this integration rather
    than a person, and grant Read Only for initial acceptance.
 3. In Dynatrace Credential Vault, create a username/password entry for that identity with **AppEngine** scope. Record
-   its `CREDENTIALS_VAULT-*` entity ID and grant only the required app users access.
+   its `CREDENTIALS_VAULT-*` entity ID, keep **Allow access without app context** off, and keep owner-only user access
+   unless additional Workflow actors are explicitly approved. Restrict **Dynatrace apps with access** to the exact
+   installed app when the tenant selector offers `my.forward` or `com.forward.dynatrace`. If an enterprise-preview
+   custom app is not offered, retain **All applications** only as a recorded sandbox exception; do not leave an
+   empty app list or move the credential outside AppEngine scope.
 4. Create a reviewed **Dependency discovery profile**. Choose **Distributed traces** or **OneAgent network flows**, then
    use the matching template and canonical fields in [dependency discovery](dependency-discovery.md).
 5. In Workflow, add **Synchronize Forward intent checks**.

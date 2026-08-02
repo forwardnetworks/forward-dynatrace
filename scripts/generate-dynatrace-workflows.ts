@@ -164,7 +164,7 @@ const requestExpression = (
   sourceInstanceId: string,
   forwardAccessProfile: ForwardAccessProfile,
 ): string =>
-  `{{ {"sourceInstanceId": "${sourceInstanceId}", "syncMode": "direct-api", "forwardAccessProfile": "${forwardAccessProfile}", "operation": "plan", "maxCreates": 1000, "maxUpdates": 100, "runPathPreflight": true, "approvedPlanDigest": "", "approvedSourceKeys": [], "dependencies": result("query_dependencies")["records"]} | to_json }}`;
+  `{{ {"sourceInstanceId": "${sourceInstanceId}", "syncMode": "direct-api", "forwardAccessProfile": "${forwardAccessProfile}", "operation": "plan", "approvalMode": "digest", "maxCreates": 1000, "maxUpdates": 100, "runPathPreflight": true, "approvedPlanDigest": "", "approvedSourceKeys": [], "dependencies": result("query_dependencies")["records"]} | to_json }}`;
 
 const workflowTemplate = ({
   title,

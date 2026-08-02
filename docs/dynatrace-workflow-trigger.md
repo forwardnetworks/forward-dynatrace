@@ -8,8 +8,13 @@ from the app backend through the selected tenant-managed Credential Vault refere
 1. Add the action to an on-demand, scheduled, or problem-triggered Workflow.
 2. Select a `forward-api-connection` settings object.
 3. Provide dependency rows through a Workflow expression or JSON request.
-4. Run `operation: "plan"` first and retain the action result.
+4. Run `operation: "plan"` with an explicit `approvalMode: "digest"` first and retain the action result.
 5. For Network Admin apply, require human or policy approval of the exact plan digest, budgets, and changed source keys.
+
+For first acceptance, use an on-demand trigger and a current Grail query task followed by the synchronization action.
+Before deployment, open the action input and require the widget to show **Forward API connection** and **Forward
+synchronization request draft**. Deploy only while the trigger remains on demand; scheduling is a separate operations
+decision.
 
 Use Read Only for the initial sandbox. Network Operator is appropriate only when reviewed arbitrary NQE execution is
 needed. Neither profile can create or update intent checks.

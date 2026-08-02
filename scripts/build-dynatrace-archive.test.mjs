@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseArgs, validateArgs } from "./build-dynatrace-archive.mjs";
+import AdmZip from "adm-zip";
+
+import {
+  addWorkflowWidgetCompatibilityEntries,
+  parseArgs,
+  validateArgs,
+} from "./build-dynatrace-archive.mjs";
 
 test("parses the release archive arguments", () => {
   const args = parseArgs([
@@ -26,4 +32,31 @@ test("rejects invalid or incomplete archive arguments", () => {
     /app ID/u,
   );
   assert.throws(() => parseArgs(["--tenant-token", "secret"]), /Unknown option/u);
+});
+
+test("adds the hosted Workflows compatibility path without removing toolkit widgets", () => {
+  const archive = new AdmZip();
+  archive.addFile(
+    "widgets/actions/sync-forward-intent-checks/index.html",
+    Buffer.from("widget-html"),
+  );
+  archive.addFile(
+    "widgets/actions/sync-forward-intent-checks/index.js",
+    Buffer.from("widget-js"),
+  );
+
+  addWorkflowWidgetCompatibilityEntries(archive);
+
+  assert.equal(
+    archive.readAsText("widgets/actions/sync-forward-intent-checks/index.html"),
+    "widget-html",
+  );
+  assert.equal(
+    archive.readAsText("ui/widgets/actions/sync-forward-intent-checks/index.html"),
+    "widget-html",
+  );
+  assert.equal(
+    archive.readAsText("ui/widgets/actions/sync-forward-intent-checks/index.js"),
+    "widget-js",
+  );
 });
