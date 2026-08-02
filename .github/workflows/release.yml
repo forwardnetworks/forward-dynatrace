@@ -103,16 +103,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          RELEASE_ARGS=()
           RELEASE_NOTES_ARGS=(--notes "Forward for Dynatrace app release. The Dynatrace app is the only installable. Verify the app archive and SBOM with SHA256SUMS; if signature files are present, verify them before trusting the checksum file.")
-          if [[ "${GITHUB_REF_NAME}" == v0.* ]]; then
-            RELEASE_ARGS+=(--prerelease)
-          fi
           if [[ -f "docs/releases/${GITHUB_REF_NAME}.md" ]]; then
             RELEASE_NOTES_ARGS=(--notes-file "docs/releases/${GITHUB_REF_NAME}.md")
           fi
           gh release create "${GITHUB_REF_NAME}" out/release/* \
             --verify-tag \
+            --latest \
             --title "${GITHUB_REF_NAME}" \
-            "${RELEASE_NOTES_ARGS[@]}" \
-            "${RELEASE_ARGS[@]}"
+            "${RELEASE_NOTES_ARGS[@]}"

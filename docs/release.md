@@ -12,7 +12,7 @@ Every tag publishes one installable product: the Forward for Dynatrace app archi
 
 The project does not publish a Forward runtime, container image, operating-system package, or Python package.
 
-## Create A Prerelease
+## Create A Release
 
 1. Update `package.json`, `package-lock.json`, and `app.config.json` to the same semantic version.
 2. Add `docs/releases/v<version>.md` with operator-facing release notes.
@@ -26,10 +26,11 @@ git tag -a v0.13.4 -m "Forward for Dynatrace v0.13.4"
 git push origin v0.13.4
 ```
 
-Tags beginning with `v0.` are GitHub prereleases. The tag workflow validates that no prior workflow or release state
-exists for the version, runs every release gate, builds the app archive with the repository's exact pinned Dynatrace
-toolkit, generates the SBOM and checksums, optionally signs the checksum file, attests every file, and publishes the
-release. Archive publication is tenant-independent; installation remains an authenticated tenant operation.
+Version tags are published as stable GitHub releases and the newest version is marked **Latest**. The tag workflow
+validates that no prior workflow or release state exists for the version, runs every release gate, builds the app
+archive with the repository's exact pinned Dynatrace toolkit, generates the SBOM and checksums, optionally signs the
+checksum file, attests every file, and publishes the release. Archive publication is tenant-independent; installation
+remains an authenticated tenant operation.
 
 Optional Actions secret:
 

@@ -95,3 +95,33 @@ ownership, write approval, and rollback are separately approved.
 Current lab acceptance may use generated application transactions only when they traverse the running lab network and
 arrive as current instrumented OTLP spans. Record that provenance as live sandbox traffic, not production customer
 traffic, and never substitute static, replayed, seeded, or payload-example rows.
+
+## On-Demand NQE Acceptance
+
+Use a separate on-demand Workflow task with the `run-forward-nqe-evidence` action to prove the installed async NQE
+surface. Do not add a schedule. A Read Only connection can resume a server-issued execution key whose original
+submission already enforced the query approval; it cannot submit arbitrary query text. Store the execution key only in
+protected operator state and configure this request through the action widget:
+
+```json
+{
+  "forwardAccessProfile": "read-only",
+  "executionKey": "X_<server-issued-execution-key>",
+  "maxRows": 1
+}
+```
+
+Require Workflow and task `SUCCESS`, `status: ready`, `query.kind: resumed`, `query.resumed: true`, bounded row counts,
+and the sanitized-evidence disclaimer. Retain only aggregate counts and Workflow/execution IDs. A direct Platform-token
+function call is not equivalent because it may lack the action's Workflow credential scope.
+
+## Synthetic Write Rehearsal
+
+Run writes only against an isolated non-customer network. Stage the immutable plan first, bind the exact digest and
+changed-source-key set, keep create/update budgets at the minimum needed, require modeled path preflight, and verify
+the action's own post-apply readback. A complete rehearsal covers one uniquely identifiable create with exact cleanup,
+a bounded update with baseline restoration, and a final Read Only plan reporting the entire managed set unchanged.
+
+Testing the exact action logic with protected lab credentials proves Forward API create/update compatibility. It does
+not prove a tenant-installed Network Admin Workflow unless the installed action runs through a separately approved
+Dynatrace Credential Vault connection and Workflow approval context.

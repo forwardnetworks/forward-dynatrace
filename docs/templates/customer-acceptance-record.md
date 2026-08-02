@@ -11,7 +11,7 @@ aliases, aggregate counts, immutable hashes, and protected-record references.
 | Protected evidence record | `<record-reference>` |
 | Environment alias | `<non-sensitive-alias>` |
 | Review window | `<start/end in UTC>` |
-| Integration release | `<immutable 0.x prerelease tag>` |
+| Integration release | `<immutable 0.x release tag>` |
 | Release commit | `<40-character commit>` |
 | App identity | `<my.forward or com.forward.dynatrace>` |
 | Forward network alias | `<non-sensitive-alias>` |

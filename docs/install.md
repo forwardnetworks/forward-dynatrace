@@ -96,6 +96,26 @@ change the Forward API architecture or access model. See [application identities
 The app settings object, browser, and Workflow result never receive the Forward username or password. See Dynatrace's
 [Credential Vault guidance](https://developer.dynatrace.com/develop/guides/security/manage-secrets/).
 
+### On-Premises And Lab Forward APIs
+
+The v0.13.x connection schema stores an exact Forward network ID as operator-reviewed text. A Credential Vault entry
+contains the Forward secret, not a network inventory, and the declarative settings form cannot populate a dynamic
+network dropdown from that secret. Confirm the network ID in Forward before saving the connection. A future custom
+configuration UI could resolve the Vault entry in an app function, list accessible networks through the Forward API,
+return only sanitized network labels and IDs, and then save the selected ID; the browser must never receive the
+credential.
+
+Forward API URLs must use HTTPS, and certificate verification cannot be disabled per connection. The app does not
+support `http:`, a `verifyTls: false` setting, `NODE_TLS_REJECT_UNAUTHORIZED`, or a browser-supplied CA bundle. A direct
+endpoint must present a certificate chain trusted by the Dynatrace runtime. When the Forward API is private or uses an
+internal CA, route it through EdgeConnect and configure the CA certificate in EdgeConnect's `certificate_paths`; TLS
+verification remains enabled. Follow Dynatrace's
+[EdgeConnect custom TLS certificate guidance](https://docs.dynatrace.com/docs/ingest-from/edgeconnect#custom-tls-certificates).
+
+For a lab, issue the Forward endpoint certificate from a lab CA, include the API hostname in the certificate SAN, and
+mount that CA into EdgeConnect. A self-signed or hostname-mismatched endpoint without the required trust configuration
+is unsupported and fails closed. Do not weaken certificate verification to make a lab connection succeed.
+
 ## Development Deployment
 
 Source deployment is for engineering validation only and is not a substitute for an immutable release archive:

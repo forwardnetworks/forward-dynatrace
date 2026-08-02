@@ -23,7 +23,7 @@ const repository = "forwardnetworks/forward-dynatrace";
 const releaseMetadata = {
   tagName: "v0.11.0",
   isDraft: false,
-  isPrerelease: true,
+  isPrerelease: false,
   publishedAt: "2026-07-18T18:30:00.000Z",
   url: "https://github.com/forwardnetworks/forward-dynatrace/releases/tag/v0.11.0",
   targetCommitish: "main",
@@ -70,6 +70,13 @@ test("validates app-only release metadata, workflow, SBOM, and checksums", () =>
     components: [{}],
   }, "0.11.0"), { format: "CycloneDX", specVersion: "1.5", components: 1 });
   assert.equal(parseChecksums(`${"b".repeat(64)}  forward-dynatrace-app-v0.11.0.zip\n`).size, 1);
+});
+
+test("rejects GitHub prerelease metadata", () => {
+  assert.throws(
+    () => validateReleaseMetadata({ ...releaseMetadata, isPrerelease: true }, "v0.11.0"),
+    /unexpectedly marked as a prerelease/u,
+  );
 });
 
 test("binds release attestations to the exact app artifact and workflow run", () => {
