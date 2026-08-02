@@ -22,6 +22,10 @@ const requiredMembers = [
   "settings/schemas/forward-api-connection.schema.json",
   "widgets/actions/run-forward-nqe-evidence/index.js",
   "widgets/actions/sync-forward-intent-checks/index.js",
+  "ui/widgets/actions/run-forward-nqe-evidence/index.html",
+  "ui/widgets/actions/run-forward-nqe-evidence/index.js",
+  "ui/widgets/actions/sync-forward-intent-checks/index.html",
+  "ui/widgets/actions/sync-forward-intent-checks/index.js",
 ];
 
 const fixture = async () => {

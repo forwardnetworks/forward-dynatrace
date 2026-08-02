@@ -57,8 +57,8 @@ const requestOperation = (request: string): RequestOperation => {
       return parsed.operation;
     }
   } catch {
-    if (/['\"]operation['\"]\s*:\s*['\"]apply['\"]/u.test(request)) return "apply";
-    if (/['\"]operation['\"]\s*:\s*['\"]plan['\"]/u.test(request)) return "plan";
+    if (/['"]operation['"]\s*:\s*['"]apply['"]/u.test(request)) return "apply";
+    if (/['"]operation['"]\s*:\s*['"]plan['"]/u.test(request)) return "plan";
   }
   return "unknown";
 };
@@ -120,7 +120,7 @@ const applyReview = (request: string): ApplyReview => {
   } catch {
     // Workflow expressions are evaluated by Automation at execution time.
   }
-  const pathPreflightRequired = /['\"]runPathPreflight['\"]\s*:\s*true/u.test(request);
+  const pathPreflightRequired = /['"]runPathPreflight['"]\s*:\s*true/u.test(request);
   return {
     approvalMode: "resolved from workflow expression at execution",
     digest: "resolved from workflow expression at execution",

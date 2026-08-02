@@ -7,6 +7,7 @@ explicitly identified; environment evidence is live-verified.
 | Control | Automated evidence | Environment evidence before promotion |
 | --- | --- | --- |
 | Dependency discovery | normalization, profile, schema, and Workflow generator tests | Current spans from the applications in scope |
+| Workflow widget | Unicode-regex parse test plus archive, installer, and release-package checks for both widget paths | Open the action task and require the connection picker and request editor to render without a hosted JavaScript error |
 | Fail-closed mapping | stale, malformed, review-required, and unmapped-row tests | Operator review of aggregate exclusion counts |
 | Read Only and Network Operator | action tests prove plan-only behavior and zero mutation calls | Read Only Workflow run against a processed snapshot |
 | Network Admin approval | Mock-verified compatibility digest authorization plus engine-approval success; missing context, declined outcome, stale original plan, mismatched original plan/nonce; snapshot, budget, changed-key, collision, zero-mutation rejection, and post-apply readback tests | Existing live digest-mode negative guards and bounded PATCH/readback cycle described below. **Not covered live:** engine-approval mode |
@@ -44,6 +45,10 @@ does not delete checks, manual cleanup may still be required.
 `npm run ci` must pass from a clean checkout on Node.js 24. The tag workflow repeats the gate before it builds or
 publishes an archive. After publication, `npm run release:published:verify` independently downloads and verifies the
 release.
+
+The bounded August 2, 2026 UTC Read Only tenant result is recorded in
+[`docs/acceptance/2026-08-02-v0.13.4-live-sandbox.md`](acceptance/2026-08-02-v0.13.4-live-sandbox.md). It is explicit
+environment evidence and does not convert mocked write-path controls into live-verified controls.
 
 ## Promotion Evidence
 

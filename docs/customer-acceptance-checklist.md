@@ -8,6 +8,8 @@
 - [ ] Create at least one reviewed tenant-owned distributed-trace or OneAgent network-flow discovery profile.
 - [ ] Confirm application, environment, endpoint, protocol, port, owner, and evidence-time mappings are authoritative.
 - [ ] Store a dedicated Read Only Forward integration identity in an APP_ENGINE-scoped Credential Vault entry.
+- [ ] Keep ad hoc/no-app-context Vault access off and restrict the credential to the exact installed app; record an
+      unsigned-preview **All applications** fallback as a production blocker.
 - [ ] Confirm the Forward connection stores only the Vault entity ID, not a username or password.
 - [ ] Confirm the browser and Workflow result cannot reveal the credential.
 
@@ -21,6 +23,8 @@
 
 ## Synchronization
 
+- [ ] Open the Workflow action input and prove the connection picker and request editor render from the installed app.
+- [ ] Deploy the first Workflow as on demand and prove no schedule was added.
 - [ ] Run plan under Read Only and prove no mutation requests occur.
 - [ ] If Network Operator is used, prove intent-check writes remain blocked.
 - [ ] Before Network Admin, approve budgets and separation of duties.

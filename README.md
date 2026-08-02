@@ -9,7 +9,7 @@ Forward for Dynatrace converts observed application dependencies into governed n
 evidence. Application, network, and change teams can validate the same business-critical relationships before and
 after a change while Dynatrace and Forward remain authoritative for their respective data.
 
-> **Release channel:** `0.13.2` enterprise preview for controlled evaluation and non-production use. The release is
+> **Release channel:** `0.13.4` enterprise preview for controlled evaluation and non-production use. The release is
 > delivered as one immutable Dynatrace app archive with checksums, an SBOM, and GitHub attestations.
 
 ![Forward for Dynatrace application overview](docs/assets/screenshots/dynatrace-app-overview.png)
@@ -101,7 +101,7 @@ The `/secure` path below is an example. Use an operator-owned directory with per
 evidence in your environment.
 
 ```bash
-export RELEASE_TAG=v0.13.2
+export RELEASE_TAG=v0.13.4
 mkdir -p "/secure/forward-dynatrace/${RELEASE_TAG}"
 cd "/secure/forward-dynatrace/${RELEASE_TAG}"
 

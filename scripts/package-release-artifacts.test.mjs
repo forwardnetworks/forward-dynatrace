@@ -17,6 +17,10 @@ const makeFixture = async ({ includeSettings = true } = {}) => {
     "api/sync-forward-intent-checks.js",
     "widgets/actions/run-forward-nqe-evidence/index.js",
     "widgets/actions/sync-forward-intent-checks/index.js",
+    "ui/widgets/actions/run-forward-nqe-evidence/index.html",
+    "ui/widgets/actions/run-forward-nqe-evidence/index.js",
+    "ui/widgets/actions/sync-forward-intent-checks/index.html",
+    "ui/widgets/actions/sync-forward-intent-checks/index.js",
   ];
   if (includeSettings) members.push(
     "settings/schemas/forward-api-connection.schema.json",

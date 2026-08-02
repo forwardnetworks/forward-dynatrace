@@ -23,6 +23,12 @@ const REQUIRED_ENTRIES = Object.freeze([
   "api/sync-forward-intent-checks.js",
   "settings/schemas/dependency-discovery-profile.schema.json",
   "settings/schemas/forward-api-connection.schema.json",
+  "ui/widgets/actions/run-forward-nqe-evidence/index.css",
+  "ui/widgets/actions/run-forward-nqe-evidence/index.html",
+  "ui/widgets/actions/run-forward-nqe-evidence/index.js",
+  "ui/widgets/actions/sync-forward-intent-checks/index.css",
+  "ui/widgets/actions/sync-forward-intent-checks/index.html",
+  "ui/widgets/actions/sync-forward-intent-checks/index.js",
 ]);
 const EXPECTED_TOOLKIT_VERSION = "1.13.1";
 
@@ -60,6 +66,25 @@ export const validateArgs = (args) => {
     throw new Error("--app-version must be valid SemVer.");
   }
   if (!args.output) throw new Error("--output is required.");
+};
+
+export const addWorkflowWidgetCompatibilityEntries = (appArtifact) => {
+  const existingEntries = new Set(
+    appArtifact.getEntries().map((entry) => entry.entryName),
+  );
+  const workflowWidgetEntries = appArtifact.getEntries().filter(
+    (entry) => !entry.isDirectory && entry.entryName.startsWith("widgets/actions/"),
+  );
+  if (workflowWidgetEntries.length === 0) {
+    throw new Error("Dynatrace app archive does not contain workflow action widgets.");
+  }
+  for (const entry of workflowWidgetEntries) {
+    const compatibilityPath = `ui/${entry.entryName}`;
+    if (!existingEntries.has(compatibilityPath)) {
+      appArtifact.addFile(compatibilityPath, entry.getData());
+      existingEntries.add(compatibilityPath);
+    }
+  }
 };
 
 const manifestField = (manifest, name) => {
@@ -108,6 +133,10 @@ export const buildArchive = async ({ appId, appVersion, output }) => {
     shouldBuild: false,
     shouldValidateManifest: false,
   });
+  // Current Workflows resolves installed action widgets below /ui/widgets/actions,
+  // while the pinned toolkit packages them below /widgets/actions. Preserve the
+  // toolkit path and add a byte-identical compatibility path for the hosted runtime.
+  addWorkflowWidgetCompatibilityEntries(appArtifact);
   const entries = new Set(appArtifact.getEntries().map((entry) => entry.entryName));
   for (const required of REQUIRED_ENTRIES) {
     if (!entries.has(required)) throw new Error(`Dynatrace app archive is missing ${required}.`);
