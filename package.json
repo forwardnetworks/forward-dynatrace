@@ -130,7 +130,7 @@
     "adm-zip": "0.6.0",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "dt-app": "1.13.1",
+    "dt-app": "1.14.1",
     "eslint": "^9.37.0",
     "eslint-plugin-n": "17.24.0",
     "eslint-plugin-no-secrets": "^2.2.1",
@@ -138,8 +138,8 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^6.1.1",
     "eslint-plugin-security": "^3.0.1",
-    "playwright": "^1.61.1",
+    "playwright": "^1.62.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.62.1"
+    "typescript-eslint": "^8.65.0"
   }
 }
