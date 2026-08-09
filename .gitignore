@@ -9,6 +9,9 @@
 # Deployment artifact
 /out
 
+# Customer-specific generated deliverables
+/output
+
 # Dependencies
 /node_modules
 

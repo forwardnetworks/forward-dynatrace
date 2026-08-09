@@ -1257,3 +1257,36 @@
     border-radius: 8px;
   }
 }
+.connection-diagnostic-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.connection-diagnostic-controls {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) auto;
+  align-items: end;
+  gap: 16px;
+}
+
+.connection-picker-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.connection-picker-control > span {
+  font-weight: 600;
+}
+
+.diagnostic-boundary {
+  color: var(--dt-colors-text-neutral-subdued-default, #6d6d6d);
+}
+
+@media (max-width: 720px) {
+  .connection-diagnostic-controls {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+}

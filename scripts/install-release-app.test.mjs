@@ -15,6 +15,7 @@ import {
 } from "./install-release-app.mjs";
 
 const requiredMembers = [
+  "api/forward-connection-diagnostic.js",
   "api/dependency-discovery.js",
   "api/run-forward-nqe-evidence.js",
   "api/sync-forward-intent-checks.js",

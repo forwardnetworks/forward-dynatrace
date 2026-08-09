@@ -12,6 +12,7 @@ import AdmZip from "adm-zip";
 const makeFixture = async ({ includeSettings = true } = {}) => {
   const root = await mkdtemp(path.join(tmpdir(), "forward-dynatrace-app-fixture-"));
   const members = [
+    "api/forward-connection-diagnostic.js",
     "api/dependency-discovery.js",
     "api/run-forward-nqe-evidence.js",
     "api/sync-forward-intent-checks.js",

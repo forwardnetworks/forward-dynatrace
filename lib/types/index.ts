@@ -52,3 +52,10 @@ export type {
   NqePreviewStatus,
   NqeTemplateId,
 } from "./nqe.ts";
+
+export type {
+  ForwardConnectionDiagnosticChecks,
+  ForwardConnectionDiagnosticResponse,
+  ForwardDiagnosticCheckStatus,
+  ForwardDiagnosticStatus,
+} from "./diagnostic.ts";

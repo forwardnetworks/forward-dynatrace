@@ -1,0 +1,15 @@
+// Azure inventory and configuration context for Notebook mapping review.
+// These rows do not contain an observed source, destination, protocol, and
+// destination port, so they are not dependency-discovery profile output.
+
+smartscapeNodes "AZURE_*"
+| fields
+    id,
+    name,
+    type,
+    `azure.resource.name`,
+    `azure.resource.group`,
+    `azure.resource.kind`,
+    `azure.resource.sku.name`
+| sort type asc, name asc
+| limit 1000

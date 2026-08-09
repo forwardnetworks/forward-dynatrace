@@ -17,6 +17,7 @@ const REQUIRED_ENTRIES = Object.freeze([
   "icon.svg",
   "ui/index.html",
   "ui/main.js",
+  "api/forward-connection-diagnostic.js",
   "api/dependency-discovery.js",
   "api/forward-sync.js",
   "api/run-forward-nqe-evidence.js",

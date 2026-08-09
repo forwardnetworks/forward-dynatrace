@@ -20,6 +20,7 @@ const requiredFiles = [
   "package-lock.json",
   ".node-version",
   ".nvmrc",
+  "api/forward-connection-diagnostic.function.ts",
   "api/forward-sync.function.ts",
   "api/dependency-discovery.function.ts",
   "actions/sync-forward-intent-checks.action.ts",
@@ -37,7 +38,9 @@ const requiredFiles = [
   "lib/forward-authorization.ts",
   "lib/forward-client.ts",
   "lib/forward-connection.ts",
+  "lib/forward-connection-diagnostic.ts",
   "lib/forward-evidence.ts",
+  "lib/operational-log.ts",
   "lib/forward-nqe-preview.ts",
   "lib/intent-builder.ts",
   "lib/reconciliation.ts",
@@ -47,6 +50,8 @@ const requiredFiles = [
   "lib/types/forward.ts",
   "lib/types/nqe.ts",
   "scripts/dynatrace-export-action.test.mjs",
+  "scripts/forward-connection-diagnostic.test.mjs",
+  "scripts/validate-operator-docs.mjs",
   "scripts/plan-digest-stability.test.mjs",
   "scripts/deploy-dynatrace-app.mjs",
   "scripts/install-release-app.mjs",
@@ -70,6 +75,7 @@ const requiredFiles = [
   "scripts/validate-repo.mjs",
   "scripts/validate-repo.ts",
   "docs/index.md",
+  "docs/sandbox-enablement-runbook.md",
   "docs/install.md",
   "docs/evaluation-guide.md",
   "docs/dependency-discovery.md",
@@ -114,6 +120,7 @@ const activeProductDocs = [
   "actions/run-forward-nqe-evidence.logic.ts",
   ".github/pull_request_template.md",
   "docs/index.md",
+  "docs/sandbox-enablement-runbook.md",
   "docs/install.md",
   "docs/evaluation-guide.md",
   "docs/dependency-discovery.md",
@@ -331,6 +338,7 @@ if (!String(packageJson.scripts?.ci || "").includes("npm run plan-digest:test"))
 }
 
 const adapterFiles = [
+  "api/forward-connection-diagnostic.function.ts",
   "api/dependency-discovery.function.ts",
   "api/forward-nqe-preview.function.ts",
   "api/forward-sync.function.ts",
@@ -364,6 +372,10 @@ if (!nqeAction.includes('from "../lib/run-forward-nqe-evidence-action.ts"')) {
 const discoveryFunction = await readText("api/dependency-discovery.function.ts");
 if (!discoveryFunction.includes('from "../lib/dependency-discovery-handler.ts"')) {
   fail("The dependency discovery app function must remain a thin adapter over lib/dependency-discovery-handler.ts.");
+}
+const connectionDiagnosticFunction = await readText("api/forward-connection-diagnostic.function.ts");
+if (!connectionDiagnosticFunction.includes('from "../lib/forward-connection-diagnostic.ts"')) {
+  fail("The Forward connection diagnostic app function must remain an adapter over lib/forward-connection-diagnostic.ts.");
 }
 const syncFunction = await readText("api/forward-sync.function.ts");
 if (!syncFunction.includes('from "../lib/intent-builder.ts"')) {

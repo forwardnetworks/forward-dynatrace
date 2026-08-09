@@ -22,6 +22,7 @@ There is no Forward runtime, container image, service, agent, or second installa
 
 const requiredAppMembers = [
   "manifest.yaml",
+  "api/forward-connection-diagnostic.js",
   "api/dependency-discovery.js",
   "api/run-forward-nqe-evidence.js",
   "api/sync-forward-intent-checks.js",

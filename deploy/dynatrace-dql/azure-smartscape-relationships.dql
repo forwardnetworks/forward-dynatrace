@@ -1,0 +1,16 @@
+// Azure topology relationships for Notebook mapping review.
+// Configuration edges such as runs_on, is_attached_to, or belongs_to do not
+// prove that an application TCP/UDP flow was observed.
+
+smartscapeEdges "*"
+| filter
+    startsWith(toString(source_type), "AZURE_")
+    or startsWith(toString(target_type), "AZURE_")
+| fields
+    source_id,
+    source_type,
+    type,
+    target_id,
+    target_type
+| sort source_type asc, type asc, target_type asc
+| limit 1000

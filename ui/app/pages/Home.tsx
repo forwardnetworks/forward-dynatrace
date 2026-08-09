@@ -25,11 +25,13 @@ import {
   UploadIcon,
 } from "@dynatrace/strato-icons";
 import { useAppFunction, useDql } from "@dynatrace-sdk/react-hooks";
+import { AutomationConnectionPicker } from "@dynatrace/automation-action-components";
 
 import { CrossDomainEvidence } from "../components/CrossDomainEvidence";
 import type {
   DependencyCandidate,
   DependencyDiscoveryResponse,
+  ForwardConnectionDiagnosticResponse,
   ForwardAccessProfile,
   ForwardSyncMode,
   ForwardSyncRequest,
@@ -172,6 +174,7 @@ export const Home = () => {
   const [problemId, setProblemId] = useState("P-000000");
   const [sourceInstanceId, setSourceInstanceId] = useState("");
   const [selectedDiscoveryProfileId, setSelectedDiscoveryProfileId] = useState("");
+  const [diagnosticConnectionId, setDiagnosticConnectionId] = useState("");
   const [forwardBaseUrl, setForwardBaseUrl] = useState("");
   const [forwardNetworkId, setForwardNetworkId] = useState("");
   const [includeReviewRows, setIncludeReviewRows] = useState(false);
@@ -190,6 +193,13 @@ export const Home = () => {
         : {},
     },
     { autoFetch: true, autoFetchOnUpdate: true },
+  );
+  const connectionDiagnostic = useAppFunction<ForwardConnectionDiagnosticResponse>(
+    {
+      name: "forward-connection-diagnostic",
+      data: diagnosticConnectionId ? { connectionId: diagnosticConnectionId } : {},
+    },
+    { autoFetch: false, autoFetchOnUpdate: false },
   );
   const liveIngestStatusQuery = useDql<DynatraceDependencyRow>(
     {
@@ -514,6 +524,79 @@ export const Home = () => {
           tenant-managed Vault-backed connection. Read Only and Network Operator are plan-only; Network Admin
           creates or exact-approved updates managed checks. Credentials never enter the browser.
         </span>
+      </section>
+
+      <section className="panel connection-diagnostic-panel" aria-label="Forward connection diagnostic">
+        <PanelHeader
+          icon={<NetworkIcon />}
+          title="Forward Connection Diagnostic"
+          detail="Non-mutating Credential Vault, HTTPS, authentication, network, and snapshot check"
+          badge="GET only"
+        />
+        <div className="connection-diagnostic-controls">
+          <label className="connection-picker-control">
+            <span>Forward API connection</span>
+            <AutomationConnectionPicker
+              connectionId={diagnosticConnectionId}
+              schema="forward-api-connection"
+              _forceIsWorkflowGraphAction={false}
+              onChange={setDiagnosticConnectionId}
+            />
+          </label>
+          <Button
+            color="primary"
+            variant="accent"
+            disabled={!diagnosticConnectionId || connectionDiagnostic.isLoading}
+            onClick={() => {
+              void connectionDiagnostic.refetch();
+            }}
+          >
+            <Button.Prefix>
+              <SyncIcon />
+            </Button.Prefix>
+            Test connection
+          </Button>
+        </div>
+        {connectionDiagnostic.isLoading && (
+          <ProgressCircle aria-label="Testing Forward connection" />
+        )}
+        {connectionDiagnostic.data && (
+          <ResultBody
+            status={connectionDiagnostic.data.status}
+            summary={connectionDiagnostic.data.summary}
+            rows={[
+              { label: "Configuration", value: connectionDiagnostic.data.checks.configuration },
+              { label: "Credential Vault", value: connectionDiagnostic.data.checks.credentialVault },
+              { label: "Verified HTTPS", value: connectionDiagnostic.data.checks.verifiedHttps },
+              { label: "Authentication", value: connectionDiagnostic.data.checks.authentication },
+              { label: "Network access", value: connectionDiagnostic.data.checks.networkAccess },
+              { label: "Processed snapshot", value: connectionDiagnostic.data.checks.processedSnapshot },
+              { label: "Read Only pilot", value: connectionDiagnostic.data.checks.readOnlyPilot },
+              { label: "Forward profile", value: connectionDiagnostic.data.forwardAccessProfile || "not loaded" },
+              { label: "Checked", value: connectionDiagnostic.data.checkedAt },
+              { label: "Correlation", value: connectionDiagnostic.data.correlationId },
+            ]}
+            nextSteps={connectionDiagnostic.data.status === "ready"
+              ? [
+                  connectionDiagnostic.data.forwardAccessProfile === "read-only"
+                    ? "Continue with an on-demand operation: plan Workflow using current observed dependencies."
+                    : "Select or create a Read Only connection before sandbox acceptance.",
+                ]
+              : [
+                  `Reason: ${connectionDiagnostic.data.reasonCode || "unexpected-diagnostic-failure"}.`,
+                  `Use correlation ${connectionDiagnostic.data.correlationId} in Dynatrace app-function logs.`,
+                ]}
+          />
+        )}
+        {connectionDiagnostic.error && (
+          <Paragraph>
+            The diagnostic app function could not be invoked. Review Dynatrace function execution details and retry.
+          </Paragraph>
+        )}
+        <small className="diagnostic-boundary">
+          This check performs no Forward mutation and never returns a credential, authorization header,
+          network inventory, endpoint, or raw Forward response.
+        </small>
       </section>
 
       <section className={`source-banner ${isLiveSource ? "live" : "reference"}`} aria-label="Dynatrace data source">

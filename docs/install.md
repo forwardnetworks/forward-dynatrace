@@ -93,6 +93,11 @@ change the Forward API architecture or access model. See [application identities
 7. Begin with `operation: plan` and Read Only.
 8. Enable Network Admin apply only after approval ownership, mutation budgets, and post-change closeout are defined.
 
+Source version v0.13.5 adds **Forward Connection Diagnostic** to **Apps > Forward**. Select the saved connection and
+run **Test connection** to verify Vault resolution, verified HTTPS, authentication, network access, a processed
+snapshot, and Read Only pilot posture using GET requests only. Published v0.13.4 uses the first on-demand Read Only
+plan as the equivalent connection positive control.
+
 The app settings object, browser, and Workflow result never receive the Forward username or password. See Dynatrace's
 [Credential Vault guidance](https://developer.dynatrace.com/develop/guides/security/manage-secrets/).
 

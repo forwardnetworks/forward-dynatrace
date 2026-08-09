@@ -15,6 +15,7 @@ const MAX_UNCOMPRESSED_ARCHIVE_BYTES = 200 * 1_024 * 1_024;
 const MAX_ARCHIVE_ENTRIES = 500;
 const REQUIRED_MEMBERS = [
   "manifest.yaml",
+  "api/forward-connection-diagnostic.js",
   "api/dependency-discovery.js",
   "api/run-forward-nqe-evidence.js",
   "api/sync-forward-intent-checks.js",

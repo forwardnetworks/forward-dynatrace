@@ -99,21 +99,28 @@ traffic, and never substitute static, replayed, seeded, or payload-example rows.
 ## On-Demand NQE Acceptance
 
 Use a separate on-demand Workflow task with the `run-forward-nqe-evidence` action to prove the installed async NQE
-surface. Do not add a schedule. A Read Only connection can resume a server-issued execution key whose original
-submission already enforced the query approval; it cannot submit arbitrary query text. Store the execution key only in
-protected operator state and configure this request through the action widget:
+surface. Do not add a schedule. A Read Only connection can submit only a committed Forward Library query ID on that
+connection's explicit allowlist; it cannot submit arbitrary query text. Configure the first acceptance through the
+action widget with a reviewed Library query and the smallest useful row bound:
 
 ```json
 {
   "forwardAccessProfile": "read-only",
-  "executionKey": "X_<server-issued-execution-key>",
+  "templateId": "approved-library-query",
+  "queryId": "FQ_<approved-library-query-id>",
+  "parameters": {},
   "maxRows": 1
 }
 ```
 
-Require Workflow and task `SUCCESS`, `status: ready`, `query.kind: resumed`, `query.resumed: true`, bounded row counts,
-and the sanitized-evidence disclaimer. Retain only aggregate counts and Workflow/execution IDs. A direct Platform-token
-function call is not equivalent because it may lack the action's Workflow credential scope.
+Require Workflow and task `SUCCESS`, `status: ready`, `forwardAccessProfile: read-only`, `query.kind: library`, a
+one-row maximum, bounded returned-row counts, and the sanitized-evidence disclaimer. Retain only aggregate counts and
+Workflow/execution IDs. A direct Platform-token function call is not equivalent because it may lack the action's
+Workflow credential scope.
+
+The action can also resume a server-issued async execution key whose original submission already enforced query
+approval. Store that key only in protected operator state and supply `executionKey` instead of `queryId`; never combine
+resume input with query text or a query ID.
 
 ## Synthetic Write Rehearsal
 

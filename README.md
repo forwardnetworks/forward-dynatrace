@@ -11,6 +11,10 @@ after a change while Dynatrace and Forward remain authoritative for their respec
 
 > **Release channel:** `0.13.4` enterprise preview for controlled evaluation and non-production use. The release is
 > delivered as one immutable Dynatrace app archive with checksums, an SBOM, and GitHub attestations.
+>
+> **Verified development candidate:** `0.13.6` passed the full repository CI suite and a repeated on-demand Read Only
+> Library NQE Workflow in the internal Dynatrace test tenant. This is product validation, not customer-environment or
+> live application-flow acceptance.
 
 ![Forward for Dynatrace application overview](docs/assets/screenshots/dynatrace-app-overview.png)
 
@@ -158,6 +162,12 @@ The app does not provide a certificate-verification bypass. See the
 [installation limitations](docs/install.md#on-premises-and-lab-forward-apis).
 
 The [enterprise evaluation guide](docs/evaluation-guide.md) provides a complete click-by-click acceptance sequence.
+The [sandbox enablement runbook](docs/sandbox-enablement-runbook.md) is the customer-neutral operator handoff with
+Credential Vault, current-flow DQL, staged Read Only Workflow, NQE smoke, and zero-mutation checks.
+For tenants that already monitor Azure in both products, use the
+[Azure Smartscape pilot runbook](docs/azure-smartscape-pilot.md) to isolate an Azure-only Forward workspace, review
+Smartscape mapping evidence, configure Credential Vault, and run a Read Only plan without treating topology edges as
+observed application flows.
 
 ## Operate
 
