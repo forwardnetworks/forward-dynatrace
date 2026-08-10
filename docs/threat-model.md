@@ -4,7 +4,7 @@
 | --- | --- |
 | Credential exposure to settings, UI, or logs | APP_ENGINE-scoped Credential Vault entry; settings store only the entity ID; backend-only resolution; sanitized errors and output. |
 | Target substitution from browser data | URL, network, and profile come from the selected connection; request profile must match. |
-| Server-side request forgery | HTTPS-only URL ending `/api`, tenant external-request allowlist, no credentials in URL. |
+| Server-side request forgery | HTTPS-only tenant origin normalized internally to `/api`, no arbitrary path, tenant external-request allowlist, and no credentials in URL. |
 | Unauthorized mutation | Read Only and Network Operator are plan-only; Network Admin requires exact plan approval. `engine-approval` additionally requires protected Workflow approval context, engine outcome and nonce, and bounded freshness. |
 | Stale or replayed approval | Digest binds current snapshot, profile, source-key tuples, path-evidence rows, budgets, and payload fingerprints. Engine approval also binds the engine-carried original plan and rejects it after 15 minutes. Compatibility `digest` mode remains replayable authorization by possession if state later returns to the same plan. |
 | Check takeover by name | Complete managed ownership tuple required; collisions fail closed. |

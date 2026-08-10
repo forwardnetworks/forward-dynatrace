@@ -1,6 +1,6 @@
 {
   "name": "forward-dynatrace",
-  "version": "0.13.6",
+  "version": "0.13.7",
   "type": "module",
   "description": "Forward for Dynatrace application dependency and modeled network assurance",
   "scripts": {

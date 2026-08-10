@@ -2,7 +2,7 @@
   "$schema": "https://developer.dynatrace.com/docs-assets/schema_strict_apps.json",
   "dynatrace": "1",
   "schemaId": "forward-api-connection",
-  "version": "3.0.1",
+  "version": "3.1.0",
   "summaryPattern": "{name}",
   "displayName": "Forward API connection",
   "description": "Tenant-managed Forward API connection used only by the app backend",
@@ -41,8 +41,8 @@
       "default": ""
     },
     "baseUrl": {
-      "displayName": "Forward API URL",
-      "description": "Forward tenant API URL ending in /api",
+      "displayName": "Forward URL",
+      "description": "Normal Forward tenant URL, such as https://fwd.app. The app adds /api internally; existing values ending in /api remain supported.",
       "type": "text",
       "subType": "url",
       "nullable": false,
@@ -55,11 +55,11 @@
         },
         {
           "type": "PATTERN",
-          "customMessage": "URL must use HTTPS and end in /api",
-          "pattern": "^https://[^?#]+/api/?$"
+          "customMessage": "Enter an HTTPS Forward URL without a path; an existing /api suffix is also accepted",
+          "pattern": "^https://(?:\\[[0-9A-Fa-f:.]+\\]|[^/?#:@]+)(?::[0-9]{1,5})?(?:/api)?/?$"
         }
       ],
-      "default": "https://fwd.app/api"
+      "default": "https://fwd.app"
     },
     "networkId": {
       "displayName": "Forward network ID",

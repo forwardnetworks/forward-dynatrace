@@ -88,8 +88,9 @@ change the Forward API architecture or access model. See [application identities
 4. Create a reviewed **Dependency discovery profile**. Choose **Distributed traces** or **OneAgent network flows**, then
    use the matching template and canonical fields in [dependency discovery](dependency-discovery.md).
 5. In Workflow, add **Synchronize Forward intent checks**.
-6. Create a **Forward API connection** with the HTTPS `/api` URL, exact network ID, Credential Vault entity ID,
-   declared access profile, and optional allowlisted Forward Library query IDs.
+6. Create a **Forward API connection** with the normal HTTPS Forward tenant URL, exact network ID, Credential Vault
+   entity ID, declared access profile, and optional allowlisted Forward Library query IDs. The app adds `/api`
+   internally; existing saved `/api` values remain supported.
 7. Begin with `operation: plan` and Read Only.
 8. Enable Network Admin apply only after approval ownership, mutation budgets, and post-change closeout are defined.
 
@@ -110,7 +111,8 @@ configuration UI could resolve the Vault entry in an app function, list accessib
 return only sanitized network labels and IDs, and then save the selected ID; the browser must never receive the
 credential.
 
-Forward API URLs must use HTTPS, and certificate verification cannot be disabled per connection. The app does not
+Forward URLs must use HTTPS and contain no path; the app normalizes the tenant origin to its `/api` root. Legacy saved
+values that already end in `/api` remain valid. Certificate verification cannot be disabled per connection. The app does not
 support `http:`, a `verifyTls: false` setting, `NODE_TLS_REJECT_UNAUTHORIZED`, or a browser-supplied CA bundle. A direct
 endpoint must present a certificate chain trusted by the Dynatrace runtime. When the Forward API is private or uses an
 internal CA, route it through EdgeConnect and configure the CA certificate in EdgeConnect's `certificate_paths`; TLS

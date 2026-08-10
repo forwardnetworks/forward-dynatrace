@@ -58,5 +58,6 @@
 - [Release process](release.md)
 - [Release provenance](release-provenance.md)
 - [Release communication](release-communication.md)
+- [v0.13.7 release notes](releases/v0.13.7.md)
 - [Validation matrix](validation-matrix.md)
 - [Collaboration guide](collaboration.md)

@@ -201,12 +201,12 @@ const connectionSchema = JSON.parse(
     nullable?: boolean;
     default?: string;
     forceSecretResubmission?: boolean;
-    constraints?: Array<{ type?: string }>;
+    constraints?: Array<{ type?: string; pattern?: string }>;
   }>;
   schemaConstraints?: Array<{ type?: string }>;
 };
 if (connectionSchema.schemaId !== "forward-api-connection") fail("Forward connection schema ID is invalid.");
-if (connectionSchema.version !== "3.0.1") fail("Forward connection schema must use the installable Credential Vault v3 contract.");
+if (connectionSchema.version !== "3.1.0") fail("Forward connection schema must use the origin-normalizing Credential Vault v3.1 contract.");
 if (connectionSchema.properties?.credentialVaultId?.type !== "text") {
   fail("Forward connection must reference a Dynatrace Credential Vault entry.");
 }
@@ -236,8 +236,34 @@ if (
 ) {
   fail("Forward connection arbitrary-query digest allowlist must remain optional and nullable.");
 }
-if (connectionSchema.properties?.baseUrl?.default !== "https://fwd.app/api") {
-  fail("Forward API connection must default to the public Forward API root.");
+if (connectionSchema.properties?.baseUrl?.default !== "https://fwd.app") {
+  fail("Forward connection must default to the normal public Forward tenant URL.");
+}
+const forwardUrlPattern = connectionSchema.properties?.baseUrl?.constraints?.find(
+  (constraint) => constraint.type === "PATTERN",
+)?.pattern;
+if (!forwardUrlPattern) {
+  fail("Forward connection must declare an HTTPS tenant-origin pattern.");
+} else {
+  const pattern = new RegExp(forwardUrlPattern, "u");
+  for (const accepted of [
+    "https://fwd.app",
+    "https://fwd.app/",
+    "https://forward.example.com:8443",
+    "https://forward.example.com/api",
+    "https://[2001:db8::1]:8443/api/",
+  ]) {
+    if (!pattern.test(accepted)) fail(`Forward connection URL pattern rejected supported value: ${accepted}`);
+  }
+  for (const rejected of [
+    "http://fwd.app",
+    "https://user@fwd.app",
+    "https://fwd.app/console",
+    "https://fwd.app/api/v1",
+    "https://fwd.app?query=value",
+  ]) {
+    if (pattern.test(rejected)) fail(`Forward connection URL pattern accepted unsupported value: ${rejected}`);
+  }
 }
 
 const discoverySchema = JSON.parse(

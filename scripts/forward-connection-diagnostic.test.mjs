@@ -10,7 +10,7 @@ const connection = (profile = "read-only") => ({
   schemaId: "forward-api-connection",
   value: {
     name: "Sandbox Read Only",
-    baseUrl: "https://forward.example.com/api",
+    baseUrl: "https://forward.example.com",
     networkId: "protected-network-id",
     credentialVaultId: "CREDENTIALS_VAULT-0000000000000001",
     forwardAccessProfile: profile,

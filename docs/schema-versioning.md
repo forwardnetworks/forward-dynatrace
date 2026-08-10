@@ -16,7 +16,9 @@ the field is absent. Version `3.0.0` removes raw username/password properties an
 `CREDENTIALS_VAULT-*` reference to an APP_ENGINE-scoped username/password entry. It is a deliberate breaking
 migration: administrators recreate or update the object with the Vault entity ID; the app never reads or copies an
 old plaintext setting. Version `3.0.1` removes obsolete inline-secret resubmission metadata from that Vault-reference
-contract so current Dynatrace tenants can register it without requiring a nonexistent secret property.
+contract so current Dynatrace tenants can register it without requiring a nonexistent secret property. Version
+`3.1.0` changes the operator-facing URL default to the normal Forward tenant origin and accepts either that origin or
+the legacy `/api` form; both normalize to the same backend API root, so existing v3 objects remain valid.
 
 Schema `dependency-discovery-profile` version `2.0.0` adds the required source contract. Every profile explicitly
 declares `distributed-traces` or `network-flows`, and its DQL is validated against that source before execution.

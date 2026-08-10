@@ -74,7 +74,7 @@ Under **Settings > Apps > Forward API connection**, create a connection with:
 | Setting | Value |
 | --- | --- |
 | Connection name | Stable Azure pilot label |
-| Forward API base URL | Exact HTTPS URL ending in `/api` |
+| Forward URL | Normal HTTPS tenant URL without a path; the app adds `/api` internally |
 | Network ID | Azure child workspace ID from step 1 |
 | Credential Vault ID | Entity ID from step 3 |
 | Forward access profile | `Read Only` |

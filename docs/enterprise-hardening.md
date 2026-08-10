@@ -4,7 +4,7 @@
 
 - one Dynatrace app and no external installable;
 - tenant-managed secret Forward connections;
-- strict HTTPS `/api` target validation and tenant outbound allowlist;
+- strict HTTPS tenant-origin validation, internal `/api` normalization, and tenant outbound allowlist;
 - three explicit Forward access profiles;
 - immutable plan digest and exact changed-key approval;
 - managed ownership tuple, collision rejection, budgets, batching, retries, timeout, and response cap;

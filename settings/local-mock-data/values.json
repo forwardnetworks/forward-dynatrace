@@ -3,7 +3,7 @@
     "schemaId": "forward-api-connection",
     "value": {
       "name": "Local Forward API",
-      "baseUrl": "https://forward.example.com/api",
+      "baseUrl": "https://forward.example.com",
       "networkId": "network-1",
       "credentialVaultId": "CREDENTIALS_VAULT-0000000000000001",
       "forwardAccessProfile": "read-only"

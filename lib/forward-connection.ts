@@ -101,15 +101,16 @@ const assertKnownKeys = (
 };
 
 export const validateForwardBaseUrl = (value: unknown): string => {
-  const url = new URL(requiredString(value, "Forward API URL", 2048));
-  if (url.protocol !== "https:") throw new Error("Forward API URL must use HTTPS.");
+  const url = new URL(requiredString(value, "Forward URL", 2048));
+  if (url.protocol !== "https:") throw new Error("Forward URL must use HTTPS.");
   if (url.username || url.password || url.search || url.hash) {
-    throw new Error("Forward API URL must not contain credentials, query parameters, or fragments.");
+    throw new Error("Forward URL must not contain credentials, query parameters, or fragments.");
   }
-  url.pathname = url.pathname.replace(/\/+$/u, "");
-  if (url.pathname !== "/api") {
-    throw new Error("Forward API URL must end with /api.");
+  const suppliedPath = url.pathname.replace(/\/+$/u, "");
+  if (suppliedPath !== "" && suppliedPath !== "/api") {
+    throw new Error("Forward URL must be an origin without a path; legacy URLs ending in /api are also accepted.");
   }
+  url.pathname = "/api";
   return url.toString().replace(/\/+$/u, "");
 };
 

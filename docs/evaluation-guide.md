@@ -100,7 +100,8 @@ identity is an acceptance finding, not a completed production control.
 
 1. Open **Settings > Apps > Forward API connection**.
 2. Click **New object**.
-3. Enter a connection name, the HTTPS Forward URL ending in `/api`, and the exact network ID.
+3. Enter a connection name, the normal HTTPS Forward tenant URL without a path, and the exact network ID. The app adds
+   `/api` internally; an existing saved value ending in `/api` remains valid.
 4. Enter the Credential Vault entity ID from the previous section.
 5. Select **Read Only**.
 6. Add only approved committed Library NQE query IDs when NQE evidence is in scope.

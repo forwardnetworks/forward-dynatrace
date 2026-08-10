@@ -10,8 +10,11 @@ The app uses documented Forward HTTPS APIs for:
 - bulk path search;
 - optional NQE execution. NQE execution uses the async `/networks/{networkId}/nqe-executions` workflow by default.
 
-The connection base URL ends at `/api`; action paths are relative to that root. The app validates generated
-`NewNetworkCheck[]` payloads before mutation and canonicalizes `/32` and `/128` endpoint forms during reconciliation.
+Operators enter the normal Forward HTTPS tenant origin, such as `https://fwd.app`. The connection validator adds
+`/api` internally before any client is created, and action paths are relative to that normalized API root. Existing
+saved values that already end in `/api` remain compatible and normalize to the same value. Any other URL path is
+rejected. The app validates generated `NewNetworkCheck[]` payloads before mutation and canonicalizes `/32` and `/128`
+endpoint forms during reconciliation.
 
 Each connection binds an operator-supplied exact network ID. Credential Vault supplies authentication only; v0.13.x
 does not enumerate accessible networks into the declarative settings form. All API requests require HTTPS with normal

@@ -1,6 +1,6 @@
 # Dynatrace Sandbox Enablement Runbook
 
-Published pilot baseline: **v0.13.4**. Source build: **v0.13.6**.
+Published pilot baseline: **v0.13.4**. Source build: **v0.13.7**.
 
 Use this customer-neutral runbook to enable Forward for Dynatrace in a non-production Dynatrace SaaS sandbox. Start
 with a dedicated Forward Read Only identity and an on-demand `operation: plan` Workflow. Do not add a schedule or use
@@ -13,7 +13,7 @@ Network Admin during initial acceptance.
 Obtain these values through the approved protected channel:
 
 - the verified Forward for Dynatrace app archive;
-- the exact Forward HTTPS API root ending in `/api`;
+- the normal Forward HTTPS tenant URL, such as `https://fwd.app`;
 - the Forward network ID for the isolated evaluation workspace;
 - a dedicated Forward Read Only token access key and secret;
 - confirmation that the workspace has a current `PROCESSED` snapshot; and
@@ -51,13 +51,14 @@ Under **Settings > Apps > Forward API connection**, add:
 | Field | Required value |
 | --- | --- |
 | Connection name | Stable sandbox label |
-| Forward API URL | Exact HTTPS URL ending in `/api` |
+| Forward URL | Normal HTTPS tenant URL without a path; the app adds `/api` internally |
 | Forward network ID | Isolated evaluation workspace ID |
 | Credential Vault ID | Complete `CREDENTIALS_VAULT-*` entity ID |
 | Forward access profile | **Read Only** |
 | Approved Library NQE IDs | Only reviewed `FQ_*` IDs needed for the NQE smoke |
 
-TLS verification must remain enabled. Private or internal-CA endpoints require EdgeConnect with the CA configured.
+Existing saved URLs ending in `/api` remain valid and normalize to the same internal API root. Do not enter any other
+path. TLS verification must remain enabled. Private or internal-CA endpoints require EdgeConnect with the CA configured.
 
 ## 5. Run The Non-Mutating Connection Diagnostic
 

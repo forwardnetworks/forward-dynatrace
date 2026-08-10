@@ -12,9 +12,10 @@ after a change while Dynatrace and Forward remain authoritative for their respec
 > **Release channel:** `0.13.4` enterprise preview for controlled evaluation and non-production use. The release is
 > delivered as one immutable Dynatrace app archive with checksums, an SBOM, and GitHub attestations.
 >
-> **Verified development candidate:** `0.13.6` passed the full repository CI suite and a repeated on-demand Read Only
-> Library NQE Workflow in the internal Dynatrace test tenant. This is product validation, not customer-environment or
-> live application-flow acceptance.
+> **Verified source candidate:** `0.13.7` passed the full repository CI, build, and release-package smoke suite. It
+> accepts the normal Forward tenant URL and adds `/api` internally while preserving existing saved `/api` connections.
+> The v0.13.6 Read Only Library NQE test remains the latest installed-tenant positive control; this is product
+> validation, not customer-environment or live application-flow acceptance.
 
 ![Forward for Dynatrace application overview](docs/assets/screenshots/dynatrace-app-overview.png)
 

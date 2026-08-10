@@ -38,7 +38,7 @@ const connection = (forwardAccessProfile = "read-only") => ({
   schemaId: "forward-api-connection",
   value: {
     name: "nonproduction",
-    baseUrl: "https://forward.example.com/api",
+    baseUrl: "https://forward.example.com",
     networkId: "network-1",
     credentialVaultId: "CREDENTIALS_VAULT-0000000000000001",
     forwardAccessProfile,
@@ -683,6 +683,24 @@ test("plan resolves host evidence and runs bounded modeled path preflight", asyn
 });
 
 test("connection and request validation fail closed", async () => {
+  assert.equal(
+    validateConnection(connection(), vaultCredential()).baseUrl,
+    "https://forward.example.com/api",
+  );
+  assert.equal(
+    validateConnection(
+      { ...connection(), value: { ...connection().value, baseUrl: "https://forward.example.com/api/" } },
+      vaultCredential(),
+    ).baseUrl,
+    "https://forward.example.com/api",
+  );
+  assert.equal(
+    validateConnection(
+      { ...connection(), value: { ...connection().value, baseUrl: "https://forward.example.com/" } },
+      vaultCredential(),
+    ).baseUrl,
+    "https://forward.example.com/api",
+  );
   assert.throws(
     () => validateConnection(
       { ...connection(), value: { ...connection().value, baseUrl: "http://forward.example.com/api" } },
@@ -692,10 +710,10 @@ test("connection and request validation fail closed", async () => {
   );
   assert.throws(
     () => validateConnection(
-      { ...connection(), value: { ...connection().value, baseUrl: "https://forward.example.com" } },
+      { ...connection(), value: { ...connection().value, baseUrl: "https://forward.example.com/console" } },
       vaultCredential(),
     ),
-    /must end with \/api/,
+    /must be an origin without a path/,
   );
   assert.throws(
     () => validateConnection(
