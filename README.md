@@ -12,10 +12,17 @@ after a change while Dynatrace and Forward remain authoritative for their respec
 > **Release channel:** `0.13.4` enterprise preview for controlled evaluation and non-production use. The release is
 > delivered as one immutable Dynatrace app archive with checksums, an SBOM, and GitHub attestations.
 >
-> **Verified source candidate:** `0.13.7` passed the full repository CI, build, and release-package smoke suite. It
-> accepts the normal Forward tenant URL and adds `/api` internally while preserving existing saved `/api` connections.
-> The v0.13.6 Read Only Library NQE test remains the latest installed-tenant positive control; this is product
-> validation, not customer-environment or live application-flow acceptance.
+> **Verified source candidate:** `0.13.8` installed on a Dynatrace trial tenant and passes repository validation, the
+> test suites, lint, the build, and the release-package smoke suite. The dependency audit step (`security:audit`)
+> currently fails on transitive advisories that are also present in the v0.13.7 lockfile, so full `npm run ci` is not
+> green. `0.13.8` accepts the normal Forward tenant URL and adds `/api` internally while preserving existing saved
+> `/api` connections. `0.13.7` is superseded: the Dynatrace settings service rejected its Forward URL pattern at
+> install time.
+>
+> On the trial tenant, an on-demand Read Only plan over 57 live dependencies resolved 57 of 57 hosts and found all 57
+> modeled paths reachable, with zero Forward mutations. A deliberate link failure in the lab changed that to 36
+> reachable and 21 blocked. See the [acceptance record](docs/acceptance/2026-10-15-v0.13.8-live-trace-plan.md). This
+> is product validation against a lab network, not customer-environment acceptance.
 
 ![Forward for Dynatrace application overview](docs/assets/screenshots/dynatrace-app-overview.png)
 

@@ -4,6 +4,8 @@ import { lstat, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { collectPatterns, greedyQuantifierInGroup } from "./dynatrace-regex-rules.ts";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const failures: string[] = [];
 const fail = (message: string): number => failures.push(message);
@@ -261,8 +263,28 @@ if (!forwardUrlPattern) {
     "https://fwd.app/console",
     "https://fwd.app/api/v1",
     "https://fwd.app?query=value",
+    "https://fwd.app#fragment",
+    "https://fwd.app/apix",
+    "https://",
   ]) {
     if (pattern.test(rejected)) fail(`Forward connection URL pattern accepted unsupported value: ${rejected}`);
+  }
+}
+
+const settingsSchemaFiles = (await readdir(path.join(root, "settings", "schemas")))
+  .filter((file) => file.endsWith(".schema.json"))
+  .sort();
+if (settingsSchemaFiles.length === 0) fail("No settings schemas were found to check for Dynatrace regex rules.");
+for (const schemaFile of settingsSchemaFiles) {
+  const schemaJson: unknown = JSON.parse(await readText(`settings/schemas/${schemaFile}`));
+  for (const pattern of collectPatterns(schemaJson)) {
+    const quantifier = greedyQuantifierInGroup(pattern);
+    if (quantifier !== undefined) {
+      fail(
+        `Settings schema ${schemaFile} has a greedy quantifier ${quantifier} inside a regex group, which the Dynatrace ` +
+          `settings service rejects at install time. Use a lazy quantifier or remove the group: ${pattern}`,
+      );
+    }
   }
 }
 

@@ -56,7 +56,7 @@
         {
           "type": "PATTERN",
           "customMessage": "Enter an HTTPS Forward URL without a path; an existing /api suffix is also accepted",
-          "pattern": "^https://(?:\\[[0-9A-Fa-f:.]+\\]|[^/?#:@]+)(?::[0-9]{1,5})?(?:/api)?/?$"
+          "pattern": "^https://[^/?#@]+?/api/?$|^https://[^/?#@]+?/?$"
         }
       ],
       "default": "https://fwd.app"

@@ -1,6 +1,6 @@
 # Dynatrace Sandbox Enablement Runbook
 
-Published pilot baseline: **v0.13.4**. Source build: **v0.13.7**.
+Published pilot baseline: **v0.13.4**. Source build: **v0.13.8**.
 
 Use this customer-neutral runbook to enable Forward for Dynatrace in a non-production Dynatrace SaaS sandbox. Start
 with a dedicated Forward Read Only identity and an on-demand `operation: plan` Workflow. Do not add a schedule or use
